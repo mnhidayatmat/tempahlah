@@ -6,47 +6,58 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? config('app.name') }}</title>
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
-    <header class="bg-white border-b border-slate-200">
-        <div class="container mx-auto flex items-center justify-between px-4 py-3">
-            <a href="{{ url('/') }}" class="font-semibold text-sky-600">{{ config('app.name') }}</a>
-            <nav class="flex items-center gap-3 text-sm">
-                <div class="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
-                    @php $current = app()->getLocale(); @endphp
-                    <a href="{{ route('locale.switch', 'ms') }}"
-                       class="px-2.5 py-1 rounded {{ $current === 'ms' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-900' }}"
-                       aria-label="Bahasa Melayu" title="Bahasa Melayu">BM</a>
-                    <a href="{{ route('locale.switch', 'en') }}"
-                       class="px-2.5 py-1 rounded {{ $current === 'en' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-900' }}"
-                       aria-label="English" title="English">EN</a>
-                </div>
-                @auth
-                    <span class="text-slate-600">{{ auth()->user()->name }}</span>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="text-slate-600 hover:text-slate-900">{{ __('Logout') }}</button>
-                    </form>
-                @else
-                    <a href="{{ route('login') }}" class="text-slate-600 hover:text-slate-900">{{ __('Login') }}</a>
-                    <a href="{{ route('register') }}" class="rounded-md bg-sky-600 text-white px-3 py-1.5 hover:bg-sky-700">{{ __('Sign up') }}</a>
-                @endauth
-            </nav>
-        </div>
-    </header>
-
-    <main class="container mx-auto px-4 py-8">
-        @if (session('status'))
-            <div class="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-3 text-green-800">
-                {{ session('status') }}
+<body class="antialiased" style="background: var(--bg); color: var(--ink);">
+    @auth
+        @php
+            $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
+            $plan = $tenant?->subscription?->plan ?? 'free';
+        @endphp
+        <div style="display:flex; height:100vh; overflow:hidden;">
+            @include('partials.sidebar', ['plan' => $plan, 'tenant' => $tenant])
+            <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+                @include('partials.topbar', ['title' => $title ?? null])
+                <main style="flex:1; overflow-y:auto; padding: 20px 28px 40px;">
+                    @if (session('status'))
+                        <div class="hauz-card" style="padding:12px 16px; margin-bottom:16px; background: var(--ok-tint); border-color: var(--ok); color: var(--ok);">
+                            {{ session('status') }}
+                        </div>
+                    @endif
+                    {{ $slot ?? '' }}
+                    @yield('content')
+                </main>
             </div>
-        @endif
-
-        {{ $slot ?? '' }}
-        @yield('content')
-    </main>
+        </div>
+    @else
+        {{-- Public / auth pages keep simple chrome --}}
+        <header style="background: var(--bg-elev); border-bottom: .5px solid var(--line);">
+            <div class="container mx-auto" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px;">
+                <a href="{{ url('/') }}" style="font-weight:600; color: var(--primary); text-decoration:none;">
+                    {{ config('app.name') }}
+                </a>
+                <nav style="display:flex; align-items:center; gap:12px; font-size:13px;">
+                    @php $current = app()->getLocale(); @endphp
+                    <div style="display:inline-flex; border:.5px solid var(--line-2); border-radius:6px; padding:2px; background: var(--bg-sunk);">
+                        <a href="{{ route('locale.switch', 'ms') }}"
+                           style="padding:4px 10px; border-radius:4px; font-size:11px; font-weight:500; text-decoration:none; {{ $current === 'ms' ? 'background:var(--bg-elev); color:var(--primary); box-shadow:var(--sh-1);' : 'color:var(--ink-3);' }}">BM</a>
+                        <a href="{{ route('locale.switch', 'en') }}"
+                           style="padding:4px 10px; border-radius:4px; font-size:11px; font-weight:500; text-decoration:none; {{ $current === 'en' ? 'background:var(--bg-elev); color:var(--primary); box-shadow:var(--sh-1);' : 'color:var(--ink-3);' }}">EN</a>
+                    </div>
+                    <a href="{{ route('login') }}" style="color:var(--ink-2); text-decoration:none;">{{ __('Login') }}</a>
+                    <a href="{{ route('register') }}" class="btn btn-primary btn-sm">{{ __('Sign up') }}</a>
+                </nav>
+            </div>
+        </header>
+        <main class="container mx-auto" style="padding: 32px 16px;">
+            {{ $slot ?? '' }}
+            @yield('content')
+        </main>
+    @endauth
 
     @livewireScripts
     @stack('scripts')

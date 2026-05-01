@@ -5,7 +5,81 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* Hauz design tokens — coexist with Tailwind utilities */
+@layer base {
+  :root {
+    --bg: oklch(98.4% 0.006 80);
+    --bg-elev: oklch(99.5% 0.004 80);
+    --bg-sunk: oklch(96.6% 0.008 80);
+    --bg-tint: oklch(94.5% 0.012 80);
+
+    --ink: oklch(22% 0.012 60);
+    --ink-2: oklch(40% 0.012 60);
+    --ink-3: oklch(58% 0.010 60);
+    --ink-4: oklch(72% 0.008 60);
+
+    --line: oklch(90% 0.008 70);
+    --line-2: oklch(85% 0.010 70);
+
+    --primary: oklch(38% 0.06 155);
+    --primary-ink: oklch(96% 0.02 150);
+    --primary-tint: oklch(94% 0.03 155);
+
+    --accent: oklch(62% 0.13 45);
+    --accent-tint: oklch(94% 0.04 45);
+
+    --ok: oklch(55% 0.10 155);
+    --warn: oklch(72% 0.13 75);
+    --err: oklch(58% 0.16 25);
+    --info: oklch(58% 0.10 235);
+    --ok-tint: oklch(94% 0.03 155);
+    --warn-tint: oklch(95% 0.04 75);
+    --err-tint: oklch(95% 0.03 25);
+    --info-tint: oklch(95% 0.025 235);
+    --pro: oklch(45% 0.10 60);
+    --pro-tint: oklch(94% 0.04 60);
+
+    --font-display: "Instrument Serif", "Times New Roman", serif;
+    --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+    --sh-1: 0 1px 0 rgba(40,30,10,.04), 0 1px 2px rgba(40,30,10,.04);
+    --sh-2: 0 1px 0 rgba(40,30,10,.04), 0 8px 24px -8px rgba(40,30,10,.10);
+  }
+
+  body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); }
 }
+
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Imported via @vite — but if not, also import in layout via Google Fonts */
+
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.serif { font-family: var(--font-display); }
+.tnum { font-variant-numeric: tabular-nums; }
+.kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 36px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font-size: 13px; font-weight: 500; transition: background 120ms; cursor: pointer; }
+.btn:hover { background: var(--bg-tint); }
+.btn-primary { background: var(--primary); color: var(--primary-ink); border-color: transparent; }
+.btn-primary:hover { background: oklch(34% 0.06 155); }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn-ghost { background: transparent; border-color: transparent; }
+
+.hauz-card { background: var(--bg-elev); border: .5px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; background: var(--bg-tint); color: var(--ink-2); white-space: nowrap; }
+.pill-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.pill-ok { background: var(--ok-tint); color: var(--ok); }
+.pill-warn { background: var(--warn-tint); color: oklch(45% 0.13 75); }
+.pill-err { background: var(--err-tint); color: var(--err); }
+.pill-info { background: var(--info-tint); color: var(--info); }
+.pill-pro { background: var(--pro-tint); color: var(--pro); }
+.pill-primary { background: var(--primary-tint); color: var(--primary); }
+
+.display-1 { font-family: var(--font-display); font-size: 56px; line-height: 1.02; letter-spacing: -.02em; font-weight: 400; }
+.display-2 { font-family: var(--font-display); font-size: 40px; line-height: 1.05; letter-spacing: -.02em; font-weight: 400; }
+.display-3 { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-weight: 400; }

@@ -4,6 +4,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GuestOtpController;
 use App\Http\Controllers\Auth\TenantRegisterController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Tenant\BookingController;
+use App\Http\Controllers\Tenant\CalendarController;
+use App\Http\Controllers\Tenant\DashboardController;
+use App\Http\Controllers\Tenant\IntegrationController;
+use App\Http\Controllers\Tenant\PropertyController;
+use App\Http\Controllers\Tenant\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
@@ -52,25 +58,23 @@ Route::prefix('marketplace')->name('marketplace.')->middleware('throttle:marketp
 
 // Tenant dashboard (auth + tenant context required)
 Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant.')->group(function () {
-    Route::get('/', function () {
-        return view('tenant.dashboard');
-    })->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/properties', function () {
-        return view('tenant.properties.index');
-    })->name('properties.index');
-
-    Route::get('/properties/create', function () {
-        return view('tenant.properties.create');
-    })->name('properties.create');
-
+    Route::get('/properties',           [PropertyController::class, 'index'])->name('properties.index');
+    Route::get('/properties/create',    [PropertyController::class, 'create'])->name('properties.create');
+    Route::post('/properties',          [PropertyController::class, 'store'])->name('properties.store');
+    Route::get('/properties/{id}',      [PropertyController::class, 'show'])->name('properties.show');
     Route::get('/properties/{property:public_id}/edit', function (\App\Models\Property $property) {
         return view('tenant.properties.edit', compact('property'));
     })->name('properties.edit');
 
-    Route::get('/subscription', function () {
-        return view('tenant.subscription');
-    })->name('subscription');
+    Route::get('/calendar',             [CalendarController::class, 'index'])->name('calendar');
+
+    Route::get('/bookings',             [BookingController::class, 'index'])->name('bookings.index');
+    Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show');
+
+    Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
+    Route::get('/integrations',         [IntegrationController::class, 'index'])->name('integrations');
 });
 
 require __DIR__.'/auth-extra.php';
