@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\HasUlidPublicId;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Property extends Model
+{
+    use BelongsToTenant;
+    use HasFactory;
+    use HasUlidPublicId;
+    use SoftDeletes;
+
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_ARCHIVED = 'archived';
+
+    protected $fillable = [
+        'tenant_id', 'public_id', 'name', 'slug',
+        'description_bm', 'description_en',
+        'property_type', 'star_rating',
+        'address_line1', 'address_line2', 'city', 'state', 'postcode', 'country',
+        'lat', 'lng',
+        'check_in_time', 'check_out_time',
+        'house_rules', 'cancellation_policy',
+        'hero_photo_path', 'status', 'marketplace_enabled', 'marketplace_published_at',
+        'custom_domain', 'meta',
+    ];
+
+    protected $casts = [
+        'marketplace_enabled' => 'boolean',
+        'marketplace_published_at' => 'datetime',
+        'lat' => 'decimal:7',
+        'lng' => 'decimal:7',
+        'meta' => 'array',
+    ];
+
+    public function rooms(): HasMany
+    {
+        return $this->hasMany(Room::class);
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(PropertyPhoto::class)->orderBy('sort_order');
+    }
+
+    public function amenities(): BelongsToMany
+    {
+        return $this->belongsToMany(Amenity::class, 'property_amenity');
+    }
+
+    public function pricingRules(): HasMany
+    {
+        return $this->hasMany(PricingRule::class);
+    }
+
+    public function calendarBlocks(): HasMany
+    {
+        return $this->hasMany(CalendarBlock::class);
+    }
+
+    public function isOnMarketplace(): bool
+    {
+        return $this->marketplace_enabled
+            && $this->status === self::STATUS_ACTIVE
+            && $this->marketplace_published_at !== null;
+    }
+}
