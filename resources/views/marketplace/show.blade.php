@@ -47,10 +47,26 @@
 
         <aside class="bg-white rounded-lg shadow border border-slate-200 p-6 h-fit sticky top-4">
             <h3 class="font-semibold mb-3">{{ __('Book your stay') }}</h3>
-            <p class="text-sm text-slate-600 mb-3">{{ __('Continue to booking — you will need to verify your phone with OTP.') }}</p>
-            <a href="#" class="block w-full text-center rounded-md bg-sky-600 text-white py-2.5 font-medium hover:bg-sky-700">
-                {{ __('Reserve') }}
-            </a>
+            <p class="text-sm text-slate-600 mb-3">{{ __('Direct bookings open soon. In the meantime, contact the host directly to reserve.') }}</p>
+            @php
+                $contactPhone = preg_replace('/\D/', '', $listing->property->business_phone ?? '');
+                $whatsappMessage = urlencode(__("Hi! I'm interested in :name. Is it available?", ['name' => $listing->title_bm]));
+            @endphp
+            @if ($contactPhone)
+                <a href="https://wa.me/{{ $contactPhone }}?text={{ $whatsappMessage }}"
+                   target="_blank" rel="noopener"
+                   class="block w-full text-center rounded-md bg-emerald-600 text-white py-2.5 font-medium hover:bg-emerald-700">
+                    💬 {{ __('Chat on WhatsApp') }}
+                </a>
+            @else
+                <a href="{{ route('register') }}"
+                   class="block w-full text-center rounded-md bg-sky-600 text-white py-2.5 font-medium hover:bg-sky-700">
+                    {{ __('Sign in to enquire') }}
+                </a>
+            @endif
+            <p class="text-xs text-slate-500 mt-3">
+                {{ __('Self-serve OTP booking + Toyyibpay deposit launches with v1.5 — coming soon.') }}
+            </p>
         </aside>
     </div>
 </article>

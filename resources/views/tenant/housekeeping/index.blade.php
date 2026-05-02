@@ -40,12 +40,21 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-sm">{{ __("Print today's run sheet") }}</button>
-                <button type="button" class="btn btn-primary btn-sm">
-                    <x-icon name="plus" :size="13"/> {{ __('New task') }}
-                </button>
+                <a href="{{ route('tenant.housekeeping.print') }}" target="_blank" rel="noopener" class="btn btn-sm">{{ __("Print today's run sheet") }}</a>
             </div>
         </div>
+
+        @if (session('status'))
+            <div class="hauz-card" style="padding: 12px 16px; border-color: var(--ok); background: var(--ok-tint); color: var(--ok); font-size: 13px;">
+                {{ session('status') }}
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="hauz-card" style="padding: 12px 16px; border-color: var(--err); background: var(--err-tint); color: var(--err); font-size: 13px;">
+                <ul style="margin:0; padding-left: 18px;">@foreach ($errors->all() as $msg)<li>{{ $msg }}</li>@endforeach</ul>
+            </div>
+        @endif
 
         {{-- Tabs --}}
         <div style="display:flex; gap: 2px; border-bottom: .5px solid var(--line);">
@@ -89,6 +98,46 @@
                         </div>
                     @endforeach
                 </div>
+
+                {{-- Inline new-cleaning-task form --}}
+                <details class="hauz-card" style="padding: 0; overflow: hidden;">
+                    <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
+                        <x-icon name="plus" :size="13"/> {{ __('Schedule a new cleaning task') }}
+                    </summary>
+                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.store') }}" style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        @csrf
+                        <div style="grid-column: span 2;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                            <select name="property_id" class="input" required>
+                                <option value="">—</option>
+                                @foreach ($properties as $p)
+                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Type') }} *</label>
+                            <select name="type" class="input" required>
+                                <option value="full">{{ __('Full turnover') }}</option>
+                                <option value="light">{{ __('Light refresh') }}</option>
+                                <option value="deep">{{ __('Deep clean') }}</option>
+                                <option value="pool">{{ __('Pool / outdoor') }}</option>
+                                <option value="post_event">{{ __('Post-event') }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Scheduled at') }} *</label>
+                            <input type="datetime-local" name="scheduled_at" class="input" required>
+                        </div>
+                        <div style="grid-column: span 4;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
+                            <input type="text" name="notes" class="input" maxlength="500" placeholder="{{ __('Optional handoff notes for the cleaner') }}">
+                        </div>
+                        <div style="grid-column: span 4; text-align: right;">
+                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Schedule task') }}</button>
+                        </div>
+                    </form>
+                </details>
 
                 {{-- Today --}}
                 <div>
@@ -222,13 +271,52 @@
                     @endforeach
                 </div>
 
+                {{-- Inline log-laundry-batch form --}}
+                <details class="hauz-card" style="padding: 0; overflow: hidden;">
+                    <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
+                        <x-icon name="plus" :size="13"/> {{ __('Log a new laundry batch') }}
+                    </summary>
+                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.store') }}" style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        @csrf
+                        <div style="grid-column: span 2;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                            <select name="property_id" class="input" required>
+                                <option value="">—</option>
+                                @foreach ($properties as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
+                            <input type="text" name="vendor_name" class="input" maxlength="120" placeholder="{{ __('e.g. Dobi Mesra') }}">
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Item count') }} *</label>
+                            <input type="number" name="item_count" class="input" min="1" max="9999" required>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>
+                            <input type="datetime-local" name="pickup_at" class="input" required>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
+                            <input type="datetime-local" name="expected_return_at" class="input">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
+                            <input type="text" name="notes" class="input" maxlength="500">
+                        </div>
+                        <div style="grid-column: span 4; text-align: right;">
+                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Log batch') }}</button>
+                        </div>
+                    </form>
+                </details>
+
                 <div>
                     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 12px;">
                         <div>
                             <div style="font-size: 14px; font-weight: 600;">{{ __('Active laundry batches') }}</div>
                             <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Tracking pickup → wash → return per property') }}</div>
                         </div>
-                        <button type="button" class="btn btn-sm"><x-icon name="plus" :size="12"/> {{ __('Log batch') }}</button>
                     </div>
                     <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
                         @forelse ($laundry as $i => $l)

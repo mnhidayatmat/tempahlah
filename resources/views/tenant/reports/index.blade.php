@@ -22,8 +22,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-sm">{{ __('Last 12 months') }} ▾</button>
-                <button type="button" class="btn btn-sm">{{ __('Export PDF') }}</button>
+                <a href="{{ route('tenant.reports.export-pdf') }}" class="btn btn-sm">{{ __('Export PDF') }}</a>
             </div>
         </div>
 

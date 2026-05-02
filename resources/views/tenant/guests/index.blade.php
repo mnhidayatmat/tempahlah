@@ -98,9 +98,16 @@
                                 </div>
                             </td>
                             <td style="padding: 12px 14px; text-align: right;">
-                                <button type="button" class="btn btn-sm btn-ghost" style="color: var(--ink-3);" aria-label="{{ __('Message') }}">
-                                    <x-icon name="message" :size="13"/>
-                                </button>
+                                @php $waNumber = preg_replace('/\D/', '', $g->phone ?? ''); @endphp
+                                @if ($waNumber)
+                                    <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-ghost" style="color: var(--ink-3);"
+                                       aria-label="{{ __('WhatsApp :name', ['name' => $g->name]) }}">
+                                        <x-icon name="message" :size="13"/>
+                                    </a>
+                                @else
+                                    <span style="font-size: 11px; color: var(--ink-4);">—</span>
+                                @endif
                             </td>
                         </tr>
                     @empty

@@ -54,10 +54,6 @@
 
             <div style="flex:1;"></div>
 
-            <button type="button" class="btn btn-sm">
-                <x-icon name="filter" :size="12"/> {{ __('Filter') }}
-            </button>
-
             <div style="display:flex; border:.5px solid var(--line-2); border-radius: var(--r-md); overflow:hidden;">
                 <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'start' => $prevStart]) }}"
                    class="btn btn-sm" style="border-radius:0; border:0; background: var(--bg-elev);" aria-label="{{ __('Previous range') }}">

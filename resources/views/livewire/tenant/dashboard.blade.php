@@ -65,7 +65,7 @@
                         {{ __('Next 14 days') }}
                     </div>
                 </div>
-                <a href="#" class="btn btn-sm">{{ __('View all') }} →</a>
+                <a href="{{ route('tenant.bookings.index') }}" class="btn btn-sm">{{ __('View all') }} →</a>
             </div>
 
             @if ($upcoming->isEmpty())
@@ -75,24 +75,26 @@
             @else
                 <div style="display:flex; flex-direction:column;">
                     @foreach ($upcoming as $b)
-                        <div style="display:flex; align-items:center; gap: 12px; padding: 10px 0; border-bottom: .5px solid var(--line);">
-                            <x-avatar :name="$b->guest_name ?? 'Guest'" :size="32"/>
+                        @php
+                            $ps = $b->payment_state;
+                            $variant = $ps === 'paid' ? 'ok' : ($ps === 'deposit' ? 'warn' : 'err');
+                            $psLabel = ['paid' => __('Paid'), 'deposit' => __('Deposit'), 'unpaid' => __('Unpaid')][$ps];
+                        @endphp
+                        <a href="{{ route('tenant.bookings.show', ['id' => $b->public_id ?? $b->id]) }}"
+                           style="display:flex; align-items:center; gap: 12px; padding: 10px 0; border-bottom: .5px solid var(--line); text-decoration:none; color: inherit;">
+                            <x-avatar :name="$b->guest_display_name" :size="32"/>
                             <div style="flex:1; min-width:0;">
-                                <div style="font-size: 13.5px; font-weight: 500;">{{ $b->guest_name ?? __('Guest') }}</div>
+                                <div style="font-size: 13.5px; font-weight: 500;">{{ $b->guest_display_name }}</div>
                                 <div style="font-size: 11.5px; color: var(--ink-3);">
                                     {{ optional($b->property)->name ?? '—' }} ·
-                                    <span class="mono">{{ \Carbon\Carbon::parse($b->check_in)->format('d M') }}–{{ \Carbon\Carbon::parse($b->check_out)->format('d M') }}</span>
+                                    <span class="mono">{{ $b->check_in->format('d M') }}–{{ $b->check_out->format('d M') }}</span>
                                 </div>
                             </div>
-                            @php
-                                $ps = $b->payment_status ?? 'pending';
-                                $variant = $ps === 'paid' ? 'ok' : ($ps === 'pending' ? 'warn' : 'err');
-                            @endphp
-                            <x-pill :variant="$variant" :dot="true">{{ ucfirst($ps) }}</x-pill>
+                            <x-pill :variant="$variant" :dot="true">{{ $psLabel }}</x-pill>
                             <span class="mono" style="font-size: 12.5px; color: var(--ink-2); min-width: 72px; text-align:right;">
                                 RM{{ number_format($b->total_amount ?? 0) }}
                             </span>
-                        </div>
+                        </a>
                     @endforeach
                 </div>
             @endif
@@ -112,8 +114,8 @@
                             </div>
                             <div style="flex:1; min-width:0;">
                                 <div style="font-size:12.5px; line-height:1.4;">{{ $a['title'] }}</div>
-                                @if (!empty($a['cta']))
-                                    <a href="#" style="font-size:11.5px; color: var(--primary); text-decoration:none; font-weight:500;">{{ $a['cta'] }} →</a>
+                                @if (!empty($a['cta']) && !empty($a['route']))
+                                    <a href="{{ $a['route'] }}" style="font-size:11.5px; color: var(--primary); text-decoration:none; font-weight:500;">{{ $a['cta'] }} →</a>
                                 @endif
                             </div>
                         </div>

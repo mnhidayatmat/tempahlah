@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Services\Reports\StatisticsService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class ReportController extends Controller
@@ -13,6 +14,23 @@ class ReportController extends Controller
     public function __construct(private StatisticsService $stats) {}
 
     public function index()
+    {
+        return view('tenant.reports.index', $this->buildReportData());
+    }
+
+    public function exportPdf()
+    {
+        $data = $this->buildReportData();
+        $data['tenant'] = app(\App\Support\Tenancy\TenantContext::class)->current();
+        $data['generatedAt'] = now();
+
+        $pdf = Pdf::loadView('tenant.reports.pdf', $data)->setPaper('a4', 'portrait');
+
+        $filename = 'report-'.$data['periodStart']->format('Y-m').'-to-'.$data['periodEnd']->format('Y-m').'.pdf';
+        return $pdf->download($filename);
+    }
+
+    protected function buildReportData(): array
     {
         $end = Carbon::now()->endOfMonth();
         $start = Carbon::now()->subMonths(11)->startOfMonth();
@@ -41,12 +59,10 @@ class ReportController extends Controller
         $priorAdr = $this->stats->adr($priorStart, $priorEnd);
         $adrDelta = $priorAdr > 0 ? ($adr - $priorAdr) / $priorAdr : null;
 
-        $totalRoomNights = max(1, (int) Booking::query()
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN, Booking::STATUS_CHECKED_OUT])
-            ->whereBetween('check_in', [$start, $end])
-            ->sum('nights'));
         $availableNights = max(1, $start->diffInDays($end));
-        $revPAR = $availableNights > 0 ? $totalRevenue / $availableNights / max(1, \App\Models\Room::where('status', 'active')->count()) : 0;
+        $revPAR = $availableNights > 0
+            ? $totalRevenue / $availableNights / max(1, \App\Models\Room::where('status', 'active')->count())
+            : 0;
 
         $properties = Property::query()
             ->with(['rooms:id,property_id,status'])
@@ -78,7 +94,7 @@ class ReportController extends Controller
         $channels = $sourceBookings->groupBy('channel')->map->sum('total_amount');
         $channelTotal = max(1, $channels->sum());
 
-        return view('tenant.reports.index', [
+        return [
             'periodStart' => $start,
             'periodEnd' => $end,
             'monthly' => $monthly,
@@ -92,6 +108,6 @@ class ReportController extends Controller
             'properties' => $properties,
             'channels' => $channels,
             'channelTotal' => (float) $channelTotal,
-        ]);
+        ];
     }
 }

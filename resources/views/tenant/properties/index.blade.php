@@ -37,6 +37,11 @@
         @else
             <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
                 @foreach ($properties as $p)
+                    @php
+                        $isActive = $p->status === 'active';
+                        $rooms = $p->relationLoaded('rooms') ? $p->rooms : $p->rooms()->get();
+                        $startingRate = (float) ($rooms->min('base_price') ?? 0);
+                    @endphp
                     <a href="{{ route('tenant.properties.show', $p->id) }}" class="hauz-card" style="
                         text-decoration:none; color: inherit; padding: 0; overflow: hidden;
                         display:flex; flex-direction:column; transition: box-shadow 150ms;">
@@ -45,22 +50,19 @@
                                 oklch(72% 0.08 {{ (crc32($p->id) % 360) }}),
                                 oklch(58% 0.10 {{ ((crc32($p->id) + 30) % 360) }}));
                             display:flex; align-items:flex-end; padding: 12px;">
-                            @php
-                                $status = $p->is_active ?? true;
-                            @endphp
-                            <span class="pill {{ $status ? 'pill-ok' : '' }}" style="background: rgba(255,255,255,.92); color: var(--ink); height:20px; font-size:10.5px;">
-                                <span class="pill-dot" style="background: {{ $status ? 'var(--ok)' : 'var(--ink-3)' }};"></span>
-                                {{ $status ? __('Live') : __('Draft') }}
+                            <span class="pill" style="background: rgba(255,255,255,.92); color: var(--ink); height:20px; font-size:10.5px;">
+                                <span class="pill-dot" style="background: {{ $isActive ? 'var(--ok)' : 'var(--ink-3)' }};"></span>
+                                {{ $isActive ? __('Live') : __('Draft') }}
                             </span>
                         </div>
                         <div style="padding: 14px;">
                             <div style="font-weight:600; font-size:14.5px; margin-bottom:2px;">{{ $p->name }}</div>
                             <div style="font-size:12px; color: var(--ink-3); margin-bottom:10px;">
-                                {{ $p->city ?? $p->location ?? '—' }} · {{ $p->bedrooms ?? 1 }} {{ __('bed') }}
+                                {{ $p->city ?: '—' }} · {{ trans_choice('{1} :count room|[2,*] :count rooms', $rooms->count(), ['count' => $rooms->count()]) }}
                             </div>
                             <div style="display:flex; align-items:baseline; gap:4px;">
-                                <span class="mono" style="font-size:11px; color: var(--ink-3);">RM</span>
-                                <span style="font-weight:600; font-size:18px;">{{ number_format($p->base_price ?? 0) }}</span>
+                                <span class="mono" style="font-size:11px; color: var(--ink-3);">{{ $startingRate > 0 ? __('From') : '' }} RM</span>
+                                <span style="font-weight:600; font-size:18px;">{{ number_format($startingRate) }}</span>
                                 <span style="font-size:11.5px; color: var(--ink-3);">/{{ __('night') }}</span>
                             </div>
                         </div>

@@ -14,7 +14,7 @@
             ['key' => 'tenant.reports.*',       'label' => __('Reports'),    'icon' => 'chart',    'route' => 'tenant.reports.index'],
         ]],
         ['title' => __('Configure'), 'items' => [
-            ['key' => 'tenant.integrations',    'label' => __('Integrations'), 'icon' => 'link',    'route' => 'tenant.integrations'],
+            ['key' => 'tenant.integrations.*',  'label' => __('Integrations'), 'icon' => 'link',    'route' => 'tenant.integrations.index'],
             ['key' => 'tenant.subscription',    'label' => __('Subscription'), 'icon' => 'sparkle', 'route' => 'tenant.subscription'],
             ['key' => 'tenant.settings.*',      'label' => __('Settings'),     'icon' => 'cog',     'route' => 'tenant.settings.index'],
         ]],

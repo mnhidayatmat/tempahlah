@@ -15,6 +15,7 @@ class PropertyController extends Controller
     public function index()
     {
         $properties = Property::query()
+            ->with(['rooms:id,property_id,base_price'])
             ->orderByDesc('created_at')
             ->get();
 

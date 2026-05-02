@@ -77,22 +77,31 @@ Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant
 
     Route::get('/bookings',             [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show');
+    Route::post('/bookings/{id}/mark-paid',      [BookingController::class, 'markPaid'])->name('bookings.mark-paid');
+    Route::post('/bookings/{id}/send-reminder', [BookingController::class, 'sendReminder'])->name('bookings.send-reminder');
 
     Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
     Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
     Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
+    Route::get('/housekeeping/print.pdf',          [HousekeepingController::class, 'printRunSheet'])->name('housekeeping.print');
+    Route::post('/housekeeping/cleaning',          [HousekeepingController::class, 'storeCleaning'])->name('housekeeping.cleaning.store');
+    Route::post('/housekeeping/laundry',           [HousekeepingController::class, 'storeLaundry'])->name('housekeeping.laundry.store');
     Route::patch('/housekeeping/cleaning/{id}',    [HousekeepingController::class, 'updateCleaning'])->name('housekeeping.cleaning.update');
     Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');
     Route::patch('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'updateMaintenance'])->name('housekeeping.maintenance.update');
     Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
     Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export.pdf',   [ReportController::class, 'exportPdf'])->name('reports.export-pdf');
     Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
     Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
 
     Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
     Route::post('/subscription/change', [SubscriptionController::class, 'change'])->name('subscription.change');
-    Route::get('/integrations',         [IntegrationController::class, 'index'])->name('integrations');
+    Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
+    Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
+    Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');
+    Route::delete('/integrations/{provider}',         [IntegrationController::class, 'disconnect'])->name('integrations.disconnect');
 });
 
 require __DIR__.'/auth-extra.php';
