@@ -8,6 +8,7 @@ use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\CalendarController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\GuestController;
+use App\Http\Controllers\Tenant\HousekeepingController;
 use App\Http\Controllers\Tenant\IntegrationController;
 use App\Http\Controllers\Tenant\PaymentController;
 use App\Http\Controllers\Tenant\PropertyController;
@@ -78,6 +79,7 @@ Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant
     Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show');
 
     Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
+    Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
     Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
     Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');

@@ -1,0 +1,313 @@
+<x-app-layout :title="__('Housekeeping')">
+    @php
+        $cleaningStatusUI = [
+            'pending'     => ['bg' => 'var(--bg-sunk)',     'color' => 'var(--ink-2)',  'label' => __('Scheduled')],
+            'in_progress' => ['bg' => 'var(--accent-tint)', 'color' => 'var(--accent)', 'label' => __('In progress')],
+            'completed'   => ['bg' => 'var(--ok-tint)',     'color' => 'var(--ok)',     'label' => __('Done')],
+            'skipped'     => ['bg' => 'var(--err-tint)',    'color' => 'var(--err)',    'label' => __('Skipped')],
+        ];
+        $laundryStatusUI = [
+            'pending'   => ['bg' => 'var(--bg-sunk)',     'color' => 'var(--ink-2)',  'label' => __('Pending pickup')],
+            'picked_up' => ['bg' => 'var(--accent-tint)', 'color' => 'var(--accent)', 'label' => __('In wash')],
+            'returned'  => ['bg' => 'var(--ok-tint)',     'color' => 'var(--ok)',     'label' => __('Returned')],
+            'cancelled' => ['bg' => 'var(--err-tint)',    'color' => 'var(--err)',    'label' => __('Cancelled')],
+        ];
+        $maintenancePriorityColor = [
+            'low'    => 'var(--ink-3)',
+            'medium' => 'var(--warn)',
+            'high'   => 'var(--err)',
+            'urgent' => 'var(--err)',
+        ];
+        $maintenanceStatusUI = [
+            'open'        => ['bg' => 'var(--warn-tint)', 'color' => 'oklch(45% 0.13 75)', 'label' => __('Open')],
+            'in_progress' => ['bg' => 'var(--accent-tint)', 'color' => 'var(--accent)',     'label' => __('In progress')],
+            'resolved'    => ['bg' => 'var(--ok-tint)',     'color' => 'var(--ok)',         'label' => __('Resolved')],
+            'closed'      => ['bg' => 'var(--bg-sunk)',     'color' => 'var(--ink-3)',      'label' => __('Closed')],
+        ];
+    @endphp
+
+    <div style="display:flex; flex-direction:column; gap: 20px;">
+
+        {{-- Header --}}
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <div class="kicker">{{ __('Operations') }}</div>
+                <div class="display-2" style="margin-top: 4px;">{{ __('Housekeeping') }}</div>
+                <div style="margin-top: 6px; color: var(--ink-3); font-size: 14px;">
+                    {{ $cleaningStats['today'] }} {{ __('tasks today') }}
+                    · {{ $cleaningStats['issues'] }} {{ __('flagged') }}
+                    · {{ $laundryStats['in_progress'] }} {{ __('laundry batches in cycle') }}
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-sm">{{ __("Print today's run sheet") }}</button>
+                <button type="button" class="btn btn-primary btn-sm">
+                    <x-icon name="plus" :size="13"/> {{ __('New task') }}
+                </button>
+            </div>
+        </div>
+
+        {{-- Tabs --}}
+        <div style="display:flex; gap: 2px; border-bottom: .5px solid var(--line);">
+            @foreach ([
+                ['key' => 'cleaning',    'label' => __('Cleaning'),    'count' => $cleaningStats['today']],
+                ['key' => 'laundry',     'label' => __('Laundry'),     'count' => $laundryStats['in_progress'] + $laundryStats['pending']],
+                ['key' => 'maintenance', 'label' => __('Maintenance'), 'count' => $maintenanceStats['open'] + $maintenanceStats['in_progress']],
+            ] as $t)
+                @php $active = $tab === $t['key']; @endphp
+                <a href="{{ route('tenant.housekeeping.index', ['tab' => $t['key']]) }}" style="
+                    padding: 10px 16px; border: 0; background: transparent;
+                    text-decoration: none; font-size: 13px; font-weight: 500;
+                    color: {{ $active ? 'var(--ink)' : 'var(--ink-3)' }};
+                    border-bottom: 2px solid {{ $active ? 'var(--primary)' : 'transparent' }};
+                    margin-bottom: -1px; display:inline-flex; align-items:center; gap: 6px;">
+                    {{ $t['label'] }}
+                    <span style="background: {{ $active ? 'var(--primary-tint)' : 'var(--bg-sunk)' }};
+                                 color: {{ $active ? 'var(--primary)' : 'var(--ink-3)' }};
+                                 padding: 1px 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600;">
+                        {{ $t['count'] }}
+                    </span>
+                </a>
+            @endforeach
+        </div>
+
+        {{-- Cleaning tab --}}
+        @if ($tab === 'cleaning')
+            <div style="display:flex; flex-direction:column; gap: 18px;">
+                {{-- Stats --}}
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    @foreach ([
+                        [__('Today'), $cleaningStats['today'], __('turnovers + refreshes'), null],
+                        [__('In progress'), $cleaningStats['in_progress'], __('being cleaned now'), 'var(--accent)'],
+                        [__('Completed today'), $cleaningStats['completed'], __('of :total scheduled', ['total' => $cleaningStats['today']]), 'var(--ok)'],
+                        [__('Flagged issues'), $cleaningStats['issues'], __('need owner review'), 'var(--err)'],
+                    ] as [$label, $value, $sub, $tone])
+                        <div class="hauz-card" style="padding: 14px;">
+                            <div class="kicker" style="margin-bottom: 6px;">{{ $label }}</div>
+                            <div style="font-size: 24px; font-weight: 600; line-height: 1; color: {{ $tone ?? 'var(--ink)' }};">{{ $value }}</div>
+                            <div style="margin-top: 4px; font-size: 11px; color: var(--ink-3);">{{ $sub }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Today --}}
+                <div>
+                    <div style="font-size: 14px; font-weight: 600;">{{ __('Today') }} · {{ $today->format('l j F Y') }}</div>
+                    <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Live status from cleaner mobile app') }}</div>
+                    <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
+                        @forelse ($todayTasks as $t)
+                            @php
+                                $ui = $cleaningStatusUI[$t->status] ?? $cleaningStatusUI['pending'];
+                                $hasIssues = !empty($t->issues);
+                                $borderColor = $hasIssues ? 'var(--err)' : ($t->type === 'deep' ? 'var(--accent)' : 'var(--ink-3)');
+                            @endphp
+                            <div class="hauz-card" style="padding: 16px; display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center; border-left: 3px solid {{ $borderColor }};">
+                                <div style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; color: var(--ink-2);">
+                                    <x-icon :name="$t->type === 'deep' ? 'sparkle' : 'bed'" :size="20"/>
+                                </div>
+                                <div style="min-width: 0;">
+                                    <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+                                        <span style="font-weight: 600; font-size: 14px;">{{ $t->property?->name ?? '—' }}</span>
+                                        <span class="mono" style="font-size: 11px; color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span>
+                                        <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                            <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap;">
+                                        <span>{{ ucfirst((string) $t->type) }} {{ __('clean') }}</span>
+                                        <span class="mono">{{ $t->scheduled_at->format('H:i') }}</span>
+                                        @if ($t->room)
+                                            <span>{{ $t->room->name }}</span>
+                                        @endif
+                                        @if ($t->booking)
+                                            <span style="color: var(--ink-3);">
+                                                <x-icon name="arrow-right" :size="11" style="vertical-align: middle; margin-right: 2px;"/>
+                                                {{ $t->booking->guest?->name ?? __('Guest') }} {{ __('arrives after') }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if ($t->notes)
+                                        <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic;">"{{ $t->notes }}"</div>
+                                    @endif
+                                </div>
+                                <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
+                                    @if ($t->assignee)
+                                        <div style="display:flex; align-items:center; gap: 8px;">
+                                            <x-avatar :name="$t->assignee->name" :size="26"/>
+                                            <div style="font-size: 12;">
+                                                <div style="font-weight: 500;">{{ explode(' ', $t->assignee->name)[0] }}</div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span style="font-size: 11px; color: var(--ink-3);">{{ __('Unassigned') }}</span>
+                                    @endif
+                                    <button type="button" class="btn btn-sm">{{ __('View') }}</button>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="hauz-card" style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
+                                {{ __('No cleaning tasks scheduled today.') }}
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Upcoming --}}
+                @if ($upcoming->isNotEmpty())
+                    <div>
+                        <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming · next 7 days') }}</div>
+                        <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: var(--bg-sunk);">
+                                        @foreach ([__('Date'), __('Property'), __('Type'), __('Time'), __('Assignee'), __('Booking')] as $h)
+                                            <th style="text-align: left; padding: 10px 14px; font-weight: 500; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">{{ $h }}</th>
+                                        @endforeach
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($upcoming as $t)
+                                        <tr style="border-top: .5px solid var(--line);">
+                                            <td style="padding: 12px 14px;" class="mono">{{ $t->scheduled_at->format('M j') }}</td>
+                                            <td style="padding: 12px 14px; font-weight: 500;">{{ $t->property?->name ?? '—' }}</td>
+                                            <td style="padding: 12px 14px; color: var(--ink-2);">{{ ucfirst((string) $t->type) }}</td>
+                                            <td style="padding: 12px 14px; color: var(--ink-2);" class="mono">{{ $t->scheduled_at->format('H:i') }}</td>
+                                            <td style="padding: 12px 14px;">
+                                                @if ($t->assignee)
+                                                    <span style="font-size: 12.5px;">{{ $t->assignee->name }}</span>
+                                                @else
+                                                    <span style="color: var(--ink-3);">{{ __('Unassigned') }}</span>
+                                                @endif
+                                            </td>
+                                            <td style="padding: 12px 14px; font-size: 12; color: var(--ink-3);">
+                                                {{ $t->booking?->reference ?? '—' }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- Laundry tab --}}
+        @if ($tab === 'laundry')
+            <div style="display:flex; flex-direction:column; gap: 18px;">
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    @foreach ([
+                        [__('Pending pickup'), $laundryStats['pending'], __('awaiting cleaner drop-off'), 'var(--warn)'],
+                        [__('In wash'), $laundryStats['in_progress'], __('vendors processing'), 'var(--accent)'],
+                        [__('Returned'), $laundryStats['ready'], __('cycle complete'), 'var(--ok)'],
+                        [__('Items in flight'), $laundryStats['total_items'], __('across all batches'), null],
+                    ] as [$label, $value, $sub, $tone])
+                        <div class="hauz-card" style="padding: 14px;">
+                            <div class="kicker" style="margin-bottom: 6px;">{{ $label }}</div>
+                            <div style="font-size: 24px; font-weight: 600; line-height: 1; color: {{ $tone ?? 'var(--ink)' }};">{{ $value }}</div>
+                            <div style="margin-top: 4px; font-size: 11px; color: var(--ink-3);">{{ $sub }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div>
+                    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 12px;">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600;">{{ __('Active laundry batches') }}</div>
+                            <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Tracking pickup → wash → return per property') }}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm"><x-icon name="plus" :size="12"/> {{ __('Log batch') }}</button>
+                    </div>
+                    <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        @forelse ($laundry as $i => $l)
+                            @php $ui = $laundryStatusUI[$l->status] ?? $laundryStatusUI['pending']; @endphp
+                            <div style="padding: 14px 18px; {{ $i === 0 ? '' : 'border-top: .5px solid var(--line);' }} display:grid; grid-template-columns: 1fr 2fr 1.4fr 1fr auto; gap: 16px; align-items:center;">
+                                <div>
+                                    <div style="font-size: 13px; font-weight: 500;">{{ $l->property?->name ?? '—' }}</div>
+                                    <div class="mono" style="font-size: 11px; color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
+                                </div>
+                                <div style="min-width: 0;">
+                                    <div style="font-size: 12.5px; color: var(--ink-2);">{{ $l->item_count }} {{ __('items') }}</div>
+                                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor_name ?? __('Self-service') }}</div>
+                                </div>
+                                <div>
+                                    <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                        <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                                    </span>
+                                </div>
+                                <div style="font-size: 12;">
+                                    @if ($l->picked_up_at)
+                                        <div style="color: var(--ink-2);">{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
+                                    @endif
+                                    @if ($l->expected_return_at)
+                                        <div style="color: {{ $l->returned_at ? 'var(--ok)' : 'var(--ink-3)' }};">
+                                            {{ $l->returned_at ? __('Returned') : __('Expected') }}: <span class="mono">{{ ($l->returned_at ?? $l->expected_return_at)->format('M j') }}</span>
+                                        </div>
+                                    @endif
+                                    @if (! $l->picked_up_at)
+                                        <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
+                                    @endif
+                                </div>
+                                <button type="button" class="btn btn-sm btn-ghost" style="color: var(--ink-3);">{{ __('Details') }}</button>
+                            </div>
+                        @empty
+                            <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
+                                {{ __('No laundry batches in the last 14 days.') }}
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Maintenance tab --}}
+        @if ($tab === 'maintenance')
+            <div style="display:flex; flex-direction:column; gap: 18px;">
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    @foreach ([
+                        [__('Open'), $maintenanceStats['open'], __('awaiting triage'), 'var(--warn)'],
+                        [__('In progress'), $maintenanceStats['in_progress'], __('being repaired'), 'var(--accent)'],
+                        [__('High priority'), $maintenanceStats['high_priority'], __('needs attention'), 'var(--err)'],
+                        [__('Resolved (30d)'), $maintenanceStats['resolved_30d'], __('completed in last 30d'), 'var(--ok)'],
+                    ] as [$label, $value, $sub, $tone])
+                        <div class="hauz-card" style="padding: 14px;">
+                            <div class="kicker" style="margin-bottom: 6px;">{{ $label }}</div>
+                            <div style="font-size: 24px; font-weight: 600; line-height: 1; color: {{ $tone ?? 'var(--ink)' }};">{{ $value }}</div>
+                            <div style="margin-top: 4px; font-size: 11px; color: var(--ink-3);">{{ $sub }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="hauz-card" style="padding: 0; overflow: hidden;">
+                    <div style="padding: 14px 18px; border-bottom: .5px solid var(--line);">
+                        <div style="font-weight: 600; font-size: 14px;">{{ __('Active tickets') }}</div>
+                        <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Open and in-progress maintenance issues across your properties') }}</div>
+                    </div>
+                    @forelse ($maintenance as $m)
+                        @php $ui = $maintenanceStatusUI[$m->status] ?? $maintenanceStatusUI['open']; @endphp
+                        <div style="padding: 14px 18px; border-top: .5px solid var(--line); display:grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items:center;">
+                            <div style="width: 8px; height: 36px; background: {{ $maintenancePriorityColor[$m->priority] ?? 'var(--ink-3)' }}; border-radius: 4px;" title="{{ ucfirst($m->priority) }} priority"></div>
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 500; font-size: 13.5px;">{{ $m->title }}</div>
+                                <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">
+                                    {{ $m->property?->name ?? '—' }}
+                                    @if ($m->room) · {{ $m->room->name }} @endif
+                                    · {{ $m->created_at->diffForHumans() }}
+                                    @if ($m->reportedBy) · {{ __('Reported by') }} {{ $m->reportedBy->name }} @endif
+                                </div>
+                            </div>
+                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                            </span>
+                            <button type="button" class="btn btn-sm">{{ __('View') }}</button>
+                        </div>
+                    @empty
+                        <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
+                            {{ __('No active maintenance tickets.') }}
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        @endif
+    </div>
+</x-app-layout>

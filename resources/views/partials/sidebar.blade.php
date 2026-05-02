@@ -6,6 +6,7 @@
             ['key' => 'tenant.calendar',        'label' => __('Calendar'),   'icon' => 'calendar', 'route' => 'tenant.calendar'],
             ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),   'icon' => 'receipt',  'route' => 'tenant.bookings.index'],
             ['key' => 'tenant.guests.*',        'label' => __('Guests'),     'icon' => 'users',    'route' => 'tenant.guests.index'],
+            ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle', 'route' => 'tenant.housekeeping.index'],
         ]],
         ['title' => __('Manage'), 'items' => [
             ['key' => 'tenant.properties.*',    'label' => __('Properties'), 'icon' => 'building', 'route' => 'tenant.properties.index'],
