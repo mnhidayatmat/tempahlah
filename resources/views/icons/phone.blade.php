@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2L19 15v3a2 2 0 0 1-2 2C9.5 19 5 14.5 4 7a2 2 0 0 1 1-3Z"/></svg>

@@ -5,16 +5,17 @@
             ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),  'icon' => 'home',     'route' => 'tenant.dashboard'],
             ['key' => 'tenant.calendar',        'label' => __('Calendar'),   'icon' => 'calendar', 'route' => 'tenant.calendar'],
             ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),   'icon' => 'receipt',  'route' => 'tenant.bookings.index'],
-            ['key' => 'tenant.guests',          'label' => __('Guests'),     'icon' => 'users',    'route' => 'tenant.dashboard'], // TODO: route once built
+            ['key' => 'tenant.guests.*',        'label' => __('Guests'),     'icon' => 'users',    'route' => 'tenant.guests.index'],
         ]],
         ['title' => __('Manage'), 'items' => [
             ['key' => 'tenant.properties.*',    'label' => __('Properties'), 'icon' => 'building', 'route' => 'tenant.properties.index'],
-            ['key' => 'tenant.payments',        'label' => __('Payments'),   'icon' => 'card',     'route' => 'tenant.dashboard'], // TODO: route once built
-            ['key' => 'tenant.reports',         'label' => __('Reports'),    'icon' => 'chart',    'route' => 'tenant.dashboard'], // TODO: route once built
+            ['key' => 'tenant.payments.*',      'label' => __('Payments'),   'icon' => 'card',     'route' => 'tenant.payments.index'],
+            ['key' => 'tenant.reports.*',       'label' => __('Reports'),    'icon' => 'chart',    'route' => 'tenant.reports.index'],
         ]],
         ['title' => __('Configure'), 'items' => [
-            ['key' => 'tenant.integrations',    'label' => __('Integrations'), 'icon' => 'link',  'route' => 'tenant.integrations'],
+            ['key' => 'tenant.integrations',    'label' => __('Integrations'), 'icon' => 'link',    'route' => 'tenant.integrations'],
             ['key' => 'tenant.subscription',    'label' => __('Subscription'), 'icon' => 'sparkle', 'route' => 'tenant.subscription'],
+            ['key' => 'tenant.settings.*',      'label' => __('Settings'),     'icon' => 'cog',     'route' => 'tenant.settings.index'],
         ]],
     ];
 @endphp

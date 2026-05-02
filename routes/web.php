@@ -7,8 +7,12 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\CalendarController;
 use App\Http\Controllers\Tenant\DashboardController;
+use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\IntegrationController;
+use App\Http\Controllers\Tenant\PaymentController;
 use App\Http\Controllers\Tenant\PropertyController;
+use App\Http\Controllers\Tenant\ReportController;
+use App\Http\Controllers\Tenant\SettingsController;
 use App\Http\Controllers\Tenant\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -72,6 +76,11 @@ Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant
 
     Route::get('/bookings',             [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show');
+
+    Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
+    Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
 
     Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
     Route::get('/integrations',         [IntegrationController::class, 'index'])->name('integrations');
