@@ -1,89 +1,270 @@
-<x-app-layout :title="__('Subscription')">
-    <div style="max-width: 1080px; margin: 0 auto; display:flex; flex-direction:column; gap: 28px;">
+<x-app-layout :title="__('Pricing')">
+    @php
+        $billing = request()->query('billing', 'monthly');
+        if (! in_array($billing, ['monthly', 'yearly'], true)) $billing = 'monthly';
+        $proPrice = $billing === 'monthly' ? 49 : 39;
 
-        <div style="text-align:center; padding-top: 12px;">
-            <div class="kicker">{{ __('Pricing') }}</div>
-            <h2 class="display-1" style="margin: 8px 0 8px;">{{ __('Run your homestay, simply.') }}</h2>
-            <p style="margin: 0 auto; max-width: 540px; color: var(--ink-2); font-size: 15px; line-height: 1.5;">
-                {{ __('Start free. Upgrade when you need payments, multi-property, or auto-reminders.') }}
-            </p>
+        $starterFeatures = [
+            ['ok' => true, 'text' => __('1 active homestay')],
+            ['ok' => true, 'text' => __('Unlimited rooms & bookings')],
+            ['ok' => true, 'text' => __('Public booking page (homestaymy.com/yourname)')],
+            ['ok' => true, 'text' => __('Google Calendar 2-way sync')],
+            ['ok' => true, 'text' => __('Manual payment tracking (cash, FPX, transfer)')],
+            ['ok' => true, 'text' => __('Basic statistics dashboard')],
+            ['ok' => true, 'text' => __('5 guest emails / day (via AWS SES shared)')],
+            ['ok' => true, 'text' => __('Mobile app (iOS, Android, PWA)')],
+            ['ok' => false, 'text' => __('Toyyibpay payment gateway')],
+            ['ok' => false, 'text' => __('Auto-reminders (T-7, T-3, T-1)')],
+            ['ok' => false, 'text' => __('WhatsApp Business templates')],
+            ['ok' => false, 'text' => __('Multi-property switching')],
+        ];
+
+        $proFeatures = [
+            ['ok' => true, 'text' => __('Unlimited active homestays'), 'strong' => true],
+            ['ok' => true, 'text' => __('Toyyibpay gateway (FPX, e-wallet, cards)'), 'strong' => true],
+            ['ok' => true, 'text' => __('Auto-reminders 7 / 3 / 1 days before check-in'), 'strong' => true],
+            ['ok' => true, 'text' => __('Smart deposit collection + balance links')],
+            ['ok' => true, 'text' => __('WhatsApp Business templates')],
+            ['ok' => true, 'text' => __('Dedicated booking page + custom domain')],
+            ['ok' => true, 'text' => __('Dynamic pricing (weekend, season, holiday)')],
+            ['ok' => true, 'text' => __('Channel manager (Airbnb iCal, Booking.com)')],
+            ['ok' => true, 'text' => __('Advanced analytics & exportable reports')],
+            ['ok' => true, 'text' => __('Unlimited guest emails (AWS SES dedicated IP)')],
+            ['ok' => true, 'text' => __('Staff accounts (housekeeping, manager roles)')],
+            ['ok' => true, 'text' => __('Priority support (1-hr response, BM/EN)')],
+        ];
+
+        $compareSections = [
+            ['title' => __('Properties & rooms'), 'rows' => [
+                [__('Active homestays'), '1', __('Unlimited')],
+                [__('Rooms per homestay'), __('Unlimited'), __('Unlimited')],
+                [__('Photos per room'), '10', __('Unlimited')],
+                [__('Custom booking page'), 'homestaymy.com/{slug}', __('Custom domain')],
+            ]],
+            ['title' => __('Payments'), 'rows' => [
+                [__('Manual payment tracking'), true, true],
+                [__('Toyyibpay payment gateway'), false, true],
+                [__('Auto-issued receipts (PDF)'), false, true],
+                [__('Deposit + balance link automation'), false, true],
+                [__('Platform transaction fee'), '—', '0%'],
+            ]],
+            ['title' => __('Communications'), 'rows' => [
+                [__('Confirmation email (AWS SES)'), true, true],
+                [__('Auto-reminder T-7 / T-3 / T-1'), false, true],
+                [__('WhatsApp Business templates'), false, true],
+                [__('Custom email templates'), __('1 default'), __('Unlimited')],
+                [__('Daily email send limit'), '5', __('Unlimited')],
+            ]],
+            ['title' => __('Calendar & channels'), 'rows' => [
+                [__('Google Calendar 2-way sync'), true, true],
+                [__('Airbnb / Booking.com iCal'), false, true],
+                [__('Drag-to-block date ranges'), false, true],
+                [__('Dynamic pricing rules'), false, true],
+            ]],
+            ['title' => __('Analytics'), 'rows' => [
+                [__('Basic dashboard'), true, true],
+                [__('Property-level reports'), false, true],
+                [__('Export to CSV / Excel'), false, true],
+                [__('Tax-ready monthly summary'), false, true],
+            ]],
+            ['title' => __('Team & support'), 'rows' => [
+                [__('Staff accounts'), __('Owner only'), __('Unlimited (with roles)')],
+                [__('Mobile app (iOS / Android / PWA)'), true, true],
+                [__('Support response time'), __('Email · 48h'), __('Email + WhatsApp · 1h')],
+            ]],
+        ];
+
+        $faqs = [
+            ['q' => __('Can I switch back to Free?'), 'a' => __('Yes, anytime. Your data stays. Properties beyond your 1 free slot become read-only — no bookings are lost.')],
+            ['q' => __('How does Toyyibpay work with Pro?'), 'a' => __('We connect your Toyyibpay merchant account. Guests pay directly to you (FPX, cards, e-wallets). Toyyibpay\'s own fee applies; the platform takes 0% transaction fee.')],
+            ['q' => __('Will guests\' emails come from my domain?'), 'a' => __('On Pro, yes — connect your domain and we route through AWS SES with verified DKIM/SPF, so emails land in inbox, not spam.')],
+            ['q' => __('Mobile app vs PWA?'), 'a' => __('All three (iOS, Android, PWA) talk to the same Laravel API. Same login. Same data. Pick whichever you and your housekeepers prefer.')],
+        ];
+    @endphp
+
+    <div style="max-width: 1100px; margin: 0 auto; display:flex; flex-direction:column; gap: 24px;">
+
+        {{-- Header --}}
+        <div style="text-align:center; padding-top: 8px;">
+            <div class="kicker" style="margin-bottom: 12px;">{{ __('Pricing · Made in Malaysia') }} 🇲🇾</div>
+            <h1 style="margin: 0; font-family: var(--font-display); font-size: 48px; line-height: 1.05; font-weight: 600; letter-spacing: -.025em;">
+                {!! __('Run your homestay <em>like a hotel</em>,', ['em-start' => '', 'em-end' => '']) !!}<br>
+                {{ __("for less than a night's stay.") }}
+            </h1>
+            <div style="font-size: 15px; color: var(--ink-3); margin: 14px auto 0; max-width: 560px;">
+                {{ __("Start free with one homestay. Upgrade when you're ready for payment gateways, auto-reminders, and unlimited properties.") }}
+            </div>
+
+            {{-- Billing toggle --}}
+            <div style="display:inline-flex; margin-top: 24px; padding: 4px; gap: 4px; background: var(--bg-sunk); border: .5px solid var(--line); border-radius: 999px;">
+                @foreach (['monthly' => __('Monthly'), 'yearly' => __('Yearly')] as $key => $label)
+                    @php $active = $billing === $key; @endphp
+                    <a href="{{ route('tenant.subscription', ['billing' => $key]) }}"
+                       class="btn btn-sm"
+                       style="border:0; background: {{ $active ? 'var(--bg-elev)' : 'transparent' }};
+                              box-shadow: {{ $active ? 'var(--sh-1)' : 'none' }};
+                              font-weight: 500; padding: 0 16px; text-decoration:none;">
+                        {{ $label }}
+                        @if ($key === 'yearly')
+                            <span class="pill pill-ok" style="margin-left: 6px; height: 16px; font-size: 9.5px;">{{ __('Save 20%') }}</span>
+                        @endif
+                    </a>
+                @endforeach
+            </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch;">
+        {{-- Plan cards --}}
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
 
-            {{-- Free --}}
-            <div class="hauz-card" style="padding: 28px; display:flex; flex-direction:column;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom: 14px;">
-                    <span class="pill">{{ __('Free') }}</span>
+            {{-- Starter (Free) --}}
+            <div class="hauz-card" style="padding: 28px; position: relative;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px;">
+                    <div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">{{ __('Starter') }}</div>
+                        <div style="font-size: 12px; color: var(--ink-3);">{{ __('For solo owners testing the waters') }}</div>
+                    </div>
                     @if ($plan === 'free')
-                        <x-pill variant="primary" :dot="true">{{ __('Current') }}</x-pill>
+                        <span class="pill pill-primary"><span class="pill-dot"></span> {{ __('Current') }}</span>
                     @endif
                 </div>
-                <div style="display:flex; align-items:baseline; gap:4px; margin-bottom: 6px;">
-                    <span class="mono" style="font-size:14px; color: var(--ink-3);">RM</span>
-                    <span style="font-family: var(--font-display); font-size: 56px; line-height: 1;">0</span>
-                    <span style="font-size: 14px; color: var(--ink-3);">/{{ __('month') }}</span>
+                <div style="display:flex; align-items:baseline; gap: 6px; margin-bottom: 24px;">
+                    <span style="font-family: var(--font-display); font-size: 56px; line-height: 1; font-weight: 600;">RM 0</span>
+                    <span style="font-size: 13px; color: var(--ink-3);">/{{ __('forever') }}</span>
                 </div>
-                <p style="margin: 0 0 18px; color: var(--ink-3); font-size: 13.5px;">{{ __('To get going.') }}</p>
-                <ul style="list-style: none; padding: 0; margin: 0 0 22px; display:flex; flex-direction:column; gap: 8px; font-size: 13.5px;">
-                    @foreach ([__('1 property'), __('Manual booking entry'), __('Calendar view'), __('Bahasa + English'), __('Email support')] as $feat)
-                        <li style="display:flex; gap:8px; align-items:center;"><x-icon name="check" :size="14" style="color: var(--ok);"/> {{ $feat }}</li>
+                <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px; opacity: {{ $plan === 'free' ? '0.5' : '1' }};" {{ $plan === 'free' ? 'disabled' : '' }}>
+                    {{ $plan === 'free' ? __("You're on Starter") : __('Switch to Starter') }}
+                </button>
+                <div class="kicker" style="margin-bottom: 10px;">{{ __('Includes') }}</div>
+                <div style="display:flex; flex-direction:column; gap: 9px;">
+                    @foreach ($starterFeatures as $it)
+                        <div style="display:flex; gap: 10px; align-items:flex-start; font-size: 12.5px;">
+                            <div style="width: 16px; height: 16px; border-radius: 999px; flex-shrink: 0;
+                                        background: {{ $it['ok'] ? 'var(--primary-tint)' : 'var(--bg-sunk)' }};
+                                        color: {{ $it['ok'] ? 'var(--primary)' : 'var(--ink-4)' }};
+                                        display:flex; align-items:center; justify-content:center; margin-top: 2px;">
+                                <x-icon :name="$it['ok'] ? 'check' : 'x'" :size="10"/>
+                            </div>
+                            <span style="color: {{ $it['ok'] ? 'var(--ink)' : 'var(--ink-4)' }};
+                                         {{ $it['ok'] ? '' : 'text-decoration: line-through;' }}
+                                         font-weight: {{ ($it['strong'] ?? false) ? 600 : 400 }};">
+                                {{ $it['text'] }}
+                            </span>
+                        </div>
                     @endforeach
-                </ul>
-                <div style="margin-top:auto;">
-                    @if ($plan === 'free')
-                        <button class="btn" style="width:100%;" disabled>{{ __('Your current plan') }}</button>
-                    @else
-                        <button class="btn" style="width:100%;">{{ __('Downgrade to Free') }}</button>
-                    @endif
                 </div>
             </div>
 
             {{-- Pro --}}
-            <div class="hauz-card" style="padding: 28px; display:flex; flex-direction:column; position:relative; background: linear-gradient(170deg, var(--bg-elev), oklch(98% 0.02 60));">
-                <div style="position:absolute; top: -10px; right: 18px;">
-                    <x-pill variant="pro"><x-icon name="sparkle" :size="11"/> {{ __('Recommended') }}</x-pill>
+            <div class="hauz-card" style="padding: 28px;
+                background: linear-gradient(155deg, oklch(98% 0.025 60), oklch(95% 0.045 80));
+                border: .5px solid oklch(70% 0.08 60);
+                box-shadow: 0 24px 64px -24px oklch(45% 0.10 60 / 0.25);
+                position: relative;">
+                <div style="position: absolute; top: -10px; right: 24px;
+                            background: var(--ink); color: var(--bg);
+                            padding: 4px 10px; border-radius: 999px;
+                            font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;">
+                    {{ __('Most popular') }}
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom: 14px;">
-                    <span class="pill pill-pro"><x-icon name="sparkle" :size="11"/> Pro</span>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 2px;">
+                            <span style="font-size: 14px; font-weight: 600;">Pro</span>
+                            <x-icon name="sparkle" :size="13" style="color: var(--pro);"/>
+                        </div>
+                        <div style="font-size: 12px; color: var(--ink-3);">{{ __('For serious operators & multi-property hosts') }}</div>
+                    </div>
                     @if ($plan !== 'free')
-                        <x-pill variant="primary" :dot="true">{{ __('Current') }}</x-pill>
+                        <span class="pill pill-pro"><span class="pill-dot"></span> {{ __('Current') }}</span>
                     @endif
                 </div>
-                <div style="display:flex; align-items:baseline; gap:4px; margin-bottom: 6px;">
-                    <span class="mono" style="font-size:14px; color: var(--ink-3);">RM</span>
-                    <span style="font-family: var(--font-display); font-size: 56px; line-height: 1;">49</span>
-                    <span style="font-size: 14px; color: var(--ink-3);">/{{ __('month') }}</span>
+                <div style="display:flex; align-items:baseline; gap: 6px; margin-bottom: 4px;">
+                    <span class="mono" style="font-size: 14px; color: var(--ink-3);">RM</span>
+                    <span style="font-family: var(--font-display); font-size: 56px; line-height: 1; font-weight: 600;">{{ $proPrice }}</span>
+                    <span style="font-size: 13px; color: var(--ink-3);">/{{ __('month') }}</span>
+                    @if ($billing === 'yearly')
+                        <span style="font-size: 12px; color: var(--pro); margin-left: 6px;">{{ __('billed RM 468/yr') }}</span>
+                    @endif
                 </div>
-                <p style="margin: 0 0 18px; color: var(--ink-2); font-size: 13.5px;">{{ __('Everything in Free, plus:') }}</p>
-                <ul style="list-style: none; padding: 0; margin: 0 0 22px; display:flex; flex-direction:column; gap: 8px; font-size: 13.5px;">
-                    @foreach ([
-                        __('Unlimited properties'),
-                        __('Toyyibpay / FPX payment links'),
-                        __('Auto WhatsApp + email reminders'),
-                        __('Two-way Google Calendar sync'),
-                        __('Marketplace listing'),
-                        __('Booking insights + reports'),
-                        __('Priority support'),
-                    ] as $feat)
-                        <li style="display:flex; gap:8px; align-items:center;"><x-icon name="check" :size="14" style="color: var(--ok);"/> {{ $feat }}</li>
+                <div style="font-size: 11.5px; color: var(--ink-3); margin-bottom: 18px;">
+                    {{ __('≈ Less than one Garden Room booking. Cancel anytime.') }}
+                </div>
+                <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px;
+                    background: var(--ink); color: var(--bg); border-color: transparent;"
+                    {{ $plan !== 'free' ? 'disabled' : '' }}>
+                    {{ $plan !== 'free' ? __("You're on Pro") : __('Start 14-day free trial') }}
+                </button>
+                <div class="kicker" style="margin-bottom: 10px; color: var(--pro);">{{ __('Everything in Starter, plus') }}</div>
+                <div style="display:flex; flex-direction:column; gap: 9px;">
+                    @foreach ($proFeatures as $it)
+                        <div style="display:flex; gap: 10px; align-items:flex-start; font-size: 12.5px;">
+                            <div style="width: 16px; height: 16px; border-radius: 999px; flex-shrink: 0;
+                                        background: var(--primary-tint); color: var(--primary);
+                                        display:flex; align-items:center; justify-content:center; margin-top: 2px;">
+                                <x-icon name="check" :size="10"/>
+                            </div>
+                            <span style="font-weight: {{ ($it['strong'] ?? false) ? 600 : 400 }};">{{ $it['text'] }}</span>
+                        </div>
                     @endforeach
-                </ul>
-                <div style="margin-top:auto;">
-                    @if ($plan === 'free')
-                        <a href="#" class="btn btn-primary" style="width:100%; justify-content:center;">{{ __('Upgrade — RM49/mo') }} →</a>
-                    @else
-                        <button class="btn" style="width:100%;" disabled>{{ __('Your current plan') }}</button>
-                    @endif
                 </div>
             </div>
         </div>
 
-        <div class="hauz-card" style="padding: 22px;">
-            <div class="kicker" style="margin-bottom: 8px;">{{ __('Billing') }}</div>
-            <p style="margin:0; font-size: 13px; color: var(--ink-2); line-height:1.5;">
-                {{ __('v1 uses manual confirmation via Toyyibpay. v2 will introduce Billplz recurring billing — your subscription will migrate automatically.') }}
-            </p>
+        {{-- Comparison table --}}
+        <div class="hauz-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px 24px; border-bottom: .5px solid var(--line);">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Compare in detail') }}</div>
+                <h3 style="margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 600;">{{ __('What you actually get') }}</h3>
+            </div>
+            <div>
+                <div style="display:grid; grid-template-columns: 1.4fr 1fr 1fr; padding: 12px 24px; background: var(--bg-sunk); font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">
+                    <span>{{ __('Feature') }}</span>
+                    <span style="text-align:center;">{{ __('Starter') }}</span>
+                    <span style="text-align:center; color: var(--pro); font-weight: 600;">Pro</span>
+                </div>
+                @foreach ($compareSections as $sec)
+                    <div style="padding: 14px 24px 6px; font-size: 11px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; border-top: .5px solid var(--line);">
+                        {{ $sec['title'] }}
+                    </div>
+                    @foreach ($sec['rows'] as $r)
+                        <div style="display:grid; grid-template-columns: 1.4fr 1fr 1fr; padding: 10px 24px; font-size: 12.5px; align-items:center; border-top: .5px solid var(--line);">
+                            <span>{{ $r[0] }}</span>
+                            <span style="text-align:center;">
+                                @if ($r[1] === true)
+                                    <x-icon name="check" :size="15" style="color: var(--primary);"/>
+                                @elseif ($r[1] === false)
+                                    <x-icon name="x" :size="15" style="color: var(--ink-4);"/>
+                                @else
+                                    <span style="font-size: 12.5px; color: var(--ink-2);">{{ $r[1] }}</span>
+                                @endif
+                            </span>
+                            <span style="text-align:center;">
+                                @if ($r[2] === true)
+                                    <x-icon name="check" :size="15" style="color: var(--primary);"/>
+                                @elseif ($r[2] === false)
+                                    <x-icon name="x" :size="15" style="color: var(--ink-4);"/>
+                                @else
+                                    <span style="font-size: 12.5px; color: var(--ink-2);">{{ $r[2] }}</span>
+                                @endif
+                            </span>
+                        </div>
+                    @endforeach
+                @endforeach
+            </div>
+        </div>
+
+        {{-- FAQ --}}
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            @foreach ($faqs as $f)
+                <div class="hauz-card" style="padding: 18px;">
+                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">{{ $f['q'] }}</div>
+                    <div style="font-size: 12.5px; color: var(--ink-2); line-height: 1.5;">{{ $f['a'] }}</div>
+                </div>
+            @endforeach
+        </div>
+
+        <div style="text-align:center; font-size: 12px; color: var(--ink-3); padding: 24px 0;">
+            {{ __('v1 uses manual confirmation. v2 will introduce Billplz recurring billing — your subscription will migrate automatically.') }}
         </div>
     </div>
 </x-app-layout>
