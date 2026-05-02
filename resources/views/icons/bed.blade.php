@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18V8M3 14h18M21 18v-4a3 3 0 0 0-3-3H10v6"/><circle cx="6.5" cy="11" r="1.5"/></svg>

@@ -46,6 +46,7 @@
     --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
     --sh-1: 0 1px 0 rgba(40,30,10,.04), 0 1px 2px rgba(40,30,10,.04);
     --sh-2: 0 1px 0 rgba(40,30,10,.04), 0 8px 24px -8px rgba(40,30,10,.10);
+    --sh-pop: 0 16px 48px -12px rgba(40,30,10,.20), 0 2px 6px rgba(40,30,10,.06);
   }
 
   body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); }
@@ -83,3 +84,10 @@
 .display-1 { font-family: var(--font-display); font-size: 48px; line-height: 1.05; letter-spacing: -.025em; font-weight: 600; }
 .display-2 { font-family: var(--font-display); font-size: 32px; line-height: 1.1;  letter-spacing: -.02em;  font-weight: 600; }
 .display-3 { font-family: var(--font-display); font-size: 22px; line-height: 1.15; letter-spacing: -.015em; font-weight: 600; }
+
+.input { height: 36px; padding: 0 12px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font: inherit; outline: none; width: 100%; }
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px oklch(38% 0.06 155 / 0.12); }
+
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
