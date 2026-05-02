@@ -141,7 +141,19 @@
                                     @else
                                         <span style="font-size: 11px; color: var(--ink-3);">{{ __('Unassigned') }}</span>
                                     @endif
-                                    <button type="button" class="btn btn-sm">{{ __('View') }}</button>
+                                    <div style="display:flex; gap: 4px;">
+                                        @if ($t->status === 'pending')
+                                            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
+                                                @csrf @method('PATCH')<input type="hidden" name="action" value="start">
+                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Start') }}</button>
+                                            </form>
+                                        @elseif ($t->status === 'in_progress')
+                                            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
+                                                @csrf @method('PATCH')<input type="hidden" name="action" value="complete">
+                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @empty
@@ -248,7 +260,19 @@
                                         <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
                                     @endif
                                 </div>
-                                <button type="button" class="btn btn-sm btn-ghost" style="color: var(--ink-3);">{{ __('Details') }}</button>
+                                @if ($l->status === 'pending')
+                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                        @csrf @method('PATCH')<input type="hidden" name="action" value="pickup">
+                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark picked up') }}</button>
+                                    </form>
+                                @elseif ($l->status === 'picked_up')
+                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                        @csrf @method('PATCH')<input type="hidden" name="action" value="return">
+                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
+                                    </form>
+                                @else
+                                    <span style="font-size: 11px; color: var(--ink-3);">{{ __('Done') }}</span>
+                                @endif
                             </div>
                         @empty
                             <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
@@ -299,7 +323,19 @@
                             <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
                                 <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                             </span>
-                            <button type="button" class="btn btn-sm">{{ __('View') }}</button>
+                            <div style="display:flex; gap: 4px;">
+                                @if ($m->status === 'open')
+                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
+                                        @csrf @method('PATCH')<input type="hidden" name="action" value="start">
+                                        <button type="submit" class="btn btn-sm">{{ __('Start') }}</button>
+                                    </form>
+                                @elseif ($m->status === 'in_progress')
+                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
+                                        @csrf @method('PATCH')<input type="hidden" name="action" value="resolve">
+                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Resolve') }}</button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">

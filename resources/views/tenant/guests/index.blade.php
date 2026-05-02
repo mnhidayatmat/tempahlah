@@ -13,10 +13,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-sm">{{ __('Export CSV') }}</button>
-                <button type="button" class="btn btn-primary btn-sm">
-                    <x-icon name="plus" :size="13"/> {{ __('Add guest') }}
-                </button>
+                <a href="{{ route('tenant.guests.export', ['q' => $q]) }}" class="btn btn-sm">{{ __('Export CSV') }}</a>
             </div>
         </div>
 

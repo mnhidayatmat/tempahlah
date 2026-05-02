@@ -8,6 +8,7 @@ use App\Models\LaundryTask;
 use App\Models\MaintenanceTicket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class HousekeepingController extends Controller
 {
@@ -80,5 +81,76 @@ class HousekeepingController extends Controller
             'maintenance' => $maintenance,
             'maintenanceStats' => $maintenanceStats,
         ]);
+    }
+
+    public function updateCleaning(Request $request, int $id)
+    {
+        $task = CleaningTask::findOrFail($id);
+
+        $action = $request->input('action');
+        $valid = ['start', 'complete', 'skip'];
+        abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        match ($action) {
+            'start' => $task->update([
+                'status' => CleaningTask::STATUS_IN_PROGRESS,
+                'started_at' => $task->started_at ?? now(),
+            ]),
+            'complete' => $task->update([
+                'status' => CleaningTask::STATUS_COMPLETED,
+                'completed_at' => now(),
+                'started_at' => $task->started_at ?? now()->subMinutes(30),
+            ]),
+            'skip' => $task->update([
+                'status' => CleaningTask::STATUS_SKIPPED,
+            ]),
+        };
+
+        return back()->with('status', __('Cleaning task updated.'));
+    }
+
+    public function updateLaundry(Request $request, int $id)
+    {
+        $task = LaundryTask::findOrFail($id);
+
+        $action = $request->input('action');
+        $valid = ['pickup', 'return'];
+        abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        match ($action) {
+            'pickup' => $task->update([
+                'status' => LaundryTask::STATUS_PICKED_UP,
+                'picked_up_at' => now(),
+            ]),
+            'return' => $task->update([
+                'status' => LaundryTask::STATUS_RETURNED,
+                'returned_at' => now(),
+            ]),
+        };
+
+        return back()->with('status', __('Laundry batch updated.'));
+    }
+
+    public function updateMaintenance(Request $request, int $id)
+    {
+        $ticket = MaintenanceTicket::findOrFail($id);
+
+        $action = $request->input('action');
+        $valid = ['start', 'resolve', 'close'];
+        abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        $resolution = $request->input('resolution_notes');
+
+        match ($action) {
+            'start' => $ticket->update(['status' => MaintenanceTicket::STATUS_IN_PROGRESS]),
+            'resolve' => $ticket->update([
+                'status' => MaintenanceTicket::STATUS_RESOLVED,
+                'resolved_at' => now(),
+                'resolution_notes' => $resolution,
+            ]),
+            'close' => $ticket->update(['status' => MaintenanceTicket::STATUS_CLOSED]),
+        };
+
+        return back()->with('status', __('Maintenance ticket updated.'));
     }
 }

@@ -36,8 +36,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-sm">{{ __('Export') }}</button>
-                <button type="button" class="btn btn-primary btn-sm">+ {{ __('Send payment link') }}</button>
+                <a href="{{ route('tenant.payments.export') }}" class="btn btn-sm">{{ __('Export CSV') }}</a>
             </div>
         </div>
 

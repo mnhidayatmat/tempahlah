@@ -131,9 +131,19 @@
                     <span style="font-family: var(--font-display); font-size: 56px; line-height: 1; font-weight: 600;">RM 0</span>
                     <span style="font-size: 13px; color: var(--ink-3);">/{{ __('forever') }}</span>
                 </div>
-                <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px; opacity: {{ $plan === 'free' ? '0.5' : '1' }};" {{ $plan === 'free' ? 'disabled' : '' }}>
-                    {{ $plan === 'free' ? __("You're on Starter") : __('Switch to Starter') }}
-                </button>
+                @if ($plan === 'free')
+                    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px; opacity: 0.5;" disabled>
+                        {{ __("You're on Starter") }}
+                    </button>
+                @else
+                    <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
+                        @csrf
+                        <input type="hidden" name="plan" value="free">
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;">
+                            {{ __('Switch to Starter') }}
+                        </button>
+                    </form>
+                @endif
                 <div class="kicker" style="margin-bottom: 10px;">{{ __('Includes') }}</div>
                 <div style="display:flex; flex-direction:column; gap: 9px;">
                     @foreach ($starterFeatures as $it)
@@ -189,11 +199,23 @@
                 <div style="font-size: 11.5px; color: var(--ink-3); margin-bottom: 18px;">
                     {{ __('≈ Less than one Garden Room booking. Cancel anytime.') }}
                 </div>
-                <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px;
-                    background: var(--ink); color: var(--bg); border-color: transparent;"
-                    {{ $plan !== 'free' ? 'disabled' : '' }}>
-                    {{ $plan !== 'free' ? __("You're on Pro") : __('Start 14-day free trial') }}
-                </button>
+                @if ($plan !== 'free')
+                    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px;
+                        background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5;"
+                        disabled>
+                        {{ __("You're on Pro") }}
+                    </button>
+                @else
+                    <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
+                        @csrf
+                        <input type="hidden" name="plan" value="paid">
+                        <input type="hidden" name="billing" value="{{ $billing }}">
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
+                            background: var(--ink); color: var(--bg); border-color: transparent;">
+                            {{ __('Start 14-day free trial') }}
+                        </button>
+                    </form>
+                @endif
                 <div class="kicker" style="margin-bottom: 10px; color: var(--pro);">{{ __('Everything in Starter, plus') }}</div>
                 <div style="display:flex; flex-direction:column; gap: 9px;">
                     @foreach ($proFeatures as $it)

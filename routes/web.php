@@ -79,12 +79,19 @@ Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant
     Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show');
 
     Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
+    Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
     Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
+    Route::patch('/housekeeping/cleaning/{id}',    [HousekeepingController::class, 'updateCleaning'])->name('housekeeping.cleaning.update');
+    Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');
+    Route::patch('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'updateMaintenance'])->name('housekeeping.maintenance.update');
     Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
     Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
     Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
+    Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
 
     Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
+    Route::post('/subscription/change', [SubscriptionController::class, 'change'])->name('subscription.change');
     Route::get('/integrations',         [IntegrationController::class, 'index'])->name('integrations');
 });
 
