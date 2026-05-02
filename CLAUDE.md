@@ -223,6 +223,14 @@ Tasks tracked via TaskCreate/TaskList. **Always run TaskList at the start of eac
 **Whenever a feature is implemented, fixed, or removed**, update this section the same turn — don't defer. Bump the "Last updated" date and add a one-line entry to the "Recently shipped" log below. Move from "skeleton" to "completed" as work is fleshed out. Move blockers off the TODO list as they're resolved.
 
 ### 🆕 Recently shipped (newest first)
+- **2026-05-02** — **Frontend wired to backend actions** (commit `cda5513`). Seven CTAs that were no-ops now write to the database:
+  - `POST /dashboard/properties` — `PropertyController@store` creates Property + N Rooms in one transaction (TODO since first patch is now done).
+  - `PATCH /dashboard/settings` — Settings page is now an editable form for business info, SST toggle/rate, MOTAC license, default locale.
+  - `POST /dashboard/subscription/change` — "Switch to Starter" / "Start 14-day free trial" buttons transition `Subscription` plan + status with proper trial date stamping (Free→Paid sets status=trialing, trial_ends_at=+14d).
+  - `PATCH /dashboard/housekeeping/{cleaning|laundry|maintenance}/{id}` — task status transitions (Start / Complete / Pickup / Return / Resolve) with auto-stamped started_at, completed_at, picked_up_at, returned_at, resolved_at.
+  - `GET /dashboard/guests/export.csv` and `GET /dashboard/payments/export.csv` — streamed CSV downloads with proper text/csv content-type.
+  - Removed inert "Add guest" / "Send payment link" buttons (depend on flows out of v1 scope).
+  - Verified via curl: property creation, settings save (locale BM→EN, SST toggle), subscription Free→Paid trial, cleaning task pending→in_progress, both CSV exports.
 - **2026-05-02** — **Full prototype port: 5 new screens** wired to real schema (commits `ca9f44e`, `efc334c`, `9915a29`).
   - **Guests** (`/dashboard/guests`) — `GuestController` aggregates unique guests from `Booking->guest`. Per-guest rows: stays, nights, lifetime spend, outstanding (computed from `deposit_paid_at`/`balance_paid_at`). Search filter via `?q=`.
   - **Payments** (`/dashboard/payments`) — `PaymentController` lists last-30-day `Payment` rows with stat tiles (collected / pending / fees / net payout). Tab filter `?status=succeeded|pending`.
