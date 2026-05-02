@@ -217,12 +217,24 @@ Tasks tracked via TaskCreate/TaskList. **Always run TaskList at the start of eac
 
 ## 📊 Current state (update as you go)
 
-> Last updated: 2026-05-02 — Full prototype port (11 screens) on `feat/dashboard-redesign` branch. All sidebar items click through to working pages wired to real backend models.
+> Last updated: 2026-05-03 — Every interactive element across all 11 tenant screens is wired to a real backend action. No more `href="#"` or no-op buttons.
 
 ### 📌 Update protocol
 **Whenever a feature is implemented, fixed, or removed**, update this section the same turn — don't defer. Bump the "Last updated" date and add a one-line entry to the "Recently shipped" log below. Move from "skeleton" to "completed" as work is fleshed out. Move blockers off the TODO list as they're resolved.
 
 ### 🆕 Recently shipped (newest first)
+- **2026-05-03** — **Every remaining placeholder button wired to real backend** (commit `6e9d13c`). Closes the long tail from the audit:
+  - Dashboard `Dashboard.php` Livewire fixed (was using wrong `StatisticsService` namespace + non-existent `payment_status`/`guest_name`/`source` fields, falling through to hardcoded fallback). Now computes real stats and renders proper payment-state pills via `deposit_paid_at`/`balance_paid_at`.
+  - Bookings tabs use `?status=upcoming|checked-in|past`. New POST endpoints: `/bookings/{id}/mark-paid` (creates a Payment row for outstanding balance + flips status to confirmed) and `/bookings/{id}/send-reminder` (queues `PaymentReminderMail` to guest email).
+  - Properties: show-page Edit/Calendar links resolved to real routes; index/show now use real schema (`status` not `is_active`, `rooms.min(base_price)` for starting price, `address_line1` for location).
+  - Housekeeping: `+ New task` and `+ Log batch` are now inline `<details>` collapsibles that POST to `/housekeeping/cleaning` and `/housekeeping/laundry`. `Print today's run sheet` generates a DomPDF with check-boxes per row.
+  - Reports: `Export PDF` (`GET /reports/export.pdf`) renders a DomPDF with KPI grid + monthly + per-property + channel mix.
+  - Integrations: new `tenant_integrations` table (provider, enabled, encrypted config JSON, timestamps) + `TenantIntegration` model. Per-provider config form at `/integrations/{provider}` for Toyyibpay / Google Calendar / WhatsApp / SES — fields specific to each provider, encrypted at rest. Disconnect clears credentials. Billplz stays "Coming soon".
+  - Guests `Message` icon → `wa.me` click-to-WhatsApp link.
+  - Calendar `Filter` button removed (property switcher already handles filtering).
+  - Marketplace `Reserve` → `Chat on WhatsApp` with prefilled message (or `Sign in to enquire` if no host phone). v1.5 will replace with real OTP booking flow.
+  - Deleted legacy `resources/views/tenant/subscription.blade.php` (Tailwind sky-600 stub from pre-redesign era).
+  - Verified: 17 GET pages 200 OK, 5 POST/PATCH actions 302 with proper redirects, both PDFs return real `%PDF-` content. DB state confirmed: 1 encrypted `TenantIntegration` row, Payment row created with proper `paid_at`, cleaning task scheduled.
 - **2026-05-02** — **Frontend wired to backend actions** (commit `cda5513`). Seven CTAs that were no-ops now write to the database:
   - `POST /dashboard/properties` — `PropertyController@store` creates Property + N Rooms in one transaction (TODO since first patch is now done).
   - `PATCH /dashboard/settings` — Settings page is now an editable form for business info, SST toggle/rate, MOTAC license, default locale.
