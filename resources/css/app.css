@@ -39,9 +39,9 @@
     --pro: oklch(45% 0.10 60);
     --pro-tint: oklch(94% 0.04 60);
 
-    --font-display: "Instrument Serif", "Times New Roman", serif;
-    --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-sans:    "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono:    "Geist Mono", "Geist", ui-monospace, "SF Mono", monospace;
 
     --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
     --sh-1: 0 1px 0 rgba(40,30,10,.04), 0 1px 2px rgba(40,30,10,.04);
@@ -57,10 +57,10 @@
 
 /* Imported via @vite — but if not, also import in layout via Google Fonts */
 
-.mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .serif { font-family: var(--font-display); }
 .tnum { font-variant-numeric: tabular-nums; }
-.kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
+.kicker { font-family: var(--font-sans); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 36px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font-size: 13px; font-weight: 500; transition: background 120ms; cursor: pointer; }
 .btn:hover { background: var(--bg-tint); }
@@ -80,6 +80,6 @@
 .pill-pro { background: var(--pro-tint); color: var(--pro); }
 .pill-primary { background: var(--primary-tint); color: var(--primary); }
 
-.display-1 { font-family: var(--font-display); font-size: 56px; line-height: 1.02; letter-spacing: -.02em; font-weight: 400; }
-.display-2 { font-family: var(--font-display); font-size: 40px; line-height: 1.05; letter-spacing: -.02em; font-weight: 400; }
-.display-3 { font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-weight: 400; }
+.display-1 { font-family: var(--font-display); font-size: 48px; line-height: 1.05; letter-spacing: -.025em; font-weight: 600; }
+.display-2 { font-family: var(--font-display); font-size: 32px; line-height: 1.1;  letter-spacing: -.02em;  font-weight: 600; }
+.display-3 { font-family: var(--font-display); font-size: 22px; line-height: 1.15; letter-spacing: -.015em; font-weight: 600; }
