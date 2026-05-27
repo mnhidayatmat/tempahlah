@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Actions\Booking\CreateBooking;
 use App\Http\Controllers\Controller;
 use App\Mail\PaymentReminderMail;
 use App\Models\Booking;
 use App\Models\Payment;
+use App\Models\Room;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
@@ -40,6 +43,64 @@ class BookingController extends Controller
             'bookings' => $bookings,
             'filter' => $filter,
         ]);
+    }
+
+    public function create()
+    {
+        $rooms = Room::query()
+            ->with('property:id,name')
+            ->where('status', '!=', 'archived')
+            ->orderBy('property_id')
+            ->orderBy('name')
+            ->get(['id', 'property_id', 'name', 'base_price', 'max_adults', 'max_children']);
+
+        return view('tenant.bookings.create', [
+            'rooms' => $rooms,
+            'today' => Carbon::today()->toDateString(),
+            'tomorrow' => Carbon::tomorrow()->toDateString(),
+        ]);
+    }
+
+    public function store(Request $request, CreateBooking $createBooking)
+    {
+        $validated = $request->validate([
+            'room_id' => ['required', Rule::exists('rooms', 'id')],
+            'check_in' => 'required|date|after_or_equal:today',
+            'check_out' => 'required|date|after:check_in',
+            'guest_name' => 'required|string|max:120',
+            'guest_email' => 'nullable|email|max:160',
+            'guest_phone' => 'nullable|string|max:30',
+            'guest_country' => 'nullable|string|size:2',
+            'adults' => 'required|integer|min:1|max:30',
+            'children' => 'nullable|integer|min:0|max:30',
+            'is_foreigner' => 'nullable|boolean',
+            'channel' => ['required', Rule::in([
+                Booking::CHANNEL_DIRECT,
+                Booking::CHANNEL_MARKETPLACE,
+                Booking::CHANNEL_WALK_IN,
+            ])],
+            'deposit_pct' => 'required|numeric|min:0|max:100',
+            'reminder_days' => 'nullable|integer|min:0|max:60',
+            'special_requests' => 'nullable|string|max:1000',
+        ]);
+
+        // Confirm the room belongs to the current tenant (BelongsToTenant scope filters this).
+        abort_unless(Room::find($validated['room_id']), 403);
+
+        $validated['is_foreigner'] = (bool) ($validated['is_foreigner'] ?? false);
+        $validated['guest_country'] = $validated['guest_country'] ?? 'MY';
+
+        try {
+            $booking = $createBooking->execute($validated);
+        } catch (\RuntimeException $e) {
+            return back()
+                ->withInput()
+                ->with('status', __('Could not create booking: :error', ['error' => $e->getMessage()]));
+        }
+
+        return redirect()
+            ->route('tenant.bookings.show', $booking->id)
+            ->with('status', __('Booking :ref created.', ['ref' => $booking->reference]));
     }
 
     public function show($id)

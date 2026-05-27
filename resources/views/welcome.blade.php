@@ -1,40 +1,46 @@
 @extends('layouts.app', ['title' => config('app.name')])
 
 @section('content')
-<section class="text-center py-16">
-    <h1 class="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">{{ __('Run your homestay like a pro.') }}</h1>
-    <p class="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+<section style="text-align:center; padding:64px 0;">
+    <h1 class="display-1" style="margin:0 0 16px; color:var(--ink); text-wrap:balance;">{{ __('Run your homestay like a pro.') }}</h1>
+    <p style="font-size:17px; color:var(--ink-2); max-width:560px; margin:0 auto 32px; line-height:1.55;">
         {{ __('Manage bookings, take payments, and grow your homestay business — built for Malaysia.') }}
     </p>
 
-    <div class="flex justify-center gap-3">
-        <a href="{{ route('register') }}" class="rounded-md bg-sky-600 text-white px-5 py-3 font-medium hover:bg-sky-700">
+    <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+        <a href="{{ route('register') }}" class="btn btn-primary btn-lg" style="text-decoration:none;">
             {{ __('Start free') }}
         </a>
-        <a href="#pricing" class="rounded-md border border-slate-300 px-5 py-3 font-medium hover:bg-slate-100">
+        <a href="#pricing" class="btn btn-lg" style="text-decoration:none;">
             {{ __('See pricing') }}
         </a>
     </div>
 </section>
 
-<section id="pricing" class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto py-12">
-    <div class="bg-white rounded-xl shadow border border-slate-200 p-8">
-        <h2 class="text-2xl font-semibold mb-1">{{ __('Free') }}</h2>
-        <p class="text-slate-600 mb-6">{{ __('For solo operators starting out.') }}</p>
-        <p class="text-4xl font-bold mb-6">RM 0<span class="text-base font-normal text-slate-500">/{{ __('month') }}</span></p>
-        <ul class="space-y-2 text-slate-700 mb-6">
+<section id="pricing" style="display:grid; gap:24px; max-width:920px; margin:0 auto; padding:32px 0;" class="welcome-pricing">
+    <div class="hauz-card" style="padding:32px;">
+        <h2 style="font-size:22px; font-weight:600; margin:0 0 4px;">{{ __('Free') }}</h2>
+        <p style="color:var(--ink-3); margin:0 0 24px;">{{ __('For solo operators starting out.') }}</p>
+        <p style="font-family:var(--font-display); font-size:36px; font-weight:600; margin:0 0 24px; color:var(--ink);">
+            RM 0<span style="font-size:16px; font-weight:400; color:var(--ink-3);">/{{ __('month') }}</span>
+        </p>
+        <ul style="list-style:none; padding:0; margin:0 0 16px; display:flex; flex-direction:column; gap:8px; color:var(--ink-2);">
             <li>✓ {{ __('1 property, up to 3 rooms') }}</li>
             <li>✓ {{ __('Manual payments') }}</li>
             <li>✓ {{ __('Google Calendar sync (1-way)') }}</li>
             <li>✓ {{ __('Up to 20 bookings/month') }}</li>
         </ul>
     </div>
-    <div class="bg-white rounded-xl shadow border-2 border-sky-500 p-8 relative">
-        <span class="absolute -top-3 left-6 bg-sky-500 text-white text-xs font-semibold px-2 py-1 rounded">{{ __('Most popular') }}</span>
-        <h2 class="text-2xl font-semibold mb-1">{{ __('Pro') }}</h2>
-        <p class="text-slate-600 mb-6">{{ __('For growing homestay businesses.') }}</p>
-        <p class="text-4xl font-bold mb-6">RM 49<span class="text-base font-normal text-slate-500">/{{ __('month') }}</span></p>
-        <ul class="space-y-2 text-slate-700 mb-6">
+    <div class="hauz-card" style="padding:32px; border:1.5px solid var(--primary); position:relative; box-shadow:var(--sh-pop);">
+        <span class="pill" style="position:absolute; top:-10px; left:24px; background:var(--primary); color:var(--primary-ink); font-weight:600;">
+            {{ __('Most popular') }}
+        </span>
+        <h2 style="font-size:22px; font-weight:600; margin:0 0 4px;">{{ __('Pro') }}</h2>
+        <p style="color:var(--ink-3); margin:0 0 24px;">{{ __('For growing homestay businesses.') }}</p>
+        <p style="font-family:var(--font-display); font-size:36px; font-weight:600; margin:0 0 24px; color:var(--ink);">
+            RM 49<span style="font-size:16px; font-weight:400; color:var(--ink-3);">/{{ __('month') }}</span>
+        </p>
+        <ul style="list-style:none; padding:0; margin:0 0 16px; display:flex; flex-direction:column; gap:8px; color:var(--ink-2);">
             <li>✓ {{ __('Unlimited properties + rooms') }}</li>
             <li>✓ {{ __('Toyyibpay payment gateway') }}</li>
             <li>✓ {{ __('Auto-reminders + WhatsApp Business') }}</li>
@@ -45,4 +51,10 @@
         </ul>
     </div>
 </section>
+
+<style>
+@media (min-width: 768px) {
+    .welcome-pricing { grid-template-columns: 1fr 1fr; }
+}
+</style>
 @endsection

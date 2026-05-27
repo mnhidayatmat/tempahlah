@@ -11,6 +11,8 @@ use App\Services\Booking\AvailabilityService;
 use App\Services\Pricing\PricingEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class CreateBooking
 {
@@ -115,6 +117,9 @@ class CreateBooking
                     'name' => $data['guest_name'],
                     'phone' => $data['guest_phone'] ?? null,
                     'user_type' => User::TYPE_GUEST,
+                    // Guest users authenticate via OTP, not password — set a random
+                    // unguessable hash so the NOT NULL constraint is satisfied.
+                    'password' => Hash::make(Str::random(32)),
                 ],
             );
         }

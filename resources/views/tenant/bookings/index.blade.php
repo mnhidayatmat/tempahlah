@@ -13,20 +13,28 @@
                 <div class="kicker">{{ __('Reservations') }}</div>
                 <h2 class="display-2" style="margin: 4px 0 0;">{{ __('Bookings') }}</h2>
             </div>
-            <div style="display:flex; gap: 6px;">
-                @foreach ([
-                    'all' => __('All'),
-                    'upcoming' => __('Upcoming'),
-                    'checked-in' => __('Checked-in'),
-                    'past' => __('Past'),
-                ] as $key => $label)
-                    @php $active = $filter === $key; @endphp
-                    <a href="{{ route('tenant.bookings.index', $key === 'all' ? [] : ['status' => $key]) }}"
-                       class="btn btn-sm {{ $active ? '' : 'btn-ghost' }}"
-                       style="text-decoration:none; {{ $active ? '' : 'color: var(--ink-3);' }}">
-                        {{ $label }}
-                    </a>
-                @endforeach
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; gap:2px; padding:3px; background: var(--bg-elev); border-radius:999px; border:.5px solid var(--line);">
+                    @foreach ([
+                        'all' => __('All'),
+                        'upcoming' => __('Upcoming'),
+                        'checked-in' => __('Checked-in'),
+                        'past' => __('Past'),
+                    ] as $key => $label)
+                        @php $active = $filter === $key; @endphp
+                        <a href="{{ route('tenant.bookings.index', $key === 'all' ? [] : ['status' => $key]) }}"
+                           class="btn btn-sm"
+                           style="border:0; text-decoration:none; border-radius:999px;
+                                  background: {{ $active ? 'var(--primary)' : 'transparent' }};
+                                  color: {{ $active ? 'var(--primary-ink)' : 'var(--ink-2)' }};
+                                  font-weight: {{ $active ? '600' : '500' }};">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
+                <a href="{{ route('tenant.bookings.create') }}" class="btn btn-primary btn-sm" style="text-decoration:none;">
+                    <x-icon name="plus" :size="12"/> {{ __('New booking') }}
+                </a>
             </div>
         </div>
 

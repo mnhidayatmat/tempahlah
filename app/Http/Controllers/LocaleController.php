@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Schema;
 
 class LocaleController extends Controller
 {
@@ -16,7 +17,10 @@ class LocaleController extends Controller
 
         $request->session()->put('app_locale', $locale);
 
-        if ($user = $request->user()) {
+        // Persist on the user record only when the table actually has a `locale` column.
+        // The `users` table does; `super_admins` doesn't.
+        $user = $request->user() ?? auth()->guard('super_admin')->user();
+        if ($user && Schema::hasColumn($user->getTable(), 'locale')) {
             $user->forceFill(['locale' => $locale])->save();
         }
 

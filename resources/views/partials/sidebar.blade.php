@@ -1,111 +1,98 @@
 @php
     $current = app()->getLocale();
+
+    // Lightweight badge counts so the sidebar can show small action chips
+    $pendingBookings = \App\Models\Booking::where('status', \App\Models\Booking::STATUS_PENDING)->count();
+    $openCleaning = \App\Models\CleaningTask::whereIn('status', ['pending', 'in_progress'])->count();
+
     $groups = [
         ['title' => __('Operate'), 'items' => [
-            ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),  'icon' => 'home',     'route' => 'tenant.dashboard'],
-            ['key' => 'tenant.calendar',        'label' => __('Calendar'),   'icon' => 'calendar', 'route' => 'tenant.calendar'],
-            ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),   'icon' => 'receipt',  'route' => 'tenant.bookings.index'],
-            ['key' => 'tenant.guests.*',        'label' => __('Guests'),     'icon' => 'users',    'route' => 'tenant.guests.index'],
-            ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle', 'route' => 'tenant.housekeeping.index'],
+            ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),   'icon' => 'home',     'route' => 'tenant.dashboard'],
+            ['key' => 'tenant.calendar',        'label' => __('Calendar'),    'icon' => 'calendar', 'route' => 'tenant.calendar'],
+            ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index', 'badge' => $pendingBookings ?: null],
+            ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index'],
+            ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index', 'badge' => $openCleaning ?: null],
         ]],
         ['title' => __('Manage'), 'items' => [
-            ['key' => 'tenant.properties.*',    'label' => __('Properties'), 'icon' => 'building', 'route' => 'tenant.properties.index'],
-            ['key' => 'tenant.payments.*',      'label' => __('Payments'),   'icon' => 'card',     'route' => 'tenant.payments.index'],
-            ['key' => 'tenant.reports.*',       'label' => __('Reports'),    'icon' => 'chart',    'route' => 'tenant.reports.index'],
+            ['key' => 'tenant.properties.*',    'label' => __('Properties'),  'icon' => 'building', 'route' => 'tenant.properties.index'],
+            ['key' => 'tenant.payments.*',      'label' => __('Payments'),    'icon' => 'card',     'route' => 'tenant.payments.index'],
+            ['key' => 'tenant.reports.*',       'label' => __('Reports'),     'icon' => 'chart',    'route' => 'tenant.reports.index'],
         ]],
         ['title' => __('Configure'), 'items' => [
-            ['key' => 'tenant.integrations.*',  'label' => __('Integrations'), 'icon' => 'link',    'route' => 'tenant.integrations.index'],
-            ['key' => 'tenant.subscription',    'label' => __('Subscription'), 'icon' => 'sparkle', 'route' => 'tenant.subscription'],
-            ['key' => 'tenant.settings.*',      'label' => __('Settings'),     'icon' => 'cog',     'route' => 'tenant.settings.index'],
+            ['key' => 'tenant.integrations.*',  'label' => __('Integrations'),'icon' => 'link',     'route' => 'tenant.integrations.index'],
+            ['key' => 'tenant.subscription',    'label' => __('Subscription'),'icon' => 'sparkle',  'route' => 'tenant.subscription'],
+            ['key' => 'tenant.settings.*',      'label' => __('Settings'),    'icon' => 'cog',      'route' => 'tenant.settings.index'],
         ]],
     ];
 @endphp
 
-<aside style="width: 232px; flex-shrink: 0; background: var(--bg); border-right: .5px solid var(--line); display: flex; flex-direction: column; height: 100%;">
-    <div style="padding: 16px 14px 12px;">
-        <div style="display:flex; align-items:center; gap:10px; padding: 8px;">
-            <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <rect x="0" y="0" width="32" height="32" rx="8" fill="var(--primary)"/>
-                <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="oklch(96% 0.02 150)"/>
-                <rect x="13" y="17" width="6" height="6" fill="var(--accent)"/>
+<aside style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
+    {{-- Brand + tenant switcher --}}
+    <div style="padding: 16px 14px 14px;">
+        <button type="button" style="width:100%; display:flex; align-items:center; gap:10px; padding:8px; border:0; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink);">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+                <defs>
+                    <linearGradient id="hauz-grad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#f29268"/>
+                        <stop offset="100%" stop-color="#d97757"/>
+                    </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="32" height="32" rx="9" fill="url(#hauz-grad)"/>
+                <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#ffffff" opacity="0.96"/>
+                <rect x="13.5" y="17.5" width="5" height="5.5" rx="0.5" fill="#d97757"/>
             </svg>
             <div style="flex:1; min-width:0;">
-                <div style="font-weight:600; font-size:13.5px; letter-spacing:-.01em;">{{ config('app.name', 'Hauz') }}</div>
-                <div style="font-size:11px; color: var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="font-weight:700; font-size:16px; letter-spacing:-.02em; color: var(--primary);">
+                    {{ config('app.name', 'Hauz') }}
+                </div>
+                <div style="font-size:11px; color: var(--ink-3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ $tenant?->business_name ?? auth()->user()->name }}
                 </div>
             </div>
-        </div>
+            <x-icon name="more" :size="14" style="color: var(--ink-3);"/>
+        </button>
     </div>
 
-    <nav style="flex:1; padding: 0 8px; overflow-y:auto;">
+    {{-- Nav --}}
+    <nav class="thin-scroll" style="flex:1; padding: 0 8px; overflow-y:auto;">
         @foreach ($groups as $g)
-            <div style="margin-bottom:14px;">
-                <div class="kicker" style="padding: 6px 10px 4px; font-size: 9.5px;">{{ $g['title'] }}</div>
+            <div style="margin-bottom:18px;">
+                <div class="kicker" style="padding: 6px 12px 6px; letter-spacing:.2em;">{{ $g['title'] }}</div>
                 @foreach ($g['items'] as $it)
                     @php
                         $active = request()->routeIs($it['key']);
+                        $badge = $it['badge'] ?? null;
                     @endphp
-                    <a href="{{ route($it['route']) }}" style="
-                        display:flex; align-items:center; gap:10px;
-                        padding: 7px 10px; margin-bottom:1px;
-                        border-radius: var(--r-md); font-size:13px; text-decoration:none;
-                        {{ $active ? 'background: var(--primary-tint); color: var(--primary); font-weight:600;' : 'color: var(--ink-2); font-weight:500;' }}">
-                        <x-icon :name="$it['icon']" :size="15"/>
-                        <span>{{ $it['label'] }}</span>
+                    <a href="{{ route($it['route']) }}"
+                       style="display:flex; align-items:center; gap:12px;
+                              padding: {{ $active ? '10px 12px 10px 8px' : '10px 14px' }};
+                              border-left: 4px solid {{ $active ? 'var(--primary)' : 'transparent' }};
+                              background: {{ $active ? 'var(--bg-tint)' : 'transparent' }};
+                              color: {{ $active ? 'var(--primary)' : 'var(--ink-2)' }};
+                              border-radius: {{ $active ? '0 var(--r-sm) var(--r-sm) 0' : 'var(--r-sm)' }};
+                              font-size:13px; font-weight: {{ $active ? '700' : '500' }};
+                              text-decoration:none; margin-bottom:2px; transition: background 160ms, color 160ms;">
+                        <x-icon :name="$it['icon']" :size="16"/>
+                        <span style="flex:1;">{{ $it['label'] }}</span>
+                        @if ($badge)
+                            <span class="pill pill-primary" style="height:18px; font-size:10px; padding:0 7px; font-weight:700;">{{ $badge }}</span>
+                        @endif
                     </a>
                 @endforeach
             </div>
         @endforeach
     </nav>
 
-    {{-- Plan card --}}
-    <div style="padding: 10px;">
-        @if ($plan === 'free')
-            <a href="{{ route('tenant.subscription') }}" style="display:block; text-decoration:none; padding: 12px;
-                border:.5px solid var(--line-2);
-                background: linear-gradient(135deg, oklch(96% 0.04 60), oklch(94% 0.05 80));
-                border-radius: var(--r-lg);">
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                    <x-icon name="sparkle" :size="12" style="color: var(--pro);"/>
-                    <span class="kicker" style="color: var(--pro); font-size:9.5px;">{{ __("You're on Free") }}</span>
-                </div>
-                <div style="font-family: var(--font-display); font-size:19px; line-height:1.1; margin-bottom:4px;">
-                    {{ __('Unlock Pro') }}
-                </div>
-                <div style="font-size:11.5px; color: var(--ink-3); line-height:1.4; margin-bottom:8px;">
-                    {{ __('Multi-property, payment gateway, auto-reminders.') }}
-                </div>
-                <div style="display:flex; align-items:baseline; gap:4px;">
-                    <span class="mono" style="font-size:11px; color: var(--ink-3);">RM</span>
-                    <span style="font-weight:600; font-size:16px;">49</span>
-                    <span style="font-size:11px; color: var(--ink-3);">/{{ __('mo') }}</span>
-                    <span style="margin-left:auto; color: var(--pro);">→</span>
-                </div>
-            </a>
-        @else
-            <div style="padding: 10px 12px; border:.5px solid var(--line-2); background: var(--bg-elev); border-radius: var(--r-lg);">
-                <span class="pill pill-pro" style="height:18px; font-size:10px;">
-                    <x-icon name="sparkle" :size="10"/> Pro
-                </span>
-                <div style="font-size:11.5px; color: var(--ink-3); margin-top:6px;">
-                    {{ __('Renews :date · RM49/mo', ['date' => now()->addMonth()->format('d M')]) }}
-                </div>
+    {{-- Beta access card --}}
+    <div style="padding: 12px;">
+        <div style="padding: 12px 14px; border: 1px solid var(--primary-edge); background: var(--primary-tint); border-radius: var(--r-lg);">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                <x-icon name="sparkle" :size="12" style="color: var(--primary);"/>
+                <span class="cm-eyebrow-primary">{{ __('Beta access') }}</span>
             </div>
-        @endif
-    </div>
-
-    {{-- Locale + user footer --}}
-    <div style="padding: 8px 14px 14px; border-top:.5px solid var(--line); display:flex; align-items:center; gap:10px;">
-        <div style="display:inline-flex; border:.5px solid var(--line-2); border-radius:6px; padding:2px; background: var(--bg-sunk);">
-            <a href="{{ route('locale.switch', 'ms') }}" style="padding:3px 8px; border-radius:4px; font-size:10.5px; font-weight:500; text-decoration:none; {{ $current === 'ms' ? 'background: var(--bg-elev); color: var(--primary); box-shadow: var(--sh-1);' : 'color: var(--ink-3);' }}">BM</a>
-            <a href="{{ route('locale.switch', 'en') }}" style="padding:3px 8px; border-radius:4px; font-size:10.5px; font-weight:500; text-decoration:none; {{ $current === 'en' ? 'background: var(--bg-elev); color: var(--primary); box-shadow: var(--sh-1);' : 'color: var(--ink-3);' }}">EN</a>
+            <div style="font-size:11.5px; color: var(--ink-2); line-height:1.45;">
+                {{ __('All features free while we improve. Help us shape Hauz.') }}
+            </div>
         </div>
-        <form method="POST" action="{{ route('logout') }}" style="margin-left:auto;">
-            @csrf
-            <button type="submit" style="border:0; background:transparent; color: var(--ink-3); font-size:11.5px; cursor:pointer;">
-                {{ __('Logout') }}
-            </button>
-        </form>
     </div>
 </aside>

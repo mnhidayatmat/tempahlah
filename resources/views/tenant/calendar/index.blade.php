@@ -1,258 +1,363 @@
-<x-app-layout :title="__('Calendar')">
+<x-app-layout :title="__('Calendar')" :subtitle="__('Month view')" :breadcrumbs="[$property?->name ?? __('Calendar')]">
     @php
-        $cellW = 64; $headerH = 48; $rowH = 56; $labelW = 180;
-        $rangeLabel = $start->isSameMonth($end)
-            ? $start->format('M j').' – '.$end->format('j, Y')
-            : $start->format('M j').' – '.$end->format('M j, Y');
-
-        $isPro = (app(\App\Support\Tenancy\TenantContext::class)->current()?->subscription?->plan ?? 'free') !== 'free';
-        $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
-
         $paymentStatus = function ($b) {
             if ($b->balance_paid_at) return 'paid';
             if ($b->deposit_paid_at) return 'deposit';
             return 'unpaid';
         };
+        $totalRoomsCount = $rooms->count() ?: 1;
 
-        $colorMap = [
-            'paid'    => ['line' => 'var(--primary)',         'tint' => 'var(--primary-tint)'],
-            'deposit' => ['line' => 'var(--warn)',            'tint' => 'var(--warn-tint)'],
-            'unpaid'  => ['line' => 'var(--err)',             'tint' => 'var(--err-tint)'],
-            'block'   => ['line' => 'var(--ink-4)',           'tint' => 'var(--bg-sunk)'],
-        ];
-
-        $property = $properties->firstWhere('id', $propertyId);
+        $mood = $occupancyPct >= 75
+            ? ['tone' => 'var(--primary)', 'text' => __('Busy month — your home is buzzing.')]
+            : ($occupancyPct >= 45
+                ? ['tone' => 'var(--warn)', 'text' => __('Steady rhythm, with quiet weekdays for upkeep.')]
+                : ['tone' => 'var(--ink-3)', 'text' => __('Quiet stretch. A good time to refresh listings or rest.')]);
     @endphp
 
-    <div style="display:flex; flex-direction:column; gap: 16px;">
+    <div style="display:flex; flex-direction:column; gap:16px;">
 
         {{-- Toolbar --}}
-        <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap;">
-            <div class="hauz-card" style="display:flex; padding:3px; gap:2px;">
-                @forelse ($properties as $p)
-                    @php
-                        $active = $p->id === $propertyId;
-                        $locked = ! $isPro && $p->id !== $properties->first()?->id;
-                    @endphp
-                    <a href="{{ route('tenant.calendar', ['property_id' => $p->id, 'start' => $start->toDateString()]) }}"
-                       class="btn btn-sm"
-                       @if($locked) onclick="return false" aria-disabled="true" @endif
-                       style="border:0; background: {{ $active ? 'var(--primary-tint)' : 'transparent' }};
-                              color: {{ $active ? 'var(--primary)' : 'var(--ink-2)' }};
-                              font-weight: {{ $active ? 600 : 500 }};
-                              opacity: {{ $locked ? '0.6' : '1' }};
-                              text-decoration:none;">
-                        {{ $p->name }}
-                        @if ($locked)
-                            <x-icon name="lock" :size="11" style="color: var(--pro);"/>
-                        @endif
-                    </a>
-                @empty
-                    <span style="padding: 4px 10px; font-size:12px; color: var(--ink-3);">{{ __('No properties yet') }}</span>
-                @endforelse
-            </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            @if ($properties->count() > 1)
+                <div class="card" style="display:flex; padding:3px; gap:2px;">
+                    @foreach ($properties as $p)
+                        @php $active = $p->id === $propertyId; @endphp
+                        <a href="{{ route('tenant.calendar', ['property_id' => $p->id, 'cursor' => $cursor->format('Y-m')]) }}"
+                           class="btn btn-sm"
+                           style="border:0; border-radius: var(--r-sm); text-decoration:none;
+                                  background: {{ $active ? 'var(--primary-tint)' : 'transparent' }};
+                                  color: {{ $active ? 'var(--primary)' : 'var(--ink-2)' }};
+                                  font-weight: {{ $active ? '600' : '500' }};">
+                            {{ $p->name }}
+                        </a>
+                    @endforeach
+                </div>
+            @elseif ($property)
+                <div style="font-size:14px; font-weight:600;">{{ $property->name }}</div>
+            @endif
 
             <div style="flex:1;"></div>
 
-            <div style="display:flex; border:.5px solid var(--line-2); border-radius: var(--r-md); overflow:hidden;">
-                <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'start' => $prevStart]) }}"
-                   class="btn btn-sm" style="border-radius:0; border:0; background: var(--bg-elev);" aria-label="{{ __('Previous range') }}">
+            <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $todayCursor]) }}"
+               class="btn btn-sm">{{ __('Today') }}</a>
+
+            <div style="display:flex; border: 1px solid var(--line-2); border-radius: var(--r-md); overflow:hidden;">
+                <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $prevCursor]) }}"
+                   class="btn btn-sm" style="border-radius:0; border:0; background: var(--bg-elev);"
+                   aria-label="{{ __('Previous month') }}">
                     <x-icon name="arrow-left" :size="12"/>
                 </a>
-                <div style="padding: 0 12px; display:flex; align-items:center; border-left: .5px solid var(--line-2); border-right: .5px solid var(--line-2); font-size: 12px; font-weight: 500; background: var(--bg-elev);">
-                    {{ $rangeLabel }}
+                <div style="padding: 0 14px; display:flex; align-items:center;
+                            border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2);
+                            font-size:13px; font-weight:600; min-width:140px; justify-content:center;
+                            background: var(--bg-elev);">
+                    {{ $monthLabel }}
                 </div>
-                <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'start' => $nextStart]) }}"
-                   class="btn btn-sm" style="border-radius:0; border:0; background: var(--bg-elev);" aria-label="{{ __('Next range') }}">
+                <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $nextCursor]) }}"
+                   class="btn btn-sm" style="border-radius:0; border:0; background: var(--bg-elev);"
+                   aria-label="{{ __('Next month') }}">
                     <x-icon name="arrow-right" :size="12"/>
                 </a>
             </div>
 
-            <a href="{{ route('tenant.bookings.index') }}" class="btn btn-sm btn-primary">
+            <a href="{{ route('tenant.bookings.create') }}" class="btn btn-sm btn-primary">
                 <x-icon name="plus" :size="12"/> {{ __('New booking') }}
             </a>
         </div>
 
         @if ($properties->isEmpty())
-            <div class="hauz-card" style="padding: 32px; text-align:center;">
-                <div class="display-3" style="margin-bottom: 6px;">{{ __('No properties to schedule') }}</div>
-                <p style="margin: 0 0 14px; color: var(--ink-3); font-size: 13px;">{{ __('Add a property to start managing its calendar.') }}</p>
+            <div class="card" style="padding:32px; text-align:center;">
+                <div class="display-3" style="margin-bottom:6px;">{{ __('No properties to schedule') }}</div>
+                <p style="margin:0 0 14px; color: var(--ink-3); font-size:13px;">{{ __('Add a property to start managing its calendar.') }}</p>
                 <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary btn-sm">{{ __('Add property') }}</a>
             </div>
         @else
+
             {{-- Property summary strip --}}
-            <div class="hauz-card" style="padding: 12px 16px; display:flex; gap:24px; align-items:center; flex-wrap: wrap;">
-                <div>
-                    <div style="font-size: 13px; font-weight: 600;">{{ $property->name }}</div>
-                    <div style="font-size: 11.5px; color: var(--ink-3); display:inline-flex; align-items:center; gap:4px; margin-top: 2px;">
+            <div class="card" style="padding: 18px 22px; display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
+                <div style="min-width:0; flex: 1 1 240px;">
+                    <div style="font-size:12.5px; color: var(--ink-3); margin-bottom:2px; display:inline-flex; align-items:center; gap:4px;">
                         <x-icon name="pin" :size="10"/>
-                        {{ $property->city ?? '—' }}{{ $property->state ? ', '.$property->state : '' }}
-                        · {{ $rooms->count() }} {{ trans_choice('{1} room|[2,*] rooms', $rooms->count()) }}
+                        {{ $property?->city ?? '—' }} · {{ $rooms->count() }} {{ trans_choice('{1} room|[2,*] rooms', $rooms->count()) }}
+                    </div>
+                    <div style="font-family: var(--font-display); font-size:22px; font-weight:600; letter-spacing:-.02em; line-height:1.15; color: {{ $mood['tone'] }};">
+                        {{ $mood['text'] }}
                     </div>
                 </div>
-                <div style="width:1px; height:28px; background: var(--line);"></div>
-
+                <div style="width:1px; height:40px; background: var(--line);"></div>
                 <div>
-                    <div class="kicker" style="font-size: 10.5px; margin-bottom: 2px;">{{ __('Occupancy (14d)') }}</div>
-                    <div class="mono" style="font-size: 14px; font-weight: 600;">{{ number_format($stats['occupancy'] * 100, 0) }}%</div>
+                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Occupancy') }} · {{ $cursor->format('M') }}</div>
+                    <div class="mono" style="font-size:16px; font-weight:700;">{{ $occupancyPct }}%</div>
                 </div>
                 <div>
-                    <div class="kicker" style="font-size: 10.5px; margin-bottom: 2px;">{{ __('Revenue (14d)') }}</div>
-                    <div class="mono" style="font-size: 14px; font-weight: 600;">RM {{ number_format($stats['revenue'], 0) }}</div>
+                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Revenue') }}</div>
+                    <div class="mono" style="font-size:16px; font-weight:700;">RM {{ number_format($monthRevenue, 0) }}</div>
                 </div>
                 <div>
-                    <div class="kicker" style="font-size: 10.5px; margin-bottom: 2px;">{{ __('Avg. rate') }}</div>
-                    <div class="mono" style="font-size: 14px; font-weight: 600;">RM {{ number_format($stats['rate'], 0) }}</div>
+                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Bookings') }}</div>
+                    <div class="mono" style="font-size:16px; font-weight:700;">{{ $monthBookings }}</div>
                 </div>
-
                 <div style="flex:1;"></div>
-
-                <div style="display:flex; gap:12px; font-size: 11.5px; color: var(--ink-2); flex-wrap: wrap;">
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background: var(--primary);"></span>{{ __('Confirmed') }}</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background: var(--warn);"></span>{{ __('Deposit') }}</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background: var(--err);"></span>{{ __('Unpaid') }}</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background: var(--ink-4);"></span>{{ __('Blocked') }}</span>
+                <div style="display:flex; gap:12px; font-size:11.5px;">
+                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
+                        <span style="width:10px; height:10px; border-radius:3px; background: var(--primary);"></span>{{ __('Confirmed') }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
+                        <span style="width:10px; height:10px; border-radius:3px; background: var(--warn);"></span>{{ __('Deposit') }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
+                        <span style="width:10px; height:10px; border-radius:3px; background: var(--err);"></span>{{ __('Unpaid') }}</span>
                 </div>
             </div>
 
-            {{-- Timeline --}}
-            <div class="hauz-card" style="padding: 0; overflow:hidden;">
-                @if ($rooms->isEmpty())
-                    <div style="padding: 40px; text-align:center; color: var(--ink-3); font-size: 13px;">
-                        {{ __('This property has no rooms yet.') }}
-                        <div style="margin-top: 10px;">
-                            <a href="{{ route('tenant.properties.show', ['id' => $propertyId]) }}" class="btn btn-sm">{{ __('Add rooms') }}</a>
-                        </div>
-                    </div>
-                @else
-                    <div class="thin-scroll" style="overflow-x: auto;">
-                        <div style="min-width: {{ $labelW + $cellW * $rangeDays }}px;">
+            {{-- Main: grid + (optional) detail panel --}}
+            <div style="display:grid; grid-template-columns: {{ $selectedDay ? '1fr 340px' : '1fr' }}; gap:16px; align-items:flex-start; transition: grid-template-columns 200ms;">
 
-                            {{-- Header row --}}
-                            <div style="display:flex; height: {{ $headerH }}px; border-bottom: .5px solid var(--line); background: var(--bg-sunk);">
-                                <div style="width: {{ $labelW }}px; flex-shrink:0; padding: 10px 14px; border-right: .5px solid var(--line);">
-                                    <div class="kicker" style="font-size: 9.5px;">{{ __('Room') }}</div>
+                {{-- Month grid --}}
+                <div class="card" style="padding:0; overflow:hidden;">
+                    {{-- Weekday header --}}
+                    <div style="display:grid; grid-template-columns: repeat(7, 1fr); padding: 4px 0; background:transparent;">
+                        @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $i => $wd)
+                            <div style="padding: 12px 14px; font-size:11px; font-weight:600;
+                                        color: {{ ($i === 0 || $i === 6) ? 'var(--primary)' : 'var(--ink-3)' }};
+                                        text-transform:uppercase; letter-spacing:.09em; text-align:left;">
+                                {{ __($wd) }}
+                            </div>
+                        @endforeach
+                    </div>
+
+                    {{-- Day cells --}}
+                    <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; padding: 0 10px 14px;">
+                        @foreach ($days as $d)
+                            @if (! $d)
+                                <div style="min-height:128px;"></div>
+                            @else
+                                @php
+                                    $iso = $d->toDateString();
+                                    $isToday = $iso === $todayIso;
+                                    $isWknd = $d->isWeekend();
+                                    $isSelected = $iso === $selectedDay;
+                                    $isOtherMonth = $d->month !== $cursor->month;
+                                    $bks = $bookingsByDate[$iso] ?? [];
+                                    $events = $eventsByDate[$iso] ?? ['checkins' => [], 'checkouts' => []];
+                                    $occupied = count($bks);
+                                    $totalRooms = $totalRoomsCount;
+                                    $occRatio = min(1, $occupied / $totalRooms);
+                                    $heatBg = $occupied > 0
+                                        ? 'rgba(217, 119, 87, '.(0.06 + $occRatio * 0.18).')'
+                                        : ($isWknd ? 'var(--bg-sunk)' : 'var(--bg-elev)');
+                                    $cellHref = route('tenant.calendar', [
+                                        'property_id' => $propertyId,
+                                        'cursor' => $cursor->format('Y-m'),
+                                        'day' => $iso,
+                                    ]);
+                                @endphp
+                                <a href="{{ $cellHref }}"
+                                   style="min-height:128px; padding:10px; text-decoration:none; color: var(--ink);
+                                          background: {{ $isSelected ? 'linear-gradient(160deg, rgba(217,119,87,0.22), rgba(217,119,87,0.08))' : $heatBg }};
+                                          border: 1px solid {{ $isSelected ? 'var(--primary)' : 'var(--line)' }};
+                                          border-radius:14px;
+                                          opacity: {{ $isOtherMonth ? '0.4' : '1' }};
+                                          display:flex; flex-direction:column; gap:6px;
+                                          position:relative;
+                                          box-shadow: {{ $isSelected ? '0 8px 24px -10px oklch(67% 0.16 45 / 0.35), 0 1px 0 oklch(67% 0.16 45 / 0.06) inset' : 'var(--sh-1)' }};
+                                          transition: transform 120ms, box-shadow 120ms;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        @if ($isToday)
+                                            <span style="font-family: var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.01em;
+                                                         color: var(--primary-ink);
+                                                         background: linear-gradient(150deg, var(--primary), oklch(60% 0.18 35));
+                                                         width:24px; height:24px; border-radius:999px;
+                                                         display:inline-flex; align-items:center; justify-content:center;
+                                                         box-shadow: 0 2px 8px oklch(67% 0.16 45 / 0.4);">
+                                                {{ $d->day }}
+                                            </span>
+                                        @else
+                                            <span style="font-family: var(--font-mono); font-size:13px; font-weight:600; color: var(--ink);">{{ $d->day }}</span>
+                                        @endif
+                                        @if ($occupied > 0)
+                                            @php $full = $occupied === $totalRooms; @endphp
+                                            <span style="font-size:10px; font-weight:700;
+                                                         color: {{ $full ? 'var(--err)' : 'var(--ink-3)' }};
+                                                         font-family: var(--font-mono);
+                                                         background: {{ $full ? 'var(--err-tint)' : 'transparent' }};
+                                                         padding: {{ $full ? '1px 6px' : '0' }};
+                                                         border-radius:999px;">
+                                                {{ $full ? 'FULL' : $occupied.'/'.$totalRooms }}
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    {{-- Booking chips --}}
+                                    <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-height:0;">
+                                        @foreach (array_slice($bks, 0, 3) as $b)
+                                            @php
+                                                $ps = $paymentStatus($b);
+                                                $col = $ps === 'paid' ? 'var(--primary)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--err)');
+                                                $tint = $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)');
+                                                $guestName = $b->guest?->name ?? __('Guest');
+                                                $firstName = explode(' ', $guestName)[0];
+                                            @endphp
+                                            <span title="{{ $guestName }} · {{ $b->room?->name ?? '' }}"
+                                                  style="background: {{ $tint }}; padding: 3px 4px; border-radius:999px;
+                                                         display:flex; align-items:center; gap:5px;
+                                                         font-size:10.5px; font-weight:500; color: var(--ink);
+                                                         overflow:hidden;">
+                                                <span style="width:16px; height:16px; border-radius:999px;
+                                                             background: {{ $col }}; color: white; flex-shrink:0;
+                                                             display:inline-flex; align-items:center; justify-content:center;
+                                                             font-size:8.5px; font-weight:700;">{{ strtoupper(substr($firstName, 0, 1)) }}</span>
+                                                <span style="overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0;">{{ $firstName }}</span>
+                                            </span>
+                                        @endforeach
+                                        @if (count($bks) > 3)
+                                            <span style="font-size:10px; color: var(--ink-3); padding-left:6px; font-style:italic;">
+                                                +{{ count($bks) - 3 }} {{ __('more') }}
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    {{-- Event indicators --}}
+                                    @php
+                                        $cIn = count($events['checkins'] ?? []);
+                                        $cOut = count($events['checkouts'] ?? []);
+                                    @endphp
+                                    @if ($cIn > 0 || $cOut > 0)
+                                        <div style="display:flex; gap:6px; margin-top:auto; align-items:center;">
+                                            @if ($cIn > 0)
+                                                <span style="display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:700; color: var(--primary);">
+                                                    <span style="width:6px; height:6px; border-radius:999px; background: var(--primary);"></span>
+                                                    {{ $cIn }} {{ __('in') }}
+                                                </span>
+                                            @endif
+                                            @if ($cOut > 0)
+                                                <span style="display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:700; color: var(--ink-3);">
+                                                    <span style="width:6px; height:6px; border-radius:999px; background: var(--ink-4);"></span>
+                                                    {{ $cOut }} {{ __('out') }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </a>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Day detail panel --}}
+                @if ($selectedDay)
+                    @php
+                        $dayBookings = $bookingsByDate[$selectedDay] ?? [];
+                        $dayEvents = $eventsByDate[$selectedDay] ?? ['checkins' => [], 'checkouts' => []];
+                        $occ = count($dayBookings);
+                        $free = $rooms->count() - $occ;
+                        $dayRevenue = 0;
+                        foreach ($dayBookings as $b) {
+                            if ($b->nights > 0) $dayRevenue += $b->total_amount / $b->nights;
+                        }
+                        $selectedCarbon = \Carbon\Carbon::parse($selectedDay);
+                        $occupiedRoomIds = collect($dayBookings)->pluck('room_id')->all();
+                    @endphp
+                    <div class="card" style="padding:0; overflow:hidden; position:sticky; top:16px;">
+                        {{-- Header --}}
+                        <div style="padding: 16px 18px; border-bottom: .5px solid var(--line); background: var(--bg-sunk);
+                                    display:flex; align-items:flex-start; justify-content:space-between;">
+                            <div>
+                                <div class="cm-eyebrow" style="margin-bottom:2px;">{{ $selectedCarbon->isoFormat('dddd') }}</div>
+                                <div style="font-family: var(--font-display); font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.1;">
+                                    {{ $selectedCarbon->isoFormat('D MMMM') }}
                                 </div>
-                                <div style="display:flex;">
-                                    @foreach ($days as $i => $d)
-                                        @php $isWknd = $d->isWeekend(); $isToday = $d->isToday(); @endphp
-                                        <div style="width: {{ $cellW }}px; padding: 8px 0; text-align:center;
-                                                    {{ $i < $rangeDays - 1 ? 'border-right: .5px solid var(--line);' : '' }}
-                                                    background: {{ $isWknd ? 'oklch(95% 0.012 70)' : 'transparent' }};">
-                                            <div style="font-size:10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em;">
-                                                {{ $d->format('D') }}
-                                            </div>
-                                            <div class="mono" style="font-size:14px; font-weight:600; {{ $isToday ? 'color: var(--primary);' : '' }}">
-                                                {{ $d->format('j') }}
-                                            </div>
+                            </div>
+                            <a href="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $cursor->format('Y-m')]) }}"
+                               style="background:transparent; border:0; color: var(--ink-3); padding:4px; text-decoration:none;">
+                                <x-icon name="x" :size="14"/>
+                            </a>
+                        </div>
+
+                        {{-- Stats --}}
+                        <div style="padding: 14px 18px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; border-bottom:.5px solid var(--line);">
+                            <div>
+                                <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Occupied') }}</div>
+                                <div class="mono" style="font-size:17px; font-weight:700;">{{ $occ }}/{{ $rooms->count() }}</div>
+                            </div>
+                            <div>
+                                <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Free') }}</div>
+                                <div class="mono" style="font-size:17px; font-weight:700; color: {{ $free > 0 ? 'var(--ok)' : 'var(--err)' }};">{{ $free }}</div>
+                            </div>
+                            <div>
+                                <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Revenue') }}</div>
+                                <div class="mono" style="font-size:17px; font-weight:700;">RM {{ round($dayRevenue) }}</div>
+                            </div>
+                        </div>
+
+                        {{-- Events --}}
+                        @if (! empty($dayEvents['checkins']) || ! empty($dayEvents['checkouts']))
+                            <div style="padding: 14px 18px; border-bottom:.5px solid var(--line);">
+                                <div class="cm-eyebrow" style="margin-bottom:8px;">{{ __("Today's events") }}</div>
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    @foreach ($dayEvents['checkins'] ?? [] as $b)
+                                        <div style="display:flex; align-items:center; gap:8px; font-size:12.5px;">
+                                            <span style="background: var(--primary); color: var(--primary-ink); padding: 2px 6px; border-radius:4px; font-size:9.5px; font-weight:600;">{{ __('CHECK-IN') }}</span>
+                                            <span style="font-weight:500;">{{ $b->guest?->name ?? __('Guest') }}</span>
+                                            <span style="color: var(--ink-3);">· {{ $b->room?->name }}</span>
+                                        </div>
+                                    @endforeach
+                                    @foreach ($dayEvents['checkouts'] ?? [] as $b)
+                                        <div style="display:flex; align-items:center; gap:8px; font-size:12.5px;">
+                                            <span style="background: var(--bg-tint); color: var(--ink-2); padding: 2px 6px; border-radius:4px; font-size:9.5px; font-weight:600;">{{ __('CHECK-OUT') }}</span>
+                                            <span style="font-weight:500;">{{ $b->guest?->name ?? __('Guest') }}</span>
+                                            <span style="color: var(--ink-3);">· {{ $b->room?->name }}</span>
                                         </div>
                                     @endforeach
                                 </div>
                             </div>
+                        @endif
 
-                            {{-- Rows --}}
-                            @foreach ($rooms as $ri => $room)
-                                @php
-                                    $roomBookings = $bookingsByRoom->get($room->id, collect());
-                                    $roomBlocks = $blocksByRoom->get($room->id, collect());
-                                @endphp
-                                <div style="display:flex; height: {{ $rowH }}px; position: relative;
-                                            {{ $ri < $rooms->count() - 1 ? 'border-bottom: .5px solid var(--line);' : '' }}">
-
-                                    <div style="width: {{ $labelW }}px; flex-shrink:0; padding: 10px 14px; border-right: .5px solid var(--line);">
-                                        <div style="font-size: 13px; font-weight: 500; line-height: 1.2;">{{ $room->name }}</div>
-                                        <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 2px; display:inline-flex; align-items:center; gap: 5px;">
-                                            <x-icon name="bed" :size="10"/>
-                                            {{ $room->beds }} · RM{{ number_format((float) $room->base_price, 0) }}
+                        {{-- Per-room status --}}
+                        <div style="padding: 14px 18px;">
+                            <div class="cm-eyebrow" style="margin-bottom:10px;">{{ __('Room status') }}</div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                @foreach ($rooms as $r)
+                                    @php
+                                        $bk = collect($dayBookings)->firstWhere('room_id', $r->id);
+                                        $col = $bk
+                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--primary)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--err)'))
+                                            : 'var(--ok)';
+                                    @endphp
+                                    <div style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
+                                                border: .5px solid var(--line);
+                                                border-left: 3px solid {{ $col }};
+                                                display:flex; align-items:center; gap:10px;">
+                                        <div style="flex:1; min-width:0;">
+                                            <div style="font-size:12.5px; font-weight:600;">{{ $r->name }}</div>
+                                            @if ($bk)
+                                                <div style="font-size:11px; color: var(--ink-3); margin-top:1px;">
+                                                    {{ $bk->guest?->name ?? __('Guest') }} · {{ $bk->nights }}n · RM {{ number_format($bk->total_amount, 0) }}
+                                                </div>
+                                            @else
+                                                <div style="font-size:11px; color: var(--ok); margin-top:1px; font-weight:500;">{{ __('Available') }}</div>
+                                            @endif
                                         </div>
+                                        @if ($bk)
+                                            @php $ps = $paymentStatus($bk); @endphp
+                                            <span class="pill" style="height:18px; font-size:10px;
+                                                                      background: {{ $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)') }};
+                                                                      color: {{ $col }};">
+                                                {{ $ps === 'paid' ? __('Paid') : ($ps === 'deposit' ? __('Deposit') : __('Unpaid')) }}
+                                            </span>
+                                        @endif
                                     </div>
+                                @endforeach
+                            </div>
+                        </div>
 
-                                    {{-- Day cells (background grid) --}}
-                                    <div style="position: relative; display:flex; flex: 1;">
-                                        @foreach ($days as $i => $d)
-                                            @php $isWknd = $d->isWeekend(); @endphp
-                                            <div style="width: {{ $cellW }}px;
-                                                        {{ $i < $rangeDays - 1 ? 'border-right: .5px solid var(--line);' : '' }}
-                                                        background: {{ $isWknd ? 'oklch(97% 0.008 70)' : 'transparent' }};"></div>
-                                        @endforeach
-
-                                        {{-- Booking bars (absolute) --}}
-                                        @foreach ($roomBookings as $b)
-                                            @php
-                                                $startOffset = $start->diffInDays($b->check_in, false);
-                                                $span = (int) $b->nights ?: max(1, $b->check_in->diffInDays($b->check_out));
-                                                if ($startOffset + $span < 0 || $startOffset >= $rangeDays) continue;
-
-                                                $clippedStart = max(0, $startOffset);
-                                                $clippedEnd = min($rangeDays, $startOffset + $span);
-                                                $startsInRange = $startOffset >= 0;
-
-                                                $left = $clippedStart * $cellW + ($startsInRange ? $cellW * 0.5 : 0);
-                                                $width = ($clippedEnd - $clippedStart) * $cellW
-                                                    - ($startsInRange ? $cellW * 0.5 : 0)
-                                                    - $cellW * 0.5;
-                                                $width = max(30, $width);
-
-                                                $payState = $paymentStatus($b);
-                                                $color = $colorMap[$payState];
-                                                $label = $b->guest?->name ?? __('Guest');
-                                            @endphp
-                                            <a href="{{ route('tenant.bookings.show', ['id' => $b->public_id ?? $b->id]) }}"
-                                               title="{{ $label.' · '.$b->reference.' · '.$b->check_in->format('d M').' → '.$b->check_out->format('d M') }}"
-                                               style="position:absolute; top: 8px; left: {{ $left }}px; width: {{ $width }}px; height: {{ $rowH - 16 }}px;
-                                                      background: {{ $color['tint'] }}; border: .5px solid {{ $color['line'] }};
-                                                      border-radius: 999px; padding: 0 10px;
-                                                      display:flex; align-items:center; gap: 6px;
-                                                      font-size: 11.5px; font-weight: 500; color: var(--ink);
-                                                      overflow:hidden; white-space:nowrap;
-                                                      text-decoration:none; box-shadow: var(--sh-1);">
-                                                <span style="width:6px; height:6px; border-radius:999px; background: {{ $color['line'] }}; flex-shrink:0;"></span>
-                                                <span style="overflow:hidden; text-overflow:ellipsis;">{{ $label }}</span>
-                                                <span class="mono" style="color: var(--ink-3); font-size: 10.5px;">· {{ $span }}n</span>
-                                            </a>
-                                        @endforeach
-
-                                        {{-- Block bars --}}
-                                        @foreach ($roomBlocks as $blk)
-                                            @php
-                                                $blkStart = $start->diffInDays($blk->starts_on, false);
-                                                $blkEnd = $start->diffInDays($blk->ends_on, false) + 1;
-                                                if ($blkEnd <= 0 || $blkStart >= $rangeDays) continue;
-
-                                                $cs = max(0, $blkStart);
-                                                $ce = min($rangeDays, $blkEnd);
-                                                $bLeft = $cs * $cellW + 4;
-                                                $bWidth = ($ce - $cs) * $cellW - 8;
-                                                $bWidth = max(20, $bWidth);
-                                            @endphp
-                                            <div title="{{ ucfirst(str_replace('_', ' ', $blk->reason)) }}"
-                                                 style="position:absolute; top: 8px; left: {{ $bLeft }}px; width: {{ $bWidth }}px; height: {{ $rowH - 16 }}px;
-                                                        background: repeating-linear-gradient(45deg, var(--ink-4) 0 4px, transparent 4px 8px);
-                                                        opacity: .35; border-radius: 6px; pointer-events: none;"></div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
-
+                        {{-- Actions --}}
+                        <div style="padding:14px 18px; border-top:.5px solid var(--line); display:flex; gap:8px;">
+                            <a href="{{ route('tenant.bookings.create', ['property_id' => $propertyId, 'check_in' => $selectedDay]) }}"
+                               class="btn btn-sm btn-primary" style="flex:1; justify-content:center;">
+                                <x-icon name="plus" :size="12"/> {{ __('Add booking') }}
+                            </a>
                         </div>
                     </div>
                 @endif
-            </div>
-        @endif
-
-        {{-- Pricing rules upsell — only on free tier --}}
-        @if (! $isPro)
-            <div style="padding: 12px 16px; background: var(--pro-tint); border-radius: var(--r-md); border: .5px solid var(--line-2); display:flex; align-items:center; gap: 12px;">
-                <x-icon name="sparkle" :size="16" style="color: var(--pro);"/>
-                <div style="flex:1;">
-                    <div style="font-size: 13px; font-weight: 600;">{{ __('Smart pricing & seasonal rules') }}</div>
-                    <div style="font-size: 11.5px; color: var(--ink-3);">
-                        {{ __('Auto-raise rates on weekends and school holidays. Drag-to-block dates in bulk. Available on Pro.') }}
-                    </div>
-                </div>
-                <a href="{{ route('tenant.subscription') }}" class="btn btn-sm" style="background: var(--pro); color: white; border-color: transparent;">
-                    {{ __('Upgrade to Pro') }}
-                </a>
             </div>
         @endif
     </div>

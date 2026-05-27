@@ -3,7 +3,9 @@
 namespace App\Livewire\Tenant;
 
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\Property;
+use App\Models\Review;
 use App\Services\Reports\StatisticsService;
 use App\Support\Tenancy\TenantContext;
 use Carbon\Carbon;
@@ -12,151 +14,169 @@ use Livewire\Component;
 
 class Dashboard extends Component
 {
+    public string $range = '30d';
+
+    public function setRange(string $range): void
+    {
+        $this->range = in_array($range, ['30d', 'qtr', 'ytd'], true) ? $range : '30d';
+    }
+
     public function render()
     {
         $tenant = app(TenantContext::class)->current();
 
-        $stats = $this->computeStats($tenant);
-        $upcoming = $this->upcomingBookings();
-        $properties = $this->propertiesWithTonightStatus();
+        [$start, $end] = $this->rangeBounds();
+
+        $stats = $this->computeStats($start, $end);
+        $series = $this->revenueSeries($start, $end);
+        $transactions = $this->recentTransactions();
+        $shelf = $this->propertyShelf();
         $actions = $this->actionQueueFor($tenant);
-        $channelMix = $this->channelMixFor($tenant);
 
         $plan = $tenant?->subscription?->plan ?? 'free';
-        $isPro = $plan !== 'free';
 
         return view('livewire.tenant.dashboard', [
             'tenant' => $tenant,
             'stats' => $stats,
-            'upcoming' => $upcoming,
-            'properties' => $properties,
+            'series' => $series,
+            'transactions' => $transactions,
+            'shelf' => $shelf,
             'actions' => $actions,
-            'channelMix' => $channelMix,
             'plan' => $plan,
-            'isPro' => $isPro,
-            'greeting' => $this->greeting(),
-        ])->layout('layouts.app', ['title' => __('Dashboard')]);
+            'isPro' => $plan !== 'free',
+        ])->layout('layouts.app', [
+            'title' => __('Dashboard'),
+            'breadcrumbs' => [$tenant?->business_name ?? __('Workspace')],
+        ]);
     }
 
-    protected function computeStats($tenant): array
+    protected function rangeBounds(): array
+    {
+        return match ($this->range) {
+            'qtr' => [Carbon::now()->subDays(90)->startOfDay(), Carbon::now()->endOfDay()],
+            'ytd' => [Carbon::now()->startOfYear(), Carbon::now()->endOfDay()],
+            default => [Carbon::now()->subDays(30)->startOfDay(), Carbon::now()->endOfDay()],
+        };
+    }
+
+    protected function computeStats(Carbon $start, Carbon $end): array
     {
         $svc = app(StatisticsService::class);
-        $start = Carbon::now()->startOfMonth();
-        $end = Carbon::now()->endOfMonth();
-        $priorStart = $start->copy()->subMonth()->startOfMonth();
-        $priorEnd = $start->copy()->subDay()->endOfDay();
 
-        $revenue = $svc->revenue($start, $end);
-        $priorRevenue = $svc->revenue($priorStart, $priorEnd);
-        $occupancy = $svc->occupancy($start, $end);
-        $priorOccupancy = $svc->occupancy($priorStart, $priorEnd);
-        $adr = $svc->adr($start, $end);
-        $priorAdr = $svc->adr($priorStart, $priorEnd);
+        $revenue = (float) $svc->revenue($start, $end);
 
-        $bookings = Booking::query()
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN, Booking::STATUS_CHECKED_OUT])
+        $activeBookings = Booking::query()
+            ->whereIn('status', [
+                Booking::STATUS_CONFIRMED,
+                Booking::STATUS_CHECKED_IN,
+                Booking::STATUS_PENDING,
+            ])
             ->whereBetween('check_in', [$start, $end])
             ->count();
-        $priorBookings = Booking::query()
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN, Booking::STATUS_CHECKED_OUT])
-            ->whereBetween('check_in', [$priorStart, $priorEnd])
-            ->count();
 
-        $spark = fn () => collect(range(1, 12))->map(fn () => rand(40, 100))->toArray();
+        $properties = Property::query()->count();
+        $rooms = DB::table('rooms')->count();
+
+        // Average review rating, falling back to property aggregate if reviews are empty
+        $reviewAvg = (float) Review::query()->avg('rating');
+        if ($reviewAvg <= 0) {
+            $reviewAvg = (float) Property::query()->avg('rating') ?: 4.8;
+        }
+        $reviewCount = (int) Review::query()->count();
 
         return [
             'revenue' => $revenue,
-            'revenue_delta' => $this->formatDelta($revenue, $priorRevenue),
-            'revenue_spark' => $spark(),
-            'bookings' => $bookings,
-            'bookings_delta' => $this->formatDelta($bookings, $priorBookings),
-            'bookings_spark' => $spark(),
-            'occupancy' => round($occupancy),
-            'occupancy_delta' => $this->formatDelta($occupancy, $priorOccupancy, true),
-            'occupancy_spark' => $spark(),
-            'adr' => round($adr),
-            'adr_delta' => $this->formatDelta($adr, $priorAdr),
-            'adr_spark' => $spark(),
+            'bookings' => $activeBookings,
+            'properties' => $properties,
+            'rooms' => $rooms,
+            'rating' => round($reviewAvg, 1),
+            'reviews' => $reviewCount,
         ];
     }
 
-    protected function formatDelta(float $current, float $prior, bool $absolute = false): string
+    protected function revenueSeries(Carbon $start, Carbon $end): array
     {
-        if ($prior <= 0) return '—';
-        $diff = $absolute ? ($current - $prior) : (($current - $prior) / $prior) * 100;
-        $sign = $diff >= 0 ? '+' : '';
-        return $sign.round($diff).'%';
+        // 11 evenly-spaced sample points across the range
+        $points = 11;
+        $span = max(1, $start->diffInDays($end));
+        $step = (int) ceil($span / ($points - 1));
+
+        $labels = [];
+        $values = [];
+
+        $cursor = $start->copy();
+        $running = 0.0;
+        for ($i = 0; $i < $points; $i++) {
+            $bucketEnd = $cursor->copy()->addDays($step)->min($end);
+            $bucketRevenue = (float) Payment::query()
+                ->where('status', 'succeeded')
+                ->whereBetween('paid_at', [$cursor, $bucketEnd])
+                ->sum('amount');
+            $running += $bucketRevenue;
+            $labels[] = $cursor->format('M d');
+            $values[] = (int) round($running);
+            $cursor = $bucketEnd->copy()->addSecond();
+            if ($cursor->greaterThanOrEqualTo($end)) break;
+        }
+
+        // Pad to at least 2 points so the chart can draw
+        while (count($values) < 2) {
+            $values[] = end($values) ?: 0;
+            $labels[] = $end->format('M d');
+        }
+
+        return [
+            'labels' => $labels,
+            'values' => $values,
+            'max' => max(1, max($values)),
+        ];
     }
 
-    protected function upcomingBookings()
+    protected function recentTransactions()
     {
-        return Booking::query()
-            ->with(['guest:id,name', 'property:id,name'])
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_PENDING, Booking::STATUS_CHECKED_IN])
-            ->whereBetween('check_in', [now()->startOfDay(), now()->addDays(14)->endOfDay()])
-            ->orderBy('check_in')
-            ->limit(6)
+        return Payment::query()
+            ->with(['booking.guest:id,name', 'booking.property:id,name'])
+            ->where('status', 'succeeded')
+            ->latest('paid_at')
+            ->limit(4)
             ->get()
-            ->map(function ($b) {
-                $b->guest_display_name = $b->guest?->name ?? __('Guest');
-                $b->payment_state = $this->paymentState($b);
-                return $b;
+            ->map(function (Payment $p) {
+                $b = $p->booking;
+                $guest = $b?->guest?->name ?? __('Guest');
+                $propertyName = $b?->property?->name ?? '—';
+                $payout = (float) $p->amount * 0.97; // 3% marketplace fee max
+                return [
+                    'guest' => $guest,
+                    'property' => $propertyName,
+                    'when' => optional($p->paid_at)->diffForHumans() ?? '—',
+                    'amount' => (float) $p->amount,
+                    'payout' => round($payout, 2),
+                ];
             });
     }
 
-    protected function paymentState($booking): string
-    {
-        if ($booking->balance_paid_at) return 'paid';
-        if ($booking->deposit_paid_at) return 'deposit';
-        return 'unpaid';
-    }
-
-    protected function propertiesWithTonightStatus()
+    protected function propertyShelf()
     {
         return Property::query()
-            ->limit(6)
+            ->withCount('rooms')
+            ->orderByDesc('id')
+            ->limit(3)
             ->get()
-            ->map(function ($p) {
-                $p->tonight_status = $this->tonightStatusFor($p);
+            ->map(function (Property $p) {
+                $revenue = (float) Booking::query()
+                    ->where('property_id', $p->id)
+                    ->whereIn('status', [Booking::STATUS_CHECKED_OUT, Booking::STATUS_CHECKED_IN, Booking::STATUS_CONFIRMED])
+                    ->where('created_at', '>=', now()->subDays(30))
+                    ->sum('total_amount');
+
+                $startingRate = (float) DB::table('rooms')
+                    ->where('property_id', $p->id)
+                    ->min('base_price') ?: 0;
+
+                $p->stats_revenue_30d = $revenue;
+                $p->stats_starting_rate = $startingRate;
                 return $p;
             });
-    }
-
-    protected function tonightStatusFor($property): array
-    {
-        $today = now()->toDateString();
-        $current = Booking::query()
-            ->with('guest:id,name')
-            ->where('property_id', $property->id)
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN])
-            ->where('check_in', '<=', $today)
-            ->where('check_out', '>', $today)
-            ->first();
-
-        if ($current) {
-            return [
-                'state' => 'occupied',
-                'label' => __('Occupied'),
-                'guest' => $current->guest?->name,
-            ];
-        }
-
-        $checkIn = Booking::query()
-            ->with('guest:id,name')
-            ->where('property_id', $property->id)
-            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_PENDING])
-            ->whereDate('check_in', $today)
-            ->first();
-
-        if ($checkIn) {
-            return [
-                'state' => 'checkin',
-                'label' => __('Check-in today'),
-                'guest' => $checkIn->guest?->name,
-            ];
-        }
-
-        return ['state' => 'vacant', 'label' => __('Vacant')];
     }
 
     protected function actionQueueFor($tenant): array
@@ -191,19 +211,6 @@ class Dashboard extends Component
             ];
         }
 
-        $openMaintenance = \App\Models\MaintenanceTicket::where('status', 'open')
-            ->where('priority', 'high')
-            ->count();
-        if ($openMaintenance) {
-            $items[] = [
-                'icon' => 'alert',
-                'tone' => 'err',
-                'title' => trans_choice(':count high-priority maintenance ticket|:count high-priority maintenance tickets', $openMaintenance),
-                'cta' => __('Triage'),
-                'route' => route('tenant.housekeeping.index', ['tab' => 'maintenance']),
-            ];
-        }
-
         if (empty($items)) {
             $items[] = [
                 'icon' => 'check',
@@ -215,31 +222,5 @@ class Dashboard extends Component
         }
 
         return $items;
-    }
-
-    protected function channelMixFor($tenant): array
-    {
-        $rows = Booking::query()
-            ->where('created_at', '>=', now()->subDays(30))
-            ->select('channel', DB::raw('count(*) as c'))
-            ->groupBy('channel')
-            ->get();
-
-        $total = max(1, (int) $rows->sum('c'));
-
-        return $rows->map(fn ($r) => [
-            'source' => $r->channel ?? 'unknown',
-            'label' => ucfirst((string) ($r->channel ?? 'Unknown')),
-            'count' => (int) $r->c,
-            'pct' => (int) round(($r->c / $total) * 100),
-        ])->values()->toArray();
-    }
-
-    protected function greeting(): string
-    {
-        $h = (int) now()->format('G');
-        if ($h < 12) return __('Good morning');
-        if ($h < 18) return __('Good afternoon');
-        return __('Good evening');
     }
 }

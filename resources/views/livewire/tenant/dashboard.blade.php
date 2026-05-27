@@ -1,199 +1,315 @@
-<div wire:poll.60s style="display:flex; flex-direction:column; gap: 24px;">
+@php
+    $firstName = explode(' ', auth()->user()->name)[0] ?? '';
+    $propertyCount = $shelf->count() ?: ($stats['properties'] ?? 0);
+    $first = $shelf->first();
 
-    {{-- Greeting + headline --}}
-    <section style="padding: 4px 0 0;">
-        <div class="kicker">{{ now()->isoFormat('dddd, D MMM YYYY') }}</div>
-        <h2 class="display-2" style="margin: 4px 0 8px;">
-            {{ $greeting }}, {{ explode(' ', auth()->user()->name)[0] }}.
-        </h2>
-        <p style="margin:0; font-size:15px; color: var(--ink-2); max-width: 640px; line-height:1.5;">
+    // Build the SVG path for the income chart
+    $W = 720; $H = 240; $PAD_T = 20; $PAD_B = 40;
+    $innerW = $W; $innerH = $H - $PAD_T - $PAD_B;
+    $vals = $series['values'];
+    $max = max(1, ...$vals);
+    $count = count($vals);
+    $step = $count > 1 ? $innerW / ($count - 1) : 0;
+    $pts = [];
+    foreach ($vals as $i => $v) {
+        $pts[] = [round($i * $step, 1), round($PAD_T + $innerH - ($v / $max) * $innerH, 1)];
+    }
+    $pathD = '';
+    foreach ($pts as $i => $p) {
+        if ($i === 0) {
+            $pathD .= 'M'.$p[0].','.$p[1];
+        } else {
+            $prev = $pts[$i - 1];
+            $cx1 = round($prev[0] + ($p[0] - $prev[0]) * 0.5, 1);
+            $cx2 = round($p[0] - ($p[0] - $prev[0]) * 0.5, 1);
+            $pathD .= ' C'.$cx1.','.$prev[1].' '.$cx2.','.$p[1].' '.$p[0].','.$p[1];
+        }
+    }
+    $fillD = $pathD . ' L'.end($pts)[0].','.($PAD_T + $innerH).' L'.$pts[0][0].','.($PAD_T + $innerH).' Z';
+    $lastPt = end($pts);
+@endphp
+
+<div wire:poll.60s style="display:flex; flex-direction:column; gap:24px;">
+
+    {{-- === PROFILE HEADER === --}}
+    <div style="position:relative; display:flex; align-items:center; gap:22px;
+                padding: 22px 26px;
+                background: var(--bg-elev);
+                border: 1px solid var(--line);
+                border-radius: var(--r-xl);
+                overflow: hidden;">
+        {{-- glow blobs --}}
+        <div style="position:absolute; top:-60px; right:-40px; width:240px; height:240px;
+                    background: var(--primary); opacity:.07; border-radius:999px; filter: blur(80px); pointer-events:none;"></div>
+        <div style="position:absolute; bottom:-80px; left:120px; width:200px; height:200px;
+                    background: var(--warn); opacity:.05; border-radius:999px; filter: blur(100px); pointer-events:none;"></div>
+
+        <x-avatar :name="auth()->user()->name" :size="64"/>
+
+        <div style="flex:1; min-width:0; position:relative;">
+            <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Host Lounge') }} · {{ now()->isoFormat('dddd, D MMM') }}</div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <h1 style="margin:0; font-size:28px; font-weight:700; letter-spacing:-.025em; line-height:1.1;">
+                    {{ __('Welcome back') }}, <span style="color: var(--primary);">{{ $firstName }}</span>!
+                </h1>
+                <span style="font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+                             padding:4px 9px; border-radius: var(--r-sm);
+                             background: var(--ok-tint); color: var(--ok);
+                             border: 1px solid color-mix(in oklab, var(--ok) 30%, transparent);
+                             display:inline-flex; align-items:center; gap:5px;">
+                    <span class="pulse-dot" style="width:6px; height:6px; border-radius:999px; background: var(--ok);"></span>
+                    {{ ucfirst($plan) }} {{ __('account') }}
+                </span>
+            </div>
+            <div style="font-size:13.5px; color: var(--ink-3); margin-top:6px; max-width:560px;">
+                @if ($stats['bookings'] > 0)
+                    {{ __('You have :n active bookings · :p properties live.', ['n' => $stats['bookings'], 'p' => $stats['properties']]) }}
+                @else
+                    {{ __('Quiet stretch — a good time to refresh listings or pricing.') }}
+                @endif
+            </div>
+        </div>
+
+        <div style="display:flex; gap:8px; position:relative;">
+            <a href="{{ route('tenant.settings.index') }}" class="btn">{{ __('Profile Settings') }}</a>
+            <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary">
+                <x-icon name="plus" :size="13"/> {{ __('Add homestay') }}
+            </a>
+        </div>
+    </div>
+
+    {{-- === STAT CARDS === --}}
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px;">
+        @foreach ([
+            ['label' => __('Total Earnings'),       'value' => 'RM '.number_format($stats['revenue'], 2), 'sub' => __('Net payout · last 30 days'), 'icon' => 'card',     'tone' => 'primary'],
+            ['label' => __('Active Bookings'),      'value' => $stats['bookings'].' '.__('guests'),       'sub' => __('Across :n rooms', ['n' => $stats['rooms']]), 'icon' => 'users', 'tone' => 'warn'],
+            ['label' => __('Property Portfolio'),   'value' => $stats['properties'] === 1 ? __('1 homestay') : trans(':n homestays', ['n' => $stats['properties']]), 'sub' => __(':n bookable rooms', ['n' => $stats['rooms']]), 'icon' => 'building', 'tone' => 'ok'],
+            ['label' => __('Guest Review Index'),   'value' => $stats['rating'].' / 5.0',                 'sub' => __('Based on :n verified stays', ['n' => $stats['reviews']]), 'icon' => 'star', 'tone' => 'info'],
+        ] as $card)
             @php
-                $checkInTomorrow = $upcoming->filter(fn ($b) => \Carbon\Carbon::parse($b->check_in)->isTomorrow())->count();
-                $pendingPay = collect($actions)->firstWhere('tone', 'warn');
+                $tone = match($card['tone']) {
+                    'primary' => ['bg' => 'var(--primary-tint)', 'fg' => 'var(--primary)'],
+                    'warn'    => ['bg' => 'var(--warn-tint)',    'fg' => 'var(--warn)'],
+                    'ok'      => ['bg' => 'var(--ok-tint)',      'fg' => 'var(--ok)'],
+                    'info'    => ['bg' => 'var(--info-tint)',    'fg' => 'var(--info)'],
+                };
             @endphp
-            @if ($checkInTomorrow)
-                {{ trans_choice(':count check-in tomorrow|:count check-ins tomorrow', $checkInTomorrow) }}.
-            @endif
-            @if ($pendingPay)
-                {{ $pendingPay['title'] }}.
-            @endif
-            @if (! $checkInTomorrow && ! $pendingPay)
-                {{ __('Quiet day ahead — a good time to review pricing or replies.') }}
-            @endif
-        </p>
-    </section>
-
-    {{-- Stat cards --}}
-    <section style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
-        <x-stat-card
-            :label="__('Revenue · 30d')"
-            unit="RM"
-            :value="number_format($stats['revenue'])"
-            :delta="$stats['revenue_delta']"
-            :sparkline="$stats['revenue_spark']"
-            color="primary"/>
-        <x-stat-card
-            :label="__('Bookings · 30d')"
-            :value="$stats['bookings']"
-            :delta="$stats['bookings_delta']"
-            :sparkline="$stats['bookings_spark']"
-            color="accent"/>
-        <x-stat-card
-            :label="__('Occupancy')"
-            :value="$stats['occupancy'] . '%'"
-            :delta="$stats['occupancy_delta']"
-            :sparkline="$stats['occupancy_spark']"
-            color="ok"/>
-        <x-stat-card
-            :label="__('ADR')"
-            unit="RM"
-            :value="number_format($stats['adr'])"
-            :delta="$stats['adr_delta']"
-            :sparkline="$stats['adr_spark']"
-            color="warn"/>
-    </section>
-
-    {{-- Two-column: upcoming + side rail --}}
-    <section style="display:grid; grid-template-columns: 1.6fr 1fr; gap: 18px;">
-
-        {{-- Upcoming bookings --}}
-        <div class="hauz-card" style="padding: 18px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px;">
-                <div>
-                    <div class="kicker">{{ __('Upcoming') }}</div>
-                    <div style="font-family: var(--font-display); font-size: 22px; line-height:1.1; margin-top:2px;">
-                        {{ __('Next 14 days') }}
+            <div class="card" style="padding:22px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+                    <div class="cm-eyebrow">{{ $card['label'] }}</div>
+                    <div style="width:34px; height:34px; border-radius: var(--r-md);
+                                background: {{ $tone['bg'] }}; color: {{ $tone['fg'] }};
+                                display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <x-icon :name="$card['icon']" :size="16"/>
                     </div>
                 </div>
-                <a href="{{ route('tenant.bookings.index') }}" class="btn btn-sm">{{ __('View all') }} →</a>
-            </div>
-
-            @if ($upcoming->isEmpty())
-                <div style="padding: 32px 8px; text-align:center; color: var(--ink-3); font-size: 13px;">
-                    {{ __('No bookings in the next 14 days.') }}
+                <div style="font-size:26px; font-weight:700; letter-spacing:-.025em; line-height:1.05; color: var(--ink);">
+                    {{ $card['value'] }}
                 </div>
-            @else
-                <div style="display:flex; flex-direction:column;">
-                    @foreach ($upcoming as $b)
-                        @php
-                            $ps = $b->payment_state;
-                            $variant = $ps === 'paid' ? 'ok' : ($ps === 'deposit' ? 'warn' : 'err');
-                            $psLabel = ['paid' => __('Paid'), 'deposit' => __('Deposit'), 'unpaid' => __('Unpaid')][$ps];
-                        @endphp
-                        <a href="{{ route('tenant.bookings.show', ['id' => $b->public_id ?? $b->id]) }}"
-                           style="display:flex; align-items:center; gap: 12px; padding: 10px 0; border-bottom: .5px solid var(--line); text-decoration:none; color: inherit;">
-                            <x-avatar :name="$b->guest_display_name" :size="32"/>
-                            <div style="flex:1; min-width:0;">
-                                <div style="font-size: 13.5px; font-weight: 500;">{{ $b->guest_display_name }}</div>
-                                <div style="font-size: 11.5px; color: var(--ink-3);">
-                                    {{ optional($b->property)->name ?? '—' }} ·
-                                    <span class="mono">{{ $b->check_in->format('d M') }}–{{ $b->check_out->format('d M') }}</span>
-                                </div>
-                            </div>
-                            <x-pill :variant="$variant" :dot="true">{{ $psLabel }}</x-pill>
-                            <span class="mono" style="font-size: 12.5px; color: var(--ink-2); min-width: 72px; text-align:right;">
-                                RM{{ number_format($b->total_amount ?? 0) }}
-                            </span>
-                        </a>
+                <div style="font-size:11.5px; color: var(--ink-3); margin-top:10px;">
+                    {{ $card['sub'] }}
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    {{-- === MAIN: CHART + TRANSACTIONS === --}}
+    <div style="display:grid; grid-template-columns: 1fr 360px; gap:16px; align-items:flex-start;">
+
+        {{-- INCOME CHART --}}
+        <div class="card" style="padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px;">
+                <div>
+                    <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Weekly Metrics Rhythm') }}</div>
+                    <h3 style="margin:0; font-size:18px; font-weight:700; letter-spacing:-.02em;">{{ __('Booking Income Stream') }}</h3>
+                    <div style="font-size:12.5px; color: var(--ink-3); margin-top:4px;">
+                        {{ __('Track your net earnings split. Showing direct booking velocity.') }}
+                    </div>
+                </div>
+                <div style="display:flex; gap:2px; padding:3px;
+                            background: var(--bg-elev); border-radius:999px; border:.5px solid var(--line);">
+                    @foreach (['30d' => __('Last 30 Days'), 'qtr' => __('Quarterly'), 'ytd' => __('YTD')] as $key => $label)
+                        @php $active = $range === $key; @endphp
+                        <button wire:click="setRange('{{ $key }}')"
+                                class="btn btn-sm"
+                                style="border:0; background: {{ $active ? 'var(--primary)' : 'transparent' }};
+                                       color: {{ $active ? 'var(--primary-ink)' : 'var(--ink-2)' }};
+                                       font-weight: {{ $active ? '600' : '500' }};
+                                       border-radius:999px;">{{ $label }}</button>
                     @endforeach
                 </div>
-            @endif
+            </div>
+
+            {{-- SVG income chart --}}
+            <div style="width:100%; overflow:hidden;">
+                <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="none" style="width:100%; height:240px; display:block;">
+                    <defs>
+                        <linearGradient id="dash-income-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.18"/>
+                            <stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="{{ $fillD }}" fill="url(#dash-income-fill)"/>
+                    <path d="{{ $pathD }}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="{{ $lastPt[0] }}" cy="{{ $lastPt[1] }}" r="6" fill="var(--primary)" opacity="0.2"/>
+                    <circle cx="{{ $lastPt[0] }}" cy="{{ $lastPt[1] }}" r="3.5" fill="var(--primary)"/>
+                </svg>
+                <div style="display:flex; justify-content:space-between; font-size:11px; color: var(--ink-3); padding: 0 4px;">
+                    @foreach ($series['labels'] as $i => $l)
+                        @if ($i % 2 === 0)<span>{{ $l }}</span>@endif
+                    @endforeach
+                </div>
+            </div>
         </div>
 
-        {{-- Side rail: action queue + channel mix --}}
-        <div style="display:flex; flex-direction:column; gap: 14px;">
+        {{-- TRANSACTIONS LOG --}}
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div style="padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
+                <div class="cm-eyebrow" style="color: var(--ink-2);">{{ __('Checkout Transactions Log') }}</div>
+                <span class="pulse-dot" style="width:8px; height:8px; border-radius:999px; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-tint);"></span>
+            </div>
 
-            {{-- Action queue --}}
-            <div class="hauz-card" style="padding: 16px;">
-                <div class="kicker" style="margin-bottom: 10px;">{{ __('Action queue') }}</div>
-                <div style="display:flex; flex-direction:column; gap: 8px;">
-                    @foreach ($actions as $a)
-                        <div style="display:flex; align-items:flex-start; gap:10px; padding: 8px; border-radius: var(--r-md); background: var(--bg-sunk);">
-                            <div style="width:24px; height:24px; border-radius:6px; background: var({{ '--' . $a['tone'] . '-tint' }}); color: var({{ '--' . $a['tone'] }}); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                <x-icon :name="$a['icon']" :size="13"/>
-                            </div>
-                            <div style="flex:1; min-width:0;">
-                                <div style="font-size:12.5px; line-height:1.4;">{{ $a['title'] }}</div>
-                                @if (!empty($a['cta']) && !empty($a['route']))
-                                    <a href="{{ $a['route'] }}" style="font-size:11.5px; color: var(--primary); text-decoration:none; font-weight:500;">{{ $a['cta'] }} →</a>
-                                @endif
-                            </div>
+            @forelse ($transactions as $i => $t)
+                <div style="padding:14px 20px; {{ $i < $transactions->count() - 1 ? 'border-bottom:1px solid var(--line);' : '' }}">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+                        <div style="font-size:13.5px; font-weight:700;">{{ $t['guest'] }}</div>
+                        <div class="mono" style="font-size:13.5px; font-weight:700; color: var(--primary);">
+                            RM {{ number_format($t['amount'], 2) }}
                         </div>
-                    @endforeach
+                    </div>
+                    <div style="font-size:12px; color: var(--ink-3); margin-bottom:8px;">{{ $t['property'] }}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:11.5px; color: var(--ink-3);">{{ $t['when'] }}</span>
+                        <span style="font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px;
+                                     background: var(--ok-tint); color: var(--ok); font-family: var(--font-mono);">
+                            {{ __('Payout') }}: RM {{ number_format($t['payout'], 2) }}
+                        </span>
+                    </div>
+                </div>
+            @empty
+                <div style="padding:32px 20px; text-align:center; color: var(--ink-3); font-size:12.5px;">
+                    {{ __('No transactions yet.') }}
+                </div>
+            @endforelse
+
+            <div style="padding:12px;">
+                <a href="{{ route('tenant.payments.index') }}"
+                   style="width:100%; padding:12px; background:transparent;
+                          border:1px dashed var(--primary); color: var(--primary);
+                          border-radius:12px; font-size:12.5px; font-weight:600;
+                          display:flex; align-items:center; justify-content:center; gap:6px;
+                          text-decoration:none;">
+                    <x-icon name="receipt" :size="13"/> {{ __('View all payments') }}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {{-- === ACTION QUEUE === --}}
+    @if (!empty($actions))
+        <div class="card" style="padding:18px 22px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div>
+                    <div class="cm-eyebrow">{{ __('Action queue') }}</div>
+                    <h3 style="margin:4px 0 0; font-size:16px; font-weight:700; letter-spacing:-.01em;">{{ __('What needs attention') }}</h3>
                 </div>
             </div>
-
-            {{-- Channel mix --}}
-            <div class="hauz-card" style="padding: 16px;">
-                <div class="kicker" style="margin-bottom: 10px;">{{ __('Channel mix · 30d') }}</div>
-                <div style="display:flex; flex-direction:column; gap: 8px;">
-                    @foreach ($channelMix as $c)
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                                <span style="color: var(--ink-2);">{{ $c['label'] }}</span>
-                                <span class="mono" style="color: var(--ink-3);">{{ $c['count'] }} · {{ $c['pct'] }}%</span>
-                            </div>
-                            <div style="height:6px; background: var(--bg-sunk); border-radius:999px; overflow:hidden;">
-                                <div style="width: {{ $c['pct'] }}%; height: 100%; background: var(--primary); border-radius:999px;"></div>
-                            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px;">
+                @foreach ($actions as $a)
+                    <div style="display:flex; align-items:flex-start; gap:10px; padding:12px;
+                                border-radius: var(--r-md); background: var(--bg-sunk); border:.5px solid var(--line);">
+                        <div style="width:28px; height:28px; border-radius: var(--r-sm);
+                                    background: var(--{{ $a['tone'] }}-tint); color: var(--{{ $a['tone'] }});
+                                    display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <x-icon :name="$a['icon']" :size="14"/>
                         </div>
-                    @endforeach
-                </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:13px; line-height:1.4; color: var(--ink);">{{ $a['title'] }}</div>
+                            @if (!empty($a['cta']) && !empty($a['route']))
+                                <a href="{{ $a['route'] }}" style="font-size:11.5px; color: var(--primary); text-decoration:none; font-weight:600; margin-top:4px; display:inline-block;">{{ $a['cta'] }} →</a>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
             </div>
         </div>
-    </section>
+    @endif
 
-    {{-- Tonight's status --}}
-    <section>
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px;">
-            <div>
-                <div class="kicker">{{ __('Tonight') }}</div>
-                <div style="font-family: var(--font-display); font-size: 22px; line-height:1.1; margin-top:2px;">
-                    {{ __('Property status') }}
-                </div>
+    {{-- === HOMESTAY SHELF === --}}
+    <div>
+        <div style="margin-bottom:16px;">
+            <div class="cm-eyebrow" style="margin-bottom:6px;">{{ __('Active Cohort') }}</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;">
+                <h3 style="margin:0; font-size:18px; font-weight:700; letter-spacing:-.02em;">
+                    {{ __('My Listed Homestays') }}
+                    <span style="color: var(--ink-3); font-weight:600;">({{ $shelf->count() }})</span>
+                </h3>
+                <a href="{{ route('tenant.properties.index') }}" class="btn btn-sm">{{ __('Manage all') }} →</a>
             </div>
-            <a href="{{ route('tenant.properties.index') }}" class="btn btn-sm">{{ __('Manage properties') }} →</a>
         </div>
 
-        @if ($properties->isEmpty())
-            <div class="hauz-card" style="padding: 32px; text-align:center;">
-                <div style="font-family: var(--font-display); font-size: 22px; margin-bottom: 6px;">{{ __('No properties yet') }}</div>
-                <p style="margin: 0 0 14px; color: var(--ink-3); font-size: 13px;">{{ __('Add your first homestay or room to start receiving bookings.') }}</p>
+        @if ($shelf->isEmpty())
+            <div class="card" style="padding:32px; text-align:center;">
+                <div style="font-family: var(--font-display); font-size:22px; margin-bottom:6px;">{{ __('No properties yet') }}</div>
+                <p style="margin: 0 0 14px; color: var(--ink-3); font-size:13px;">{{ __('Add your first homestay or room to start receiving bookings.') }}</p>
                 <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary btn-sm">
                     <x-icon name="plus" :size="13"/> {{ __('Add property') }}
                 </a>
             </div>
         @else
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
-                @foreach ($properties as $p)
-                    @php
-                        $st = $p->tonight_status['state'];
-                        $variant = $st === 'occupied' ? 'info' : ($st === 'checkin' ? 'warn' : 'ok');
-                    @endphp
-                    <div class="hauz-card" style="padding: 14px; display:flex; gap: 12px; align-items:flex-start;">
-                        <x-property-visual :property="$p" :size="44"/>
-                        <div style="flex:1; min-width:0;">
-                            <div style="font-size: 13.5px; font-weight: 600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $p->name }}</div>
-                            <div style="font-size: 11.5px; color: var(--ink-3); margin-bottom: 6px;">
-                                {{ $p->city ?? $p->location ?? '—' }}
-                            </div>
-                            <x-pill :variant="$variant" :dot="true">{{ $p->tonight_status['label'] }}</x-pill>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                @foreach ($shelf as $p)
+                    <a href="{{ route('tenant.properties.show', $p->id) }}"
+                       class="card"
+                       style="padding:14px; display:grid; grid-template-columns: auto 1fr auto auto auto;
+                              gap:18px; align-items:center; text-decoration:none; color: inherit;
+                              transition: border-color 200ms;">
+                        <div style="width:56px; height:56px; border-radius:10px; overflow:hidden; flex-shrink:0;">
+                            <x-property-visual :property="$p" :size="56"/>
                         </div>
-                    </div>
+                        <div style="min-width:0;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                <span style="font-size:9.5px; font-weight:700; letter-spacing:.10em; text-transform:uppercase;
+                                             padding:3px 7px; border-radius:4px;
+                                             background: var(--primary-tint); color: var(--primary);">
+                                    {{ $p->city ?? $p->state ?? __('Listed') }}
+                                </span>
+                                <span style="font-size:11px; color: var(--ink-3);">
+                                    {{ __('Published') }}: {{ optional($p->created_at)->format('d M Y') ?? '—' }}
+                                </span>
+                            </div>
+                            <div style="font-size:15px; font-weight:700; letter-spacing:-.02em;">{{ $p->name }}</div>
+                            <div style="font-size:12px; color: var(--ink-3); margin-top:2px;">
+                                {{ $p->rooms_count ?? 0 }} {{ __('rooms') }} · ★ {{ $p->rating ?? '—' }}
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="cm-eyebrow" style="margin-bottom:5px;">{{ __('Revenue · 30d') }}</div>
+                            <div class="mono" style="font-size:15px; font-weight:700; color: var(--primary);">
+                                RM {{ number_format($p->stats_revenue_30d ?? 0) }}
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="cm-eyebrow" style="margin-bottom:5px;">{{ __('From / night') }}</div>
+                            <div class="mono" style="font-size:15px; font-weight:700;">
+                                RM {{ number_format($p->stats_starting_rate ?? 0) }}
+                            </div>
+                            <span style="display:inline-block; margin-top:4px; font-size:9.5px; font-weight:600;
+                                         padding:2px 7px; border-radius:999px;
+                                         background: var(--ok-tint); color: var(--ok);">
+                                {{ ucfirst($p->status ?? 'active') }}
+                            </span>
+                        </div>
+                        <div style="width:32px; height:32px; border-radius:999px;
+                                    border:1px solid var(--line); background: var(--bg-sunk);
+                                    color: var(--ink-3);
+                                    display:flex; align-items:center; justify-content:center;">
+                            <x-icon name="more" :size="14"/>
+                        </div>
+                    </a>
                 @endforeach
             </div>
         @endif
-    </section>
-
-    {{-- Pro lock teaser (if free) --}}
-    @if (! $isPro)
-        <section>
-            <x-pro-lock
-                feature="feature_paid_tier"
-                :title="__('Auto-reminders, payment links, multi-property')"
-                :reason="__('Send WhatsApp deposit reminders, accept Toyyibpay/FPX, and manage unlimited listings — RM49/month.')"
-                :cta="__('Upgrade — RM49/mo')"/>
-        </section>
-    @endif
+    </div>
 
 </div>

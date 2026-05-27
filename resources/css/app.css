@@ -5,37 +5,55 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
-/* Hauz design tokens — coexist with Tailwind utilities */
+/* HomestayMY palette — warm-light (Coursesme-style clean white + Claude orange) */
 @layer base {
   :root {
-    --bg: oklch(98.4% 0.006 80);
-    --bg-elev: oklch(99.5% 0.004 80);
-    --bg-sunk: oklch(96.6% 0.008 80);
-    --bg-tint: oklch(94.5% 0.012 80);
+    /* Surfaces — clean white paper */
+    --bg: #ffffff;
+    --bg-elev: #fafaf7;
+    --bg-sunk: #f5f4f0;
+    --bg-tint: #efeee9;
 
-    --ink: oklch(22% 0.012 60);
-    --ink-2: oklch(40% 0.012 60);
-    --ink-3: oklch(58% 0.010 60);
+    /* Ink — deep neutral with warm tilt */
+    --ink: oklch(20% 0.010 60);
+    --ink-2: oklch(38% 0.010 60);
+    --ink-3: oklch(55% 0.010 60);
     --ink-4: oklch(72% 0.008 60);
 
-    --line: oklch(90% 0.008 70);
-    --line-2: oklch(85% 0.010 70);
+    /* Lines */
+    --line: oklch(92% 0.008 65);
+    --line-2: oklch(86% 0.010 65);
 
-    --primary: oklch(38% 0.06 155);
-    --primary-ink: oklch(96% 0.02 150);
-    --primary-tint: oklch(94% 0.03 155);
+    /* Brand — Claude orange (kept) */
+    --primary: #d97757;
+    --primary-ink: #ffffff;
+    --primary-tint: oklch(95% 0.05 45);
+    --primary-soft: oklch(97% 0.025 45);
+    --primary-hover: #c25e3e;
+    --primary-deep: #a8401e;
+    --primary-edge: oklch(85% 0.06 45);
 
-    --accent: oklch(62% 0.13 45);
-    --accent-tint: oklch(94% 0.04 45);
+    /* Secondary — supporting brand tone (chips, deep accents) */
+    --secondary: #a8401e;
+    --secondary-ink: #ffffff;
+    --secondary-tint: oklch(94% 0.04 40);
 
-    --ok: oklch(55% 0.10 155);
+    /* Accent — emphasis (badges, pricing) */
+    --accent: #d4a437;
+    --accent-ink: #1a1614;
+    --accent-tint: oklch(94% 0.06 80);
+
+    /* Status — earthy tones that sit on white */
+    --ok: oklch(62% 0.14 155);
     --warn: oklch(72% 0.13 75);
     --err: oklch(58% 0.16 25);
-    --info: oklch(58% 0.10 235);
-    --ok-tint: oklch(94% 0.03 155);
+    --info: oklch(60% 0.12 250);
+    --ok-tint: oklch(94% 0.05 155);
     --warn-tint: oklch(95% 0.04 75);
     --err-tint: oklch(95% 0.03 25);
-    --info-tint: oklch(95% 0.025 235);
+    --info-tint: oklch(95% 0.025 250);
+
+    /* Tier-specific */
     --pro: oklch(45% 0.10 60);
     --pro-tint: oklch(94% 0.04 60);
 
@@ -43,36 +61,46 @@
     --font-sans:    "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-mono:    "Geist Mono", "Geist", ui-monospace, "SF Mono", monospace;
 
-    --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+    /* Radii — softer */
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 22px;
+    --r-pill: 999px;
+
     --sh-1: 0 1px 0 rgba(40,30,10,.04), 0 1px 2px rgba(40,30,10,.04);
     --sh-2: 0 1px 0 rgba(40,30,10,.04), 0 8px 24px -8px rgba(40,30,10,.10);
     --sh-pop: 0 16px 48px -12px rgba(40,30,10,.20), 0 2px 6px rgba(40,30,10,.06);
   }
 
-  body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); }
+  body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 }
 
 @theme {
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Imported via @vite — but if not, also import in layout via Google Fonts */
-
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .serif { font-family: var(--font-display); }
 .tnum { font-variant-numeric: tabular-nums; }
 .kicker { font-family: var(--font-sans); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
+.cm-eyebrow { font-family: var(--font-sans); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
+.cm-eyebrow-primary { font-family: var(--font-sans); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--primary); }
 
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 36px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font-size: 13px; font-weight: 500; transition: background 120ms; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 36px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font-size: 13px; font-weight: 500; letter-spacing: -0.005em; transition: background 120ms, border-color 120ms, transform 60ms; cursor: pointer; }
 .btn:hover { background: var(--bg-tint); }
+.btn:active { transform: translateY(.5px); }
 .btn-primary { background: var(--primary); color: var(--primary-ink); border-color: transparent; }
-.btn-primary:hover { background: oklch(34% 0.06 155); }
-.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-accent { background: var(--accent); color: white; border-color: transparent; }
 .btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--bg-tint); }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn-lg { height: 44px; padding: 0 18px; font-size: 14px; }
 
-.hauz-card { background: var(--bg-elev); border: .5px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
+.card, .hauz-card { background: var(--bg-elev); border: .5px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
 
-.pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; background: var(--bg-tint); color: var(--ink-2); white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; letter-spacing: 0.01em; background: var(--bg-tint); color: var(--ink-2); white-space: nowrap; }
 .pill-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
 .pill-ok { background: var(--ok-tint); color: var(--ok); }
 .pill-warn { background: var(--warn-tint); color: oklch(45% 0.13 75); }
@@ -86,8 +114,22 @@
 .display-3 { font-family: var(--font-display); font-size: 22px; line-height: 1.15; letter-spacing: -.015em; font-weight: 600; }
 
 .input { height: 36px; padding: 0 12px; border-radius: var(--r-md); border: .5px solid var(--line-2); background: var(--bg-elev); color: var(--ink); font: inherit; outline: none; width: 100%; }
-.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px oklch(38% 0.06 155 / 0.12); }
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px oklch(67% 0.16 45 / 0.18); }
 
 .thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .thin-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Animations */
+@keyframes hauz-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.fade-in { animation: hauz-fade-in 240ms ease-out; }
+.page-enter { animation: hauz-fade-in 200ms ease-out; }
+
+@keyframes hauz-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+.pulse-dot { animation: hauz-pulse 1.8s ease-in-out infinite; }
+
+/* Focus ring shared */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
