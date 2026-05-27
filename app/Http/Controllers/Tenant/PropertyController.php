@@ -88,12 +88,118 @@ class PropertyController extends Controller
             ]));
     }
 
-    public function show($id)
+    public function edit(Property $property)
     {
-        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name')])
+        $property->load(['rooms' => fn ($q) => $q->orderBy('name')]);
+
+        return view('tenant.properties.edit', [
+            'property' => $property,
+            'baseRate' => (float) ($property->rooms->min('base_price') ?? 0),
+        ]);
+    }
+
+    public function update(Request $request, Property $property)
+    {
+        $validated = $request->validate([
+            'name'           => 'required|string|max:120',
+            'city'           => 'nullable|string|max:80',
+            'state'          => 'nullable|string|max:80',
+            'postcode'       => 'nullable|string|max:16',
+            'address_line1'  => 'required|string|max:160',
+            'address_line2'  => 'nullable|string|max:160',
+            'description_en' => 'nullable|string|max:2000',
+            'description_bm' => 'nullable|string|max:2000',
+            'check_in_time'  => 'required|date_format:H:i',
+            'check_out_time' => 'required|date_format:H:i',
+            'status'         => 'required|in:draft,active,archived',
+            'base_price'     => 'nullable|numeric|min:0|max:999999',
+            'house_rules'    => 'nullable|string|max:1000',
+            'cancellation_policy' => 'nullable|string|max:1000',
+        ]);
+
+        $newBase = $request->filled('base_price') ? (float) $validated['base_price'] : null;
+        unset($validated['base_price']);
+
+        // The properties table has NOT NULL columns (city/state/postcode/cancellation_policy)
+        // but Laravel's ConvertEmptyStringsToNull middleware turns blank inputs into nulls.
+        // Coerce them back to empty strings (or the column default) so save() doesn't trip the constraint.
+        foreach (['city', 'state', 'postcode', 'cancellation_policy'] as $k) {
+            if (array_key_exists($k, $validated) && $validated[$k] === null) {
+                $validated[$k] = $k === 'cancellation_policy' ? 'flexible' : '';
+            }
+        }
+
+        DB::transaction(function () use ($property, $validated, $newBase) {
+            $property->fill($validated)->save();
+            if ($newBase !== null) {
+                $property->rooms()->update(['base_price' => $newBase]);
+            }
+        });
+
+        return redirect()
+            ->route('tenant.settings.index')
+            ->with('status', __('Homestay ":name" updated.', ['name' => $property->name]));
+    }
+
+    public function destroy(Property $property)
+    {
+        $blockingBookings = \App\Models\Booking::query()
+            ->where('property_id', $property->id)
+            ->whereIn('status', [
+                \App\Models\Booking::STATUS_PENDING,
+                \App\Models\Booking::STATUS_CONFIRMED,
+                \App\Models\Booking::STATUS_CHECKED_IN,
+            ])
+            ->where('check_out', '>=', now()->startOfDay())
+            ->count();
+
+        if ($blockingBookings > 0) {
+            return back()->with('error', __('Cannot delete — :n active or upcoming booking(s) on this property. Cancel them first.', ['n' => $blockingBookings]));
+        }
+
+        $name = $property->name;
+        DB::transaction(function () use ($property) {
+            $property->rooms()->delete();
+            $property->delete();
+        });
+
+        return redirect()
+            ->route('tenant.settings.index')
+            ->with('status', __('Homestay ":name" deleted.', ['name' => $name]));
+    }
+
+    public function show($id, Request $request)
+    {
+        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name'), 'tenant'])
             ->findOrFail($id);
 
-        return view('tenant.properties.show', compact('property'));
+        $tab = in_array($request->query('tab'), ['rooms', 'pricing', 'facilities', 'policies', 'photos'], true)
+            ? $request->query('tab')
+            : 'rooms';
+
+        // Occupancy + rate stats for last 30 days
+        $bookings = \App\Models\Booking::query()
+            ->where('property_id', $property->id)
+            ->whereIn('status', [
+                \App\Models\Booking::STATUS_CONFIRMED,
+                \App\Models\Booking::STATUS_CHECKED_IN,
+                \App\Models\Booking::STATUS_CHECKED_OUT,
+            ])
+            ->where('check_in', '>=', now()->subDays(30))
+            ->get(['nights', 'total_amount']);
+
+        $nights = (int) $bookings->sum('nights');
+        $available = max(1, $property->rooms->count() * 30);
+        $occupancy = $nights > 0 ? round(($nights / $available) * 100) : 0;
+        $startingRate = (float) ($property->rooms->min('base_price') ?? 0);
+
+        return view('tenant.properties.show', [
+            'property' => $property,
+            'tab' => $tab,
+            'occupancy' => $occupancy,
+            'startingRate' => $startingRate,
+            'rating' => $property->rating ?? '—',
+        ]);
     }
 
     protected function uniqueSlug(string $name, int $tenantId): string
