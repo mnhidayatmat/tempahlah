@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\Tenancy\RequireTenant;
+use App\Http\Middleware\Tenancy\ResolveTenantFromSubdomain;
 use App\Http\Middleware\Tenancy\SetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.context' => SetTenantContext::class,
             'tenant.require' => RequireTenant::class,
+            'tenant.subdomain' => ResolveTenantFromSubdomain::class,
         ]);
 
         $middleware->web(append: [

@@ -64,13 +64,22 @@ class CreateTenantAndOwner
         });
     }
 
+    protected const RESERVED_SLUGS = [
+        'www', 'mail', 'api', 'app', 'admin', 'super-admin', 'superadmin',
+        'marketplace', 'dashboard', 'support', 'help', 'blog', 'docs',
+        'dev', 'staging', 'test', 'cdn', 'static', 'assets', 'media',
+        'homestaymy', 'homestay', 'about', 'contact', 'pricing', 'login',
+        'register', 'onboard', 'auth', 'oauth', 'webhook', 'webhooks',
+        'status', 'health', 'localhost', 'ftp', 'smtp', 'imap', 'pop',
+    ];
+
     protected function uniqueSlug(string $businessName): string
     {
-        $base = Str::slug($businessName);
-        $slug = $base;
+        $base = Str::slug($businessName) ?: 'tenant';
+        $slug = in_array($base, self::RESERVED_SLUGS, true) ? $base.'-1' : $base;
         $i = 0;
 
-        while (Tenant::where('slug', $slug)->exists()) {
+        while (Tenant::where('slug', $slug)->exists() || in_array($slug, self::RESERVED_SLUGS, true)) {
             $i++;
             $slug = $base.'-'.$i;
         }

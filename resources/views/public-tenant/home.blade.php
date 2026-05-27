@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $tenant->business_name }} — {{ __('Book direct') }}</title>
+    <meta name="description" content="{{ __('Direct bookings for :name. No middleman, no commission.', ['name' => $tenant->business_name]) }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css'])
+    <style id="tenant-theme">:root { {!! $tenant->themeCssVariables() !!} }</style>
+    <meta name="theme-color" content="{{ $tenant->themePrimary() }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @php
+        $loc = app()->getLocale();
+        $isBM = $loc === 'ms';
+
+        $coverGradients = [
+            'beach' => [
+                'g' => 'radial-gradient(ellipse at 20% 30%, rgba(150,200,230,0.6) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(50,110,160,0.5) 0%, transparent 55%), linear-gradient(135deg, #4a82a8 0%, #6ba0c4 45%, #b8d4e3 100%)',
+                'tone' => '🌊',
+                'lbl_en' => 'Beachfront', 'lbl_ms' => 'Tepi Pantai',
+            ],
+            'highland' => [
+                'g' => 'radial-gradient(ellipse at 20% 30%, rgba(178,210,170,0.6) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(80,120,80,0.5) 0%, transparent 55%), linear-gradient(135deg, #5d7a5d 0%, #8aab8a 45%, #c6dac6 100%)',
+                'tone' => '🌲',
+                'lbl_en' => 'Highland', 'lbl_ms' => 'Tanah Tinggi',
+            ],
+            'kampung' => [
+                'g' => 'radial-gradient(ellipse at 20% 30%, rgba(255,200,140,0.55) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(168,98,30,0.45) 0%, transparent 55%), linear-gradient(135deg, #b08750 0%, #d4a86a 45%, #ecd2a8 100%)',
+                'tone' => '🌾',
+                'lbl_en' => 'Kampung', 'lbl_ms' => 'Kampung',
+            ],
+            'heritage' => [
+                'g' => 'radial-gradient(ellipse at 20% 30%, rgba(255,200,140,0.5) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(168,64,30,0.5) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(217,119,87,0.6) 0%, transparent 60%), linear-gradient(135deg, #c25e3e 0%, #d97757 45%, #e8a06a 100%)',
+                'tone' => '🏛️',
+                'lbl_en' => 'Heritage', 'lbl_ms' => 'Warisan',
+            ],
+            'city' => [
+                'g' => 'radial-gradient(ellipse at 20% 30%, rgba(200,170,210,0.55) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(120,80,150,0.4) 0%, transparent 55%), linear-gradient(135deg, #7a5e95 0%, #9d80b8 45%, #d4c2e0 100%)',
+                'tone' => '🏙️',
+                'lbl_en' => 'City', 'lbl_ms' => 'Bandar',
+            ],
+        ];
+
+        $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM) {
+            $cover = $coverGradients[$p->cover_kind] ?? $coverGradients['city'];
+            return [
+                'id'        => $p->id,
+                'name'      => $p->name,
+                'city'      => $p->city,
+                'state'     => $p->state,
+                'rate'      => (float) $p->starting_rate,
+                'sleeps'    => (int) $p->sleeps_total,
+                'rooms'     => (int) $p->rooms->count(),
+                'beds'      => (int) $p->beds_total,
+                'cover'     => $cover['g'],
+                'kind'      => $p->cover_kind,
+                'tone'      => $cover['tone'],
+                'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
+                'initial'   => mb_strtoupper(mb_substr($p->name, 0, 1)),
+                'booked'    => $bookedByProperty[$p->id] ?? [],
+            ];
+        })->values();
+    @endphp
+</head>
+<body class="wf-body @if($properties->isEmpty()) wf-empty-body @endif">
+
+@if($properties->isEmpty())
+
+    <main class="wf-empty">
+        <div class="wf-empty-mark">·</div>
+        <h1 class="wf-empty-title">{{ __('No homestays listed yet') }}</h1>
+        <p class="wf-empty-sub">{{ __('We are setting things up. Please check back soon.') }}</p>
+        @if($contactPhone)
+            <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener" class="wf-empty-cta">{{ __('Message us') }} →</a>
+        @endif
+    </main>
+
+@else
+
+<main class="wf-app"
+      x-data="wafa({
+          tenantName: @js($tenant->business_name),
+          tenantSlug: @js($tenant->slug),
+          tenantDomain: @js(config('app.tenant_domain')),
+          tenantPhone: @js($tenant->business_phone),
+          tenantEmail: @js($tenant->business_email),
+          phone: @js($contactPhone),
+          locale: @js($isBM ? 'ms-MY' : 'en-MY'),
+          isBM: @js($isBM),
+          properties: @js($propertiesPayload),
+      })">
+
+    {{-- ───── HERO BANNER ─────────────────────────────────────────── --}}
+    <header class="wf-banner" :style="`background: ${current.cover}`">
+        <div class="wf-banner-grain" aria-hidden="true"></div>
+        <div class="wf-banner-vignette" aria-hidden="true"></div>
+
+        <div class="wf-banner-top">
+            <a href="{{ route('locale.switch', $loc === 'ms' ? 'en' : 'ms') }}" class="wf-pill wf-pill-light">
+                <span style="font-family:var(--font-mono); font-weight:600;">{{ strtoupper($loc) }}</span>
+                <span style="opacity:.5;">/</span>
+                <span style="font-family:var(--font-mono); opacity:.7;">{{ $loc === 'ms' ? 'EN' : 'MS' }}</span>
+            </a>
+            @if($contactPhone)
+                <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener" class="wf-pill wf-pill-solid" aria-label="WhatsApp">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
+                    WhatsApp
+                </a>
+            @endif
+        </div>
+
+        <div class="wf-banner-bottom">
+            <div class="wf-banner-kicker">
+                <span class="wf-banner-tone" x-text="current.tone"></span>
+                <span x-text="current.tone_label"></span>
+                <span class="wf-banner-dot">·</span>
+                <span x-text="(current.city || '') + (current.state ? ', ' + current.state : '')"></span>
+            </div>
+            <h1 class="wf-banner-name">{{ $tenant->business_name }}</h1>
+            <p class="wf-banner-tag">{{ $isBM ? 'Tempah terus, tanpa komisen.' : 'Skip the queue, book direct.' }}</p>
+        </div>
+    </header>
+
+    {{-- ───── PROPERTY CARDS ──────────────────────────────────────── --}}
+    <section class="wf-stack">
+        <div class="wf-section-eyebrow">{{ $isBM ? 'Pilih pakej' : 'Choose your stay' }}</div>
+
+        <template x-for="(p, i) in properties" :key="p.id">
+            <button type="button"
+                    class="wf-prop"
+                    :class="{ 'is-active': selectedIdx === i }"
+                    @click="selectProperty(i)">
+                <span class="wf-prop-bar"></span>
+                <div class="wf-prop-body">
+                    <div class="wf-prop-name" x-text="p.name"></div>
+                    <div class="wf-prop-meta">
+                        <span x-text="p.rooms"></span> {{ $isBM ? 'bilik' : 'rooms' }}
+                        <span class="wf-prop-meta-dot">·</span>
+                        <span x-text="p.sleeps || p.beds || 2"></span> {{ $isBM ? 'tetamu' : 'sleeps' }}
+                    </div>
+                </div>
+                <div class="wf-prop-price">
+                    <div class="wf-prop-price-rm">RM</div>
+                    <div class="wf-prop-price-num" x-text="formatMoney(p.rate)"></div>
+                    <div class="wf-prop-price-per">/ {{ $isBM ? 'malam' : 'night' }}</div>
+                </div>
+            </button>
+        </template>
+    </section>
+
+    {{-- ───── DARK PROMPT BAR ─────────────────────────────────────── --}}
+    <div class="wf-prompt" x-show="!checkin">
+        <span>{{ $isBM ? 'Ketuk mana-mana tarikh untuk tempah' : 'Click any date to make a booking' }}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+    </div>
+
+    {{-- ───── PICKED PILLS (after first pick) ─────────────────────── --}}
+    <div class="wf-pills" x-show="checkin" x-cloak>
+        <div class="wf-pill-cell" :class="{ 'is-active': checkin && !checkout }">
+            <div class="wf-pill-lbl">{{ $isBM ? 'Daftar masuk' : 'Check-in' }}</div>
+            <div class="wf-pill-val" x-text="checkin ? fmtPill(checkin) : '— —'"></div>
+        </div>
+        <div class="wf-pill-cell" :class="{ 'is-active': checkin && !checkout }">
+            <div class="wf-pill-lbl">{{ $isBM ? 'Daftar keluar' : 'Check-out' }}</div>
+            <div class="wf-pill-val" x-text="checkout ? fmtPill(checkout) : (checkin ? (isBM ? 'Pilih tarikh keluar' : 'Pick check-out') : '— —')"></div>
+        </div>
+    </div>
+
+    {{-- ───── CALENDAR CARD ───────────────────────────────────────── --}}
+    <section class="wf-cal">
+        <div class="wf-cal-month-row">
+            <div class="wf-cal-month" x-text="monthLabel()"></div>
+            <div class="wf-cal-nav">
+                <button type="button" class="wf-cal-nav-btn" @click="prevMonth" :disabled="isCurrentMonth()" aria-label="{{ __('Previous month') }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button type="button" class="wf-cal-nav-btn" @click="nextMonth" aria-label="{{ __('Next month') }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="wf-cal-weekdays">
+            <template x-for="(w, i) in weekdayHeader" :key="i">
+                <div :class="{ 'is-weekend': i === 0 || i === 6 }" x-text="w"></div>
+            </template>
+        </div>
+
+        <div class="wf-cal-grid">
+            <template x-for="(d, i) in monthDays()" :key="i">
+                <button type="button"
+                        class="wf-cal-day"
+                        :class="{
+                            'wf-cal-day-empty':     !d,
+                            'wf-cal-day-past':      d && isPast(d),
+                            'wf-cal-day-full':      d && !isPast(d) && isBooked(d),
+                            'wf-cal-day-available': d && !isPast(d) && !isBooked(d),
+                            'wf-cal-day-today':     d && isToday(d),
+                            'wf-cal-day-selected':  d && (isCheckin(d) || isCheckout(d)),
+                            'wf-cal-day-in-range':  d && inRange(d),
+                            'wf-cal-day-range-start': d && isCheckin(d) && checkout,
+                            'wf-cal-day-range-end':   d && isCheckout(d),
+                        }"
+                        :disabled="!d || isPast(d) || isBooked(d)"
+                        @click="d && pickDay(d)">
+                    <span class="wf-cal-day-num" x-text="d ? d.getDate() : ''"></span>
+                    <span class="wf-cal-day-rate" x-show="d && !isPast(d) && !isBooked(d) && !isCheckin(d) && !isCheckout(d)" x-text="d ? ('RM' + Math.round(current.rate)) : ''"></span>
+                </button>
+            </template>
+        </div>
+
+        <div class="wf-cal-legend">
+            <span class="wf-leg"><span class="wf-leg-dot is-avail"></span>{{ $isBM ? 'Kosong' : 'Available' }}</span>
+            <span class="wf-leg"><span class="wf-leg-dot is-pick"></span>{{ $isBM ? 'Pilih' : 'Selected' }}</span>
+            <span class="wf-leg"><span class="wf-leg-dot is-full"></span>{{ $isBM ? 'Penuh' : 'Booked' }}</span>
+        </div>
+    </section>
+
+    {{-- ───── SUMMARY + RESERVE (after both dates) ────────────────── --}}
+    <section class="wf-bottom" x-show="checkin && checkout" x-cloak>
+        <div class="wf-summary">
+            <div class="wf-summary-head">
+                <div class="wf-summary-head-l">
+                    <div class="wf-summary-tag">{{ $isBM ? 'Ringkasan tempahan' : 'Booking summary' }}</div>
+                    <div class="wf-summary-property" x-text="current.name"></div>
+                </div>
+                <div class="wf-summary-head-r">
+                    <span x-text="fmtPill(checkin)"></span>
+                    <span class="wf-summary-arrow">→</span>
+                    <span x-text="fmtPill(checkout)"></span>
+                </div>
+            </div>
+
+            <div class="wf-summary-row">
+                <span class="lbl">RM <span x-text="formatMoney(current.rate)"></span> × <span x-text="nights()"></span> {{ $isBM ? 'malam' : 'nights' }}</span>
+                <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
+            </div>
+            <div class="wf-summary-row wf-summary-row-guest">
+                <div class="wf-guests-lbl">
+                    <span class="lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</span>
+                </div>
+                <div class="wf-stepper">
+                    <button type="button" class="wf-stepper-btn" @click="guests = Math.max(1, guests - 1)" :disabled="guests <= 1" aria-label="−">−</button>
+                    <span class="wf-stepper-num" x-text="guests + ' ' + (isBM ? 'orang' : 'pax')"></span>
+                    <button type="button" class="wf-stepper-btn" @click="guests = Math.min(current.sleeps || 99, guests + 1)" :disabled="guests >= (current.sleeps || 99)" aria-label="+">+</button>
+                </div>
+            </div>
+            <div class="wf-summary-row wf-summary-total">
+                <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
+                <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
+            </div>
+            <div class="wf-summary-note">
+                ✻ {{ $isBM ? 'SST + cukai pelancongan akan disahkan tuan rumah di WhatsApp.' : 'SST + tourism tax confirmed by host on WhatsApp.' }}
+            </div>
+        </div>
+
+        @if($contactPhone)
+            <a :href="reserveLink()" target="_blank" rel="noopener" class="wf-reserve">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
+                <span>{{ $isBM ? 'Tempah di WhatsApp' : 'Reserve on WhatsApp' }} · RM <span x-text="formatMoney(subtotal())"></span></span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+            <div class="wf-reserve-hint">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>{{ $isBM ? 'Tiada bayaran sekarang — tuan rumah akan sahkan' : 'No payment yet — host confirms first' }}</span>
+            </div>
+        @endif
+    </section>
+
+    {{-- Empty-state hint when no dates picked --}}
+    <div class="wf-hint" x-show="!checkin && !checkout">
+        <strong>{{ $isBM ? 'Tempah terus' : 'Direct booking' }}</strong> ·
+        {{ $isBM ? 'Tiada caj platform.' : 'No platform fees.' }}
+        @if($contactPhone)
+            {{ $isBM ? 'Mesej kami untuk soalan:' : 'Message us for questions:' }}
+            <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener">WhatsApp ↗</a>
+        @endif
+    </div>
+
+    {{-- ───── BOTTOM NAV ──────────────────────────────────────────── --}}
+    <nav class="wf-botnav">
+        <button type="button" class="wf-botnav-item is-active" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-6h6v6"/></svg>
+            <span>{{ $isBM ? 'Utama' : 'Home' }}</span>
+        </button>
+        <button type="button" class="wf-botnav-item" @click="scrollToCalendar" aria-label="Calendar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>{{ $isBM ? 'Kalendar' : 'Calendar' }}</span>
+        </button>
+        @if($tenant->business_phone)
+            <a href="tel:{{ $tenant->business_phone }}" class="wf-botnav-item" aria-label="Call">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>{{ $isBM ? 'Telefon' : 'Call' }}</span>
+            </a>
+        @endif
+        @if($contactPhone)
+            <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener" class="wf-botnav-item" aria-label="WhatsApp">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
+                <span>WhatsApp</span>
+            </a>
+        @endif
+    </nav>
+
+</main>
+
+@endif
+
+<style>
+    [x-cloak] { display: none !important; }
+
+    .wf-body {
+        margin: 0;
+        font-family: var(--font-sans);
+        background:
+            radial-gradient(900px 600px at 50% -20%, oklch(96% 0.04 45 / 0.5), transparent 65%),
+            var(--bg);
+        color: var(--ink);
+        min-height: 100dvh;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .wf-body * { box-sizing: border-box; }
+
+    /* ── App shell — phone frame ──────────────────────────────── */
+    .wf-app {
+        max-width: 440px;
+        margin: 0 auto;
+        min-height: 100dvh;
+        background: var(--bg-elev);
+        position: relative;
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+        box-shadow: 0 0 60px -10px rgba(40,30,10,0.08);
+    }
+    @media (min-width: 768px) {
+        .wf-body {
+            background:
+                radial-gradient(1200px 800px at 50% -20%, oklch(96% 0.04 45 / 0.6), transparent 65%),
+                radial-gradient(900px 600px at -10% 110%, oklch(96% 0.025 80 / 0.5), transparent 60%),
+                var(--bg);
+        }
+        .wf-app {
+            max-width: 480px;
+            margin: 24px auto;
+            min-height: auto;
+            border-radius: 32px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            box-shadow: 0 30px 80px -20px rgba(40,30,10,0.18), 0 4px 12px rgba(40,30,10,0.05);
+        }
+    }
+
+    /* ── Banner ────────────────────────────────────────────────── */
+    .wf-banner {
+        position: relative;
+        height: 240px;
+        overflow: hidden;
+        color: #fff;
+    }
+    .wf-banner-grain {
+        position: absolute; inset: 0;
+        background:
+            radial-gradient(circle at 15% 20%, rgba(255,255,255,0.18) 0%, transparent 25%),
+            radial-gradient(circle at 85% 60%, rgba(40,20,10,0.20) 0%, transparent 35%),
+            repeating-linear-gradient(45deg, transparent 0 18px, rgba(255,255,255,0.04) 18px 19px);
+        pointer-events: none;
+    }
+    .wf-banner-vignette {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        height: 65%;
+        background: linear-gradient(180deg, transparent 0%, rgba(20,10,5,0.55) 100%);
+        pointer-events: none;
+    }
+    .wf-banner-top {
+        position: absolute;
+        top: calc(14px + env(safe-area-inset-top));
+        left: 14px; right: 14px;
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 10px;
+        z-index: 2;
+    }
+    .wf-banner-bottom {
+        position: absolute;
+        left: 18px; right: 18px; bottom: 20px;
+        z-index: 2;
+    }
+    .wf-banner-kicker {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 11.5px; font-weight: 600;
+        color: rgba(255,255,255,0.92);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        background: rgba(20,12,6,0.32);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 5px 11px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+    }
+    .wf-banner-tone { font-size: 13px; }
+    .wf-banner-dot { color: rgba(255,255,255,0.5); }
+    .wf-banner-name {
+        font-size: 26px; font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.1;
+        margin: 0;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    .wf-banner-tag {
+        margin: 6px 0 0;
+        font-size: 13px; font-weight: 500;
+        color: rgba(255,255,255,0.92);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    .wf-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 11.5px; font-weight: 600;
+        padding: 7px 11px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-family: var(--font-sans);
+        letter-spacing: 0.005em;
+        transition: transform .12s, background .15s;
+    }
+    .wf-pill-light {
+        background: rgba(255,255,255,0.92);
+        color: var(--ink);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .wf-pill-light:active { transform: scale(0.96); }
+    .wf-pill-solid {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 4px 12px -2px rgba(217,119,87,0.4);
+    }
+    .wf-pill-solid:active { transform: scale(0.96); background: var(--primary-hover); }
+
+    /* ── Section eyebrow ──────────────────────────────────────── */
+    .wf-section-eyebrow {
+        font-family: var(--font-mono);
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--ink-3);
+        margin: 0 0 8px;
+        padding: 0 4px;
+    }
+
+    /* ── Stack of property cards (Wafa packages) ─────────────── */
+    .wf-stack {
+        padding: 18px 16px 0;
+    }
+    .wf-prop {
+        display: flex; align-items: stretch;
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0;
+        margin: 0 0 10px;
+        overflow: hidden;
+        appearance: none;
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        transition: border-color .15s, background .15s, transform .1s;
+        box-shadow: 0 1px 0 rgba(40,30,10,0.04);
+    }
+    .wf-prop:active { transform: scale(0.99); }
+    .wf-prop.is-active {
+        border-color: var(--primary);
+        background: oklch(98% 0.02 45);
+        box-shadow: 0 8px 22px -8px rgba(217,119,87,0.32);
+    }
+    .wf-prop-bar {
+        width: 5px;
+        flex-shrink: 0;
+        background: var(--primary-edge);
+        transition: background .15s;
+    }
+    .wf-prop.is-active .wf-prop-bar {
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-deep) 100%);
+    }
+    .wf-prop-body {
+        flex: 1; min-width: 0;
+        padding: 14px 4px 14px 14px;
+    }
+    .wf-prop-name {
+        font-size: 15px; font-weight: 700;
+        letter-spacing: -0.015em;
+        color: var(--ink);
+        line-height: 1.2;
+    }
+    .wf-prop-meta {
+        margin-top: 4px;
+        font-size: 11.5px; color: var(--ink-3);
+        font-weight: 500;
+    }
+    .wf-prop-meta-dot { color: var(--ink-4); margin: 0 4px; }
+
+    .wf-prop-price {
+        flex-shrink: 0;
+        align-self: stretch;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+        color: #fff;
+        padding: 12px 16px;
+        display: flex; flex-direction: column;
+        align-items: flex-end; justify-content: center;
+        line-height: 1;
+        position: relative;
+        min-width: 96px;
+    }
+    .wf-prop-price::before {
+        content: "";
+        position: absolute;
+        left: -1px; top: 50%; transform: translateY(-50%);
+        width: 8px; height: 8px;
+        background: var(--bg-elev);
+        border-radius: 50%;
+    }
+    .wf-prop-price-rm {
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.08em;
+        opacity: 0.85;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+    .wf-prop-price-num {
+        font-family: var(--font-mono);
+        font-size: 22px; font-weight: 700;
+        letter-spacing: -0.02em;
+        font-feature-settings: "tnum";
+    }
+    .wf-prop-price-per {
+        font-size: 9.5px; font-weight: 500;
+        opacity: 0.8;
+        margin-top: 3px;
+    }
+
+    /* ── Dark prompt strip ────────────────────────────────────── */
+    .wf-prompt {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        margin: 14px 16px 12px;
+        padding: 13px 18px;
+        background: linear-gradient(135deg, #2c2622 0%, #1a1614 100%);
+        color: #fff;
+        font-size: 13px; font-weight: 600;
+        border-radius: 12px;
+        letter-spacing: 0.005em;
+        box-shadow: 0 4px 14px -4px rgba(40,30,10,0.4);
+        animation: wf-prompt-bob 2.4s ease-in-out infinite;
+    }
+    @keyframes wf-prompt-bob {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-2px); }
+    }
+
+    /* ── Picked-date pills ────────────────────────────────────── */
+    .wf-pills {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 0 16px 12px;
+    }
+    .wf-pill-cell {
+        background: var(--bg);
+        border: 1.5px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 13px;
+        transition: border-color .15s, background .15s;
+    }
+    .wf-pill-cell.is-active {
+        border-color: var(--primary);
+        background: oklch(97% 0.025 45);
+    }
+    .wf-pill-lbl {
+        font-size: 9.5px; font-weight: 600;
+        letter-spacing: 0.1em; text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 3px;
+    }
+    .wf-pill-val {
+        font-family: var(--font-mono);
+        font-size: 13.5px; font-weight: 600;
+        color: var(--ink);
+        letter-spacing: -0.005em;
+    }
+
+    /* ── Calendar ─────────────────────────────────────────────── */
+    .wf-cal {
+        background: var(--bg);
+        margin: 0 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        box-shadow: 0 2px 0 rgba(40,30,10,0.04), 0 12px 28px -16px rgba(40,30,10,0.12);
+        overflow: hidden;
+    }
+    .wf-cal-month-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 14px 6px;
+    }
+    .wf-cal-month {
+        font-size: 16px; font-weight: 700;
+        letter-spacing: -0.018em;
+        color: var(--ink);
+    }
+    .wf-cal-nav { display: flex; gap: 6px; }
+    .wf-cal-nav-btn {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+        color: #fff;
+        border: 0;
+        display: grid; place-items: center;
+        cursor: pointer;
+        box-shadow: 0 3px 8px -2px rgba(217,119,87,0.45);
+        transition: transform .1s;
+    }
+    .wf-cal-nav-btn:active { transform: scale(0.92); }
+    .wf-cal-nav-btn:disabled {
+        opacity: 0.35; cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .wf-cal-weekdays {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        padding: 0 10px;
+    }
+    .wf-cal-weekdays > div {
+        text-align: center;
+        font-size: 10px; font-weight: 700;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 6px 0 4px;
+    }
+    .wf-cal-weekdays > div.is-weekend { color: var(--primary); }
+
+    .wf-cal-grid {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        padding: 4px 10px 12px;
+    }
+    .wf-cal-day {
+        border: 0;
+        border-radius: 10px;
+        font-family: var(--font-sans);
+        font-weight: 600;
+        cursor: pointer;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        transition: transform 100ms, background .12s, color .12s;
+        font-feature-settings: "tnum";
+        position: relative;
+        padding: 0;
+        background: var(--bg-elev);
+        color: var(--ink);
+        font-size: 15px;
+        aspect-ratio: 1 / 1;
+        width: 100%;
+    }
+    .wf-cal-day-empty { visibility: hidden; }
+    .wf-cal-day-past {
+        background: transparent;
+        color: var(--ink-4);
+        cursor: not-allowed;
+        text-decoration: line-through;
+        text-decoration-thickness: 1px;
+        text-decoration-color: var(--ink-4);
+    }
+    .wf-cal-day-full {
+        background: var(--bg-sunk);
+        color: var(--ink-4);
+        cursor: not-allowed;
+        position: relative;
+    }
+    .wf-cal-day-full::after {
+        content: "";
+        position: absolute;
+        inset: 7px 5px;
+        background: repeating-linear-gradient(-45deg, transparent 0 3px, var(--ink-4) 3px 4px);
+        opacity: 0.35;
+        border-radius: 6px;
+        pointer-events: none;
+    }
+    .wf-cal-day-available {
+        background: var(--bg);
+        border: 1.5px solid var(--line-2);
+        color: var(--ink);
+    }
+    .wf-cal-day-available:active { transform: scale(0.93); background: oklch(96% 0.04 45); border-color: var(--primary); }
+    .wf-cal-day-today { box-shadow: inset 0 0 0 2px var(--primary); }
+    .wf-cal-day-today.wf-cal-day-available { border-color: transparent; }
+
+    .wf-cal-day-selected {
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
+        color: #fff !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 6px 14px -4px rgba(217,119,87,0.55) !important;
+        z-index: 2;
+        transform: scale(1.04);
+    }
+    .wf-cal-day-in-range {
+        background: oklch(95% 0.06 45) !important;
+        color: var(--primary-deep) !important;
+        border-color: transparent !important;
+        border-radius: 4px !important;
+    }
+    .wf-cal-day-range-start {
+        border-top-right-radius: 4px !important;
+        border-bottom-right-radius: 4px !important;
+    }
+    .wf-cal-day-range-end {
+        border-top-left-radius: 4px !important;
+        border-bottom-left-radius: 4px !important;
+    }
+    .wf-cal-day-num { line-height: 1; }
+    .wf-cal-day-rate {
+        font-family: var(--font-mono);
+        font-size: 8.5px; font-weight: 600;
+        color: var(--ink-3);
+        margin-top: 3px;
+        line-height: 1;
+        font-feature-settings: "tnum";
+    }
+    .wf-cal-day-selected .wf-cal-day-rate { color: rgba(255,255,255,0.85); }
+    .wf-cal-day-in-range .wf-cal-day-rate { color: var(--primary-deep); opacity: 0.65; }
+
+    .wf-cal-legend {
+        display: flex; flex-wrap: wrap;
+        justify-content: center;
+        gap: 14px;
+        padding: 8px 12px 14px;
+        border-top: 1px solid var(--line);
+        margin-top: 4px;
+    }
+    .wf-leg {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-family: var(--font-mono);
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--ink-3);
+        text-transform: uppercase;
+    }
+    .wf-leg-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+    }
+    .wf-leg-dot.is-avail { background: var(--ok); }
+    .wf-leg-dot.is-pick  { background: var(--primary); }
+    .wf-leg-dot.is-full  { background: var(--ink-4); }
+
+    /* ── Bottom: hint or summary ──────────────────────────────── */
+    .wf-hint {
+        text-align: center;
+        font-size: 12px;
+        color: var(--ink-3);
+        font-weight: 500;
+        padding: 16px 18px 4px;
+        line-height: 1.5;
+    }
+    .wf-hint strong { color: var(--primary-deep); font-weight: 700; }
+    .wf-hint a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+    .wf-bottom {
+        margin: 14px 16px 4px;
+    }
+    .wf-summary {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 14px 16px;
+        box-shadow: 0 6px 18px -8px rgba(80,50,20,0.15);
+    }
+    .wf-summary-head {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line);
+    }
+    .wf-summary-head-l { flex: 1; min-width: 0; }
+    .wf-summary-tag {
+        font-family: var(--font-mono);
+        font-size: 9.5px; font-weight: 600;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 3px;
+    }
+    .wf-summary-property {
+        font-size: 14.5px; font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.012em;
+    }
+    .wf-summary-head-r {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 12.5px; font-weight: 600;
+        color: var(--ink);
+        background: oklch(97% 0.025 45);
+        border-radius: 8px;
+        padding: 6px 10px;
+        flex-shrink: 0;
+    }
+    .wf-summary-arrow { color: var(--primary); }
+    .wf-summary-row {
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 13px;
+        padding: 5px 0;
+    }
+    .wf-summary-row .lbl { color: var(--ink-2); font-weight: 500; }
+    .wf-summary-row .val { font-weight: 700; color: var(--ink); font-family: var(--font-mono); font-feature-settings: "tnum"; }
+    .wf-summary-row-guest {
+        padding: 6px 0;
+    }
+    .wf-stepper {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--bg-elev);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px;
+    }
+    .wf-stepper-btn {
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        background: var(--bg); border: 1px solid var(--line);
+        font-size: 14px; font-weight: 700;
+        color: var(--ink-2); cursor: pointer;
+        display: grid; place-items: center;
+        font-family: inherit;
+        transition: background .12s;
+    }
+    .wf-stepper-btn:active:not(:disabled) { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .wf-stepper-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .wf-stepper-num {
+        font-family: var(--font-mono);
+        font-size: 12.5px; font-weight: 600;
+        color: var(--ink);
+        min-width: 56px;
+        text-align: center;
+        padding: 0 4px;
+    }
+    .wf-summary-total {
+        border-top: 1px dashed var(--line-2);
+        margin-top: 8px;
+        padding-top: 10px;
+    }
+    .wf-summary-total .lbl { color: var(--ink); font-weight: 700; font-size: 13.5px; }
+    .wf-summary-total .val {
+        color: var(--primary-deep);
+        font-size: 19px;
+        letter-spacing: -0.015em;
+    }
+    .wf-summary-note {
+        margin-top: 10px;
+        font-size: 10.5px;
+        color: var(--ink-3);
+        line-height: 1.4;
+        font-style: italic;
+    }
+
+    .wf-reserve {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%;
+        margin-top: 12px;
+        padding: 15px 18px;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+        color: #fff;
+        border: 0;
+        border-radius: 14px;
+        font-family: inherit;
+        font-size: 14.5px; font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 8px 20px -4px rgba(217,119,87,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+        letter-spacing: 0.005em;
+        position: relative;
+        overflow: hidden;
+    }
+    .wf-reserve::before {
+        content: "";
+        position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 50%);
+        pointer-events: none;
+    }
+    .wf-reserve:active { transform: scale(0.985); }
+    .wf-reserve-hint {
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        margin: 8px 4px 0;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--ink-3);
+        letter-spacing: 0.01em;
+    }
+
+    /* ── Bottom nav ────────────────────────────────────────────── */
+    .wf-botnav {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        max-width: 440px;
+        margin: 0 auto;
+        height: calc(64px + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        border-top: 1px solid var(--line);
+        z-index: 30;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+    }
+    @media (min-width: 768px) {
+        .wf-botnav {
+            position: sticky;
+            bottom: 0;
+            max-width: none;
+            margin: 0;
+            border-bottom-left-radius: 31px;
+            border-bottom-right-radius: 31px;
+        }
+    }
+    .wf-botnav-item {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 3px;
+        background: transparent; border: 0;
+        padding: 8px 4px 4px;
+        color: var(--ink-3);
+        font-family: inherit;
+        font-size: 10.5px; font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        letter-spacing: 0.005em;
+        text-decoration: none;
+        transition: color .12s, transform .1s;
+    }
+    .wf-botnav-item svg {
+        width: 22px; height: 22px;
+        stroke-width: 2;
+    }
+    .wf-botnav-item:active { transform: scale(0.94); }
+    .wf-botnav-item.is-active { color: var(--primary-deep); }
+    .wf-botnav-item.is-active::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 50%; transform: translateX(-50%);
+        width: 28px; height: 3px;
+        background: var(--primary);
+        border-radius: 0 0 999px 999px;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .wf-empty-body { background: var(--bg); display: grid; place-items: center; min-height: 100dvh; }
+    .wf-empty { max-width: 380px; text-align: center; padding: 32px 24px; }
+    .wf-empty-mark { font-size: 56px; line-height: 0.6; color: var(--ink-4); margin-bottom: 14px; }
+    .wf-empty-title { font-size: 22px; font-weight: 700; margin: 0 0 8px; color: var(--ink); letter-spacing: -0.02em; }
+    .wf-empty-sub { font-size: 14px; color: var(--ink-2); margin: 0 0 20px; line-height: 1.5; }
+    .wf-empty-cta {
+        display: inline-flex; padding: 12px 22px;
+        background: var(--primary); color: #fff;
+        border-radius: 999px; text-decoration: none;
+        font-weight: 700; font-size: 14px;
+        box-shadow: 0 8px 20px -4px rgba(217,119,87,0.45);
+    }
+
+    /* very small phones */
+    @media (max-width: 380px) {
+        .wf-banner { height: 220px; }
+        .wf-banner-name { font-size: 22px; }
+        .wf-prop-body { padding: 12px 4px 12px 12px; }
+        .wf-prop-name { font-size: 14px; }
+        .wf-cal-day { font-size: 13.5px; }
+        .wf-cal-day-rate { font-size: 7.5px; }
+        .wf-summary-property { font-size: 13.5px; }
+        .wf-cal { margin: 0 12px; }
+        .wf-stack { padding: 16px 12px 0; }
+        .wf-prompt { margin: 12px 12px 10px; }
+        .wf-pills, .wf-bottom { margin-left: 12px; margin-right: 12px; }
+    }
+</style>
+
+<script>
+    function wafa(opts) {
+        return {
+            tenantName: opts.tenantName,
+            tenantSlug: opts.tenantSlug,
+            tenantDomain: opts.tenantDomain,
+            tenantPhone: opts.tenantPhone,
+            tenantEmail: opts.tenantEmail,
+            phone: opts.phone,
+            locale: opts.locale,
+            isBM: opts.isBM,
+            properties: opts.properties,
+            selectedIdx: 0,
+            cursor: (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(1); return d; })(),
+            today: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
+            checkin: null,
+            checkout: null,
+            guests: 2,
+
+            get current() { return this.properties[this.selectedIdx] || this.properties[0]; },
+            get currentBookedSet() { return new Set(this.current?.booked || []); },
+            get weekdayHeader() {
+                return this.isBM
+                    ? ['Aha','Isn','Sel','Rab','Kha','Jum','Sab']
+                    : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            },
+
+            selectProperty(i) {
+                if (i === this.selectedIdx) return;
+                this.selectedIdx = i;
+                if (this.checkin && this.checkout) {
+                    const start = new Date(this.checkin);
+                    const end = new Date(this.checkout);
+                    const cur = new Date(start);
+                    let conflict = false;
+                    while (cur < end) {
+                        if (this.currentBookedSet.has(this.iso(cur))) { conflict = true; break; }
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                    if (conflict) { this.checkin = null; this.checkout = null; }
+                }
+                if (this.guests > (this.current.sleeps || 99)) this.guests = this.current.sleeps || 1;
+            },
+
+            iso(d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            },
+            isPast(d) { return d < this.today; },
+            isToday(d) { return d.getTime() === this.today.getTime(); },
+            isBooked(d) { return this.currentBookedSet.has(this.iso(d)); },
+            isCheckin(d) { return this.iso(d) === this.checkin; },
+            isCheckout(d) { return this.iso(d) === this.checkout; },
+            inRange(d) {
+                if (!this.checkin || !this.checkout) return false;
+                const k = this.iso(d);
+                return k > this.checkin && k < this.checkout;
+            },
+
+            pickDay(d) {
+                if (this.isPast(d) || this.isBooked(d)) return;
+                const k = this.iso(d);
+                if (!this.checkin || (this.checkin && this.checkout)) {
+                    this.checkin = k; this.checkout = null;
+                    return;
+                }
+                if (k <= this.checkin) {
+                    this.checkin = k; this.checkout = null;
+                    return;
+                }
+                const start = new Date(this.checkin);
+                const end = new Date(k);
+                const cur = new Date(start); cur.setDate(cur.getDate() + 1);
+                let valid = true;
+                while (cur < end) {
+                    if (this.currentBookedSet.has(this.iso(cur))) { valid = false; break; }
+                    cur.setDate(cur.getDate() + 1);
+                }
+                if (valid) this.checkout = k;
+                else       { this.checkin = k; this.checkout = null; }
+            },
+
+            monthDays() {
+                const c = this.cursor;
+                const first = new Date(c.getFullYear(), c.getMonth(), 1);
+                const last  = new Date(c.getFullYear(), c.getMonth() + 1, 0);
+                const startOffset = first.getDay(); // Sun-first
+                const out = [];
+                for (let i = 0; i < startOffset; i++) out.push(null);
+                for (let d = 1; d <= last.getDate(); d++) out.push(new Date(c.getFullYear(), c.getMonth(), d));
+                while (out.length % 7 !== 0) out.push(null);
+                return out;
+            },
+            monthLabel() {
+                return this.cursor.toLocaleDateString(this.locale, { month: 'long', year: 'numeric' });
+            },
+            isCurrentMonth() {
+                return this.cursor.getFullYear() === this.today.getFullYear()
+                    && this.cursor.getMonth() === this.today.getMonth();
+            },
+            prevMonth() { if (!this.isCurrentMonth()) this.cursor = new Date(this.cursor.getFullYear(), this.cursor.getMonth() - 1, 1); },
+            nextMonth() { this.cursor = new Date(this.cursor.getFullYear(), this.cursor.getMonth() + 1, 1); },
+
+            nights() {
+                if (!this.checkin || !this.checkout) return 0;
+                return Math.max(1, Math.round((new Date(this.checkout) - new Date(this.checkin)) / 86400000));
+            },
+            subtotal() { return this.nights() * (this.current?.rate || 0); },
+            formatMoney(n) {
+                return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            },
+            fmtPill(iso) {
+                if (!iso) return '';
+                return new Date(iso + 'T00:00:00').toLocaleDateString(this.locale, { weekday: 'short', day: 'numeric', month: 'short' });
+            },
+
+            scrollToCalendar() {
+                const el = document.querySelector('.wf-cal');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+
+            reserveLink() {
+                if (!this.checkin || !this.checkout || !this.phone) return '#';
+                const p = this.current;
+                const ci = this.fmtPill(this.checkin);
+                const co = this.fmtPill(this.checkout);
+                const n  = this.nights();
+                const total = this.formatMoney(this.subtotal());
+                const msg = this.isBM
+                    ? `Salam ${this.tenantName}! Saya nak tempah ${p.name}: ${ci} → ${co} (${n} malam), ${this.guests} tetamu. Jumlah anggaran RM ${total}. Boleh sahkan?`
+                    : `Hi ${this.tenantName}! I'd like to book ${p.name}: ${ci} → ${co} (${n} ${n === 1 ? 'night' : 'nights'}), ${this.guests} guests. Estimated total RM ${total}. Could you confirm availability?`;
+                return `https://wa.me/${this.phone}?text=${encodeURIComponent(msg)}`;
+            },
+        };
+    }
+</script>
+
+</body>
+</html>
