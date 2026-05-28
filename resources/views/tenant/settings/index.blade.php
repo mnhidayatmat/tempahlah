@@ -153,6 +153,45 @@
                 </div>
             </div>
 
+            {{-- Workspace defaults --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 14px;">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Default locale') }}</label>
+                        <select class="input" name="default_locale">
+                            <option value="ms" {{ old('default_locale', $tenant->default_locale) === 'ms' ? 'selected' : '' }}>Bahasa Malaysia (BM)</option>
+                            <option value="en" {{ old('default_locale', $tenant->default_locale) === 'en' ? 'selected' : '' }}>English (EN)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Plan') }}</label>
+                        <div style="padding-top: 8px;">
+                            @if (($tenant->subscription?->plan ?? 'free') === 'free')
+                                <span class="pill"><span class="pill-dot"></span>{{ __('Free') }}</span>
+                                <a href="{{ route('tenant.subscription') }}" style="font-size: 12px; color: var(--primary); margin-left: 8px;">{{ __('Upgrade →') }}</a>
+                            @else
+                                <span class="pill pill-pro"><span class="pill-dot"></span>{{ __('Pro') }} · RM49/{{ __('mo') }}</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('KYC status') }}</label>
+                        <div style="padding-top: 8px;">
+                            @php $cls = match($tenant->kyc_status){ 'verified' => 'pill-ok', 'rejected' => 'pill-err', default => 'pill-warn' }; @endphp
+                            <span class="pill {{ $cls }}"><span class="pill-dot"></span>{{ ucfirst($tenant->kyc_status) }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Status') }}</label>
+                        <div style="padding-top: 8px;">
+                            @php $cls = $tenant->status === 'active' ? 'pill-ok' : 'pill-warn'; @endphp
+                            <span class="pill {{ $cls }}"><span class="pill-dot"></span>{{ ucfirst($tenant->status) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- ─── Brand & theme ──────────────────────────────────────── --}}
             @php
                 $defaults = \App\Models\Tenant::THEME_DEFAULTS;
@@ -176,6 +215,7 @@
                     primary:   '{{ $brand['primary'] }}',
                     secondary: '{{ $brand['secondary'] }}',
                     accent:    '{{ $brand['accent'] }}',
+                    showPreview: false,
                     apply(p) { this.primary = p.primary; this.secondary = p.secondary; this.accent = p.accent; },
                     reset() { this.apply({{ json_encode($defaults) }}); },
                     isValid(v) { return /^#[0-9a-fA-F]{6}$/.test(v); },
@@ -233,7 +273,7 @@
                                    :style="`background: ${primary}`">
                                 <input type="color" x-model="primary" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
                             </label>
-                            <input class="input mono" type="text" name="primary_color" x-model="primary" maxlength="7" placeholder="#d97757" style="text-transform: lowercase;">
+                            <input class="input mono" type="text" name="primary_color" x-model="primary" value="{{ $brand['primary'] }}" maxlength="7" placeholder="#d97757" style="text-transform: lowercase;">
                         </div>
                     </div>
 
@@ -248,7 +288,7 @@
                                    :style="`background: ${secondary}`">
                                 <input type="color" x-model="secondary" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
                             </label>
-                            <input class="input mono" type="text" name="secondary_color" x-model="secondary" maxlength="7" placeholder="#a8401e" style="text-transform: lowercase;">
+                            <input class="input mono" type="text" name="secondary_color" x-model="secondary" value="{{ $brand['secondary'] }}" maxlength="7" placeholder="#a8401e" style="text-transform: lowercase;">
                         </div>
                     </div>
 
@@ -263,14 +303,19 @@
                                    :style="`background: ${accent}`">
                                 <input type="color" x-model="accent" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
                             </label>
-                            <input class="input mono" type="text" name="accent_color" x-model="accent" maxlength="7" placeholder="#d4a437" style="text-transform: lowercase;">
+                            <input class="input mono" type="text" name="accent_color" x-model="accent" value="{{ $brand['accent'] }}" maxlength="7" placeholder="#d4a437" style="text-transform: lowercase;">
                         </div>
                     </div>
                 </div>
 
-                {{-- Live preview --}}
-                <div class="kicker" style="font-size: 9.5px; margin-bottom: 8px;">{{ __('Live preview') }}</div>
-                <div style="border-radius: var(--r-lg); border: 1px solid var(--line-2); overflow:hidden; background: var(--bg-sunk);">
+                {{-- Live preview (collapsed by default) --}}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                    <div class="kicker" style="font-size: 9.5px;">{{ __('Live preview') }}</div>
+                    <button type="button" class="btn btn-sm btn-ghost" @click="showPreview = !showPreview" style="color: var(--ink-3); font-size: 11.5px;">
+                        <span x-text="showPreview ? '{{ __('Hide preview') }}' : '{{ __('Show preview') }}'">{{ __('Show preview') }}</span>
+                    </button>
+                </div>
+                <div x-show="showPreview" x-cloak style="border-radius: var(--r-lg); border: 1px solid var(--line-2); overflow:hidden; background: var(--bg-sunk);">
                     {{-- Mini hero --}}
                     <div :style="`background: radial-gradient(ellipse at 20% 30%, color-mix(in srgb, ${primary} 65%, transparent) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, ${secondary} 50%, transparent) 0%, transparent 55%), linear-gradient(135deg, ${secondary} 0%, ${primary} 45%, color-mix(in srgb, ${accent} 50%, ${primary}) 100%); padding: 24px 22px; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.25);`">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 12px;">
@@ -325,45 +370,6 @@
                                 {{ __('One or more colors are invalid. Use 6-digit hex (e.g. #d97757).') }}
                             </div>
                         </template>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Workspace defaults --}}
-            <div class="hauz-card" style="padding: 22px;">
-                <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>
-                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 14px;">
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Default locale') }}</label>
-                        <select class="input" name="default_locale">
-                            <option value="ms" {{ old('default_locale', $tenant->default_locale) === 'ms' ? 'selected' : '' }}>Bahasa Malaysia (BM)</option>
-                            <option value="en" {{ old('default_locale', $tenant->default_locale) === 'en' ? 'selected' : '' }}>English (EN)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Plan') }}</label>
-                        <div style="padding-top: 8px;">
-                            @if (($tenant->subscription?->plan ?? 'free') === 'free')
-                                <span class="pill"><span class="pill-dot"></span>{{ __('Free') }}</span>
-                                <a href="{{ route('tenant.subscription') }}" style="font-size: 12px; color: var(--primary); margin-left: 8px;">{{ __('Upgrade →') }}</a>
-                            @else
-                                <span class="pill pill-pro"><span class="pill-dot"></span>{{ __('Pro') }} · RM49/{{ __('mo') }}</span>
-                            @endif
-                        </div>
-                    </div>
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('KYC status') }}</label>
-                        <div style="padding-top: 8px;">
-                            @php $cls = match($tenant->kyc_status){ 'verified' => 'pill-ok', 'rejected' => 'pill-err', default => 'pill-warn' }; @endphp
-                            <span class="pill {{ $cls }}"><span class="pill-dot"></span>{{ ucfirst($tenant->kyc_status) }}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Status') }}</label>
-                        <div style="padding-top: 8px;">
-                            @php $cls = $tenant->status === 'active' ? 'pill-ok' : 'pill-warn'; @endphp
-                            <span class="pill {{ $cls }}"><span class="pill-dot"></span>{{ ucfirst($tenant->status) }}</span>
-                        </div>
                     </div>
                 </div>
             </div>

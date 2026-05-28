@@ -134,6 +134,9 @@
 /* Focus ring shared */
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* Alpine cloak — hide [x-cloak] elements until Alpine initialises */
+[x-cloak] { display: none !important; }
+
 /* -----------------------------------------------------------------------------
    Mobile responsive shell + global primitives (<= 768px)
    Hooks into class names added to the dashboard shell so existing inline styles
