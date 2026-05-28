@@ -166,9 +166,9 @@
 
             {{-- Pro --}}
             <div class="hauz-card" style="padding: 28px;
-                background: linear-gradient(155deg, oklch(98% 0.025 60), oklch(95% 0.045 80));
-                border: .5px solid oklch(70% 0.08 60);
-                box-shadow: 0 24px 64px -24px oklch(45% 0.10 60 / 0.25);
+                background: linear-gradient(155deg, var(--primary-soft), var(--primary-tint));
+                border: .5px solid var(--primary-edge);
+                box-shadow: 0 24px 64px -24px color-mix(in srgb, var(--primary) 30%, transparent);
                 position: relative;">
                 <div style="position: absolute; top: -10px; right: 24px;
                             background: var(--ink); color: var(--bg);
