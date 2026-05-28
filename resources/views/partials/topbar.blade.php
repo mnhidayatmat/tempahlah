@@ -3,11 +3,24 @@
     $crumbs = $breadcrumbs ?? null;
     $sub = $subtitle ?? null;
 @endphp
-<div style="height:64px; padding: 0 28px; display:flex; align-items:center; gap:16px;
+<div class="shell-topbar" style="height:64px; padding: 0 28px; display:flex; align-items:center; gap:16px;
             border-bottom: 1px solid var(--line);
             background: color-mix(in oklab, var(--bg) 80%, transparent);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             flex-shrink:0; z-index:10;">
+    {{-- Hamburger (mobile only) --}}
+    <button type="button"
+            class="shell-mobile-only"
+            @click="sidebarOpen = true"
+            aria-label="{{ __('Open menu') }}"
+            style="width:36px; height:36px; padding:0; border:1px solid var(--line-2); background: var(--bg-elev); border-radius: var(--r-md); cursor:pointer; align-items:center; justify-content:center; color: var(--ink);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
     <div style="flex:1; min-width:0;">
         @if ($crumbs)
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; color: var(--ink-3); margin-bottom:2px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;">
@@ -18,7 +31,7 @@
             </div>
         @endif
         <div style="display:flex; align-items:baseline; gap:12px;">
-            <h1 style="margin:0; font-size:20px; font-weight:700; letter-spacing:-.02em; color: var(--ink);">
+            <h1 class="shell-topbar-title" style="margin:0; font-size:20px; font-weight:700; letter-spacing:-.02em; color: var(--ink);">
                 {{ $title ?? __('Dashboard') }}
             </h1>
             @if ($sub)
@@ -28,7 +41,7 @@
     </div>
 
     {{-- Search --}}
-    <div style="position:relative;">
+    <div class="shell-topbar-search" style="position:relative;">
         <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color: var(--ink-3); pointer-events:none; display:inline-flex;">
             <x-icon name="search" :size="14"/>
         </span>
@@ -42,7 +55,7 @@
     </div>
 
     {{-- BM/EN toggle --}}
-    <div style="display:inline-flex; border: 1px solid var(--line-2); border-radius: var(--r-pill); padding:2px; background: var(--bg-sunk);">
+    <div class="shell-topbar-locale" style="display:inline-flex; border: 1px solid var(--line-2); border-radius: var(--r-pill); padding:2px; background: var(--bg-sunk);">
         <a href="{{ route('locale.switch', 'ms') }}"
            style="padding:4px 10px; border-radius: var(--r-pill); font-size:11px; font-weight:600; text-decoration:none;
                   {{ $current === 'ms' ? 'background: var(--bg-elev); color: var(--primary); box-shadow: var(--sh-1);' : 'color: var(--ink-3);' }}">BM</a>

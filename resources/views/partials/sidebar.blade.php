@@ -26,7 +26,7 @@
     ];
 @endphp
 
-<aside style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
+<aside class="shell-sidebar" :class="{ 'is-open': sidebarOpen }" @click.away="sidebarOpen = false" style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
     {{-- Brand + tenant switcher --}}
     <div style="padding: 16px 14px 14px;">
         <button type="button" style="width:100%; display:flex; align-items:center; gap:10px; padding:8px; border:0; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink);">

@@ -24,7 +24,8 @@
             $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
             $plan = $tenant?->subscription?->plan ?? 'free';
         @endphp
-        <div style="display:flex; height:100vh; overflow:hidden; background: var(--bg);">
+        <div x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false" style="display:flex; height:100vh; overflow:hidden; background: var(--bg);">
+            <div class="shell-backdrop" :class="{ 'is-open': sidebarOpen }" @click="sidebarOpen = false"></div>
             @include('partials.sidebar', ['plan' => $plan, 'tenant' => $tenant])
             <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
                 @include('partials.topbar', [
@@ -32,7 +33,7 @@
                     'subtitle' => $subtitle ?? null,
                     'breadcrumbs' => $breadcrumbs ?? null,
                 ])
-                <main class="page-enter" style="flex:1; overflow-y:auto; padding: 20px 28px 40px;">
+                <main class="page-enter shell-main-pad" style="flex:1; overflow-y:auto; padding: 20px 28px 40px;">
                     @if (session('status'))
                         <div class="hauz-card" style="padding:12px 16px; margin-bottom:16px; background: var(--ok-tint); border-color: color-mix(in oklab, var(--ok) 30%, transparent); color: var(--ok);">
                             {{ session('status') }}
@@ -74,7 +75,7 @@
                 </nav>
             </div>
         </header>
-        <main style="max-width: 1200px; margin: 0 auto; padding: 32px 24px;">
+        <main class="public-shell-main" style="max-width: 1200px; margin: 0 auto; padding: 32px 24px;">
             {{ $slot ?? '' }}
             @yield('content')
         </main>

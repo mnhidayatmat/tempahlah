@@ -133,3 +133,48 @@
 
 /* Focus ring shared */
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* -----------------------------------------------------------------------------
+   Mobile responsive shell + global primitives (<= 768px)
+   Hooks into class names added to the dashboard shell so existing inline styles
+   keep desktop pixel-perfect while mobile gets a collapsible off-canvas drawer.
+----------------------------------------------------------------------------- */
+.shell-mobile-only { display: none; }
+.shell-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  .shell-sidebar {
+    position: fixed; inset: 0 auto 0 0; width: 248px; z-index: 60;
+    transform: translateX(-100%); transition: transform 220ms ease;
+    box-shadow: var(--sh-pop);
+  }
+  .shell-sidebar.is-open { transform: translateX(0); }
+  .shell-backdrop {
+    display: block; position: fixed; inset: 0; background: rgba(20,15,10,.42);
+    z-index: 55; opacity: 0; pointer-events: none; transition: opacity 180ms;
+  }
+  .shell-backdrop.is-open { opacity: 1; pointer-events: auto; }
+  .shell-main-pad { padding: 14px 14px 32px !important; }
+  .shell-topbar {
+    padding: 0 12px !important; gap: 10px !important; height: 56px !important;
+  }
+  .shell-topbar-search,
+  .shell-topbar-locale { display: none !important; }
+  .shell-topbar-title { font-size: 16px !important; }
+  .shell-mobile-only { display: inline-flex !important; }
+
+  /* Tighten common surfaces */
+  .card, .hauz-card { border-radius: var(--r-md); }
+  .display-1 { font-size: 32px; }
+  .display-2 { font-size: 24px; }
+  .display-3 { font-size: 18px; }
+  .btn { font-size: 12.5px; }
+  .input { font-size: 14px; }   /* 14px+ prevents iOS Safari zoom-on-focus */
+
+  /* Public/auth header tightening */
+  .public-shell-main { padding: 20px 16px !important; }
+}
+
+/* Utility: opt-in horizontal scroll for wide tables/grids on mobile */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll > table { min-width: 640px; }
