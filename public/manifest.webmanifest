@@ -4,8 +4,8 @@
   "description": "Manage your homestay business in Malaysia",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff",
+  "theme_color": "#d97757",
   "lang": "ms",
   "icons": [
     {
