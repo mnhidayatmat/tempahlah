@@ -611,7 +611,7 @@
   color: inherit;
 }
 .bp-pub-header-mark {
-  width: 32px; height: 32px;
+  width: auto; height: 40px;
   display: block;
   flex-shrink: 0;
 }

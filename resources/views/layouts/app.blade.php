@@ -49,7 +49,7 @@
         <header style="background: color-mix(in oklab, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); position: sticky; top:0; z-index:30;">
             <div style="max-width: 1200px; margin: 0 auto; display:flex; align-items:center; justify-content:space-between; padding:14px 24px;">
                 <a href="{{ url('/') }}" style="display:inline-flex; align-items:center; gap:9px; font-weight:700; color: var(--ink); text-decoration:none; font-size:15px; letter-spacing:-0.005em;">
-                    <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="30" height="30" style="display:block;"/>
+                    <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="36" height="31" style="display:block; filter: var(--logo-filter, none);"/>
                     {{ config('app.name', 'Tempahlah') }}
                 </a>
                 <nav style="display:flex; align-items:center; gap:12px; font-size:13px;">

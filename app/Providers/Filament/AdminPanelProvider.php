@@ -33,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Tempahlah Admin')
             ->brandLogo(fn (): HtmlString => new HtmlString(<<<'HTML'
                 <span style="display:inline-flex; align-items:center; gap:10px; font-family:'Geist',ui-sans-serif,system-ui,sans-serif;">
-                    <img src="/icons/logo.svg" alt="Tempahlah" width="32" height="32" style="display:block;"/>
+                    <img src="/icons/logo.svg" alt="Tempahlah" width="37" height="32" style="display:block;"/>
                     <span style="font-weight:700; letter-spacing:-0.01em; color:#0f1928;">Tempahlah <span style="color:#1a6a96; font-weight:600;">Admin</span></span>
                 </span>
             HTML))

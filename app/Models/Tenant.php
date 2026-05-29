@@ -117,11 +117,80 @@ class Tenant extends Model
             '--accent' => $accent,
             '--accent-ink' => $this->contrastInk($accent),
             '--accent-tint' => "color-mix(in srgb, {$accent} 12%, #fff)",
+            '--logo-filter' => $this->themeLogoFilter(),
         ];
 
         return collect($vars)
             ->map(fn ($value, $key) => "{$key}: {$value};")
             ->implode(' ');
+    }
+
+    /**
+     * CSS `filter` value that recolors the Tempahlah logo SVG to follow the
+     * tenant's primary brand color. The source SVG's dominant hue is ~185°
+     * (teal-cyan); we rotate to the tenant's primary hue and scale saturation
+     * so highly-desaturated palettes (e.g. Modern Charcoal) render as grayscale.
+     */
+    public function themeLogoFilter(): string
+    {
+        [$h, $s] = $this->hexToHsl($this->themePrimary());
+
+        // Source SVG dominant brand hue + saturation. Calibrated from the
+        // teal-cyan palette baked into public/icons/logo.svg.
+        $sourceHue = 185;
+        $sourceSat = 70;
+
+        $rotate = (int) round($h - $sourceHue);
+        // Normalize to (-180, 180] so the shortest rotation is taken.
+        $rotate = (($rotate + 180) % 360 + 360) % 360 - 180;
+
+        // Near-grayscale primaries → strip saturation entirely.
+        if ($s < 12) {
+            return 'saturate(0)';
+        }
+
+        // Scale saturation proportionally, clamped so we don't blow out highlights.
+        $saturate = round(min(1.6, max(0.35, $s / $sourceSat)), 2);
+
+        return "hue-rotate({$rotate}deg) saturate({$saturate})";
+    }
+
+    /**
+     * Convert a #rrggbb hex string to HSL with H in 0-360, S/L in 0-100.
+     * Used by themeLogoFilter() to compute hue rotation.
+     *
+     * @return array{0:float,1:float,2:float} [hue, saturation, lightness]
+     */
+    protected function hexToHsl(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) !== 6) {
+            return [0.0, 0.0, 50.0];
+        }
+        $r = hexdec(substr($hex, 0, 2)) / 255;
+        $g = hexdec(substr($hex, 2, 2)) / 255;
+        $b = hexdec(substr($hex, 4, 2)) / 255;
+        $max = max($r, $g, $b);
+        $min = min($r, $g, $b);
+        $delta = $max - $min;
+
+        $l = ($max + $min) / 2;
+        $s = $delta === 0.0 ? 0.0 : $delta / (1 - abs(2 * $l - 1));
+
+        $h = 0.0;
+        if ($delta !== 0.0) {
+            $h = match (true) {
+                $max === $r => fmod((($g - $b) / $delta), 6),
+                $max === $g => (($b - $r) / $delta) + 2,
+                default     => (($r - $g) / $delta) + 4,
+            };
+            $h *= 60;
+            if ($h < 0) {
+                $h += 360;
+            }
+        }
+
+        return [$h, $s * 100, $l * 100];
     }
 
     /**

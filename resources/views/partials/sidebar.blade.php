@@ -34,7 +34,7 @@
                 style="width:100%; display:flex; align-items:center; gap:10px; padding:7px 8px; border:1px solid transparent; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink); transition: background 120ms ease, border-color 120ms ease;"
                 onmouseover="this.style.background='var(--bg-elev)'; this.style.borderColor='var(--line)';"
                 onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
-            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="34" height="34" style="display:block; flex-shrink:0; border-radius: 9px;"/>
+            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="40" height="34" style="display:block; flex-shrink:0; filter: var(--logo-filter, none);"/>
             <div style="flex:1; min-width:0; line-height:1.25;">
                 <div style="font-weight:700; font-size:13.5px; letter-spacing:-0.005em; color: var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ $tenant?->business_name ?? auth()->user()->name }}
