@@ -201,12 +201,13 @@
                     'accent'    => old('accent_color',    $tenant->accent_color    ?? $defaults['accent']),
                 ];
                 $presets = [
-                    ['key' => 'sunset',    'label' => __('Sunset Orange'),       'primary' => '#d97757', 'secondary' => '#a8401e', 'accent' => '#d4a437'],
+                    ['key' => 'tempahlah', 'label' => __('Tempahlah Teal'),      'primary' => '#2596c6', 'secondary' => '#2cb8c4', 'accent' => '#e8b94a'],
                     ['key' => 'coastal',   'label' => __('Coastal Blue'),        'primary' => '#2e7da6', 'secondary' => '#1e4d6b', 'accent' => '#5db4d6'],
                     ['key' => 'highland',  'label' => __('Highland Green'),      'primary' => '#4a7a4a', 'secondary' => '#2d5230', 'accent' => '#88a86b'],
                     ['key' => 'heritage',  'label' => __('Heritage Burgundy'),   'primary' => '#8b3a3a', 'secondary' => '#5a1f1f', 'accent' => '#c47e6e'],
-                    ['key' => 'charcoal',  'label' => __('Modern Charcoal'),     'primary' => '#2d2d2d', 'secondary' => '#1a1a1a', 'accent' => '#d97757'],
-                    ['key' => 'teal',      'label' => __('Tropical Teal'),       'primary' => '#1e8a8a', 'secondary' => '#0e5c5c', 'accent' => '#d4a437'],
+                    ['key' => 'sunset',    'label' => __('Sunset Orange'),       'primary' => '#d97757', 'secondary' => '#a8401e', 'accent' => '#d4a437'],
+                    ['key' => 'charcoal',  'label' => __('Modern Charcoal'),     'primary' => '#2d2d2d', 'secondary' => '#1a1a1a', 'accent' => '#2596c6'],
+                    ['key' => 'tropical',  'label' => __('Tropical Teal'),       'primary' => '#1e8a8a', 'secondary' => '#0e5c5c', 'accent' => '#d4a437'],
                 ];
             @endphp
 
@@ -264,45 +265,51 @@
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px;">
                     {{-- Primary --}}
                     <div>
-                        <label style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
+                        <div style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
                             {{ __('Primary') }}
                             <span style="font-size: 10.5px; font-weight: 500; color: var(--ink-3);">· {{ __('CTAs, links, highlights') }}</span>
-                        </label>
+                        </div>
                         <div style="display:flex; gap: 8px; align-items:center;">
-                            <label style="position:relative; width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; overflow:hidden; flex-shrink: 0;"
-                                   :style="`background: ${primary}`">
-                                <input type="color" x-model="primary" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
-                            </label>
-                            <input class="input mono" type="text" name="primary_color" x-model="primary" value="{{ $brand['primary'] }}" maxlength="7" placeholder="#d97757" style="text-transform: lowercase;">
+                            <button type="button"
+                                    @click="$refs.primaryPicker.click()"
+                                    aria-label="{{ __('Pick primary color') }}"
+                                    style="width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; flex-shrink: 0; padding: 0;"
+                                    :style="`background: ${primary}`"></button>
+                            <input type="color" x-model="primary" x-ref="primaryPicker" tabindex="-1" aria-hidden="true" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; left:-9999px;">
+                            <input class="input mono" type="text" name="primary_color" x-model="primary" value="{{ $brand['primary'] }}" maxlength="7" placeholder="#2596c6" style="text-transform: lowercase;">
                         </div>
                     </div>
 
                     {{-- Secondary --}}
                     <div>
-                        <label style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
+                        <div style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
                             {{ __('Secondary') }}
                             <span style="font-size: 10.5px; font-weight: 500; color: var(--ink-3);">· {{ __('Chips, accents, deep tones') }}</span>
-                        </label>
+                        </div>
                         <div style="display:flex; gap: 8px; align-items:center;">
-                            <label style="position:relative; width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; overflow:hidden; flex-shrink: 0;"
-                                   :style="`background: ${secondary}`">
-                                <input type="color" x-model="secondary" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
-                            </label>
-                            <input class="input mono" type="text" name="secondary_color" x-model="secondary" value="{{ $brand['secondary'] }}" maxlength="7" placeholder="#a8401e" style="text-transform: lowercase;">
+                            <button type="button"
+                                    @click="$refs.secondaryPicker.click()"
+                                    aria-label="{{ __('Pick secondary color') }}"
+                                    style="width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; flex-shrink: 0; padding: 0;"
+                                    :style="`background: ${secondary}`"></button>
+                            <input type="color" x-model="secondary" x-ref="secondaryPicker" tabindex="-1" aria-hidden="true" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; left:-9999px;">
+                            <input class="input mono" type="text" name="secondary_color" x-model="secondary" value="{{ $brand['secondary'] }}" maxlength="7" placeholder="#2cb8c4" style="text-transform: lowercase;">
                         </div>
                     </div>
 
                     {{-- Accent --}}
                     <div>
-                        <label style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
+                        <div style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">
                             {{ __('Accent') }}
                             <span style="font-size: 10.5px; font-weight: 500; color: var(--ink-3);">· {{ __('Badges, pricing emphasis') }}</span>
-                        </label>
+                        </div>
                         <div style="display:flex; gap: 8px; align-items:center;">
-                            <label style="position:relative; width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; overflow:hidden; flex-shrink: 0;"
-                                   :style="`background: ${accent}`">
-                                <input type="color" x-model="accent" style="position:absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; cursor:pointer; opacity: 0;">
-                            </label>
+                            <button type="button"
+                                    @click="$refs.accentPicker.click()"
+                                    aria-label="{{ __('Pick accent color') }}"
+                                    style="width: 44px; height: 36px; border-radius: var(--r-md); border: 1px solid var(--line-2); cursor:pointer; flex-shrink: 0; padding: 0;"
+                                    :style="`background: ${accent}`"></button>
+                            <input type="color" x-model="accent" x-ref="accentPicker" tabindex="-1" aria-hidden="true" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; left:-9999px;">
                             <input class="input mono" type="text" name="accent_color" x-model="accent" value="{{ $brand['accent'] }}" maxlength="7" placeholder="#d4a437" style="text-transform: lowercase;">
                         </div>
                     </div>
@@ -367,7 +374,7 @@
 
                         <template x-if="!isValid(primary) || !isValid(secondary) || !isValid(accent)">
                             <div style="padding: 8px 12px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 11.5px;">
-                                {{ __('One or more colors are invalid. Use 6-digit hex (e.g. #d97757).') }}
+                                {{ __('One or more colors are invalid. Use 6-digit hex (e.g. #2596c6).') }}
                             </div>
                         </template>
                     </div>

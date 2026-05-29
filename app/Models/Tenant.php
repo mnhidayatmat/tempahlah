@@ -27,9 +27,9 @@ class Tenant extends Model
     ];
 
     public const THEME_DEFAULTS = [
-        'primary'   => '#d97757',
-        'secondary' => '#a8401e',
-        'accent'    => '#d4a437',
+        'primary'   => '#2596c6',
+        'secondary' => '#2cb8c4',
+        'accent'    => '#e8b94a',
     ];
 
     protected $casts = [

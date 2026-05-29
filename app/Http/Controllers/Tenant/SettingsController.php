@@ -43,9 +43,9 @@ class SettingsController extends Controller
             'secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'accent_color'    => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ], [
-            'primary_color.regex'   => __('Pick a valid hex color (e.g. #d97757).'),
-            'secondary_color.regex' => __('Pick a valid hex color (e.g. #a8401e).'),
-            'accent_color.regex'    => __('Pick a valid hex color (e.g. #d4a437).'),
+            'primary_color.regex'   => __('Pick a valid hex color (e.g. #2596c6).'),
+            'secondary_color.regex' => __('Pick a valid hex color (e.g. #2cb8c4).'),
+            'accent_color.regex'    => __('Pick a valid hex color (e.g. #e8b94a).'),
         ]);
 
         $validated['sst_registered'] = $request->boolean('sst_registered');

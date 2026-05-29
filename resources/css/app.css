@@ -5,43 +5,43 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
-/* Tempahlah palette — warm-light (Coursesme-style clean white + Claude orange) */
+/* Tempahlah palette — clean white surfaces + teal/blue brand (matches logo gradient) */
 @layer base {
   :root {
-    /* Surfaces — clean white paper */
+    /* Surfaces — clean white paper (slight cool tilt) */
     --bg: #ffffff;
-    --bg-elev: #fafaf7;
-    --bg-sunk: #f5f4f0;
-    --bg-tint: #efeee9;
+    --bg-elev: #fafbfc;
+    --bg-sunk: #f3f5f8;
+    --bg-tint: #eaeef3;
 
-    /* Ink — deep neutral with warm tilt */
-    --ink: oklch(20% 0.010 60);
-    --ink-2: oklch(38% 0.010 60);
-    --ink-3: oklch(55% 0.010 60);
-    --ink-4: oklch(72% 0.008 60);
+    /* Ink — deep neutral with cool tilt */
+    --ink: oklch(20% 0.012 230);
+    --ink-2: oklch(38% 0.010 230);
+    --ink-3: oklch(55% 0.010 230);
+    --ink-4: oklch(72% 0.008 230);
 
     /* Lines */
-    --line: oklch(92% 0.008 65);
-    --line-2: oklch(86% 0.010 65);
+    --line: oklch(92% 0.010 220);
+    --line-2: oklch(86% 0.014 220);
 
-    /* Brand — Claude orange (kept) */
-    --primary: #d97757;
+    /* Brand — Tempahlah teal-blue (logo gradient) */
+    --primary: #2596c6;
     --primary-ink: #ffffff;
-    --primary-tint: oklch(95% 0.05 45);
-    --primary-soft: oklch(97% 0.025 45);
-    --primary-hover: #c25e3e;
-    --primary-deep: #a8401e;
-    --primary-edge: oklch(85% 0.06 45);
+    --primary-tint: oklch(94% 0.045 220);
+    --primary-soft: oklch(97% 0.022 220);
+    --primary-hover: #1f7eaf;
+    --primary-deep: #1a6a96;
+    --primary-edge: oklch(85% 0.055 220);
 
-    /* Secondary — supporting brand tone (chips, deep accents) */
-    --secondary: #a8401e;
+    /* Secondary — bright teal (logo top-left highlight) */
+    --secondary: #2cb8c4;
     --secondary-ink: #ffffff;
-    --secondary-tint: oklch(94% 0.04 40);
+    --secondary-tint: oklch(94% 0.045 200);
 
-    /* Accent — emphasis (badges, pricing) */
-    --accent: #d4a437;
+    /* Accent — warm amber for emphasis (badges, pricing) — contrasts the cool brand */
+    --accent: #e8b94a;
     --accent-ink: #1a1614;
-    --accent-tint: oklch(94% 0.06 80);
+    --accent-tint: oklch(94% 0.06 85);
 
     /* Status — earthy tones that sit on white */
     --ok: oklch(62% 0.14 155);
@@ -54,8 +54,8 @@
     --info-tint: oklch(95% 0.025 250);
 
     /* Tier-specific */
-    --pro: oklch(45% 0.10 60);
-    --pro-tint: oklch(94% 0.04 60);
+    --pro: oklch(45% 0.10 220);
+    --pro-tint: oklch(94% 0.04 220);
 
     --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-sans:    "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -68,9 +68,9 @@
     --r-xl: 22px;
     --r-pill: 999px;
 
-    --sh-1: 0 1px 0 rgba(40,30,10,.04), 0 1px 2px rgba(40,30,10,.04);
-    --sh-2: 0 1px 0 rgba(40,30,10,.04), 0 8px 24px -8px rgba(40,30,10,.10);
-    --sh-pop: 0 16px 48px -12px rgba(40,30,10,.20), 0 2px 6px rgba(40,30,10,.06);
+    --sh-1: 0 1px 0 rgba(15,25,40,.04), 0 1px 2px rgba(15,25,40,.04);
+    --sh-2: 0 1px 0 rgba(15,25,40,.04), 0 8px 24px -8px rgba(15,25,40,.10);
+    --sh-pop: 0 16px 48px -12px rgba(15,25,40,.20), 0 2px 6px rgba(15,25,40,.06);
   }
 
   body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }

@@ -49,17 +49,7 @@
         <header style="background: color-mix(in oklab, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); position: sticky; top:0; z-index:30;">
             <div style="max-width: 1200px; margin: 0 auto; display:flex; align-items:center; justify-content:space-between; padding:14px 24px;">
                 <a href="{{ url('/') }}" style="display:inline-flex; align-items:center; gap:10px; font-weight:700; color: var(--primary); text-decoration:none; font-size:16px;">
-                    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <defs>
-                            <linearGradient id="hauz-grad-pub" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#f29268"/>
-                                <stop offset="100%" stop-color="#d97757"/>
-                            </linearGradient>
-                        </defs>
-                        <rect width="32" height="32" rx="9" fill="url(#hauz-grad-pub)"/>
-                        <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#ffffff" opacity="0.96"/>
-                        <rect x="13.5" y="17.5" width="5" height="5.5" rx="0.5" fill="#d97757"/>
-                    </svg>
+                    <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="28" height="28" style="display:block;"/>
                     {{ config('app.name', 'Tempahlah') }}
                 </a>
                 <nav style="display:flex; align-items:center; gap:12px; font-size:13px;">

@@ -18,7 +18,7 @@
     {{-- Desktop / web header (hidden on mobile via CSS) --}}
     <header class="bp-pub-header">
         <a href="{{ route('marketplace.search') }}" class="bp-pub-header-logo">
-            <div class="bp-pub-header-mark">T</div>
+            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" class="bp-pub-header-mark" width="40" height="40" style="display:block;"/>
             <div>
                 <div class="bp-pub-header-name">{{ config('app.name', 'Tempahlah') }}</div>
                 <div class="bp-pub-header-host">tempahlah.com</div>
@@ -45,7 +45,7 @@
         <div class="bp-footer-grid">
             <div>
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                    <div style="width:28px; height:28px; border-radius:7px; background:var(--primary); display:flex; align-items:center; justify-content:center; color:var(--primary-ink); font-weight:700; font-size:14px;">T</div>
+                    <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="28" height="28" style="display:block;"/>
                     <div style="font-size:14px; font-weight:600;">{{ config('app.name', 'Tempahlah') }}</div>
                 </div>
                 <p style="font-size:13px; color:var(--ink-3); line-height:1.6; max-width:360px; margin:0;">

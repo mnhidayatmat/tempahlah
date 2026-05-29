@@ -30,17 +30,7 @@
     {{-- Brand + tenant switcher --}}
     <div style="padding: 16px 14px 14px;">
         <button type="button" style="width:100%; display:flex; align-items:center; gap:10px; padding:8px; border:0; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink);">
-            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
-                <defs>
-                    <linearGradient id="hauz-grad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stop-color="#f29268"/>
-                        <stop offset="100%" stop-color="#d97757"/>
-                    </linearGradient>
-                </defs>
-                <rect x="0" y="0" width="32" height="32" rx="9" fill="url(#hauz-grad)"/>
-                <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#ffffff" opacity="0.96"/>
-                <rect x="13.5" y="17.5" width="5" height="5.5" rx="0.5" fill="#d97757"/>
-            </svg>
+            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="30" height="30" style="display:block; flex-shrink:0;"/>
             <div style="flex:1; min-width:0;">
                 <div style="font-weight:700; font-size:16px; letter-spacing:-.02em; color: var(--primary);">
                     {{ config('app.name', 'Tempahlah') }}

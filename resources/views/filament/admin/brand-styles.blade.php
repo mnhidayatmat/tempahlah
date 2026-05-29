@@ -7,16 +7,16 @@
         --brand-bg: #ffffff;
         --brand-bg-elev: #fafaf7;
         --brand-bg-sunk: #f5f4f0;
-        --brand-bg-tint: #efeee9;
-        --brand-ink: #1d1814;
-        --brand-ink-2: #4f4a44;
-        --brand-ink-3: #807a73;
-        --brand-line: #ececea;
-        --brand-line-2: #ddddd9;
-        --brand-primary: #d97757;
-        --brand-primary-hover: #c25e3e;
-        --brand-primary-deep: #a8401e;
-        --brand-primary-tint: #fdeee5;
+        --brand-bg-tint: #eaeef3;
+        --brand-ink: #0f1928;
+        --brand-ink-2: #3b4757;
+        --brand-ink-3: #6b7787;
+        --brand-line: #e6ebf1;
+        --brand-line-2: #d3dae3;
+        --brand-primary: #2596c6;
+        --brand-primary-hover: #1f7eaf;
+        --brand-primary-deep: #1a6a96;
+        --brand-primary-tint: #e2f1f8;
     }
 
     /* Apply brand font everywhere in the panel (mode-agnostic) */
@@ -30,8 +30,8 @@
     /* === Auth (login) page only — full-bleed cream background with soft glow === */
     html:not(.dark) body.fi-simple-layout {
         background:
-            radial-gradient(1200px 600px at 85% -10%, rgba(217,119,87,0.20) 0%, transparent 60%),
-            radial-gradient(900px 500px at -10% 110%, rgba(168,64,30,0.15) 0%, transparent 55%),
+            radial-gradient(1200px 600px at 85% -10%, rgba(37,150,198,0.18) 0%, transparent 60%),
+            radial-gradient(900px 500px at -10% 110%, rgba(44,184,196,0.14) 0%, transparent 55%),
             var(--brand-bg) !important;
         color: var(--brand-ink);
     }
@@ -71,7 +71,7 @@
     }
     html:not(.dark) body.fi-simple-layout .fi-input-wrp:focus-within {
         border-color: var(--brand-primary) !important;
-        box-shadow: 0 0 0 3px rgba(217,119,87,0.18) !important;
+        box-shadow: 0 0 0 3px rgba(37,150,198,0.18) !important;
     }
     html:not(.dark) body.fi-simple-layout .fi-input,
     html:not(.dark) body.fi-simple-layout input[type="email"],
@@ -95,7 +95,7 @@
         height: 48px !important;
         font-weight: 700 !important;
         letter-spacing: 0.005em !important;
-        box-shadow: 0 6px 18px -4px rgba(217,119,87,0.5) !important;
+        box-shadow: 0 6px 18px -4px rgba(37,150,198,0.5) !important;
     }
     body.fi-simple-layout .fi-btn-color-primary:hover,
     body.fi-simple-layout button[type="submit"].fi-btn:hover {
@@ -143,8 +143,8 @@
         margin-bottom: 14px;
     }
     html.dark .hms-login-intro-pill {
-        background: rgba(217,119,87,0.18);
-        color: #f4b393;
+        background: rgba(37,150,198,0.18);
+        color: #93d5ee;
     }
     .hms-login-intro-title {
         font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
@@ -209,23 +209,23 @@
         transition: background 120ms, color 120ms;
     }
     html.dark .hms-locale-toggle-pill {
-        color: #a89788;
+        color: #8a98a8;
     }
     .hms-locale-toggle-pill:hover {
         color: var(--brand-ink-2);
         text-decoration: none !important;
     }
     html.dark .hms-locale-toggle-pill:hover {
-        color: #f4ecdf;
+        color: #e6edf4;
     }
     .hms-locale-toggle-pill.is-active {
         background: var(--brand-bg-elev);
         color: var(--brand-primary-deep);
-        box-shadow: 0 1px 2px rgba(40,30,10,0.06), 0 1px 0 rgba(40,30,10,0.04);
+        box-shadow: 0 1px 2px rgba(15,25,40,0.06), 0 1px 0 rgba(15,25,40,0.04);
     }
     html.dark .hms-locale-toggle-pill.is-active {
-        background: rgba(217,119,87,0.16);
-        color: #f4b393;
+        background: rgba(37,150,198,0.16);
+        color: #93d5ee;
         box-shadow: none;
     }
 

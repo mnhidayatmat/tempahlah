@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tempahlah">
+  <defs>
+    <!-- Calendar body: teal (top-left) → ocean blue (bottom-right) -->
+    <linearGradient id="tl-body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#2cb8c4"/>
+      <stop offset="55%" stop-color="#2596c6"/>
+      <stop offset="100%" stop-color="#2381c9"/>
+    </linearGradient>
+
+    <!-- Growth chart line: brighter teal-blue -->
+    <linearGradient id="tl-chart" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0%"  stop-color="#3fb8d4"/>
+      <stop offset="100%" stop-color="#2188db"/>
+    </linearGradient>
+
+    <!-- Diagonal swoosh: lighter teal sheen -->
+    <linearGradient id="tl-swoosh" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#2486c5"/>
+      <stop offset="55%" stop-color="#39afcc"/>
+      <stop offset="100%" stop-color="#5dcad6"/>
+    </linearGradient>
+
+    <!-- Clip the chart line to the inner white card so it doesn't escape -->
+    <clipPath id="tl-card-clip">
+      <rect x="112" y="208" width="288" height="216" rx="20"/>
+    </clipPath>
+  </defs>
+
+  <!-- Two ring binders (capsules with white inset) -->
+  <rect x="166" y="80"  width="36" height="100" rx="18" fill="url(#tl-body)"/>
+  <rect x="174" y="100" width="20" height="60"  rx="10" fill="#ffffff"/>
+  <rect x="310" y="80"  width="36" height="100" rx="18" fill="url(#tl-body)"/>
+  <rect x="318" y="100" width="20" height="60"  rx="10" fill="#ffffff"/>
+
+  <!-- Calendar body (rounded square) -->
+  <rect x="72" y="128" width="368" height="312" rx="44" fill="url(#tl-body)"/>
+
+  <!-- Inner white "page" area -->
+  <rect x="112" y="208" width="288" height="216" rx="20" fill="#ffffff"/>
+
+  <!-- Growth-chart zigzag (M-W pattern: low → peak → valley → higher peak → down) -->
+  <g clip-path="url(#tl-card-clip)">
+    <path d="M 128 388 L 208 268 L 260 332 L 320 232 L 396 316"
+          fill="none"
+          stroke="url(#tl-chart)"
+          stroke-width="30"
+          stroke-linejoin="round"
+          stroke-linecap="round"/>
+  </g>
+
+  <!-- Diagonal swoosh — wide on bottom-left, tapering up to the upper-right -->
+  <path d="M 28 460
+           Q 220 360 484 184
+           Q 280 340 58 480 Z"
+        fill="url(#tl-swoosh)"
+        opacity="0.95"/>
+</svg>

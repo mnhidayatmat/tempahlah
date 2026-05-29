@@ -14,11 +14,10 @@ return new class extends Migration
             $table->string('accent_color', 7)->nullable()->after('secondary_color');
         });
 
-        // Backfill any tenants still on the pre-warm-light default sky blue so
-        // they don't suddenly render blue chrome once theming becomes active.
+        // Backfill any tenants on a pre-brand default to the current Tempahlah teal.
         DB::table('tenants')
-            ->where('primary_color', '#0ea5e9')
-            ->update(['primary_color' => '#d97757']);
+            ->whereIn('primary_color', ['#0ea5e9', '#d97757'])
+            ->update(['primary_color' => '#2596c6']);
     }
 
     public function down(): void

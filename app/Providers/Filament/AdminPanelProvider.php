@@ -31,26 +31,22 @@ class AdminPanelProvider extends PanelProvider
             ->path('super-admin')
             ->login()
             ->brandName('Tempahlah Admin')
-            ->brandLogo(fn (): HtmlString => new HtmlString(<<<'SVG'
+            ->brandLogo(fn (): HtmlString => new HtmlString(<<<'HTML'
                 <span style="display:inline-flex; align-items:center; gap:10px; font-family:'Geist',ui-sans-serif,system-ui,sans-serif;">
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                        <rect x="0" y="0" width="32" height="32" rx="8" fill="#d97757"/>
-                        <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#faf6ef"/>
-                        <rect x="13" y="17" width="6" height="6" fill="#a8401e"/>
-                    </svg>
-                    <span style="font-weight:700; letter-spacing:-0.01em; color:#2c2622;">Tempahlah <span style="color:#a8401e; font-weight:600;">Admin</span></span>
+                    <img src="/icons/logo.svg" alt="Tempahlah" width="32" height="32" style="display:block;"/>
+                    <span style="font-weight:700; letter-spacing:-0.01em; color:#0f1928;">Tempahlah <span style="color:#1a6a96; font-weight:600;">Admin</span></span>
                 </span>
-            SVG))
+            HTML))
             ->brandLogoHeight('2rem')
-            ->favicon(asset('favicon.ico'))
+            ->favicon(asset('icons/logo.svg'))
             ->authGuard('super_admin')
             ->colors([
-                'primary' => Color::hex('#d97757'),
-                'gray'    => Color::hex('#5b4f47'),
+                'primary' => Color::hex('#2596c6'),
+                'gray'    => Color::hex('#4b5563'),
                 'danger'  => Color::hex('#b94a3a'),
-                'success' => Color::hex('#6a8b3f'),
-                'warning' => Color::hex('#d4a437'),
-                'info'    => Color::hex('#4a82a8'),
+                'success' => Color::hex('#3f8b6a'),
+                'warning' => Color::hex('#e8b94a'),
+                'info'    => Color::hex('#2cb8c4'),
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
