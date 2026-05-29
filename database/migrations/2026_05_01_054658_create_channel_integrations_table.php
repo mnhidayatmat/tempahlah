@@ -30,7 +30,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'property_id', 'room_id', 'channel']);
+            $table->unique(['tenant_id', 'property_id', 'room_id', 'channel'], 'ch_int_tnt_prop_room_chan_unq');
             $table->index(['channel', 'active']);
         });
     }
