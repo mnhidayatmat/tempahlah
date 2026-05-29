@@ -78,9 +78,9 @@ class Dashboard extends Component
         $rooms = DB::table('rooms')->count();
 
         // Average review rating, falling back to property aggregate if reviews are empty
-        $reviewAvg = (float) Review::query()->avg('rating');
+        $reviewAvg = (float) Review::query()->avg('rating_overall');
         if ($reviewAvg <= 0) {
-            $reviewAvg = (float) Property::query()->avg('rating') ?: 4.8;
+            $reviewAvg = (float) Property::query()->avg('star_rating') ?: 4.8;
         }
         $reviewCount = (int) Review::query()->count();
 
