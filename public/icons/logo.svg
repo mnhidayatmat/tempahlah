@@ -27,31 +27,31 @@
   </defs>
 
   <!-- Two ring binders (capsules with white inset) -->
-  <rect x="166" y="80"  width="36" height="100" rx="18" fill="url(#tl-body)"/>
-  <rect x="174" y="100" width="20" height="60"  rx="10" fill="#ffffff"/>
-  <rect x="310" y="80"  width="36" height="100" rx="18" fill="url(#tl-body)"/>
-  <rect x="318" y="100" width="20" height="60"  rx="10" fill="#ffffff"/>
+  <rect x="166" y="76"  width="40" height="108" rx="20" fill="url(#tl-body)"/>
+  <rect x="176" y="98"  width="20" height="64"  rx="10" fill="#ffffff"/>
+  <rect x="306" y="76"  width="40" height="108" rx="20" fill="url(#tl-body)"/>
+  <rect x="316" y="98"  width="20" height="64"  rx="10" fill="#ffffff"/>
 
   <!-- Calendar body (rounded square) -->
-  <rect x="72" y="128" width="368" height="312" rx="44" fill="url(#tl-body)"/>
+  <rect x="68" y="128" width="376" height="316" rx="48" fill="url(#tl-body)"/>
 
   <!-- Inner white "page" area -->
-  <rect x="112" y="208" width="288" height="216" rx="20" fill="#ffffff"/>
+  <rect x="108" y="208" width="296" height="220" rx="22" fill="#ffffff"/>
 
-  <!-- Growth-chart zigzag (M-W pattern: low → peak → valley → higher peak → down) -->
+  <!-- Growth-chart zigzag — thicker stroke so it stays legible at small sizes (28-40px chrome) -->
   <g clip-path="url(#tl-card-clip)">
-    <path d="M 128 388 L 208 268 L 260 332 L 320 232 L 396 316"
+    <path d="M 140 388 L 218 270 L 268 332 L 326 232 L 388 316"
           fill="none"
           stroke="url(#tl-chart)"
-          stroke-width="30"
+          stroke-width="48"
           stroke-linejoin="round"
           stroke-linecap="round"/>
   </g>
 
-  <!-- Diagonal swoosh — wide on bottom-left, tapering up to the upper-right -->
-  <path d="M 28 460
-           Q 220 360 484 184
-           Q 280 340 58 480 Z"
+  <!-- Diagonal swoosh — chunkier so it survives downsizing -->
+  <path d="M 18 470
+           Q 220 350 492 178
+           Q 280 360 50 488 Z"
         fill="url(#tl-swoosh)"
         opacity="0.95"/>
 </svg>

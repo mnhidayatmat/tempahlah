@@ -28,18 +28,29 @@
 
 <aside class="shell-sidebar" :class="{ 'is-open': sidebarOpen }" @click.away="sidebarOpen = false" style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
     {{-- Brand + tenant switcher --}}
-    <div style="padding: 16px 14px 14px;">
-        <button type="button" style="width:100%; display:flex; align-items:center; gap:10px; padding:8px; border:0; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink);">
-            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="30" height="30" style="display:block; flex-shrink:0;"/>
-            <div style="flex:1; min-width:0;">
-                <div style="font-weight:700; font-size:16px; letter-spacing:-.02em; color: var(--primary);">
-                    {{ config('app.name', 'Tempahlah') }}
-                </div>
-                <div style="font-size:11px; color: var(--ink-3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+    <div style="padding: 14px 12px 10px;">
+        <button type="button"
+                aria-label="{{ __('Workspace switcher') }}"
+                style="width:100%; display:flex; align-items:center; gap:10px; padding:7px 8px; border:1px solid transparent; background:transparent; border-radius: var(--r-md); text-align:left; cursor:pointer; color: var(--ink); transition: background 120ms ease, border-color 120ms ease;"
+                onmouseover="this.style.background='var(--bg-elev)'; this.style.borderColor='var(--line)';"
+                onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
+            <img src="{{ asset('icons/logo.svg') }}" alt="Tempahlah" width="34" height="34" style="display:block; flex-shrink:0; border-radius: 9px;"/>
+            <div style="flex:1; min-width:0; line-height:1.25;">
+                <div style="font-weight:700; font-size:13.5px; letter-spacing:-0.005em; color: var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ $tenant?->business_name ?? auth()->user()->name }}
                 </div>
+                <div style="margin-top:2px; font-size:9.5px; font-weight:600; letter-spacing:0.13em; text-transform:uppercase; color: var(--ink-3); white-space:nowrap;">
+                    {{ __('Tempahlah workspace') }}
+                </div>
             </div>
-            <x-icon name="more" :size="14" style="color: var(--ink-3);"/>
+            <span style="width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; flex-shrink:0; color: var(--ink-3); transition: background 120ms ease;"
+                  onmouseover="this.style.background='var(--bg-sunk)';"
+                  onmouseout="this.style.background='transparent';">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 9l4-4 4 4"/>
+                    <path d="M16 15l-4 4-4-4"/>
+                </svg>
+            </span>
         </button>
     </div>
 
