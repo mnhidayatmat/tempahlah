@@ -61,7 +61,7 @@ return [
         ],
 
         // Digital Ocean Spaces (S3-compatible). All uploads land under
-        // wbl-storage/conferences/Temporary/Tempahlah/ thanks to the `root` prefix.
+        // wbl-storage/tempahlah/ thanks to the `root` prefix.
         'spaces' => [
             'driver' => 's3',
             'key' => env('DO_SPACES_KEY'),
@@ -70,7 +70,7 @@ return [
             'bucket' => env('DO_SPACES_BUCKET'),
             'endpoint' => env('DO_SPACES_ENDPOINT'),
             'url' => env('DO_SPACES_CDN_URL'),
-            'root' => env('DO_SPACES_ROOT', 'conferences/Temporary/Tempahlah'),
+            'root' => env('DO_SPACES_ROOT', 'tempahlah'),
             'use_path_style_endpoint' => false,
             'visibility' => 'public',
             'throw' => false,
