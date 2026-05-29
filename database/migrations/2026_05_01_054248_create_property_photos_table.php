@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('property_id')->constrained()->cascadeOnDelete();
             $table->foreignId('room_id')->nullable()->constrained()->cascadeOnDelete();
             $table->string('path');
-            $table->string('disk')->default('s3');
+            $table->string('disk')->default('spaces');
             $table->string('caption_bm')->nullable();
             $table->string('caption_en')->nullable();
             $table->unsignedSmallInteger('sort_order')->default(0);
