@@ -38,10 +38,10 @@ class ToyyibpayClient
             'billCallbackUrl' => $callbackUrl,
             'billExternalReferenceNo' => $payment->public_id,
             'billTo' => $booking->bookingGuests()->where('is_lead', true)->value('full_name') ?? 'Guest',
-            'billEmail' => $booking->bookingGuests()->where('is_lead', true)->value('email') ?? 'noreply@homestaymy.com',
+            'billEmail' => $booking->bookingGuests()->where('is_lead', true)->value('email') ?? 'noreply@tempahlah.com',
             'billPhone' => $booking->bookingGuests()->where('is_lead', true)->value('phone') ?? '0000000000',
             'billPaymentChannel' => 2,
-            'billContentEmail' => 'Thank you for booking with HomestayMY.',
+            'billContentEmail' => 'Thank you for booking with Tempahlah.',
             'billChargeToCustomer' => 1,
         ];
 

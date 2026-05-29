@@ -1,4 +1,4 @@
-const CACHE = 'homestaymy-v1';
+const CACHE = 'tempahlah-v1';
 const ASSETS = [
   '/',
   '/manifest.webmanifest',

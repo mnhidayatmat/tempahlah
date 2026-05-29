@@ -22,7 +22,7 @@ class GuestOtpController extends Controller
         );
 
         if ($request->input('channel') === GuestOtp::CHANNEL_EMAIL) {
-            Mail::raw(__('Your HomestayMY verification code is :code. Expires in 10 minutes.', ['code' => $code]), function ($m) use ($request) {
+            Mail::raw(__('Your Tempahlah verification code is :code. Expires in 10 minutes.', ['code' => $code]), function ($m) use ($request) {
                 $m->to($request->input('identifier'))->subject(__('Your verification code'));
             });
         } else {

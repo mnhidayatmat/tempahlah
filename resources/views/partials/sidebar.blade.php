@@ -43,7 +43,7 @@
             </svg>
             <div style="flex:1; min-width:0;">
                 <div style="font-weight:700; font-size:16px; letter-spacing:-.02em; color: var(--primary);">
-                    {{ config('app.name', 'Hauz') }}
+                    {{ config('app.name', 'Tempahlah') }}
                 </div>
                 <div style="font-size:11px; color: var(--ink-3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ $tenant?->business_name ?? auth()->user()->name }}
@@ -91,7 +91,7 @@
                 <span class="cm-eyebrow-primary">{{ __('Beta access') }}</span>
             </div>
             <div style="font-size:11.5px; color: var(--ink-2); line-height:1.45;">
-                {{ __('All features free while we improve. Help us shape Hauz.') }}
+                {{ __('All features free while we improve. Help us shape Tempahlah.') }}
             </div>
         </div>
     </div>

@@ -7,7 +7,7 @@
         $starterFeatures = [
             ['ok' => true, 'text' => __('1 active homestay')],
             ['ok' => true, 'text' => __('Unlimited rooms & bookings')],
-            ['ok' => true, 'text' => __('Public booking page (homestaymy.com/yourname)')],
+            ['ok' => true, 'text' => __('Public booking page (yourname.tempahlah.com)')],
             ['ok' => true, 'text' => __('Google Calendar 2-way sync')],
             ['ok' => true, 'text' => __('Manual payment tracking (cash, FPX, transfer)')],
             ['ok' => true, 'text' => __('Basic statistics dashboard')],
@@ -39,7 +39,7 @@
                 [__('Active homestays'), '1', __('Unlimited')],
                 [__('Rooms per homestay'), __('Unlimited'), __('Unlimited')],
                 [__('Photos per room'), '10', __('Unlimited')],
-                [__('Custom booking page'), 'homestaymy.com/{slug}', __('Custom domain')],
+                [__('Custom booking page'), '{slug}.tempahlah.com', __('Custom domain')],
             ]],
             ['title' => __('Payments'), 'rows' => [
                 [__('Manual payment tracking'), true, true],

@@ -5,7 +5,7 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
-/* HomestayMY palette — warm-light (Coursesme-style clean white + Claude orange) */
+/* Tempahlah palette — warm-light (Coursesme-style clean white + Claude orange) */
 @layer base {
   :root {
     /* Surfaces — clean white paper */

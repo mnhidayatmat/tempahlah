@@ -1,7 +1,7 @@
 {
-  "name": "HomestayMY",
-  "short_name": "HomestayMY",
-  "description": "Manage your homestay business in Malaysia",
+  "name": "Tempahlah",
+  "short_name": "Tempahlah",
+  "description": "Tempahlah — manage your homestay business in Malaysia",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

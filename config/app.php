@@ -60,14 +60,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | The apex domain (host:port) under which tenants are served on
-    | subdomains. e.g. "homestaymy.com" — then "acme.homestaymy.com" is
+    | subdomains. e.g. "tempahlah.com" — then "acme.tempahlah.com" is
     | tenant "acme"'s public booking page. For local dev with the PHP
-    | built-in server set this to "homestay.test:8000" and add hosts-file
-    | entries like "127.0.0.1 homestay.test acme.homestay.test".
+    | built-in server set this to "tempahlah.test:8000" and add hosts-file
+    | entries like "127.0.0.1 tempahlah.test acme.tempahlah.test".
     |
     */
 
-    'tenant_domain' => env('TENANT_DOMAIN', 'homestaymy.com'),
+    'tenant_domain' => env('TENANT_DOMAIN', 'tempahlah.com'),
 
     /*
     |--------------------------------------------------------------------------

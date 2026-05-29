@@ -25,7 +25,7 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
     ->name('locale.switch');
 
 // -----------------------------------------------------------------------------
-// Tenant public subdomain — acme.homestaymy.com → tenant `acme`'s booking page.
+// Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
 // Resolved by the {tenant_slug} domain parameter via ResolveTenantFromSubdomain.
 // Registered FIRST so subdomain matching wins over the catch-all root group.
 // -----------------------------------------------------------------------------
@@ -37,7 +37,7 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
     });
 
 // -----------------------------------------------------------------------------
-// Root / apex domain — homestaymy.com.
+// Root / apex domain — tempahlah.com.
 // All existing app routes live here.
 // -----------------------------------------------------------------------------
 Route::domain(config('app.tenant_domain'))->group(function () {

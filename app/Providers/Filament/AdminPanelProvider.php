@@ -30,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('super-admin')
             ->login()
-            ->brandName('HomestayMY Admin')
+            ->brandName('Tempahlah Admin')
             ->brandLogo(fn (): HtmlString => new HtmlString(<<<'SVG'
                 <span style="display:inline-flex; align-items:center; gap:10px; font-family:'Geist',ui-sans-serif,system-ui,sans-serif;">
                     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -38,7 +38,7 @@ class AdminPanelProvider extends PanelProvider
                         <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#faf6ef"/>
                         <rect x="13" y="17" width="6" height="6" fill="#a8401e"/>
                     </svg>
-                    <span style="font-weight:700; letter-spacing:-0.01em; color:#2c2622;">HomestayMY <span style="color:#a8401e; font-weight:600;">Admin</span></span>
+                    <span style="font-weight:700; letter-spacing:-0.01em; color:#2c2622;">Tempahlah <span style="color:#a8401e; font-weight:600;">Admin</span></span>
                 </span>
             SVG))
             ->brandLogoHeight('2rem')

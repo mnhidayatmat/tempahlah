@@ -15,7 +15,7 @@
 
 <main>
     <section class="bp-hero">
-        <div class="kicker" style="margin-bottom:14px;">{{ __('HomestayMY · Direct from hosts') }}</div>
+        <div class="kicker" style="margin-bottom:14px;">{{ __('Tempahlah · Direct from hosts') }}</div>
         <h1 class="bp-hero-title">
             {{ __('Stay somewhere') }}<br>{{ __('that feels like') }}
             <span style="color:var(--primary);">{{ __('home') }}</span>.

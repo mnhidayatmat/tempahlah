@@ -68,7 +68,7 @@ class CreateTenantAndOwner
         'www', 'mail', 'api', 'app', 'admin', 'super-admin', 'superadmin',
         'marketplace', 'dashboard', 'support', 'help', 'blog', 'docs',
         'dev', 'staging', 'test', 'cdn', 'static', 'assets', 'media',
-        'homestaymy', 'homestay', 'about', 'contact', 'pricing', 'login',
+        'tempahlah', 'homestaymy', 'homestay', 'about', 'contact', 'pricing', 'login',
         'register', 'onboard', 'auth', 'oauth', 'webhook', 'webhooks',
         'status', 'health', 'localhost', 'ftp', 'smtp', 'imap', 'pop',
     ];

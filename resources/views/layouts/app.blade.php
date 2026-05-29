@@ -60,7 +60,7 @@
                         <path d="M7 17 L16 9 L25 17 V23 H7 Z" fill="#ffffff" opacity="0.96"/>
                         <rect x="13.5" y="17.5" width="5" height="5.5" rx="0.5" fill="#d97757"/>
                     </svg>
-                    {{ config('app.name', 'Hauz') }}
+                    {{ config('app.name', 'Tempahlah') }}
                 </a>
                 <nav style="display:flex; align-items:center; gap:12px; font-size:13px;">
                     @php $current = app()->getLocale(); @endphp
