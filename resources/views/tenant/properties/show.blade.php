@@ -262,8 +262,45 @@
             </div>
 
             {{-- Dynamic pricing rules --}}
+            @php
+                $rulesData = $property->pricingRules->mapWithKeys(fn ($r) => [
+                    $r->id => [
+                        'name'             => (string) $r->name,
+                        'room_id'          => $r->room_id ? (string) $r->room_id : '',
+                        'rule_type'        => $r->rule_type,
+                        'priority'         => (int) $r->priority,
+                        'weekday_mask'     => array_map('intval', $r->weekday_mask ?? []),
+                        'date_from'        => optional($r->date_from)->toDateString() ?: '',
+                        'date_to'          => optional($r->date_to)->toDateString() ?: '',
+                        'adjustment_type'  => $r->adjustment_type,
+                        'adjustment_value' => (float) $r->adjustment_value,
+                        'active'           => (bool) $r->active,
+                    ],
+                ])->toArray();
+            @endphp
+
             <div class="card" style="padding:20px; margin-top: 16px;"
-                 x-data="{ showForm: false, editingId: null, form: {} }">
+                 x-data='@json([
+                    "showForm"   => false,
+                    "editingId"  => null,
+                    "form"       => (object) [],
+                    "rulesData"  => (object) $rulesData,
+                 ])'
+                 x-init="
+                    edit = (id) => {
+                        const data = rulesData[id];
+                        if (!data) { console.warn('rule not found', id); return; }
+                        editingId = id;
+                        form = { ...data };
+                        showForm = true;
+                        $el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    };
+                    addNew = () => {
+                        editingId = null;
+                        form = { active: true, rule_type: 'weekend', adjustment_type: 'percent', priority: 100, weekday_mask: [5,6,0], room_id: '{{ $wholeHouseRoomId ?? '' }}' };
+                        showForm = !showForm;
+                    };
+                 ">
 
                 @if (session('status'))
                     <div style="margin-bottom:14px; padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
@@ -282,14 +319,7 @@
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm"
-                            @click="showForm = !showForm; editingId = null; form = {
-                                active: true,
-                                rule_type: 'weekend',
-                                adjustment_type: 'percent',
-                                priority: 100,
-                                weekday_mask: [5,6,0],
-                                room_id: '{{ $wholeHouseRoomId ?? '' }}',
-                            }"
+                            @click="addNew()"
                             style="display:inline-flex; align-items:center; gap:6px;">
                         <x-icon name="plus" :size="13"/> {{ __('Add rule') }}
                     </button>
@@ -457,18 +487,7 @@
                                 </div>
                                 <div style="display:flex; gap:6px;">
                                     <button type="button" class="btn btn-sm btn-ghost"
-                                            @click="showForm = true; editingId = {{ $rule->id }}; form = {
-                                                name: '{{ addslashes($rule->name) }}',
-                                                room_id: '{{ $rule->room_id ?? '' }}',
-                                                rule_type: '{{ $rule->rule_type }}',
-                                                priority: {{ (int) $rule->priority }},
-                                                weekday_mask: @json($rule->weekday_mask ?? []),
-                                                date_from: '{{ optional($rule->date_from)->toDateString() ?? '' }}',
-                                                date_to: '{{ optional($rule->date_to)->toDateString() ?? '' }}',
-                                                adjustment_type: '{{ $rule->adjustment_type }}',
-                                                adjustment_value: {{ (float) $rule->adjustment_value }},
-                                                active: {{ $rule->active ? 'true' : 'false' }},
-                                            }"
+                                            @click="edit({{ $rule->id }})"
                                             style="font-size:11.5px;">{{ __('Edit') }}</button>
                                     <form method="POST" action="{{ route('tenant.properties.pricing.toggle', ['property' => $property->public_id, 'rule' => $rule->id]) }}?tab=pricing" style="margin:0;">
                                         @csrf
