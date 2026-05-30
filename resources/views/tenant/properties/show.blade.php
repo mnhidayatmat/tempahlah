@@ -130,6 +130,10 @@
 
         @elseif ($tab === 'pricing')
             @php
+                $isWholeHouse = $property->isWholeHousePricing();
+                $wholeHouseRoom = $isWholeHouse ? $property->rooms->first() : null;
+                $wholeHouseRoomId = $wholeHouseRoom?->id;
+
                 $weekdays = [
                     1 => __('Mon'), 2 => __('Tue'), 3 => __('Wed'), 4 => __('Thu'),
                     5 => __('Fri'), 6 => __('Sat'), 0 => __('Sun'),
@@ -192,7 +196,14 @@
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm"
-                            @click="showForm = !showForm; editingId = null; form = { active: true, rule_type: 'weekend', adjustment_type: 'percent', priority: 100, weekday_mask: [5,6,0] }"
+                            @click="showForm = !showForm; editingId = null; form = {
+                                active: true,
+                                rule_type: 'weekend',
+                                adjustment_type: 'percent',
+                                priority: 100,
+                                weekday_mask: [5,6,0],
+                                room_id: '{{ $wholeHouseRoomId ?? '' }}',
+                            }"
                             style="display:inline-flex; align-items:center; gap:6px;">
                         <x-icon name="plus" :size="13"/> {{ __('Add rule') }}
                     </button>
@@ -216,12 +227,20 @@
                             </div>
                             <div>
                                 <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Applies to') }}</label>
-                                <select class="input" name="room_id" x-model="form.room_id">
-                                    <option value="">{{ __('All rooms') }}</option>
-                                    @foreach ($property->rooms as $r)
-                                        <option value="{{ $r->id }}">{{ $r->name }}</option>
-                                    @endforeach
-                                </select>
+                                @if ($isWholeHouse)
+                                    {{-- Whole-house properties have one Room ("Whole house") — pre-locked, no choice needed --}}
+                                    <input type="hidden" name="room_id" value="{{ $wholeHouseRoomId }}" x-model="form.room_id">
+                                    <div class="input" style="display:inline-flex; align-items:center; gap:8px; background: var(--bg-tint); color: var(--ink-2); cursor:default; font-size: 13px;">
+                                        🏠 {{ __('Whole house') }}
+                                    </div>
+                                @else
+                                    <select class="input" name="room_id" x-model="form.room_id">
+                                        <option value="">{{ __('All rooms') }}</option>
+                                        @foreach ($property->rooms as $r)
+                                            <option value="{{ $r->id }}">{{ $r->name }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
                             </div>
                         </div>
 
