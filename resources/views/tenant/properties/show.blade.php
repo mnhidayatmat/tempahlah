@@ -225,10 +225,11 @@
                     5 => __('Fri'), 6 => __('Sat'), 0 => __('Sun'),
                 ];
                 $ruleTypes = [
-                    'weekend' => __('Weekend (Fri-Sun by default)'),
-                    'holiday' => __('Holiday / festive date'),
-                    'season'  => __('Seasonal date range'),
-                    'custom'  => __('Custom (pick weekdays + dates)'),
+                    'weekend'        => __('Weekend (Fri-Sun by default)'),
+                    'holiday'        => __('Public holiday / festive date'),
+                    'school_holiday' => __('School holiday (Cuti Sekolah)'),
+                    'season'         => __('Seasonal date range'),
+                    'custom'         => __('Custom (pick weekdays + dates)'),
                 ];
                 $adjTypes = [
                     'percent'  => __('+/- % of base'),
@@ -402,16 +403,30 @@
                             </div>
                         </div>
 
-                        {{-- Date range (always shown — even weekend rules can be limited to a season) --}}
+                        {{-- Date range — required for holiday / school_holiday / season, optional otherwise --}}
+                        @php $datedTypes = "['holiday','school_holiday','season'].includes(form.rule_type)"; @endphp
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <div>
-                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Date from (optional)') }}</label>
-                                <input class="input" type="date" name="date_from" x-model="form.date_from">
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">
+                                    {{ __('Date from') }} <span x-text="{{ $datedTypes }} ? '*' : ''" style="color: var(--err);"></span>
+                                    <span x-show="!({{ $datedTypes }})" style="color: var(--ink-3); font-weight:500;">{{ __('(optional)') }}</span>
+                                </label>
+                                <input class="input" type="date" name="date_from" x-model="form.date_from" x-bind:required="{{ $datedTypes }}">
                             </div>
                             <div>
-                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Date to (optional)') }}</label>
-                                <input class="input" type="date" name="date_to" x-model="form.date_to">
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">
+                                    {{ __('Date to') }} <span x-text="{{ $datedTypes }} ? '*' : ''" style="color: var(--err);"></span>
+                                    <span x-show="!({{ $datedTypes }})" style="color: var(--ink-3); font-weight:500;">{{ __('(optional)') }}</span>
+                                </label>
+                                <input class="input" type="date" name="date_to" x-model="form.date_to" x-bind:required="{{ $datedTypes }}">
                             </div>
+                        </div>
+
+                        {{-- School holiday helper hint --}}
+                        <div x-show="form.rule_type === 'school_holiday'" x-cloak
+                             style="padding: 10px 12px; background: var(--info-tint); color: var(--info); border-radius: var(--r-md); font-size: 11.5px; line-height: 1.5;">
+                            📚 <strong>{{ __('Tip:') }}</strong>
+                            {{ __('Malaysian school terms differ for Group A (Johor, Kedah, Kelantan, Terengganu — Sun-Thu week) and Group B (rest of Malaysia — Mon-Fri week). Fill the date range that matches YOUR target guests\' state. See moe.gov.my for the latest calendar.') }}
                         </div>
 
                         {{-- Adjustment --}}
