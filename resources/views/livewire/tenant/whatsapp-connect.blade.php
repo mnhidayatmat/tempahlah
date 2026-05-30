@@ -45,6 +45,11 @@
                     {{ __('Show QR code') }}
                 </button>
             </div>
+            @unless ($this->sidecarReachable)
+                <div style="margin-top: 12px; padding: 8px 12px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12px; display:inline-block;">
+                    ⚠️ {{ __('WhatsApp sidecar is offline. Please try again in a moment or contact support.') }}
+                </div>
+            @endunless
             <div style="margin-top: 18px; font-size: 11.5px; color: var(--ink-3);">
                 {{ __('Tip: use a dedicated business number that is not your personal WhatsApp.') }}
             </div>
@@ -164,6 +169,11 @@
                     {{ __('Reconnect') }}
                 </button>
             </div>
+            @unless ($this->sidecarReachable)
+                <div style="margin-top: 12px; padding: 8px 12px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12px; display:inline-block;">
+                    ⚠️ {{ __('WhatsApp sidecar is offline. Please try again in a moment or contact support.') }}
+                </div>
+            @endunless
             @if ($status === \App\Models\WhatsappSession::STATUS_BANNED)
                 <div style="margin-top: 14px; font-size: 11.5px; color: var(--ink-3);">
                     {{ __('If WhatsApp keeps closing the session, your number may be flagged. Wait 24 hours before retrying, and avoid sending to people who have not booked with you.') }}
