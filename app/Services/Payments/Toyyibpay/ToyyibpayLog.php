@@ -70,21 +70,22 @@ class ToyyibpayLog
             ?? 'unknown-'.uniqid()
         );
 
-        // webhook_events is the global de-dupe table — one row per provider
-        // + external_id. PaymentTransaction is the per-payment audit row.
-        $replay = WebhookEvent::query()
-            ->where('provider', 'toyyibpay')
-            ->where('external_id', $externalId)
-            ->exists();
-
-        $event = WebhookEvent::create([
-            'provider' => 'toyyibpay',
-            'event_type' => 'payment.callback',
-            'external_id' => $externalId,
-            'payload' => $payload,
-            'signature_status' => $signatureStatus,
-            'processed_at' => $replay ? null : now(),
-        ]);
+        // webhook_events.external_id is UNIQUE. The first callback for a
+        // given refno wins; subsequent replays just touch the existing row
+        // (no audit-row insert, no exception).
+        $event = WebhookEvent::firstOrCreate(
+            [
+                'provider' => 'toyyibpay',
+                'external_id' => $externalId,
+            ],
+            [
+                'event_type' => 'payment.callback',
+                'payload' => $payload,
+                'signature_status' => $signatureStatus,
+                'processed_at' => null,
+            ]
+        );
+        $replay = ! $event->wasRecentlyCreated;
 
         // payment_transactions.tenant_id has a NOT NULL FK to tenants. When
         // we don't know the tenant (e.g. unknown payment, replay before
