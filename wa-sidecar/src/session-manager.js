@@ -1,10 +1,16 @@
 import makeWASocket, {
+  Browsers,
   DisconnectReason,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
+
+// After this many consecutive QRs without a scan, stop. WhatsApp's
+// anti-abuse system will start refusing new pair requests if we loop
+// indefinitely.
+const MAX_UNSCANNED_QRS = 5;
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import QRCode from 'qrcode';
@@ -130,6 +136,8 @@ class SessionManager {
       qrGeneratedAt: null,
       lastError: null,
       lastSentAt: 0,
+      qrAttempts: 0,
+      giveUp: false,
     };
 
     const childLogger = logger.child({ tenantId });
@@ -142,8 +150,10 @@ class SessionManager {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, childLogger),
       },
-      browser: ['Tempahlah', 'Chrome', '120.0.0'],
-      // Mark messages as read on receipt — looks like a real user, not a bot.
+      // Canonical Baileys browser identifier — WA recognises this as a
+      // standard linked-device fingerprint and is less likely to flag the
+      // pair request. Replaces our custom ['Tempahlah','Chrome',...] tuple.
+      browser: Browsers.macOS('Desktop'),
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
       syncFullHistory: false,
@@ -155,6 +165,25 @@ class SessionManager {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
+        entry.qrAttempts += 1;
+        // Give up after MAX_UNSCANNED_QRS to avoid tripping WA's anti-abuse
+        // (the "Can't link new devices right now" warning users see when we
+        // try to pair too many times without a successful scan).
+        if (entry.qrAttempts > MAX_UNSCANNED_QRS) {
+          childLogger.warn({ qrAttempts: entry.qrAttempts }, 'giving up after unscanned QRs');
+          entry.giveUp = true;
+          entry.status = 'expired';
+          entry.qrDataUrl = null;
+          entry.lastError = 'No scan after ' + MAX_UNSCANNED_QRS + ' QR refreshes. Click Reconnect to try again.';
+          try { sock.end(undefined); } catch { /* noop */ }
+          this.#sessions.delete(tenantId);
+          await postWebhook('session.error', {
+            tenantId,
+            error: entry.lastError,
+            expired: true,
+          });
+          return;
+        }
         entry.qrDataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
         entry.qrGeneratedAt = new Date().toISOString();
         entry.status = 'qr_pending';
@@ -179,6 +208,9 @@ class SessionManager {
       }
 
       if (connection === 'close') {
+        // If we explicitly gave up above (too many unscanned QRs), do nothing.
+        if (entry.giveUp) return;
+
         const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const reason = DisconnectReason[code] ?? `code:${code}`;
         childLogger.warn({ code, reason }, 'connection closed');
@@ -193,11 +225,22 @@ class SessionManager {
           return;
         }
 
+        // 408 (timeoutError) usually means QR expired without a scan.
+        // Baileys raises this every ~2.5 min. Don't auto-reconnect on this
+        // class of error — that's what trips WA's anti-abuse.
+        if (code === DisconnectReason.timedOut || code === 408) {
+          this.#sessions.delete(tenantId);
+          await postWebhook('session.error', {
+            tenantId,
+            error: 'QR timed out — click Reconnect to retry',
+          });
+          return;
+        }
+
         // Transient — Baileys auto-reconnects, but mark state so dashboard
         // shows the spinner.
         entry.status = 'connecting';
         entry.lastError = reason;
-        // Re-boot the socket. Reuse existing entry slot to keep refs stable.
         try {
           const next = await this.#bootSession(tenantId);
           Object.assign(entry, next);
