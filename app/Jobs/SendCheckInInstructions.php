@@ -17,7 +17,7 @@ class SendCheckInInstructions implements ShouldQueue
 {
     use Queueable;
 
-    public string $queue = 'email';
+    public $queue = 'email';
 
     public function __construct(public int $bookingId) {}
 
