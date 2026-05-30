@@ -256,9 +256,16 @@ class SessionManager {
         entry.lastError = reason;
         await postWebhook('session.disconnected', { tenantId, reason });
         try {
+          // IMPORTANT: REPLACE the entry, don't merge into the old one.
+          // #bootSession creates a fresh entry whose event handlers are
+          // closure-bound to update THAT entry. Object.assign(entry, next)
+          // would copy data once but leave #sessions pointing at the old
+          // entry — so when the new sock fires 'open' it mutates the
+          // orphaned `next` (firing the webhook to Laravel) but send()
+          // and /status keep reading the stale old entry forever stuck
+          // at 'connecting'.
           const next = await this.#bootSession(tenantId);
-          Object.assign(entry, next);
-          this.#sessions.set(tenantId, entry);
+          this.#sessions.set(tenantId, next);
         } catch (err) {
           entry.status = 'error';
           entry.lastError = err.message;
