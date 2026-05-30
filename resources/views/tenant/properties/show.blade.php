@@ -347,8 +347,15 @@
                         <div style="font-size:11.5px;">{{ __('JPG, PNG or WebP — up to 8 MB each. Resized to 2400 px wide on save.') }}</div>
                     </button>
                 @else
+                    @php
+                        $categories = \App\Models\PropertyPhoto::categories();
+                        $bm = app()->getLocale() === 'ms';
+                    @endphp
                     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px;">
                         @foreach ($property->photos as $photo)
+                            @php
+                                $cat = $photo->category && isset($categories[$photo->category]) ? $categories[$photo->category] : null;
+                            @endphp
                             <div style="position:relative; aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden; border: 1.5px solid {{ $photo->is_hero ? 'var(--primary)' : 'var(--line)' }}; group:hover; background: var(--bg-elev);">
                                 <img src="{{ $photo->url() }}" alt=""
                                      style="width:100%; height:100%; object-fit:cover; display:block;"
@@ -360,6 +367,35 @@
                                         ★ {{ __('Cover') }}
                                     </div>
                                 @endif
+
+                                {{-- Category select (top-right) — submit on change --}}
+                                <form method="POST"
+                                      action="{{ route('tenant.properties.photos.category', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos"
+                                      style="position:absolute; top:6px; right:6px; margin:0;">
+                                    @csrf
+                                    @method('PATCH')
+                                    <select name="category"
+                                            onchange="this.form.submit()"
+                                            title="{{ __('Tag this photo') }}"
+                                            style="appearance:none; -webkit-appearance:none;
+                                                   padding: 3px 22px 3px 8px;
+                                                   font-size: 10.5px; font-weight: 600;
+                                                   border: 0; border-radius: 4px;
+                                                   background: {{ $cat ? 'var(--primary)' : 'rgba(255,255,255,0.92)' }};
+                                                   color: {{ $cat ? 'var(--primary-ink)' : 'var(--ink)' }};
+                                                   box-shadow: 0 1px 3px rgba(0,0,0,.3);
+                                                   cursor: pointer;
+                                                   background-image: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 10 10\'><path d=\'M2 4l3 3 3-3\' stroke=\'{{ $cat ? 'white' : 'black' }}\' stroke-width=\'1.4\' fill=\'none\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/></svg>');
+                                                   background-repeat: no-repeat;
+                                                   background-position: right 6px center;">
+                                        <option value="" {{ $photo->category ? '' : 'selected' }}>{{ __('🏷️ Tag photo') }}</option>
+                                        @foreach ($categories as $key => $c)
+                                            <option value="{{ $key }}" {{ $photo->category === $key ? 'selected' : '' }}>
+                                                {{ $c['emoji'] }} {{ $bm ? $c['bm'] : $c['en'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </form>
 
                                 {{-- Action overlay (always visible bottom strip — clearer affordance than hover) --}}
                                 <div style="position:absolute; bottom:0; left:0; right:0; padding: 6px 8px; background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.65) 100%); display:flex; gap:4px; justify-content:flex-end; align-items:center;">

@@ -129,4 +129,22 @@ class PropertyPhotoController extends Controller
 
         return back()->with('status', __('Cover photo updated.'));
     }
+
+    /**
+     * Tag a photo with a category (kitchen / bedroom / bathroom / ...).
+     * Submitting category="" clears the tag.
+     */
+    public function updateCategory(Request $request, Property $property, PropertyPhoto $photo)
+    {
+        abort_unless($photo->property_id === $property->id, 404);
+
+        $valid = array_keys(PropertyPhoto::categories());
+        $validated = $request->validate([
+            'category' => 'nullable|string|in:'.implode(',', $valid),
+        ]);
+
+        $photo->update(['category' => $validated['category'] ?? null]);
+
+        return back()->with('status', __('Photo tagged.'));
+    }
 }

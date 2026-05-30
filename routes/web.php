@@ -94,10 +94,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/properties/{property:public_id}',    [PropertyController::class, 'update'])->name('properties.update');
         Route::delete('/properties/{property:public_id}',   [PropertyController::class, 'destroy'])->name('properties.destroy');
 
-        // Property photos (upload to DO Spaces, delete, set hero)
+        // Property photos (upload to DO Spaces, delete, set hero, tag category)
         Route::post('/properties/{property:public_id}/photos',                  [PropertyPhotoController::class, 'store'])->name('properties.photos.store');
         Route::delete('/properties/{property:public_id}/photos/{photo}',        [PropertyPhotoController::class, 'destroy'])->name('properties.photos.destroy');
         Route::post('/properties/{property:public_id}/photos/{photo}/hero',     [PropertyPhotoController::class, 'setHero'])->name('properties.photos.hero');
+        Route::patch('/properties/{property:public_id}/photos/{photo}/category',[PropertyPhotoController::class, 'updateCategory'])->name('properties.photos.category');
 
         Route::get('/calendar',             [CalendarController::class, 'index'])->name('calendar');
 
