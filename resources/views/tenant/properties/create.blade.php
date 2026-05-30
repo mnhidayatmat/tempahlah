@@ -128,17 +128,25 @@
                 </div>
 
                 {{-- Whole-house: one price + max guests --}}
+                {{-- NOTE: x-bind:disabled prevents the hidden input from being submitted.
+                     Without this, both inputs share name="base_price" and the hidden one
+                     (always empty) would overwrite the visible one's value on POST. --}}
                 <div x-show="mode === 'whole_house'" x-transition style="display:grid; grid-template-columns: 2fr 1fr; gap: 12px;">
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Price for the whole house (RM/night)') }} *</label>
-                        <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01" x-bind:required="mode === 'whole_house'" placeholder="220">
+                        <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01"
+                               x-bind:required="mode === 'whole_house'"
+                               x-bind:disabled="mode !== 'whole_house'"
+                               placeholder="220">
                         <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
                             {{ __('Flat nightly rate, regardless of bedroom count. e.g. RM 220 / night for 3 guests or 8 guests.') }}
                         </div>
                     </div>
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Max guests') }}</label>
-                        <input class="input" type="number" name="max_guests" value="{{ old('max_guests') }}" min="1" max="200" x-bind:placeholder="bedrooms * 2">
+                        <input class="input" type="number" name="max_guests" value="{{ old('max_guests') }}" min="1" max="200"
+                               x-bind:disabled="mode !== 'whole_house'"
+                               x-bind:placeholder="bedrooms * 2">
                         <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
                             {{ __('Default: 2 × bedrooms') }}
                         </div>
@@ -148,7 +156,10 @@
                 {{-- Per-room: one starting price (applied to all N rooms) --}}
                 <div x-show="mode === 'per_room'" x-transition>
                     <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Starting price per room (RM/night)') }} *</label>
-                    <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01" x-bind:required="mode === 'per_room'" placeholder="120">
+                    <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01"
+                           x-bind:required="mode === 'per_room'"
+                           x-bind:disabled="mode !== 'per_room'"
+                           placeholder="120">
                     <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
                         <span x-text="`${bedrooms} bookable room(s) will be created at this rate. You can adjust each room's price later on the edit page.`"></span>
                     </div>
