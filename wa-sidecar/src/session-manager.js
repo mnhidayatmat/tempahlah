@@ -58,6 +58,16 @@ class SessionManager {
   async send(tenantId, recipientPhone, body, media) {
     const entry = this.#sessions.get(tenantId);
     if (!entry || entry.status !== 'connected') {
+      // Sidecar refusing send while Laravel may still think we're connected
+      // (the connection.update 'close' webhook may have failed, or Baileys
+      // dropped silently after a transient error). Fire a disconnected
+      // webhook so Laravel re-syncs and the dashboard shows "Reconnect".
+      try {
+        await postWebhook('session.disconnected', {
+          tenantId,
+          reason: entry ? `session ${entry.status}` : 'no session in sidecar memory',
+        });
+      } catch { /* webhook delivery failure shouldn't mask the original error */ }
       const err = new Error('Session not connected');
       err.code = 'NOT_CONNECTED';
       throw err;
@@ -238,9 +248,13 @@ class SessionManager {
         }
 
         // Transient — Baileys auto-reconnects, but mark state so dashboard
-        // shows the spinner.
+        // shows the spinner. Crucially, fire session.disconnected NOW so
+        // Laravel doesn't keep dispatching sends into a half-dead socket.
+        // If the reboot succeeds the normal session.connected webhook will
+        // re-mark Laravel as connected.
         entry.status = 'connecting';
         entry.lastError = reason;
+        await postWebhook('session.disconnected', { tenantId, reason });
         try {
           const next = await this.#bootSession(tenantId);
           Object.assign(entry, next);
