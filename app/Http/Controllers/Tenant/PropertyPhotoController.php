@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\ImageManager;
 
 class PropertyPhotoController extends Controller
@@ -48,9 +49,11 @@ class PropertyPhotoController extends Controller
             try {
                 // Resize to a sensible max width + recompress as JPEG quality 82
                 // so guest pages don't have to load 5MB straight off the camera.
-                $image = $manager->read($file->getRealPath());
+                // Intervention Image v4.1 uses decode*()/encode() — no more
+                // ::read() / ::toJpeg() shortcuts from v3.
+                $image = $manager->decodeSplFileInfo($file);
                 $image->scaleDown(width: 2400);
-                $binary = (string) $image->toJpeg(quality: 82);
+                $binary = (string) $image->encode(new JpegEncoder(quality: 82));
 
                 $relativePath = sprintf(
                     'properties/%d/%d/%s.jpg',
