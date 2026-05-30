@@ -237,8 +237,17 @@ class PropertyController extends Controller
             $property->delete();
         });
 
-        return redirect()
-            ->route('tenant.settings.index')
+        // Redirect back to wherever Delete was clicked from (settings page,
+        // properties index, or show page). If we can't infer the referrer
+        // (e.g. direct API call) fall back to the properties index — the
+        // canonical "list of homestays" view.
+        $referer = url()->previous();
+        $fallback = route('tenant.properties.index');
+        $target = str_contains($referer, '/dashboard/properties/'.$property->public_id)
+            ? $fallback  // came from the now-deleted show/edit page, can't go back there
+            : ($referer ?: $fallback);
+
+        return redirect($target)
             ->with('status', __('Homestay ":name" deleted.', ['name' => $name]));
     }
 
