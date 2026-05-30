@@ -129,6 +129,25 @@
             @endif
 
         @elseif ($tab === 'pricing')
+            @php
+                $weekdays = [
+                    1 => __('Mon'), 2 => __('Tue'), 3 => __('Wed'), 4 => __('Thu'),
+                    5 => __('Fri'), 6 => __('Sat'), 0 => __('Sun'),
+                ];
+                $ruleTypes = [
+                    'weekend' => __('Weekend (Fri-Sun by default)'),
+                    'holiday' => __('Holiday / festive date'),
+                    'season'  => __('Seasonal date range'),
+                    'custom'  => __('Custom (pick weekdays + dates)'),
+                ];
+                $adjTypes = [
+                    'percent'  => __('+/- % of base'),
+                    'flat'     => __('+/- flat RM'),
+                    'override' => __('Override to flat RM'),
+                ];
+            @endphp
+
+            {{-- Base rates summary --}}
             <div class="card" style="padding:20px;">
                 <div class="cm-eyebrow" style="margin-bottom:6px;">{{ __('Pricing engine') }}</div>
                 <h3 style="margin:0 0 16px; font-size:16px; font-weight:700;">{{ __('Base rates per room') }}</h3>
@@ -150,13 +169,224 @@
                         @endforeach
                     </div>
                 @endif
+            </div>
 
-                <div style="margin-top:16px; padding:14px 16px; background: var(--pro-tint); border-radius: var(--r-md); border:.5px solid var(--line-2); display:flex; align-items:center; gap:12px;">
-                    <x-icon name="sparkle" :size="16" style="color: var(--pro);"/>
-                    <div style="flex:1;">
-                        <div style="font-size:13px; font-weight:600;">{{ __('Dynamic pricing rules') }}</div>
-                        <div style="font-size:11.5px; color: var(--ink-3);">{{ __('Weekend uplifts, holiday markups, last-minute deals — coming on Pro.') }}</div>
+            {{-- Dynamic pricing rules --}}
+            <div class="card" style="padding:20px; margin-top: 16px;"
+                 x-data="{ showForm: false, editingId: null, form: {} }">
+
+                @if (session('status'))
+                    <div style="margin-bottom:14px; padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div style="margin-bottom:14px; padding: 10px 14px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">
+                        @foreach ($errors->all() as $msg)<div>• {{ $msg }}</div>@endforeach
                     </div>
+                @endif
+
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:600;">{{ __('Dynamic pricing rules') }}</div>
+                        <div style="font-size:11.5px; color: var(--ink-3); margin-top:2px;">
+                            {{ __('Auto-adjust nightly rates by weekday, date range, or both. Higher priority numbers apply later.') }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm"
+                            @click="showForm = !showForm; editingId = null; form = { active: true, rule_type: 'weekend', adjustment_type: 'percent', priority: 100, weekday_mask: [5,6,0] }"
+                            style="display:inline-flex; align-items:center; gap:6px;">
+                        <x-icon name="plus" :size="13"/> {{ __('Add rule') }}
+                    </button>
+                </div>
+
+                {{-- Inline create/edit form --}}
+                <div x-show="showForm" x-cloak x-transition
+                     style="padding: 18px; background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-md); margin-bottom: 16px;">
+                    <form method="POST"
+                          x-bind:action="editingId
+                              ? `{{ route('tenant.properties.pricing.update', ['property' => $property->public_id, 'rule' => 'RULEID']) }}`.replace('RULEID', editingId)
+                              : `{{ route('tenant.properties.pricing.store',  ['property' => $property->public_id]) }}`"
+                          style="display:flex; flex-direction:column; gap:14px;">
+                        @csrf
+                        <template x-if="editingId"><input type="hidden" name="_method" value="PATCH"></template>
+
+                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Rule name') }} *</label>
+                                <input class="input" type="text" name="name" x-model="form.name" required maxlength="80" placeholder="{{ __('e.g. Weekend uplift, Hari Raya 2027') }}">
+                            </div>
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Applies to') }}</label>
+                                <select class="input" name="room_id" x-model="form.room_id">
+                                    <option value="">{{ __('All rooms') }}</option>
+                                    @foreach ($property->rooms as $r)
+                                        <option value="{{ $r->id }}">{{ $r->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Rule type') }} *</label>
+                                <select class="input" name="rule_type" x-model="form.rule_type">
+                                    @foreach ($ruleTypes as $val => $label)
+                                        <option value="{{ $val }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Priority') }}</label>
+                                <input class="input" type="number" name="priority" x-model.number="form.priority" min="1" max="999" placeholder="100">
+                                <div style="font-size:10.5px; color: var(--ink-3); margin-top:3px;">{{ __('Lower = applied first. Default 100.') }}</div>
+                            </div>
+                        </div>
+
+                        {{-- Weekday checkboxes (visible for weekend & custom types) --}}
+                        <div x-show="['weekend','custom'].includes(form.rule_type)">
+                            <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:6px;">{{ __('Active weekdays') }}</label>
+                            <div style="display:flex; gap: 6px; flex-wrap: wrap;">
+                                @foreach ($weekdays as $idx => $label)
+                                    <label style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+                                                  padding: 7px 12px; border-radius: var(--r-pill);
+                                                  border: 1.5px solid var(--line); background: var(--bg);
+                                                  font-size: 12px; font-weight: 600;"
+                                           x-bind:style="(form.weekday_mask || []).includes({{ $idx }})
+                                               ? 'border-color: var(--primary); background: var(--primary-tint); color: var(--primary-deep);'
+                                               : ''">
+                                        <input type="checkbox" name="weekday_mask[]" value="{{ $idx }}"
+                                               x-model.number="form.weekday_mask"
+                                               style="margin:0; accent-color: var(--primary);">
+                                        {{ $label }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Date range (always shown — even weekend rules can be limited to a season) --}}
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Date from (optional)') }}</label>
+                                <input class="input" type="date" name="date_from" x-model="form.date_from">
+                            </div>
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Date to (optional)') }}</label>
+                                <input class="input" type="date" name="date_to" x-model="form.date_to">
+                            </div>
+                        </div>
+
+                        {{-- Adjustment --}}
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">{{ __('Adjustment type') }} *</label>
+                                <select class="input" name="adjustment_type" x-model="form.adjustment_type">
+                                    @foreach ($adjTypes as $val => $label)
+                                        <option value="{{ $val }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">
+                                    <span x-text="form.adjustment_type === 'percent' ? '{{ __('% to add (use - for discount)') }}' : (form.adjustment_type === 'flat' ? '{{ __('RM to add (use - for discount)') }}' : '{{ __('Flat RM override') }}')"></span> *
+                                </label>
+                                <input class="input" type="number" name="adjustment_value" x-model.number="form.adjustment_value" step="0.01" required placeholder="20">
+                            </div>
+                        </div>
+
+                        <label style="display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color: var(--ink-2); cursor:pointer;">
+                            <input type="checkbox" name="active" value="1" x-model="form.active" style="accent-color: var(--primary);">
+                            {{ __('Rule is active') }}
+                        </label>
+
+                        <div style="display:flex; gap:8px; justify-content:flex-end; padding-top: 4px;">
+                            <button type="button" class="btn btn-sm" @click="showForm = false">{{ __('Cancel') }}</button>
+                            <button type="submit" class="btn btn-primary btn-sm" x-text="editingId ? '{{ __('Save changes') }}' : '{{ __('Add rule') }}'">{{ __('Add rule') }}</button>
+                        </div>
+                    </form>
+                </div>
+
+                {{-- Existing rules list --}}
+                @if ($property->pricingRules->isEmpty())
+                    <div style="padding: 28px; text-align:center; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); color: var(--ink-3); font-size: 13px;">
+                        {{ __('No pricing rules yet. Click "Add rule" to define a weekend uplift, holiday markup, or seasonal pricing.') }}
+                    </div>
+                @else
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        @foreach ($property->pricingRules as $rule)
+                            @php
+                                $adj = (float) $rule->adjustment_value;
+                                $adjText = match ($rule->adjustment_type) {
+                                    'percent'  => ($adj >= 0 ? '+' : '').number_format($adj, 1).'%',
+                                    'flat'     => ($adj >= 0 ? '+RM ' : '-RM ').number_format(abs($adj), 0),
+                                    'override' => '= RM '.number_format($adj, 0),
+                                    default    => $adj,
+                                };
+                                $scope = $rule->room_id
+                                    ? ($property->rooms->firstWhere('id', $rule->room_id)?->name ?? __('Specific room'))
+                                    : __('All rooms');
+                            @endphp
+                            <div style="display:flex; align-items:center; gap:14px; padding: 12px 14px;
+                                        background: {{ $rule->active ? 'var(--bg-elev)' : 'var(--bg-sunk)' }};
+                                        border: 1px solid {{ $rule->active ? 'var(--line)' : 'var(--line-2)' }};
+                                        border-radius: var(--r-md);
+                                        opacity: {{ $rule->active ? '1' : '0.6' }};">
+                                <div style="flex:1; min-width:0;">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 3px;">
+                                        <span style="font-size:13px; font-weight:600;">{{ $rule->name }}</span>
+                                        <span class="pill" style="font-size:9.5px; padding: 2px 7px; background: var(--bg-tint); color: var(--ink-3); text-transform:uppercase; letter-spacing:.06em;">{{ $rule->rule_type }}</span>
+                                        @unless ($rule->active)
+                                            <span class="pill" style="font-size:9.5px; padding: 2px 7px; background: var(--warn-tint); color: var(--warn);">{{ __('paused') }}</span>
+                                        @endunless
+                                    </div>
+                                    <div style="font-size:11.5px; color: var(--ink-3);">
+                                        {{ $scope }}
+                                        @if ($rule->weekday_mask)
+                                            · {{ collect($rule->weekday_mask)->map(fn($d) => $weekdays[$d] ?? '')->filter()->join(', ') }}
+                                        @endif
+                                        @if ($rule->date_from || $rule->date_to)
+                                            · {{ optional($rule->date_from)->format('d M Y') ?? '…' }} → {{ optional($rule->date_to)->format('d M Y') ?? '…' }}
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="mono" style="font-size:14px; font-weight:700; color: {{ $adj >= 0 || $rule->adjustment_type === 'override' ? 'var(--primary-deep)' : 'var(--err)' }};">
+                                    {{ $adjText }}
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn btn-sm btn-ghost"
+                                            @click="showForm = true; editingId = {{ $rule->id }}; form = {
+                                                name: '{{ addslashes($rule->name) }}',
+                                                room_id: '{{ $rule->room_id ?? '' }}',
+                                                rule_type: '{{ $rule->rule_type }}',
+                                                priority: {{ (int) $rule->priority }},
+                                                weekday_mask: @json($rule->weekday_mask ?? []),
+                                                date_from: '{{ optional($rule->date_from)->toDateString() ?? '' }}',
+                                                date_to: '{{ optional($rule->date_to)->toDateString() ?? '' }}',
+                                                adjustment_type: '{{ $rule->adjustment_type }}',
+                                                adjustment_value: {{ (float) $rule->adjustment_value }},
+                                                active: {{ $rule->active ? 'true' : 'false' }},
+                                            }"
+                                            style="font-size:11.5px;">{{ __('Edit') }}</button>
+                                    <form method="POST" action="{{ route('tenant.properties.pricing.toggle', ['property' => $property->public_id, 'rule' => $rule->id]) }}?tab=pricing" style="margin:0;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-ghost" style="font-size:11.5px;" title="{{ $rule->active ? __('Pause') : __('Resume') }}">
+                                            {{ $rule->active ? '⏸' : '▶' }}
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ route('tenant.properties.pricing.destroy', ['property' => $property->public_id, 'rule' => $rule->id]) }}?tab=pricing"
+                                          onsubmit="return confirm('{{ addslashes(__('Delete pricing rule \':name\'?', ['name' => $rule->name])) }}');"
+                                          style="margin:0;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-ghost" style="font-size:11.5px; color: var(--err);">{{ __('Delete') }}</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div style="margin-top:14px; padding:10px 14px; background: var(--bg-sunk); border-radius: var(--r-md); font-size:11.5px; color: var(--ink-3); line-height:1.5;">
+                    <strong style="color: var(--ink-2);">{{ __('How it works:') }}</strong>
+                    {{ __('Rules are applied in priority order during booking quote. Example: base RM 220 + "Weekend +20%" rule = RM 264 on Fri/Sat/Sun nights. Inactive rules are ignored.') }}
                 </div>
             </div>
 
