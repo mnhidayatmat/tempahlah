@@ -84,7 +84,21 @@
 
             {{-- Stay logistics --}}
             <div class="hauz-card" style="padding: 22px;">
-                <div class="kicker" style="margin-bottom: 14px;">{{ __('Stay logistics') }}</div>
+                @php
+                    $isWholeHouse = $property->isWholeHousePricing();
+                    $singleRoom = $isWholeHouse ? $property->rooms->first() : null;
+                @endphp
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                    <div class="kicker">{{ __('Stay logistics & pricing') }}</div>
+                    <span class="pill" style="font-size: 10.5px; padding: 3px 8px; background: var(--primary-tint); color: var(--primary-deep);">
+                        {{ $isWholeHouse ? '🏠 '.__('Whole-house pricing') : '🛏️ '.__('Per-room pricing') }}
+                    </span>
+                </div>
+
+                {{-- Hidden so the controller keeps the existing mode (switching mode is intentionally not supported via edit — it would require rebuilding rooms). --}}
+                <input type="hidden" name="pricing_mode" value="{{ $property->pricing_mode ?? 'whole_house' }}">
+
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Check-in time') }} *</label>
@@ -95,13 +109,21 @@
                         <input class="input" type="time" name="check_out_time" value="{{ old('check_out_time', \Illuminate\Support\Str::of($property->check_out_time)->limit(5, '')) }}" required>
                     </div>
                     <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Base rate (RM / night)') }}</label>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
+                            {{ $isWholeHouse ? __('Price for whole house (RM/night)') : __('Base price per room (RM/night)') }}
+                        </label>
                         <input class="input" type="number" name="base_price" value="{{ old('base_price', number_format($baseRate, 0, '.', '')) }}" min="0" max="999999" step="1" placeholder="220">
-                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Applied to all :n room(s) on save.', ['n' => $property->rooms->count()]) }}</div>
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">
+                            @if ($isWholeHouse)
+                                {{ __('Flat rate for the entire property — guests book the whole house.') }}
+                            @else
+                                {{ __('Applied to all :n bookable room(s) on save.', ['n' => $property->rooms->count()]) }}
+                            @endif
+                        </div>
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+                <div style="display:grid; grid-template-columns: {{ $isWholeHouse ? '1fr 1fr 1fr' : '1fr 1fr' }}; gap: 14px; margin-top: 14px;">
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bathrooms') }}</label>
                         <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', $property->bathrooms) }}" min="0" max="50">
@@ -112,6 +134,13 @@
                         <input class="input" type="number" name="toilets" value="{{ old('toilets', $property->toilets) }}" min="0" max="50">
                         <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Toilet-only / powder rooms') }}</div>
                     </div>
+                    @if ($isWholeHouse)
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Max guests') }}</label>
+                            <input class="input" type="number" name="max_guests" value="{{ old('max_guests', $singleRoom?->max_adults ?? 2) }}" min="1" max="200">
+                            <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Whole-house capacity') }}</div>
+                        </div>
+                    @endif
                 </div>
             </div>
 

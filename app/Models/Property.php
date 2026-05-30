@@ -21,10 +21,13 @@ class Property extends Model
     public const STATUS_ACTIVE = 'active';
     public const STATUS_ARCHIVED = 'archived';
 
+    public const PRICING_WHOLE_HOUSE = 'whole_house';
+    public const PRICING_PER_ROOM    = 'per_room';
+
     protected $fillable = [
         'tenant_id', 'public_id', 'name', 'slug',
         'description_bm', 'description_en',
-        'property_type', 'star_rating', 'bathrooms', 'toilets',
+        'property_type', 'star_rating', 'bathrooms', 'toilets', 'pricing_mode',
         'address_line1', 'address_line2', 'city', 'state', 'postcode', 'country',
         'lat', 'lng',
         'check_in_time', 'check_out_time',
@@ -71,5 +74,20 @@ class Property extends Model
         return $this->marketplace_enabled
             && $this->status === self::STATUS_ACTIVE
             && $this->marketplace_published_at !== null;
+    }
+
+    public function isWholeHousePricing(): bool
+    {
+        return ($this->pricing_mode ?? self::PRICING_WHOLE_HOUSE) === self::PRICING_WHOLE_HOUSE;
+    }
+
+    /**
+     * Starting nightly rate to show on cards / search results.
+     * Whole-house properties: the single price.
+     * Per-room properties:   the cheapest room (so guests see "from RM X").
+     */
+    public function startingNightlyRate(): float
+    {
+        return (float) ($this->rooms->min('base_price') ?? 0);
     }
 }

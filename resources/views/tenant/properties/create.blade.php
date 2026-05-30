@@ -57,32 +57,101 @@
                 </div>
             </div>
 
-            {{-- ─── Rooms & spaces ─────────────────────────────────── --}}
-            <div class="hauz-card" style="padding: 22px; display:flex; flex-direction:column; gap: 14px;">
-                <div class="kicker">{{ __('Rooms & spaces') }}</div>
+            {{-- ─── Rooms & pricing ────────────────────────────────── --}}
+            <div class="hauz-card" style="padding: 22px; display:flex; flex-direction:column; gap: 14px;"
+                 x-data="{ mode: '{{ old('pricing_mode', 'whole_house') }}', bedrooms: {{ (int) old('bedrooms', 1) }} }">
+                <div class="kicker">{{ __('Rooms & pricing') }}</div>
 
+                {{-- Bedrooms / bathrooms / toilets are always shown (descriptive counts) --}}
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Bedrooms') }} *</label>
-                        <input class="input" type="number" name="bedrooms" value="{{ old('bedrooms', 1) }}" min="1" max="50" required>
-                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Bookable rooms') }}</div>
+                        <input class="input" type="number" name="bedrooms" x-model.number="bedrooms" min="1" max="50" required>
+                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Bilik tidur') }}</div>
                     </div>
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Bathrooms') }}</label>
                         <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', 1) }}" min="0" max="50">
-                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Full bathrooms (shower + sink + toilet)') }}</div>
+                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Bilik air lengkap') }}</div>
                     </div>
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Separate toilets') }}</label>
                         <input class="input" type="number" name="toilets" value="{{ old('toilets', 0) }}" min="0" max="50">
-                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Toilet-only / powder rooms') }}</div>
+                        <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Tandas berasingan') }}</div>
                     </div>
                 </div>
 
+                {{-- Pricing mode toggle — TWO-OPTION CARD GROUP --}}
                 <div>
-                    <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Base price (RM/night)') }} *</label>
-                    <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01" required placeholder="220.00">
-                    <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">{{ __('Applied as the starting nightly rate to each room.') }}</div>
+                    <label class="kicker" style="display:block; margin-bottom:8px;">{{ __('How do you charge?') }} *</label>
+                    <input type="hidden" name="pricing_mode" x-bind:value="mode">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        {{-- Whole-house (default) --}}
+                        <button type="button"
+                                @click="mode = 'whole_house'"
+                                x-bind:class="mode === 'whole_house' ? 'is-active' : ''"
+                                style="cursor:pointer; text-align:left; padding: 14px; border-radius: var(--r-md);
+                                       border: 2px solid var(--line); background: var(--bg-elev);
+                                       transition: all 120ms; display:flex; flex-direction:column; gap:6px;"
+                                x-bind:style="mode === 'whole_house'
+                                    ? 'border-color: var(--primary); background: var(--primary-tint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);'
+                                    : ''">
+                            <div style="display:flex; align-items:center; gap: 6px;">
+                                <span style="font-size: 18px;">🏠</span>
+                                <span style="font-weight: 700; font-size: 13.5px;">{{ __('Whole house') }}</span>
+                                <span style="font-size: 10px; padding: 2px 6px; border-radius: 6px; background: var(--bg-tint); color: var(--ink-3); margin-left: auto;">{{ __('Default') }}</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--ink-3); line-height: 1.4;">
+                                {{ __('One flat price per night for the entire property. Guests book the whole house — bedroom count is just for them to know.') }}
+                            </div>
+                        </button>
+
+                        {{-- Per-room --}}
+                        <button type="button"
+                                @click="mode = 'per_room'"
+                                x-bind:class="mode === 'per_room' ? 'is-active' : ''"
+                                style="cursor:pointer; text-align:left; padding: 14px; border-radius: var(--r-md);
+                                       border: 2px solid var(--line); background: var(--bg-elev);
+                                       transition: all 120ms; display:flex; flex-direction:column; gap:6px;"
+                                x-bind:style="mode === 'per_room'
+                                    ? 'border-color: var(--primary); background: var(--primary-tint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);'
+                                    : ''">
+                            <div style="display:flex; align-items:center; gap: 6px;">
+                                <span style="font-size: 18px;">🛏️</span>
+                                <span style="font-weight: 700; font-size: 13.5px;">{{ __('Per room') }}</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--ink-3); line-height: 1.4;">
+                                {{ __('Each room books and prices independently. For boutique stays, hostels, or shared houses where multiple groups can book different rooms.') }}
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Whole-house: one price + max guests --}}
+                <div x-show="mode === 'whole_house'" x-transition style="display:grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Price for the whole house (RM/night)') }} *</label>
+                        <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01" x-bind:required="mode === 'whole_house'" placeholder="220">
+                        <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
+                            {{ __('Flat nightly rate, regardless of bedroom count. e.g. RM 220 / night for 3 guests or 8 guests.') }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Max guests') }}</label>
+                        <input class="input" type="number" name="max_guests" value="{{ old('max_guests') }}" min="1" max="200" x-bind:placeholder="bedrooms * 2">
+                        <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
+                            {{ __('Default: 2 × bedrooms') }}
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Per-room: one starting price (applied to all N rooms) --}}
+                <div x-show="mode === 'per_room'" x-transition>
+                    <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Starting price per room (RM/night)') }} *</label>
+                    <input class="input" type="number" name="base_price" value="{{ old('base_price') }}" min="0" max="999999" step="0.01" x-bind:required="mode === 'per_room'" placeholder="120">
+                    <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">
+                        <span x-text="`${bedrooms} bookable room(s) will be created at this rate. You can adjust each room's price later on the edit page.`"></span>
+                    </div>
                 </div>
             </div>
 

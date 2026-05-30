@@ -39,9 +39,11 @@ class PropertyController extends Controller
             'name' => 'required|string|max:120',
             'city' => 'nullable|string|max:80',
             'address_line1' => 'required|string|max:160',
-            'bedrooms' => 'required|integer|min:1|max:50',
-            'bathrooms' => 'nullable|integer|min:0|max:50',
-            'toilets'   => 'nullable|integer|min:0|max:50',
+            'pricing_mode' => 'nullable|in:whole_house,per_room',
+            'bedrooms'   => 'required|integer|min:1|max:50',
+            'bathrooms'  => 'nullable|integer|min:0|max:50',
+            'toilets'    => 'nullable|integer|min:0|max:50',
+            'max_guests' => 'nullable|integer|min:1|max:200',
             'base_price' => 'required|numeric|min:0|max:999999',
             'description' => 'nullable|string|max:2000',
             'amenities'   => 'nullable|array',
@@ -51,7 +53,12 @@ class PropertyController extends Controller
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
 
-        $property = DB::transaction(function () use ($validated, $tenant) {
+        $mode = $validated['pricing_mode'] ?? Property::PRICING_WHOLE_HOUSE;
+        $bedrooms = (int) $validated['bedrooms'];
+        // Sensible default for whole-house capacity: 2 guests per bedroom.
+        $maxGuests = (int) ($validated['max_guests'] ?? max(2, $bedrooms * 2));
+
+        $property = DB::transaction(function () use ($validated, $tenant, $mode, $bedrooms, $maxGuests) {
             $property = Property::create([
                 'tenant_id' => $tenant->id,
                 'public_id' => Str::ulid(),
@@ -62,28 +69,53 @@ class PropertyController extends Controller
                 'state' => '',
                 'postcode' => '',
                 'country' => 'MY',
-                'bathrooms' => (int) ($validated['bathrooms'] ?? 0),
-                'toilets'   => (int) ($validated['toilets'] ?? 0),
+                'bathrooms'    => (int) ($validated['bathrooms'] ?? 0),
+                'toilets'      => (int) ($validated['toilets'] ?? 0),
+                'pricing_mode' => $mode,
                 'check_in_time' => '15:00',
                 'check_out_time' => '11:00',
                 'description_en' => $validated['description'] ?? null,
                 'status' => Property::STATUS_DRAFT,
             ]);
 
-            for ($i = 1; $i <= (int) $validated['bedrooms']; $i++) {
+            if ($mode === Property::PRICING_WHOLE_HOUSE) {
+                // ONE "Whole house" Room row carries the flat nightly rate.
+                // Bookings still attach to a room_id, so the existing booking
+                // engine, PricingEngine, AvailabilityService etc. keep working
+                // unchanged — the room just represents the whole property.
                 Room::create([
                     'tenant_id' => $tenant->id,
                     'property_id' => $property->id,
                     'public_id' => Str::ulid(),
-                    'name' => __('Room :n', ['n' => $i]),
-                    'room_type' => 'standard',
-                    'max_adults' => 2,
-                    'beds' => 1,
+                    'name' => __('Whole house'),
+                    'room_type' => 'entire_place',
+                    'max_adults' => $maxGuests,
+                    'max_children' => 0,
+                    'beds' => $bedrooms,
                     'base_price' => $validated['base_price'],
                     'currency' => 'MYR',
                     'sst_applicable' => true,
                     'status' => 'active',
                 ]);
+            } else {
+                // Per-room: N individual rooms, each with the same starting
+                // rate. Tenant can later adjust per-room prices on the edit
+                // page.
+                for ($i = 1; $i <= $bedrooms; $i++) {
+                    Room::create([
+                        'tenant_id' => $tenant->id,
+                        'property_id' => $property->id,
+                        'public_id' => Str::ulid(),
+                        'name' => __('Room :n', ['n' => $i]),
+                        'room_type' => 'standard',
+                        'max_adults' => 2,
+                        'beds' => 1,
+                        'base_price' => $validated['base_price'],
+                        'currency' => 'MYR',
+                        'sst_applicable' => true,
+                        'status' => 'active',
+                    ]);
+                }
             }
 
             if (! empty($validated['amenities'])) {
@@ -93,12 +125,19 @@ class PropertyController extends Controller
             return $property;
         });
 
+        $message = $mode === Property::PRICING_WHOLE_HOUSE
+            ? __('Property ":name" created. Charging RM :p / night for the whole house.', [
+                'name' => $property->name,
+                'p' => number_format((float) $validated['base_price'], 0),
+            ])
+            : __('Property ":name" created with :n bookable room(s).', [
+                'name' => $property->name,
+                'n' => $bedrooms,
+            ]);
+
         return redirect()
             ->route('tenant.properties.show', ['id' => $property->id])
-            ->with('status', __('Property ":name" created with :n room(s).', [
-                'name' => $property->name,
-                'n' => $validated['bedrooms'],
-            ]));
+            ->with('status', $message);
     }
 
     public function edit(Property $property)
@@ -124,6 +163,8 @@ class PropertyController extends Controller
             'address_line2'  => 'nullable|string|max:160',
             'bathrooms'      => 'nullable|integer|min:0|max:50',
             'toilets'        => 'nullable|integer|min:0|max:50',
+            'pricing_mode'   => 'nullable|in:whole_house,per_room',
+            'max_guests'     => 'nullable|integer|min:1|max:200',
             'description_en' => 'nullable|string|max:2000',
             'description_bm' => 'nullable|string|max:2000',
             'check_in_time'  => 'required|date_format:H:i',
@@ -139,6 +180,10 @@ class PropertyController extends Controller
         $newBase = $request->filled('base_price') ? (float) $validated['base_price'] : null;
         unset($validated['base_price']);
 
+        // max_guests is meaningful only for whole-house mode (single room).
+        $newMaxGuests = $request->filled('max_guests') ? (int) $validated['max_guests'] : null;
+        unset($validated['max_guests']);
+
         // The properties table has NOT NULL columns (city/state/postcode/cancellation_policy)
         // but Laravel's ConvertEmptyStringsToNull middleware turns blank inputs into nulls.
         // Coerce them back to empty strings (or the column default) so save() doesn't trip the constraint.
@@ -151,10 +196,16 @@ class PropertyController extends Controller
         $amenityIds = $validated['amenities'] ?? [];
         unset($validated['amenities']);
 
-        DB::transaction(function () use ($property, $validated, $newBase, $amenityIds) {
+        DB::transaction(function () use ($property, $validated, $newBase, $newMaxGuests, $amenityIds) {
             $property->fill($validated)->save();
             if ($newBase !== null) {
+                // Same flat rate applies to every room (1 in whole-house mode,
+                // N in per-room mode).
                 $property->rooms()->update(['base_price' => $newBase]);
+            }
+            if ($newMaxGuests !== null && $property->isWholeHousePricing()) {
+                // Only the single "Whole house" room exists — update its capacity.
+                $property->rooms()->update(['max_adults' => $newMaxGuests]);
             }
             $property->amenities()->sync($amenityIds);
         });
