@@ -278,19 +278,25 @@
                     },
                  }">
 
-                {{-- ==== Loading overlay: covers the entire card while the upload is in flight ==== --}}
-                <div x-show="uploading" x-cloak
-                     style="position:absolute; inset:0; z-index:30;
-                            background: color-mix(in srgb, var(--bg) 90%, transparent);
-                            backdrop-filter: blur(3px);
-                            border-radius: var(--r-lg);
-                            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;">
-                    <div class="tl-spinner"></div>
-                    <div style="font-size:14px; font-weight:600; color: var(--ink);">
-                        <span x-text="`{{ __('Uploading') }} ${fileCount} {{ __('photo(s)…') }}`"></span>
-                    </div>
-                    <div style="font-size:11.5px; color: var(--ink-3); max-width: 320px; text-align:center;">
-                        {{ __('We are resizing and uploading to cloud storage. This usually takes a few seconds per photo — please keep this tab open.') }}
+                {{-- ==== Loading overlay: viewport-fixed so it's always centered in the user's view, regardless of where they've scrolled ==== --}}
+                <div x-show="uploading" x-cloak x-transition.opacity
+                     style="position:fixed; inset:0; z-index:9999;
+                            background: rgba(15,25,40,0.55);
+                            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                            display:flex; align-items:center; justify-content:center;">
+                    <div style="background: var(--bg);
+                                border-radius: var(--r-xl);
+                                padding: 32px 40px;
+                                box-shadow: 0 24px 64px -12px rgba(0,0,0,0.4);
+                                display:flex; flex-direction:column; align-items:center; gap: 16px;
+                                max-width: 380px; width: calc(100% - 32px);">
+                        <div class="tl-spinner"></div>
+                        <div style="font-size:16px; font-weight:700; color: var(--ink); letter-spacing:-0.005em;">
+                            <span x-text="`{{ __('Uploading') }} ${fileCount} {{ __('photo(s)…') }}`"></span>
+                        </div>
+                        <div style="font-size:12.5px; color: var(--ink-3); text-align:center; line-height:1.5;">
+                            {{ __('Resizing and uploading to cloud storage. A few seconds per photo — please keep this tab open.') }}
+                        </div>
                     </div>
                 </div>
 
@@ -311,7 +317,7 @@
                         <div style="font-size:13px; font-weight:600;">{{ __('Photos') }}</div>
                         <div style="font-size:11.5px; color: var(--ink-3); margin-top:2px;">
                             {{ trans_choice('{0} No photos yet — upload your first one|{1} 1 photo|[2,*] :count photos', $property->photos->count(), ['count' => $property->photos->count()]) }}
-                            · {{ __('Hover any photo to set as cover or delete.') }}
+                            @if ($property->photos->isNotEmpty()) · {{ __('Hover a photo to set as cover or delete.') }} @endif
                         </div>
                     </div>
 
@@ -356,7 +362,15 @@
                             @php
                                 $cat = $photo->category && isset($categories[$photo->category]) ? $categories[$photo->category] : null;
                             @endphp
-                            <div style="position:relative; aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden; border: 1.5px solid {{ $photo->is_hero ? 'var(--primary)' : 'var(--line)' }}; group:hover; background: var(--bg-elev);">
+                            <div class="tl-photo-tile"
+                                 x-data="{ hover: false, confirmDel: false }"
+                                 @mouseenter="hover = true"
+                                 @mouseleave="hover = false; confirmDel = false"
+                                 style="position:relative; aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden;
+                                        border: 1.5px solid {{ $photo->is_hero ? 'var(--primary)' : 'var(--line)' }};
+                                        background: var(--bg-elev);
+                                        transition: transform 160ms ease, box-shadow 160ms ease;"
+                                 x-bind:style="hover ? 'transform: translateY(-2px); box-shadow: 0 8px 24px -6px rgba(15,25,40,0.18);' : ''">
                                 <img src="{{ $photo->url() }}" alt=""
                                      style="width:100%; height:100%; object-fit:cover; display:block;"
                                      loading="lazy">
@@ -397,23 +411,85 @@
                                     </select>
                                 </form>
 
-                                {{-- Action overlay (always visible bottom strip — clearer affordance than hover) --}}
-                                <div style="position:absolute; bottom:0; left:0; right:0; padding: 6px 8px; background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.65) 100%); display:flex; gap:4px; justify-content:flex-end; align-items:center;">
+                                {{-- ── Hover action bar (slides up from the bottom) ── --}}
+                                <div x-show="hover && !confirmDel" x-transition.opacity.duration.150ms
+                                     style="position:absolute; bottom:0; left:0; right:0; padding: 10px;
+                                            background: linear-gradient(180deg, transparent 0%, rgba(15,25,40,0.78) 100%);
+                                            display:flex; gap:6px; justify-content:flex-end; align-items:center;">
                                     @unless ($photo->is_hero)
                                         <form method="POST" action="{{ route('tenant.properties.photos.hero', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos" style="margin:0;">
                                             @csrf
                                             <button type="submit" title="{{ __('Set as cover') }}"
-                                                    style="width:26px; height:26px; border:0; background: rgba(255,255,255,0.9); color: var(--ink); border-radius: 4px; cursor:pointer; font-size: 13px; line-height:1; display:inline-flex; align-items:center; justify-content:center;">★</button>
+                                                    style="display:inline-flex; align-items:center; gap:5px;
+                                                           height: 30px; padding: 0 11px;
+                                                           border: 0; border-radius: 999px;
+                                                           background: rgba(255,255,255,0.95);
+                                                           color: var(--ink);
+                                                           font-size: 11.5px; font-weight: 600;
+                                                           cursor:pointer;
+                                                           box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                                                           transition: background 120ms;"
+                                                    onmouseover="this.style.background='white'"
+                                                    onmouseout="this.style.background='rgba(255,255,255,0.95)'">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                                {{ __('Cover') }}
+                                            </button>
                                         </form>
                                     @endunless
-                                    <form method="POST" action="{{ route('tenant.properties.photos.destroy', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos"
-                                          onsubmit="return confirm('{{ addslashes(__('Delete this photo?')) }}');"
-                                          style="margin:0;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" title="{{ __('Delete') }}"
-                                                style="width:26px; height:26px; border:0; background: rgba(220,40,40,0.92); color: white; border-radius: 4px; cursor:pointer; font-size: 14px; line-height:1; display:inline-flex; align-items:center; justify-content:center;">×</button>
-                                    </form>
+
+                                    {{-- Delete trigger — opens the inline confirm bar --}}
+                                    <button type="button"
+                                            @click="confirmDel = true"
+                                            title="{{ __('Delete photo') }}"
+                                            style="display:inline-flex; align-items:center; gap:5px;
+                                                   height: 30px; padding: 0 11px;
+                                                   border: 0; border-radius: 999px;
+                                                   background: rgba(255,255,255,0.95);
+                                                   color: #b91c1c;
+                                                   font-size: 11.5px; font-weight: 600;
+                                                   cursor:pointer;
+                                                   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                                                   transition: background 120ms;"
+                                            onmouseover="this.style.background='#fee2e2'"
+                                            onmouseout="this.style.background='rgba(255,255,255,0.95)'">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                        {{ __('Delete') }}
+                                    </button>
+                                </div>
+
+                                {{-- ── Inline delete confirmation (overlays the bottom half on confirm) ── --}}
+                                <div x-show="confirmDel" x-cloak x-transition
+                                     style="position:absolute; left:0; right:0; bottom:0; padding: 12px;
+                                            background: rgba(15,25,40,0.94);
+                                            backdrop-filter: blur(4px);
+                                            display:flex; flex-direction:column; gap: 10px;">
+                                    <div style="font-size: 12.5px; font-weight: 600; color: white; text-align:center; line-height:1.35;">
+                                        {{ __('Delete this photo?') }}
+                                    </div>
+                                    <div style="display:flex; gap: 6px;">
+                                        <button type="button"
+                                                @click="confirmDel = false"
+                                                style="flex:1; height: 32px; border: 1px solid rgba(255,255,255,0.3);
+                                                       border-radius: 6px; background: transparent; color: white;
+                                                       font-size: 11.5px; font-weight: 600; cursor:pointer;">
+                                            {{ __('Cancel') }}
+                                        </button>
+                                        <form method="POST" action="{{ route('tenant.properties.photos.destroy', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos" style="margin:0; flex:1;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    style="width:100%; height: 32px; border: 0;
+                                                           border-radius: 6px; background: #dc2626; color: white;
+                                                           font-size: 11.5px; font-weight: 700; cursor:pointer;
+                                                           display:inline-flex; align-items:center; justify-content:center; gap:5px;
+                                                           transition: background 120ms;"
+                                                    onmouseover="this.style.background='#b91c1c'"
+                                                    onmouseout="this.style.background='#dc2626'">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                                {{ __('Delete') }}
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
