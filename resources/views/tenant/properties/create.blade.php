@@ -19,7 +19,12 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('tenant.properties.store') }}" style="display:flex; flex-direction:column; gap: 16px;">
+        {{-- Inline validation banner — surfaces when the browser blocks submit on a required/invalid field --}}
+        <div id="create-form-banner" role="alert"
+             style="display:none; padding: 12px 16px; border-radius: var(--r-md); border:1px solid var(--err); background: var(--err-tint); color: var(--err); font-size: 13px;">
+        </div>
+
+        <form id="create-property-form" method="POST" action="{{ route('tenant.properties.store') }}" style="display:flex; flex-direction:column; gap: 16px;">
             @csrf
 
             {{-- ─── Basics ─────────────────────────────────────────── --}}
@@ -96,4 +101,42 @@
             </div>
         </form>
     </div>
+
+    {{-- Surface silent HTML5 validation failures: scroll to + highlight the first invalid field --}}
+    <script>
+        (function () {
+            const form   = document.getElementById('create-property-form');
+            const banner = document.getElementById('create-form-banner');
+            if (!form || !banner) return;
+
+            const labelFor = (el) => {
+                const lblEl = el.closest('div')?.querySelector('label');
+                return (lblEl?.textContent || el.name || '').trim().replace(/\s*\*\s*$/, '');
+            };
+
+            form.addEventListener('invalid', function (e) {
+                const field = e.target;
+                // Stop the browser's native tooltip on subsequent invalid fields, we show one banner.
+                e.preventDefault();
+                if (!form.dataset._hadInvalid) {
+                    form.dataset._hadInvalid = '1';
+                    const msg = field.validationMessage || @json(__('Please fill out this field.'));
+                    banner.textContent = `${labelFor(field)}: ${msg}`;
+                    banner.style.display = 'block';
+                    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    field.focus({ preventScroll: true });
+                    field.style.borderColor = 'var(--err)';
+                    field.addEventListener('input', () => {
+                        field.style.borderColor = '';
+                    }, { once: true });
+                }
+            }, true);
+
+            form.addEventListener('submit', function () {
+                // Reset the "had invalid" flag so subsequent invalid attempts re-trigger the banner.
+                delete form.dataset._hadInvalid;
+                banner.style.display = 'none';
+            });
+        })();
+    </script>
 </x-app-layout>
