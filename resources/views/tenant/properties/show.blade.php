@@ -252,7 +252,48 @@
             </div>
 
         @elseif ($tab === 'photos')
-            <div class="card" style="padding:20px;">
+            <style>
+                @keyframes tl-spin { to { transform: rotate(360deg); } }
+                .tl-spinner {
+                    width: 44px; height: 44px;
+                    border: 4px solid color-mix(in srgb, var(--primary) 22%, transparent);
+                    border-top-color: var(--primary);
+                    border-radius: 50%;
+                    animation: tl-spin 0.7s linear infinite;
+                }
+            </style>
+
+            <div class="card"
+                 style="padding:20px; position:relative;"
+                 x-data="{
+                    uploading: false,
+                    fileCount: 0,
+                    pick() { this.$refs.picker.click(); },
+                    onPicked(e) {
+                        this.fileCount = e.target.files?.length || 0;
+                        if (this.fileCount > 0) {
+                            this.uploading = true;
+                            this.$refs.uploadForm.submit();
+                        }
+                    },
+                 }">
+
+                {{-- ==== Loading overlay: covers the entire card while the upload is in flight ==== --}}
+                <div x-show="uploading" x-cloak
+                     style="position:absolute; inset:0; z-index:30;
+                            background: color-mix(in srgb, var(--bg) 90%, transparent);
+                            backdrop-filter: blur(3px);
+                            border-radius: var(--r-lg);
+                            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;">
+                    <div class="tl-spinner"></div>
+                    <div style="font-size:14px; font-weight:600; color: var(--ink);">
+                        <span x-text="`{{ __('Uploading') }} ${fileCount} {{ __('photo(s)…') }}`"></span>
+                    </div>
+                    <div style="font-size:11.5px; color: var(--ink-3); max-width: 320px; text-align:center;">
+                        {{ __('We are resizing and uploading to cloud storage. This usually takes a few seconds per photo — please keep this tab open.') }}
+                    </div>
+                </div>
+
                 @if (session('status'))
                     <div style="margin-bottom:14px; padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
                 @endif
@@ -274,32 +315,31 @@
                         </div>
                     </div>
 
-                    {{-- Upload form: triggers a hidden file picker, auto-submits on selection --}}
+                    {{-- Upload form: hidden picker + visible "Upload photos" button --}}
                     <form method="POST"
                           action="{{ route('tenant.properties.photos.store', ['property' => $property->public_id]) }}?tab=photos"
                           enctype="multipart/form-data"
                           style="margin:0;"
-                          x-data="{ uploading: false }"
-                          @submit="uploading = true">
+                          x-ref="uploadForm">
                         @csrf
                         <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple
                                x-ref="picker" style="display:none;"
-                               @change="$el.form.submit()">
+                               @change="onPicked($event)">
                         <button type="button" class="btn btn-primary btn-sm"
-                                @click="$refs.picker.click()"
+                                @click="pick()"
                                 :disabled="uploading"
                                 style="display:inline-flex; align-items:center; gap:6px;">
                             <x-icon name="plus" :size="13"/>
-                            <span x-show="!uploading">{{ __('Upload photos') }}</span>
-                            <span x-show="uploading" x-cloak>{{ __('Uploading…') }}</span>
+                            <span>{{ __('Upload photos') }}</span>
                         </button>
                     </form>
                 </div>
 
                 @if ($property->photos->isEmpty())
-                    {{-- Empty state with click-to-upload --}}
+                    {{-- Empty state — click anywhere to open picker --}}
                     <button type="button"
-                            onclick="this.closest('.card').querySelector('input[type=file]').click()"
+                            @click="pick()"
+                            :disabled="uploading"
                             style="width:100%; padding: 48px 24px; border: 2px dashed var(--line-2); background: var(--bg-elev); border-radius: var(--r-lg); cursor:pointer;
                                    display:flex; flex-direction:column; align-items:center; gap: 10px; color: var(--ink-3);">
                         <div style="font-size:36px; line-height:1;">📷</div>
