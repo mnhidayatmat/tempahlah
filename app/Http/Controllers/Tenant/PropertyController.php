@@ -253,7 +253,7 @@ class PropertyController extends Controller
 
     public function show($id, Request $request)
     {
-        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name'), 'tenant', 'amenities'])
+        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name'), 'tenant', 'amenities', 'photos'])
             ->findOrFail($id);
 
         $tab = in_array($request->query('tab'), ['rooms', 'pricing', 'facilities', 'policies', 'photos'], true)

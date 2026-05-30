@@ -13,6 +13,7 @@ use App\Http\Controllers\Tenant\HousekeepingController;
 use App\Http\Controllers\Tenant\IntegrationController;
 use App\Http\Controllers\Tenant\PaymentController;
 use App\Http\Controllers\Tenant\PropertyController;
+use App\Http\Controllers\Tenant\PropertyPhotoController;
 use App\Http\Controllers\Tenant\ReportController;
 use App\Http\Controllers\Tenant\SettingsController;
 use App\Http\Controllers\Tenant\SubscriptionController;
@@ -92,6 +93,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/properties/{property:public_id}/edit', [PropertyController::class, 'edit'])->name('properties.edit');
         Route::patch('/properties/{property:public_id}',    [PropertyController::class, 'update'])->name('properties.update');
         Route::delete('/properties/{property:public_id}',   [PropertyController::class, 'destroy'])->name('properties.destroy');
+
+        // Property photos (upload to DO Spaces, delete, set hero)
+        Route::post('/properties/{property:public_id}/photos',                  [PropertyPhotoController::class, 'store'])->name('properties.photos.store');
+        Route::delete('/properties/{property:public_id}/photos/{photo}',        [PropertyPhotoController::class, 'destroy'])->name('properties.photos.destroy');
+        Route::post('/properties/{property:public_id}/photos/{photo}/hero',     [PropertyPhotoController::class, 'setHero'])->name('properties.photos.hero');
 
         Route::get('/calendar',             [CalendarController::class, 'index'])->name('calendar');
 

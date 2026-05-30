@@ -1,0 +1,129 @@
+<?php
+
+namespace App\Http\Controllers\Tenant;
+
+use App\Http\Controllers\Controller;
+use App\Models\Property;
+use App\Models\PropertyPhoto;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\ImageManager;
+
+class PropertyPhotoController extends Controller
+{
+    /** Hard cap so a single property can't balloon storage. */
+    public const MAX_PHOTOS_PER_PROPERTY = 20;
+    /** Max input file size (Laravel validator uses KB). */
+    public const MAX_UPLOAD_KB = 8192; // 8MB raw — gets resized down
+
+    public function store(Request $request, Property $property)
+    {
+        $request->validate([
+            'photos'   => 'required|array|min:1|max:10',
+            'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:'.self::MAX_UPLOAD_KB,
+        ]);
+
+        $existing = $property->photos()->count();
+        $incoming = count($request->file('photos', []));
+        if ($existing + $incoming > self::MAX_PHOTOS_PER_PROPERTY) {
+            return back()->with('error', __(
+                'Cap reached — you have :have photo(s), can add :remaining more (max :max per property).',
+                [
+                    'have' => $existing,
+                    'remaining' => max(0, self::MAX_PHOTOS_PER_PROPERTY - $existing),
+                    'max' => self::MAX_PHOTOS_PER_PROPERTY,
+                ],
+            ));
+        }
+
+        $disk = config('filesystems.default', 'spaces');
+        $manager = new ImageManager(new GdDriver());
+        $nextSort = (int) ($property->photos()->max('sort_order') ?? 0) + 1;
+        $isFirst = $existing === 0;
+        $stored = 0;
+
+        foreach ($request->file('photos') as $file) {
+            try {
+                // Resize to a sensible max width + recompress as JPEG quality 82
+                // so guest pages don't have to load 5MB straight off the camera.
+                $image = $manager->read($file->getRealPath());
+                $image->scaleDown(width: 2400);
+                $binary = (string) $image->toJpeg(quality: 82);
+
+                $relativePath = sprintf(
+                    'properties/%d/%d/%s.jpg',
+                    $property->tenant_id,
+                    $property->id,
+                    Str::ulid(),
+                );
+
+                Storage::disk($disk)->put($relativePath, $binary, 'public');
+
+                $property->photos()->create([
+                    'tenant_id' => $property->tenant_id,
+                    'path' => $relativePath,
+                    'disk' => $disk,
+                    'sort_order' => $nextSort++,
+                    'is_hero' => $isFirst && $stored === 0, // first upload becomes hero
+                ]);
+
+                $stored++;
+            } catch (\Throwable $e) {
+                report($e);
+                return back()->with('error', __(
+                    'Upload failed: :err',
+                    ['err' => $e->getMessage()],
+                ));
+            }
+        }
+
+        // First photo of a fresh property — also stamp it as the cover.
+        if ($isFirst && $stored > 0) {
+            $hero = $property->photos()->where('is_hero', true)->first();
+            if ($hero) {
+                $property->update(['hero_photo_path' => $hero->path]);
+            }
+        }
+
+        return back()->with('status', __(':n photo(s) uploaded.', ['n' => $stored]));
+    }
+
+    public function destroy(Property $property, PropertyPhoto $photo)
+    {
+        abort_unless($photo->property_id === $property->id, 404);
+
+        try {
+            Storage::disk($photo->disk)->delete($photo->path);
+        } catch (\Throwable) {
+            // File may already be gone — proceed with row delete.
+        }
+        $wasHero = $photo->is_hero;
+        $photo->delete();
+
+        if ($wasHero) {
+            // Promote next photo (by sort_order) to hero so the property still has a cover.
+            $next = $property->photos()->orderBy('sort_order')->first();
+            if ($next) {
+                $next->update(['is_hero' => true]);
+                $property->update(['hero_photo_path' => $next->path]);
+            } else {
+                $property->update(['hero_photo_path' => null]);
+            }
+        }
+
+        return back()->with('status', __('Photo removed.'));
+    }
+
+    public function setHero(Property $property, PropertyPhoto $photo)
+    {
+        abort_unless($photo->property_id === $property->id, 404);
+
+        $property->photos()->update(['is_hero' => false]);
+        $photo->update(['is_hero' => true]);
+        $property->update(['hero_photo_path' => $photo->path]);
+
+        return back()->with('status', __('Cover photo updated.'));
+    }
+}

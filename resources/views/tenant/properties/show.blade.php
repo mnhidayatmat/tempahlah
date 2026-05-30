@@ -253,19 +253,96 @@
 
         @elseif ($tab === 'photos')
             <div class="card" style="padding:20px;">
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
-                    @for ($i = 0; $i < 7; $i++)
-                        <div style="aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden;
-                                    background: {{ $heroGradient }};"></div>
-                    @endfor
-                    <button type="button" class="card"
-                            style="aspect-ratio:4/3; border:1px dashed var(--line-2); background:transparent;
-                                   display:flex; align-items:center; justify-content:center;
-                                   flex-direction:column; gap:4px; color: var(--ink-3); cursor:pointer;">
-                        <x-icon name="plus" :size="18"/>
-                        <span style="font-size:11.5px;">{{ __('Upload') }}</span>
-                    </button>
+                @if (session('status'))
+                    <div style="margin-bottom:14px; padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
+                @endif
+                @if (session('error'))
+                    <div style="margin-bottom:14px; padding: 10px 14px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">{{ session('error') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div style="margin-bottom:14px; padding: 10px 14px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">
+                        @foreach ($errors->all() as $msg)<div>• {{ $msg }}</div>@endforeach
+                    </div>
+                @endif
+
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:600;">{{ __('Photos') }}</div>
+                        <div style="font-size:11.5px; color: var(--ink-3); margin-top:2px;">
+                            {{ trans_choice('{0} No photos yet — upload your first one|{1} 1 photo|[2,*] :count photos', $property->photos->count(), ['count' => $property->photos->count()]) }}
+                            · {{ __('Hover any photo to set as cover or delete.') }}
+                        </div>
+                    </div>
+
+                    {{-- Upload form: triggers a hidden file picker, auto-submits on selection --}}
+                    <form method="POST"
+                          action="{{ route('tenant.properties.photos.store', ['property' => $property->public_id]) }}?tab=photos"
+                          enctype="multipart/form-data"
+                          style="margin:0;"
+                          x-data="{ uploading: false }"
+                          @submit="uploading = true">
+                        @csrf
+                        <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple
+                               x-ref="picker" style="display:none;"
+                               @change="$el.form.submit()">
+                        <button type="button" class="btn btn-primary btn-sm"
+                                @click="$refs.picker.click()"
+                                :disabled="uploading"
+                                style="display:inline-flex; align-items:center; gap:6px;">
+                            <x-icon name="plus" :size="13"/>
+                            <span x-show="!uploading">{{ __('Upload photos') }}</span>
+                            <span x-show="uploading" x-cloak>{{ __('Uploading…') }}</span>
+                        </button>
+                    </form>
                 </div>
+
+                @if ($property->photos->isEmpty())
+                    {{-- Empty state with click-to-upload --}}
+                    <button type="button"
+                            onclick="this.closest('.card').querySelector('input[type=file]').click()"
+                            style="width:100%; padding: 48px 24px; border: 2px dashed var(--line-2); background: var(--bg-elev); border-radius: var(--r-lg); cursor:pointer;
+                                   display:flex; flex-direction:column; align-items:center; gap: 10px; color: var(--ink-3);">
+                        <div style="font-size:36px; line-height:1;">📷</div>
+                        <div style="font-size:14px; font-weight:600; color: var(--ink-2);">{{ __('Drop your first photo') }}</div>
+                        <div style="font-size:11.5px;">{{ __('JPG, PNG or WebP — up to 8 MB each. Resized to 2400 px wide on save.') }}</div>
+                    </button>
+                @else
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px;">
+                        @foreach ($property->photos as $photo)
+                            <div style="position:relative; aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden; border: 1.5px solid {{ $photo->is_hero ? 'var(--primary)' : 'var(--line)' }}; group:hover; background: var(--bg-elev);">
+                                <img src="{{ $photo->url() }}" alt=""
+                                     style="width:100%; height:100%; object-fit:cover; display:block;"
+                                     loading="lazy">
+
+                                {{-- Hero badge (top-left) --}}
+                                @if ($photo->is_hero)
+                                    <div style="position:absolute; top:8px; left:8px; padding:3px 8px; background: var(--primary); color: var(--primary-ink); font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.3);">
+                                        ★ {{ __('Cover') }}
+                                    </div>
+                                @endif
+
+                                {{-- Action overlay (always visible bottom strip — clearer affordance than hover) --}}
+                                <div style="position:absolute; bottom:0; left:0; right:0; padding: 6px 8px; background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.65) 100%); display:flex; gap:4px; justify-content:flex-end; align-items:center;">
+                                    @unless ($photo->is_hero)
+                                        <form method="POST" action="{{ route('tenant.properties.photos.hero', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos" style="margin:0;">
+                                            @csrf
+                                            <button type="submit" title="{{ __('Set as cover') }}"
+                                                    style="width:26px; height:26px; border:0; background: rgba(255,255,255,0.9); color: var(--ink); border-radius: 4px; cursor:pointer; font-size: 13px; line-height:1; display:inline-flex; align-items:center; justify-content:center;">★</button>
+                                        </form>
+                                    @endunless
+                                    <form method="POST" action="{{ route('tenant.properties.photos.destroy', ['property' => $property->public_id, 'photo' => $photo->id]) }}?tab=photos"
+                                          onsubmit="return confirm('{{ addslashes(__('Delete this photo?')) }}');"
+                                          style="margin:0;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" title="{{ __('Delete') }}"
+                                                style="width:26px; height:26px; border:0; background: rgba(220,40,40,0.92); color: white; border-radius: 4px; cursor:pointer; font-size: 14px; line-height:1; display:inline-flex; align-items:center; justify-content:center;">×</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         @endif
 
