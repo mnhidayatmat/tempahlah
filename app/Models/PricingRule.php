@@ -12,10 +12,11 @@ class PricingRule extends Model
     use BelongsToTenant;
     use HasFactory;
 
-    public const TYPE_WEEKEND = 'weekend';
-    public const TYPE_HOLIDAY = 'holiday';
-    public const TYPE_SEASON = 'season';
-    public const TYPE_CUSTOM = 'custom';
+    public const TYPE_WEEKEND        = 'weekend';
+    public const TYPE_HOLIDAY        = 'holiday';
+    public const TYPE_SCHOOL_HOLIDAY = 'school_holiday';
+    public const TYPE_SEASON         = 'season';
+    public const TYPE_CUSTOM         = 'custom';
 
     public const ADJUSTMENT_PERCENT = 'percent';
     public const ADJUSTMENT_FLAT = 'flat';
