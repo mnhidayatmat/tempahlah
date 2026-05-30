@@ -73,6 +73,12 @@ class CreateTenantAndOwner
         'status', 'health', 'localhost', 'ftp', 'smtp', 'imap', 'pop',
     ];
 
+    /** Public accessor so other code (e.g. SettingsController validation) can reuse the same list. */
+    public static function reservedSlugs(): array
+    {
+        return self::RESERVED_SLUGS;
+    }
+
     protected function uniqueSlug(string $businessName): string
     {
         $base = Str::slug($businessName) ?: 'tenant';

@@ -111,9 +111,43 @@
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Owner') }}</label>
                         <input class="input" type="text" value="{{ $tenant->owner?->name ?? '—' }}" disabled style="opacity: .7;">
                     </div>
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Slug') }}</label>
-                        <input class="input" type="text" value="{{ $tenant->slug }}" disabled style="opacity: .7; font-family: var(--font-mono);">
+                    <div x-data="{
+                            slug: '{{ old('slug', $tenant->slug) }}',
+                            original: '{{ $tenant->slug }}',
+                            sanitize() {
+                                this.slug = this.slug
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9-]/g, '-')
+                                    .replace(/--+/g, '-')
+                                    .replace(/^-+|-+$/g, '');
+                            },
+                         }">
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Booking-page URL slug') }}</label>
+                        <input class="input" type="text" name="slug"
+                               x-model="slug"
+                               @input="sanitize()"
+                               style="font-family: var(--font-mono); text-transform: lowercase;"
+                               minlength="2" maxlength="60" required
+                               pattern="[a-z0-9]+(-[a-z0-9]+)*">
+                        @error('slug')
+                            <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
+                        @enderror
+
+                        {{-- Live URL preview --}}
+                        <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 5px; line-height: 1.4;">
+                            {{ __('Your booking page:') }}
+                            <span class="mono" style="color: var(--ink); background: var(--bg-sunk); padding: 1px 5px; border-radius: 3px;">
+                                <span x-text="slug || 'your-slug'"></span>.tempahlah.com
+                            </span>
+                        </div>
+
+                        {{-- Warning when changing --}}
+                        <div x-show="slug && slug !== original" x-cloak
+                             style="margin-top: 8px; padding: 7px 10px; background: var(--warn-tint); color: var(--warn); border-radius: 6px; font-size: 11px; line-height: 1.4;">
+                            ⚠️ {{ __('Saving will change your booking page URL. The old') }}
+                            <span class="mono" x-text="original + '.tempahlah.com'"></span>
+                            {{ __('will stop working — be sure to update any links you have shared with guests.') }}
+                        </div>
                     </div>
                 </div>
             </div>
