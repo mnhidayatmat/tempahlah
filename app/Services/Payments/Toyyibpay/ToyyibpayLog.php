@@ -30,7 +30,8 @@ class ToyyibpayLog
         ?int $httpStatus,
         bool $ok,
         ?string $error = null,
-    ): PaymentTransaction {
+    ): ?PaymentTransaction {
+        if ($tenantId <= 0) return null;
         return PaymentTransaction::create([
             'tenant_id' => $tenantId,
             'payment_id' => $payment?->id,
@@ -85,18 +86,25 @@ class ToyyibpayLog
             'processed_at' => $replay ? null : now(),
         ]);
 
-        $tx = PaymentTransaction::create([
-            'tenant_id' => $tenantId,
-            'payment_id' => $payment?->id,
-            'provider' => 'toyyibpay',
-            'event_type' => 'webhook.callback',
-            'external_id' => $externalId,
-            'signature_status' => $signatureStatus,
-            'payload' => $payload,
-            'flagged' => $signatureStatus !== 'verified' || $flagReason !== null,
-            'flag_reason' => $flagReason ?? ($signatureStatus !== 'verified' ? "signature {$signatureStatus}" : null),
-            'processed_at' => now(),
-        ]);
+        // payment_transactions.tenant_id has a NOT NULL FK to tenants. When
+        // we don't know the tenant (e.g. unknown payment, replay before
+        // resolution), skip the per-payment row — the global webhook_events
+        // entry above is enough for that case.
+        $tx = null;
+        if ($tenantId > 0) {
+            $tx = PaymentTransaction::create([
+                'tenant_id' => $tenantId,
+                'payment_id' => $payment?->id,
+                'provider' => 'toyyibpay',
+                'event_type' => 'webhook.callback',
+                'external_id' => $externalId,
+                'signature_status' => $signatureStatus,
+                'payload' => $payload,
+                'flagged' => $signatureStatus !== 'verified' || $flagReason !== null,
+                'flag_reason' => $flagReason ?? ($signatureStatus !== 'verified' ? "signature {$signatureStatus}" : null),
+                'processed_at' => now(),
+            ]);
+        }
 
         if ($signatureStatus !== 'verified') {
             Log::warning('Toyyibpay webhook signature not verified', [
