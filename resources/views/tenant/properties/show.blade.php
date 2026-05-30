@@ -669,6 +669,26 @@
                     border-radius: 50%;
                     animation: tl-spin 0.7s linear infinite;
                 }
+                /* Static layout of each photo tile.
+                   IMPORTANT: position:relative lives here, NOT in the
+                   inline style — Alpine's x-bind:style on the same element
+                   was clobbering it on the initial render, which made the
+                   tile's absolute children (★ Cover badge, category select)
+                   escape and anchor to the next positioned ancestor (the
+                   outer .card), so they piled up in the card's top-left
+                   and top-right corners over the Photos header. */
+                .tl-photo-tile {
+                    position: relative;
+                    aspect-ratio: 4 / 3;
+                    border-radius: var(--r-md);
+                    overflow: hidden;
+                    background: var(--bg-elev);
+                    border: 1.5px solid var(--line);
+                    transition: transform 160ms ease, box-shadow 160ms ease;
+                }
+                .tl-photo-tile.is-hero {
+                    border-color: var(--primary);
+                }
             </style>
 
             <div class="card"
@@ -770,14 +790,10 @@
                             @php
                                 $cat = $photo->category && isset($categories[$photo->category]) ? $categories[$photo->category] : null;
                             @endphp
-                            <div class="tl-photo-tile"
+                            <div class="tl-photo-tile {{ $photo->is_hero ? 'is-hero' : '' }}"
                                  x-data="{ hover: false, confirmDel: false }"
                                  @mouseenter="hover = true"
                                  @mouseleave="hover = false; confirmDel = false"
-                                 style="position:relative; aspect-ratio:4/3; border-radius: var(--r-md); overflow:hidden;
-                                        border: 1.5px solid {{ $photo->is_hero ? 'var(--primary)' : 'var(--line)' }};
-                                        background: var(--bg-elev);
-                                        transition: transform 160ms ease, box-shadow 160ms ease;"
                                  x-bind:style="hover ? 'transform: translateY(-2px); box-shadow: 0 8px 24px -6px rgba(15,25,40,0.18);' : ''">
                                 <img src="{{ $photo->url() }}" alt=""
                                      style="width:100%; height:100%; object-fit:cover; display:block;"
