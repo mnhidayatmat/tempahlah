@@ -25,44 +25,130 @@
             <x-icon name="arrow-left" :size="12"/> {{ __('All properties') }}
         </a>
 
-        {{-- Hero card --}}
-        <div class="card" style="padding:0; overflow:hidden;">
-            <div style="position:relative; height:180px; background: {{ $heroGradient }};">
+        {{-- ───────────────────────────── HERO ─────────────────────────────
+             Uses the real cover photo (is_hero) if uploaded, otherwise the
+             first photo, otherwise a generated gradient with a friendly
+             "add a cover photo" CTA. Photo count chip + Live/Draft status
+             pill live in the hero. Stats strip below sits on a cleaner
+             white panel inside the same card. --}}
+        @php
+            $cover = $property->photos->firstWhere('is_hero', true) ?? $property->photos->first();
+            $photoCount = $property->photos->count();
+            $isActive   = $property->status === 'active';
+            $statusLabel= match ($property->status) {
+                'active'   => __('Live'),
+                'archived' => __('Archived'),
+                default    => __('Draft'),
+            };
+            $tenantUrl  = $property->tenant?->publicUrl();
+        @endphp
+
+        <div class="card" style="padding:0; overflow:hidden; border: 1px solid var(--line);">
+            {{-- ===== Photo / gradient cover ===== --}}
+            <div style="position:relative; height: 320px;
+                        @if ($cover)
+                            background: #1a1f28 url('{{ $cover->url() }}') center/cover no-repeat;
+                        @else
+                            background: {{ $heroGradient }};
+                        @endif">
+
+                {{-- Readable dark scrim — denser at the bottom where text sits --}}
                 <div style="position:absolute; inset:0;
                             background:
-                              radial-gradient(circle at 20% 30%, rgba(255,255,255,0.18) 0%, transparent 40%),
-                              radial-gradient(circle at 80% 70%, rgba(0,0,0,0.20) 0%, transparent 45%),
-                              linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 100%);"></div>
-                <div style="position:absolute; left:20px; bottom:20px; color: white;">
-                    <div class="cm-eyebrow" style="color: rgba(255,255,255,.9); margin-bottom:4px;">
-                        <x-icon name="pin" :size="11" style="vertical-align:middle;"/> {{ $property->city ?? '—' }}{{ $property->state ? ', '.$property->state : '' }}
+                                linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 30%, rgba(0,0,0,0.70) 100%),
+                                linear-gradient(90deg, rgba(0,0,0,0.35) 0%, transparent 35%);"></div>
+
+                {{-- Top-right chips: status + photo count --}}
+                <div style="position:absolute; top:16px; right:16px; display:flex; gap:8px;">
+                    <span style="display:inline-flex; align-items:center; gap:6px;
+                                 padding: 5px 11px;
+                                 background: rgba(255,255,255,0.95);
+                                 color: var(--ink);
+                                 border-radius: var(--r-pill);
+                                 font-size: 11px; font-weight: 700;
+                                 letter-spacing: .04em;
+                                 box-shadow: 0 2px 8px rgba(0,0,0,0.18);">
+                        <span style="width:7px; height:7px; border-radius:50%;
+                                     background: {{ $isActive ? '#3f8b6a' : 'var(--ink-3)' }};
+                                     {{ $isActive ? 'box-shadow: 0 0 0 3px rgba(63,139,106,0.25);' : '' }}"></span>
+                        {{ $statusLabel }}
+                    </span>
+
+                    <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => 'photos']) }}"
+                       style="display:inline-flex; align-items:center; gap:6px;
+                              padding: 5px 11px;
+                              background: rgba(255,255,255,0.95);
+                              color: var(--ink);
+                              border-radius: var(--r-pill);
+                              font-size: 11px; font-weight: 700;
+                              text-decoration: none;
+                              box-shadow: 0 2px 8px rgba(0,0,0,0.18);">
+                        📷 {{ trans_choice('{0} Add photos|{1} 1 photo|[2,*] :count photos', $photoCount, ['count' => $photoCount]) }}
+                    </a>
+                </div>
+
+                {{-- Bottom-left: location + name --}}
+                <div style="position:absolute; left:24px; right:24px; bottom:24px; color:white;">
+                    <div style="display:inline-flex; align-items:center; gap:6px;
+                                padding: 4px 11px;
+                                background: rgba(255,255,255,0.18);
+                                backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+                                border-radius: var(--r-pill);
+                                font-size: 11px; font-weight: 600;
+                                letter-spacing: .03em;
+                                margin-bottom: 12px;">
+                        <x-icon name="pin" :size="11"/>
+                        {{ $property->city ?: __('—') }}{{ $property->state ? ', '.$property->state : '' }}
                     </div>
-                    <div style="font-family: var(--font-display); font-size:32px; line-height:1.05; color:white;
-                                text-shadow: 0 1px 8px rgba(0,0,0,.3); font-weight:600;">
+                    <h1 style="margin:0; font-family: var(--font-display); font-size: 36px; line-height: 1.05;
+                               font-weight: 700; color: white; letter-spacing: -0.01em;
+                               text-shadow: 0 2px 16px rgba(0,0,0,0.4);">
                         {{ $property->name }}
+                    </h1>
+                    <div style="margin-top: 10px; display:flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: rgba(255,255,255,0.92);">
+                        <span>🛏️ {{ trans_choice('{0} no rooms|{1} 1 room|[2,*] :count rooms', $property->rooms->count(), ['count' => $property->rooms->count()]) }}</span>
+                        @if (($property->bathrooms ?? 0) > 0)
+                            <span>🚿 {{ trans_choice('{1} 1 bathroom|[2,*] :count bathrooms', $property->bathrooms, ['count' => $property->bathrooms]) }}</span>
+                        @endif
+                        @if (($property->toilets ?? 0) > 0)
+                            <span>🚽 {{ trans_choice('{1} 1 toilet|[2,*] :count toilets', $property->toilets, ['count' => $property->toilets]) }}</span>
+                        @endif
                     </div>
                 </div>
+
+                {{-- "Add cover photo" CTA when there's no photo at all --}}
+                @if (! $cover)
+                    <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => 'photos']) }}"
+                       style="position:absolute; top:50%; left:50%; transform: translate(-50%, -50%);
+                              padding: 10px 18px; border-radius: var(--r-pill);
+                              background: rgba(255,255,255,0.95); color: var(--ink);
+                              font-size: 13px; font-weight: 700; text-decoration: none;
+                              display:inline-flex; align-items:center; gap:8px;
+                              box-shadow: 0 6px 24px rgba(0,0,0,0.3);">
+                        📷 {{ __('Add a cover photo') }}
+                    </a>
+                @endif
             </div>
 
-            <div style="padding:14px 20px; display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
-                <div>
-                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Rooms') }}</div>
-                    <div class="mono" style="font-size:14px; font-weight:600;">{{ $property->rooms->count() }}</div>
-                </div>
+            {{-- ===== Stats + actions strip ===== --}}
+            <div style="padding: 14px 20px; display:flex; gap: 28px; align-items:center; flex-wrap: wrap; border-top: 1px solid var(--line);">
                 <div>
                     <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('From / night') }}</div>
-                    <div class="mono" style="font-size:14px; font-weight:600;">RM {{ number_format($startingRate, 0) }}</div>
+                    <div class="mono" style="font-size:15px; font-weight:700;">RM {{ number_format($startingRate, 0) }}</div>
                 </div>
+                <div style="width:1px; height:32px; background: var(--line);"></div>
                 <div>
                     <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Occupancy · 30d') }}</div>
-                    <div class="mono" style="font-size:14px; font-weight:600;">{{ $occupancy }}%</div>
+                    <div class="mono" style="font-size:15px; font-weight:700;">{{ $occupancy }}%</div>
                 </div>
+                <div style="width:1px; height:32px; background: var(--line);"></div>
                 <div>
                     <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Rating') }}</div>
-                    <div class="mono" style="font-size:14px; font-weight:600;">{{ $rating }} ★</div>
+                    <div class="mono" style="font-size:15px; font-weight:700;">{{ $rating }} ★</div>
                 </div>
+
                 <div style="flex:1;"></div>
-                @php $tenantUrl = $property->tenant?->publicUrl(); @endphp
+
                 @if($tenantUrl)
                     <a href="{{ $tenantUrl }}" target="_blank" rel="noopener" class="btn btn-sm" title="{{ $tenantUrl }}">
                         <x-icon name="link" :size="12"/> {{ __('Public booking link') }}
@@ -72,7 +158,7 @@
                     <x-icon name="calendar" :size="12"/> {{ __('Calendar') }}
                 </a>
                 <a href="{{ route('tenant.properties.edit', ['property' => $property->public_id]) }}" class="btn btn-sm btn-primary">
-                    <x-icon name="plus" :size="12"/> {{ __('New room') }}
+                    <x-icon name="cog" :size="12"/> {{ __('Edit property') }}
                 </a>
             </div>
         </div>
