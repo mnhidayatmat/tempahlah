@@ -152,6 +152,34 @@ class PropertyController extends Controller
         ]);
     }
 
+    /**
+     * Inline-edit just the stay policies (check-in/out times + house rules
+     * + cancellation policy) from the property show page's Policies tab.
+     * Skinnier than update() so it doesn't require re-submitting unrelated
+     * fields like address/amenities.
+     */
+    public function updatePolicies(Request $request, Property $property)
+    {
+        $validated = $request->validate([
+            'check_in_time'       => 'required|date_format:H:i',
+            'check_out_time'      => 'required|date_format:H:i',
+            'house_rules'         => 'nullable|string|max:1000',
+            'cancellation_policy' => 'nullable|string|max:1000',
+        ]);
+
+        // cancellation_policy is NOT NULL on the table.
+        if (array_key_exists('cancellation_policy', $validated)
+            && $validated['cancellation_policy'] === null) {
+            $validated['cancellation_policy'] = 'flexible';
+        }
+
+        $property->fill($validated)->save();
+
+        return redirect()
+            ->route('tenant.properties.show', ['id' => $property->id, 'tab' => 'policies'])
+            ->with('status', __('Stay policies updated.'));
+    }
+
     public function update(Request $request, Property $property)
     {
         $validated = $request->validate([

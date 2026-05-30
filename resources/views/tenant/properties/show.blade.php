@@ -596,33 +596,67 @@
             </div>
 
         @elseif ($tab === 'policies')
-            <div class="card" style="padding:20px; display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            @if (session('status'))
+                <div class="hauz-card" style="padding: 10px 14px; margin-bottom: 14px;
+                            border-color: var(--ok); background: var(--ok-tint); color: var(--ok); font-size: 13px;">
+                    {{ session('status') }}
+                </div>
+            @endif
+
+            <form method="POST"
+                  action="{{ route('tenant.properties.policies.update', $property->public_id) }}"
+                  class="card" style="padding:20px; display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                @csrf
+                @method('PATCH')
+
                 <div>
                     <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('Check-in') }}</div>
                     <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:6px;">{{ __('Earliest time guests may arrive') }}</div>
-                    <input class="input" type="time" value="{{ $property->check_in_time ?? '15:00' }}" disabled/>
+                    <input class="input" type="time" name="check_in_time"
+                           value="{{ old('check_in_time', \Illuminate\Support\Str::of((string) $property->check_in_time)->limit(5, '')) }}" required/>
+                    @error('check_in_time')
+                        <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div>
                     <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('Check-out') }}</div>
                     <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:6px;">{{ __('Latest time guests must leave') }}</div>
-                    <input class="input" type="time" value="{{ $property->check_out_time ?? '11:00' }}" disabled/>
+                    <input class="input" type="time" name="check_out_time"
+                           value="{{ old('check_out_time', \Illuminate\Support\Str::of((string) $property->check_out_time)->limit(5, '')) }}" required/>
+                    @error('check_out_time')
+                        <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
+                    @enderror
                 </div>
-                <div>
-                    <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('Min. nights') }}</div>
-                    <input class="input" value="{{ $property->min_nights ?? 1 }}" disabled/>
-                </div>
-                <div>
-                    <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('Deposit %') }}</div>
-                    <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:6px;">{{ __('Non-refundable to confirm booking') }}</div>
-                    <input class="input" value="{{ $property->deposit_percent ?? 50 }}" disabled/>
-                </div>
+
                 <div style="grid-column: 1 / -1;">
-                    <div style="font-size:12px; font-weight:600; margin-bottom:6px;">{{ __('Cancellation policy') }}</div>
-                    <textarea class="input" rows="3" style="height:auto; padding:10px;" disabled>{{ $property->cancellation_policy ?? __('Free cancellation up to 7 days before check-in. After that, deposit is non-refundable.') }}</textarea>
+                    <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('House rules') }}</div>
+                    <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:6px;">{{ __('Shown to guests on the booking page.') }}</div>
+                    <textarea class="input" name="house_rules" rows="3" maxlength="1000"
+                              style="height:auto; padding:10px; font-family: inherit;"
+                              placeholder="{{ __('No smoking · Quiet hours 11pm–7am · Respect local customs · Halal-only kitchen') }}">{{ old('house_rules', is_string($property->house_rules) ? $property->house_rules : '') }}</textarea>
+                    @error('house_rules')
+                        <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
+                    @enderror
                 </div>
-                <div style="grid-column: 1 / -1; font-size:11.5px; color: var(--ink-3); margin-top:-6px;">
-                    {{ __('Read-only here — edit on the property edit page.') }}
+
+                <div style="grid-column: 1 / -1;">
+                    <div style="font-size:12px; font-weight:600; margin-bottom:2px;">{{ __('Cancellation policy') }}</div>
+                    <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:6px;">{{ __('Refund rules when a guest cancels.') }}</div>
+                    <textarea class="input" name="cancellation_policy" rows="3" maxlength="1000"
+                              style="height:auto; padding:10px; font-family: inherit;"
+                              placeholder="{{ __('Free cancellation up to 7 days before check-in. 50% refund within 7 days. Non-refundable within 48h.') }}">{{ old('cancellation_policy', $property->cancellation_policy === 'flexible' ? '' : $property->cancellation_policy) }}</textarea>
+                    @error('cancellation_policy')
+                        <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
+                    @enderror
                 </div>
+
+                <div style="grid-column: 1 / -1; display:flex; justify-content: flex-end; gap: 8px;">
+                    <button type="submit" class="btn btn-primary">{{ __('Save policies') }}</button>
+                </div>
+            </form>
+
+            <div style="margin-top: 12px; padding: 12px 14px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 11.5px; color: var(--ink-3);">
+                {{ __('Coming soon: minimum nights and deposit percentage per property.') }}
             </div>
 
         @elseif ($tab === 'photos')
