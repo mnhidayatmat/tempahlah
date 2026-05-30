@@ -76,12 +76,38 @@ class SendWhatsappMessage implements ShouldQueue
             return;
         }
 
-        if (! $guard->allows($tenant, $msg->recipient_phone)) {
-            $msg->update([
-                'status' => WhatsappMessage::STATUS_BLOCKED,
-                'error' => 'recipient guard: '.$guard->reason(),
-            ]);
-            return;
+        // Recipient guard runs on every NON-test message. KIND_TEST is exempt
+        // so the tenant can verify their integration on their own phone before
+        // the first guest booking exists. To prevent abuse, cap test sends at
+        // 10 per session per UTC day — that's plenty for legitimate testing
+        // without enabling cold-spam through the test endpoint.
+        if ($msg->kind !== WhatsappMessage::KIND_TEST) {
+            if (! $guard->allows($tenant, $msg->recipient_phone)) {
+                $msg->update([
+                    'status' => WhatsappMessage::STATUS_BLOCKED,
+                    'error' => 'recipient guard: '.$guard->reason(),
+                ]);
+                return;
+            }
+        } else {
+            $todayTestCount = WhatsappMessage::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('kind', WhatsappMessage::KIND_TEST)
+                ->whereIn('status', [
+                    WhatsappMessage::STATUS_SENT,
+                    WhatsappMessage::STATUS_DELIVERED,
+                    WhatsappMessage::STATUS_READ,
+                    WhatsappMessage::STATUS_SENDING,
+                ])
+                ->whereDate('created_at', now()->toDateString())
+                ->count();
+            if ($todayTestCount >= 10) {
+                $msg->update([
+                    'status' => WhatsappMessage::STATUS_BLOCKED,
+                    'error' => 'test cap reached (10/day) — use a real booking to verify further',
+                ]);
+                return;
+            }
         }
 
         $normalized = PhoneNumber::normalize($msg->recipient_phone);
