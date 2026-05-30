@@ -20,13 +20,26 @@
                     <div class="kicker">{{ $booking->reference }}</div>
                     <h2 class="display-2" style="margin: 4px 0 0;">{{ $booking->guest?->name ?? __('Guest') }}</h2>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
+                @php
+                    $waConnected = (bool) optional(optional($booking->tenant ?? null)->whatsappSession)->isConnected();
+                @endphp
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
                     <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
+
+                    @if ($waConnected && $booking->guest?->phone)
+                        <form method="POST" action="{{ route('tenant.bookings.whatsapp', $booking->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="hidden" name="kind" value="{{ $isPaid ? 'checkin' : 'confirmation' }}">
+                            <button type="submit" class="btn btn-sm" title="{{ __('Send via WhatsApp') }}">
+                                {{ __('Send via WhatsApp') }}
+                            </button>
+                        </form>
+                    @endif
 
                     @if (! $isPaid)
                         <form method="POST" action="{{ route('tenant.bookings.send-reminder', $booking->id) }}" style="display:inline;">
                             @csrf
-                            <button type="submit" class="btn btn-sm" {{ $booking->guest?->email ? '' : 'disabled title="No email on file"' }}>
+                            <button type="submit" class="btn btn-sm" {{ ($booking->guest?->email || $booking->guest?->phone) ? '' : 'disabled title="No email or phone on file"' }}>
                                 {{ __('Send reminder') }}
                             </button>
                         </form>

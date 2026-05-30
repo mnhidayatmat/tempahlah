@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendBookingConfirmation;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
@@ -98,10 +99,15 @@ class ToyyibpayWebhookController extends Controller
         }
 
         if (in_array($payment->type, [Payment::TYPE_DEPOSIT, Payment::TYPE_FULL])) {
+            $wasPending = $booking->status === Booking::STATUS_PENDING;
             $booking->update([
                 'deposit_paid_at' => now(),
                 'status' => Booking::STATUS_CONFIRMED,
             ]);
+
+            if ($wasPending) {
+                SendBookingConfirmation::dispatch($booking->id);
+            }
         }
 
         if ($payment->type === Payment::TYPE_BALANCE) {

@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Actions\Booking\CreateBooking;
 use App\Http\Controllers\Controller;
-use App\Mail\PaymentReminderMail;
+use App\Jobs\SendBookingConfirmation;
+use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Room;
+use App\Services\WhatsApp\WhatsappMessenger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -143,13 +144,20 @@ class BookingController extends Controller
         ]);
 
         $update = ['balance_paid_at' => $now];
+        $wasPending = $booking->status === Booking::STATUS_PENDING;
         if (! $booking->deposit_paid_at) {
             $update['deposit_paid_at'] = $now;
         }
-        if ($booking->status === Booking::STATUS_PENDING) {
+        if ($wasPending) {
             $update['status'] = Booking::STATUS_CONFIRMED;
         }
         $booking->update($update);
+
+        // First time we've recognized this booking as confirmed → fire the
+        // confirmation comms (email + WhatsApp).
+        if ($wasPending) {
+            SendBookingConfirmation::dispatch($booking->id);
+        }
 
         return back()->with('status', __('Booking marked as paid (RM :amount recorded).', [
             'amount' => number_format($remaining, 2),
@@ -158,22 +166,45 @@ class BookingController extends Controller
 
     public function sendReminder(Request $request, $id)
     {
-        $booking = Booking::with(['guest:id,name,email', 'property:id,name'])->findOrFail($id);
+        $booking = Booking::with(['guest:id,name,email,phone', 'property:id,name'])->findOrFail($id);
 
-        if (! $booking->guest?->email) {
-            return back()->with('status', __('No guest email on file — cannot send reminder.'));
+        if (! $booking->guest?->email && ! $booking->guest?->phone) {
+            return back()->with('status', __('No guest email or phone on file — cannot send reminder.'));
         }
 
-        try {
-            Mail::to($booking->guest->email)->queue(new PaymentReminderMail($booking));
-            $booking->update(['full_payment_reminder_at' => now()]);
-            return back()->with('status', __('Payment reminder queued for :email.', [
-                'email' => $booking->guest->email,
-            ]));
-        } catch (\Throwable $e) {
-            return back()->with('status', __('Reminder queued — will send when mail driver is configured. (:error)', [
-                'error' => Str::limit($e->getMessage(), 80),
-            ]));
+        SendPaymentReminder::dispatch($booking->id);
+        $booking->update(['full_payment_reminder_at' => now()]);
+
+        return back()->with('status', __('Payment reminder queued (email + WhatsApp where available).'));
+    }
+
+    /**
+     * Manual "Send via WhatsApp" — dispatches a booking confirmation message
+     * via the tenant's connected WhatsApp session. Routed by /bookings/{id}/whatsapp.
+     */
+    public function sendWhatsapp(Request $request, $id)
+    {
+        $booking = Booking::with(['guest:id,name,phone', 'property:id,name', 'tenant'])->findOrFail($id);
+
+        if (! $booking->tenant?->whatsappSession?->isConnected()) {
+            return back()->with('status', __('Connect WhatsApp first under Integrations → WhatsApp.'));
         }
+
+        if (! $booking->guest?->phone) {
+            return back()->with('status', __('No guest phone on file — cannot send.'));
+        }
+
+        $kind = $request->input('kind', 'confirmation');
+        $msg = match ($kind) {
+            'reminder' => WhatsappMessenger::dispatchReminder($booking),
+            'checkin'  => WhatsappMessenger::dispatchCheckin($booking),
+            default    => WhatsappMessenger::dispatchConfirmation($booking),
+        };
+
+        if (! $msg) {
+            return back()->with('status', __('Message could not be queued (auto-send may be off, or the recipient is not a booked guest).'));
+        }
+
+        return back()->with('status', __('WhatsApp :kind queued.', ['kind' => $kind]));
     }
 }

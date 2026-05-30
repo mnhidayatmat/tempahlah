@@ -172,6 +172,56 @@
         </div>
     @endif
 
+    {{-- ── AUTO-SEND PREFERENCES ────────────────────────────────────── --}}
+    @if ($isConnected)
+        <div class="hauz-card" style="padding: 20px 22px; margin-top: 20px;">
+            <div class="kicker" style="margin-bottom: 4px;">{{ __('Auto-send rules') }}</div>
+            <h4 class="display-3" style="margin: 0 0 14px; font-size: 18px;">
+                {{ __('When should the system message guests automatically?') }}
+            </h4>
+
+            <div style="display:flex; flex-direction:column; gap: 12px;">
+                <label style="display:flex; align-items:center; gap: 10px; cursor: pointer; font-size: 13.5px;">
+                    <input type="checkbox" wire:model.live="autoConfirmation">
+                    <span style="flex:1;">{{ __('Booking confirmation — when deposit is paid') }}</span>
+                </label>
+
+                <label style="display:flex; align-items:center; gap: 10px; cursor: pointer; font-size: 13.5px;">
+                    <input type="checkbox" wire:model.live="autoReminder">
+                    <span style="flex:1;">
+                        {{ __('Payment reminder —') }}
+                        <input type="number" min="0" max="30"
+                               class="input"
+                               style="display:inline-block; width: 56px; padding: 2px 6px; font-size: 13px;"
+                               wire:model.live="reminderDaysBefore"
+                               @disabled(! $autoReminder)>
+                        {{ __('days before check-in') }}
+                    </span>
+                </label>
+
+                <label style="display:flex; align-items:center; gap: 10px; cursor: pointer; font-size: 13.5px;">
+                    <input type="checkbox" wire:model.live="autoCheckin">
+                    <span style="flex:1;">
+                        {{ __('Check-in instructions —') }}
+                        <input type="number" min="1" max="168"
+                               class="input"
+                               style="display:inline-block; width: 56px; padding: 2px 6px; font-size: 13px;"
+                               wire:model.live="checkinHoursBefore"
+                               @disabled(! $autoCheckin)>
+                        {{ __('hours before check-in') }}
+                    </span>
+                </label>
+            </div>
+
+            @error('reminderDaysBefore') <div style="font-size: 11.5px; color: var(--err); margin-top: 6px;">{{ $message }}</div> @enderror
+            @error('checkinHoursBefore') <div style="font-size: 11.5px; color: var(--err); margin-top: 6px;">{{ $message }}</div> @enderror
+
+            <div style="text-align: right; margin-top: 14px;">
+                <button class="btn btn-primary btn-sm" wire:click="savePrefs">{{ __('Save settings') }}</button>
+            </div>
+        </div>
+    @endif
+
     {{-- ── RECENT SENDS ─────────────────────────────────────────────── --}}
     @if ($this->recentMessages->isNotEmpty())
         <div class="hauz-card" style="padding: 18px 22px; margin-top: 20px;">

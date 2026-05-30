@@ -27,9 +27,27 @@ class WhatsappConnect extends Component
     public ?string $flash = null;
     public ?string $flashKind = null; // 'ok' | 'err'
 
+    // Auto-send preferences.
+    public bool $autoConfirmation = true;
+    public bool $autoReminder = true;
+    public bool $autoCheckin = true;
+    public int $reminderDaysBefore = 3;
+    public int $checkinHoursBefore = 24;
+
     public function mount(): void
     {
         $this->tenantId = app(TenantContext::class)->current()?->id;
+        $this->loadPrefsFromSession();
+    }
+
+    protected function loadPrefsFromSession(): void
+    {
+        $s = $this->session();
+        $this->autoConfirmation   = (bool) $s->pref('auto_confirmation');
+        $this->autoReminder       = (bool) $s->pref('auto_reminder');
+        $this->autoCheckin        = (bool) $s->pref('auto_checkin');
+        $this->reminderDaysBefore = (int)  $s->pref('reminder_days_before');
+        $this->checkinHoursBefore = (int)  $s->pref('checkin_hours_before');
     }
 
     #[Computed]
@@ -118,6 +136,25 @@ class WhatsappConnect extends Component
     public function refresh(): void
     {
         // No-op: the polling rerender will pick up new state from the DB.
+    }
+
+    public function savePrefs(): void
+    {
+        $this->validate([
+            'reminderDaysBefore' => 'required|integer|min:0|max:30',
+            'checkinHoursBefore' => 'required|integer|min:1|max:168',
+        ]);
+
+        $session = $this->session();
+        $prefs = $session->prefs ?? [];
+        $prefs['auto_confirmation']    = $this->autoConfirmation;
+        $prefs['auto_reminder']        = $this->autoReminder;
+        $prefs['auto_checkin']         = $this->autoCheckin;
+        $prefs['reminder_days_before'] = $this->reminderDaysBefore;
+        $prefs['checkin_hours_before'] = $this->checkinHoursBefore;
+        $session->update(['prefs' => $prefs]);
+
+        $this->flashOk(__('Auto-send settings saved.'));
     }
 
     public function render()
