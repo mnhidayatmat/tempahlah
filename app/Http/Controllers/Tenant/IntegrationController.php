@@ -26,6 +26,14 @@ class IntegrationController extends Controller
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
 
+        // WhatsApp uses a QR-scan Baileys session, not a credential form.
+        if ($provider === 'whatsapp') {
+            return view('tenant.integrations.whatsapp', [
+                'provider' => $provider,
+                'meta' => $this->providerMeta($provider),
+            ]);
+        }
+
         $tenant = app(TenantContext::class)->current();
         $record = TenantIntegration::firstOrNew([
             'provider' => $provider,
@@ -107,14 +115,10 @@ class IntegrationController extends Controller
                 ],
             ],
             'whatsapp' => [
-                'name' => 'WhatsApp Business',
-                'description' => 'Auto-send deposit links and reminders.',
+                'name' => 'WhatsApp',
+                'description' => 'Scan a QR code with your phone to connect a WhatsApp account. Auto-send booking confirmations, reminders and check-in instructions.',
                 'pro' => true,
-                'fields' => [
-                    'phone_number_id' => ['label' => 'Phone number ID', 'type' => 'text'],
-                    'access_token' => ['label' => 'Access token', 'type' => 'password'],
-                    'business_account_id' => ['label' => 'Business account ID', 'type' => 'text'],
-                ],
+                'fields' => [],
             ],
             'ses' => [
                 'name' => 'Amazon SES',

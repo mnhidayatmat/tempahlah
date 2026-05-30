@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\PropertyController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RoomController;
+use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Webhooks\ToyyibpayWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -57,3 +58,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 Route::post('/webhooks/toyyibpay', [ToyyibpayWebhookController::class, 'handle'])
     ->middleware('throttle:webhook-toyyibpay')
     ->name('webhooks.toyyibpay');
+
+// Sidecar callbacks — HMAC-signed, loopback only in practice (but signed anyway).
+Route::post('/wa/webhook', WhatsappWebhookController::class)
+    ->middleware('wa.webhook')
+    ->name('webhooks.whatsapp');

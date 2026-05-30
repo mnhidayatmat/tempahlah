@@ -1,0 +1,24 @@
+{
+  "name": "tempahlah-wa-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tempahlah WhatsApp sidecar — Baileys-based, multi-tenant. Talks HTTP+JSON with the Laravel app over loopback. NOT to be exposed publicly.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.18",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  }
+}

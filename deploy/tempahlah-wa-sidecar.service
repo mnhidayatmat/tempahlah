@@ -1,0 +1,38 @@
+[Unit]
+Description=Tempahlah WhatsApp sidecar (Baileys)
+Documentation=https://github.com/mnhidayatmat/tempahlah/tree/main/wa-sidecar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/tempahlah_com/wa-sidecar
+EnvironmentFile=/var/www/tempahlah_com/wa-sidecar/.env
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=3s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tempahlah-wa-sidecar
+
+# Persistent session data dir.
+StateDirectory=tempahlah-wa-sessions
+StateDirectoryMode=0750
+
+# Hardening — sidecar only needs network + the StateDir + the working dir.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tempahlah-wa-sessions /var/www/tempahlah_com/wa-sidecar
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

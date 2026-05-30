@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\WhatsApp\RecipientGuard;
+use App\Services\WhatsApp\Sidecar\SidecarClient;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -13,6 +15,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantContext::class);
+
+        $this->app->singleton(SidecarClient::class, fn () => SidecarClient::fromConfig());
+        $this->app->singleton(RecipientGuard::class, fn () => new RecipientGuard());
     }
 
     public function boot(): void

@@ -4,6 +4,7 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\Tenancy\RequireTenant;
 use App\Http\Middleware\Tenancy\ResolveTenantFromSubdomain;
 use App\Http\Middleware\Tenancy\SetTenantContext;
+use App\Http\Middleware\VerifyWhatsappWebhook;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.context' => SetTenantContext::class,
             'tenant.require' => RequireTenant::class,
             'tenant.subdomain' => ResolveTenantFromSubdomain::class,
+            'wa.webhook' => VerifyWhatsappWebhook::class,
         ]);
 
         $middleware->web(append: [
