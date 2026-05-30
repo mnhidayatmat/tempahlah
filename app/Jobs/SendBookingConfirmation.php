@@ -13,11 +13,13 @@ class SendBookingConfirmation implements ShouldQueue
 {
     use Queueable;
 
-    // Untyped — Laravel 12's Queueable trait declares $queue without a type
-    // and refuses incompatible composition (PHP fatal at class load).
-    public $queue = 'email';
-
-    public function __construct(public int $bookingId, public ?string $invoiceUrl = null) {}
+    public function __construct(public int $bookingId, public ?string $invoiceUrl = null)
+    {
+        // Illuminate\Bus\Queueable::$queue is declared without a default —
+        // any "public $queue = ..." in subclass is a fatal trait conflict.
+        // Set the queue at construct time instead.
+        $this->onQueue('email');
+    }
 
     public function handle(): void
     {

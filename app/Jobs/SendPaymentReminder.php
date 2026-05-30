@@ -13,9 +13,10 @@ class SendPaymentReminder implements ShouldQueue
 {
     use Queueable;
 
-    public $queue = 'email';
-
-    public function __construct(public int $bookingId, public ?string $paymentUrl = null) {}
+    public function __construct(public int $bookingId, public ?string $paymentUrl = null)
+    {
+        $this->onQueue('email');
+    }
 
     public function handle(): void
     {

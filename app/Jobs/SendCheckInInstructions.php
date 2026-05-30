@@ -17,9 +17,10 @@ class SendCheckInInstructions implements ShouldQueue
 {
     use Queueable;
 
-    public $queue = 'email';
-
-    public function __construct(public int $bookingId) {}
+    public function __construct(public int $bookingId)
+    {
+        $this->onQueue('email');
+    }
 
     public function handle(): void
     {
