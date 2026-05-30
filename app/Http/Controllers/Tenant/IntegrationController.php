@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\TenantIntegration;
+use App\Models\WhatsappSession;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,19 @@ class IntegrationController extends Controller
     {
         $tenant = app(TenantContext::class)->current();
         $records = TenantIntegration::query()->get()->keyBy('provider');
+
+        // WhatsApp doesn't use the tenant_integrations table — it has its own
+        // whatsapp_sessions row (Baileys QR-scan flow). Synthesize a record-
+        // shaped object so the index view's `$rec->enabled` / `$rec->connected_at`
+        // checks light up the "Connected" pill when the session is live.
+        $waSession = WhatsappSession::query()->where('tenant_id', $tenant?->id)->first();
+        if ($waSession && $waSession->isConnected()) {
+            $records['whatsapp'] = new TenantIntegration([
+                'provider'     => 'whatsapp',
+                'enabled'      => true,
+                'connected_at' => $waSession->connected_at ?? $waSession->updated_at,
+            ]);
+        }
 
         return view('tenant.integrations.index', [
             'tenant' => $tenant,
