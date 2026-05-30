@@ -11,10 +11,12 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleAndPermissionSeeder::class,
+            AmenitySeeder::class,
+            TenantSeeder::class,
         ]);
 
         SuperAdmin::firstOrCreate(
-            ['email' => 'admin@homestaymy.com'],
+            ['email' => 'admin@tempahlah.com'],
             [
                 'name' => 'Platform Admin',
                 'password' => 'ChangeMe123!',

@@ -12,17 +12,7 @@
             ['key' => 'photos',     'label' => __('Photos'),     'icon' => 'building'],
         ];
 
-        $facilities = [
-            ['key' => 'wifi',    'label' => __('Wi-Fi'),         'icon' => 'sparkle'],
-            ['key' => 'ac',      'label' => __('Air conditioning'), 'icon' => 'sparkle'],
-            ['key' => 'parking', 'label' => __('Parking'),       'icon' => 'building'],
-            ['key' => 'kitchen', 'label' => __('Kitchen'),       'icon' => 'sparkle'],
-            ['key' => 'bbq',     'label' => __('BBQ pit'),       'icon' => 'sparkle'],
-            ['key' => 'halal',   'label' => __('Halal certified'),'icon' => 'check'],
-            ['key' => 'pool',    'label' => __('Pool'),          'icon' => 'sparkle'],
-            ['key' => 'surau',   'label' => __('Surau / prayer'),'icon' => 'sparkle'],
-        ];
-        $enabledFacilities = ['wifi', 'ac', 'parking', 'kitchen', 'halal'];
+        $bm = app()->getLocale() === 'ms';
     @endphp
 
     <div style="display:flex; flex-direction:column; gap:16px;">
@@ -172,24 +162,63 @@
 
         @elseif ($tab === 'facilities')
             <div class="card" style="padding:20px;">
-                <div style="font-size:13px; font-weight:600; margin-bottom:4px;">{{ __('What this homestay offers') }}</div>
-                <div style="font-size:11.5px; color: var(--ink-3); margin-bottom:16px;">{{ __('Guests see these on your public booking page.') }}</div>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
-                    @foreach ($facilities as $f)
-                        @php $on = in_array($f['key'], $enabledFacilities, true); @endphp
-                        <div style="padding: 12px 14px;
-                                    border: .5px solid {{ $on ? 'var(--primary)' : 'var(--line-2)' }};
-                                    background: {{ $on ? 'var(--primary-tint)' : 'var(--bg-elev)' }};
-                                    color: {{ $on ? 'var(--primary)' : 'var(--ink-2)' }};
-                                    border-radius: var(--r-md);
-                                    display:flex; align-items:center; gap:10px;
-                                    font-size:12.5px; font-weight: {{ $on ? '600' : '500' }};">
-                            <x-icon :name="$f['icon']" :size="16"/>
-                            <span style="flex:1;">{{ $f['label'] }}</span>
-                            @if ($on)<x-icon name="check" :size="13"/>@endif
-                        </div>
-                    @endforeach
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; gap:12px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:600;">{{ __('What this homestay offers') }}</div>
+                        <div style="font-size:11.5px; color: var(--ink-3); margin-top:2px;">{{ __('Guests see these on your public booking page.') }}</div>
+                    </div>
+                    <a href="{{ route('tenant.properties.edit', ['property' => $property->public_id]) }}" class="btn btn-sm">{{ __('Edit facilities') }}</a>
                 </div>
+
+                {{-- Bathroom + toilet counts --}}
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:18px;">
+                    <div style="padding: 12px 14px; background: var(--bg-elev); border-radius: var(--r-md); border: 1px solid var(--line);">
+                        <div style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:3px;">🚿 {{ __('Bathrooms') }}</div>
+                        <div style="font-size:20px; font-weight:700; color: var(--ink); font-family: var(--font-mono);">{{ $property->bathrooms ?? 0 }}</div>
+                    </div>
+                    <div style="padding: 12px 14px; background: var(--bg-elev); border-radius: var(--r-md); border: 1px solid var(--line);">
+                        <div style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:3px;">🚽 {{ __('Separate toilets') }}</div>
+                        <div style="font-size:20px; font-weight:700; color: var(--ink); font-family: var(--font-mono);">{{ $property->toilets ?? 0 }}</div>
+                    </div>
+                </div>
+
+                {{-- Amenities grouped by category --}}
+                @php
+                    $selectedIds = $property->amenities->pluck('id')->all();
+                @endphp
+                @if (empty($selectedIds))
+                    <div style="padding: 20px; text-align:center; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); color: var(--ink-3); font-size: 13px;">
+                        {{ __('No facilities listed yet.') }}
+                        <a href="{{ route('tenant.properties.edit', ['property' => $property->public_id]) }}" style="color: var(--primary); font-weight:600;">{{ __('Add facilities →') }}</a>
+                    </div>
+                @else
+                    <div style="display:flex; flex-direction:column; gap:18px;">
+                        @foreach ($amenityGroups as $catKey => $group)
+                            @php $groupItems = $group['items']->filter(fn($a) => in_array($a->id, $selectedIds)); @endphp
+                            @if ($groupItems->isNotEmpty())
+                                <div>
+                                    <div style="font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px;">
+                                        {{ $group['label'] }}
+                                    </div>
+                                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px;">
+                                        @foreach ($groupItems as $a)
+                                            <div style="padding: 10px 12px;
+                                                        border: 1.5px solid var(--primary);
+                                                        background: var(--primary-tint);
+                                                        color: var(--primary-deep);
+                                                        border-radius: var(--r-md);
+                                                        display:flex; align-items:center; gap:9px;
+                                                        font-size:12.5px; font-weight:600;">
+                                                <span style="font-size:16px; line-height:1;">{{ $a->icon }}</span>
+                                                <span style="flex:1;">{{ $bm ? $a->label_bm : $a->label_en }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
         @elseif ($tab === 'policies')

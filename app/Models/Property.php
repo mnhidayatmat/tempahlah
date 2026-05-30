@@ -24,7 +24,7 @@ class Property extends Model
     protected $fillable = [
         'tenant_id', 'public_id', 'name', 'slug',
         'description_bm', 'description_en',
-        'property_type', 'star_rating',
+        'property_type', 'star_rating', 'bathrooms', 'toilets',
         'address_line1', 'address_line2', 'city', 'state', 'postcode', 'country',
         'lat', 'lng',
         'check_in_time', 'check_out_time',

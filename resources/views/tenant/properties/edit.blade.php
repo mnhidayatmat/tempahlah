@@ -100,6 +100,28 @@
                         <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Applied to all :n room(s) on save.', ['n' => $property->rooms->count()]) }}</div>
                     </div>
                 </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bathrooms') }}</label>
+                        <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', $property->bathrooms) }}" min="0" max="50">
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Full bathrooms (shower + sink + toilet)') }}</div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Separate toilets') }}</label>
+                        <input class="input" type="number" name="toilets" value="{{ old('toilets', $property->toilets) }}" min="0" max="50">
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Toilet-only / powder rooms') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Facilities & amenities --}}
+            <div class="hauz-card" style="padding: 22px;">
+                @include('tenant.properties._amenity_picker', [
+                    'amenityGroups'      => $amenityGroups,
+                    'selectedAmenityIds' => $selectedAmenityIds,
+                    'title'              => __('Facilities & amenities'),
+                ])
             </div>
 
             {{-- Policies --}}

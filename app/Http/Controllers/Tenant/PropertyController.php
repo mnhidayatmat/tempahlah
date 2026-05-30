@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Amenity;
 use App\Models\Property;
 use App\Models\Room;
 use App\Support\Tenancy\TenantContext;
@@ -27,7 +28,9 @@ class PropertyController extends Controller
 
     public function create()
     {
-        return view('tenant.properties.create');
+        return view('tenant.properties.create', [
+            'amenityGroups' => $this->amenityGroups(),
+        ]);
     }
 
     public function store(Request $request)
@@ -37,8 +40,12 @@ class PropertyController extends Controller
             'city' => 'nullable|string|max:80',
             'address_line1' => 'required|string|max:160',
             'bedrooms' => 'required|integer|min:1|max:50',
+            'bathrooms' => 'nullable|integer|min:0|max:50',
+            'toilets'   => 'nullable|integer|min:0|max:50',
             'base_price' => 'required|numeric|min:0|max:999999',
             'description' => 'nullable|string|max:2000',
+            'amenities'   => 'nullable|array',
+            'amenities.*' => 'integer|exists:amenities,id',
         ]);
 
         $tenant = app(TenantContext::class)->current();
@@ -55,6 +62,8 @@ class PropertyController extends Controller
                 'state' => '',
                 'postcode' => '',
                 'country' => 'MY',
+                'bathrooms' => (int) ($validated['bathrooms'] ?? 0),
+                'toilets'   => (int) ($validated['toilets'] ?? 0),
                 'check_in_time' => '15:00',
                 'check_out_time' => '11:00',
                 'description_en' => $validated['description'] ?? null,
@@ -77,6 +86,10 @@ class PropertyController extends Controller
                 ]);
             }
 
+            if (! empty($validated['amenities'])) {
+                $property->amenities()->sync($validated['amenities']);
+            }
+
             return $property;
         });
 
@@ -90,11 +103,13 @@ class PropertyController extends Controller
 
     public function edit(Property $property)
     {
-        $property->load(['rooms' => fn ($q) => $q->orderBy('name')]);
+        $property->load(['rooms' => fn ($q) => $q->orderBy('name'), 'amenities:id']);
 
         return view('tenant.properties.edit', [
             'property' => $property,
             'baseRate' => (float) ($property->rooms->min('base_price') ?? 0),
+            'amenityGroups' => $this->amenityGroups(),
+            'selectedAmenityIds' => $property->amenities->pluck('id')->all(),
         ]);
     }
 
@@ -107,6 +122,8 @@ class PropertyController extends Controller
             'postcode'       => 'nullable|string|max:16',
             'address_line1'  => 'required|string|max:160',
             'address_line2'  => 'nullable|string|max:160',
+            'bathrooms'      => 'nullable|integer|min:0|max:50',
+            'toilets'        => 'nullable|integer|min:0|max:50',
             'description_en' => 'nullable|string|max:2000',
             'description_bm' => 'nullable|string|max:2000',
             'check_in_time'  => 'required|date_format:H:i',
@@ -115,6 +132,8 @@ class PropertyController extends Controller
             'base_price'     => 'nullable|numeric|min:0|max:999999',
             'house_rules'    => 'nullable|string|max:1000',
             'cancellation_policy' => 'nullable|string|max:1000',
+            'amenities'      => 'nullable|array',
+            'amenities.*'    => 'integer|exists:amenities,id',
         ]);
 
         $newBase = $request->filled('base_price') ? (float) $validated['base_price'] : null;
@@ -129,11 +148,15 @@ class PropertyController extends Controller
             }
         }
 
-        DB::transaction(function () use ($property, $validated, $newBase) {
+        $amenityIds = $validated['amenities'] ?? [];
+        unset($validated['amenities']);
+
+        DB::transaction(function () use ($property, $validated, $newBase, $amenityIds) {
             $property->fill($validated)->save();
             if ($newBase !== null) {
                 $property->rooms()->update(['base_price' => $newBase]);
             }
+            $property->amenities()->sync($amenityIds);
         });
 
         return redirect()
@@ -170,7 +193,7 @@ class PropertyController extends Controller
 
     public function show($id, Request $request)
     {
-        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name'), 'tenant'])
+        $property = Property::with(['rooms' => fn ($q) => $q->orderBy('name'), 'tenant', 'amenities'])
             ->findOrFail($id);
 
         $tab = in_array($request->query('tab'), ['rooms', 'pricing', 'facilities', 'policies', 'photos'], true)
@@ -199,6 +222,7 @@ class PropertyController extends Controller
             'occupancy' => $occupancy,
             'startingRate' => $startingRate,
             'rating' => $property->rating ?? '—',
+            'amenityGroups' => $this->amenityGroups(),
         ]);
     }
 
@@ -214,5 +238,34 @@ class PropertyController extends Controller
         }
 
         return $slug;
+    }
+
+    /**
+     * Amenities grouped by category for the property form.
+     * Returns: [categoryKey => ['label' => '...', 'items' => Collection<Amenity>]]
+     */
+    protected function amenityGroups(): array
+    {
+        $categories = [
+            'essential'     => __('Essentials'),
+            'kitchen'       => __('Kitchen'),
+            'entertainment' => __('Entertainment'),
+            'outdoor'       => __('Outdoor & recreation'),
+            'family'        => __('Family & accessibility'),
+            'cultural'      => __('Cultural & religious'),
+            'safety'        => __('Safety'),
+            'workspace'     => __('Workspace'),
+        ];
+
+        $items = Amenity::orderBy('sort_order')->get();
+        $groups = [];
+        foreach ($categories as $key => $label) {
+            $groupItems = $items->where('category', $key)->values();
+            if ($groupItems->isNotEmpty()) {
+                $groups[$key] = ['label' => $label, 'items' => $groupItems];
+            }
+        }
+
+        return $groups;
     }
 }
