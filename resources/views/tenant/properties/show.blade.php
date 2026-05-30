@@ -277,15 +277,20 @@
                         'active'           => (bool) $r->active,
                     ],
                 ])->toArray();
+
+                // Pre-build the Alpine initial state so @json() gets a single clean variable.
+                // (Multi-line PHP literals inside @json() in an HTML attribute trip Blade's
+                // directive parser and surface as "Unclosed [ does not match )" at runtime.)
+                $alpineInitial = [
+                    'showForm'  => false,
+                    'editingId' => null,
+                    'form'      => new \stdClass(),
+                    'rulesData' => empty($rulesData) ? new \stdClass() : $rulesData,
+                ];
             @endphp
 
             <div class="card" style="padding:20px; margin-top: 16px;"
-                 x-data='@json([
-                    "showForm"   => false,
-                    "editingId"  => null,
-                    "form"       => (object) [],
-                    "rulesData"  => (object) $rulesData,
-                 ])'
+                 x-data='@json($alpineInitial)'
                  x-init="
                     edit = (id) => {
                         const data = rulesData[id];
