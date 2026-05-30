@@ -13,7 +13,9 @@ class SetLocale
 
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->session()->get('app_locale')
+        // $request->session() throws on routes without StartSession middleware
+        // (notably API + webhook routes), so probe first.
+        $locale = ($request->hasSession() ? $request->session()->get('app_locale') : null)
             ?? $request->cookie('app_locale')
             ?? optional($request->user())->locale
             ?? config('app.locale');
