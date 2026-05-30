@@ -25,6 +25,11 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
     ->whereIn('locale', ['ms', 'en'])
     ->name('locale.switch');
 
+// Toyyibpay billReturnUrl lands here. Public + unauthenticated — the page
+// just shows the canonical Payment.status; webhook does the real work.
+Route::get('/payments/return/{payment}', [\App\Http\Controllers\PaymentReturnController::class, 'show'])
+    ->name('payments.return');
+
 // -----------------------------------------------------------------------------
 // Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
 // Resolved by the {tenant_slug} domain parameter via ResolveTenantFromSubdomain.
@@ -109,6 +114,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/bookings/{id}/mark-paid',      [BookingController::class, 'markPaid'])->name('bookings.mark-paid');
         Route::post('/bookings/{id}/send-reminder', [BookingController::class, 'sendReminder'])->name('bookings.send-reminder');
         Route::post('/bookings/{id}/whatsapp',      [BookingController::class, 'sendWhatsapp'])->name('bookings.whatsapp');
+        Route::post('/bookings/{id}/pay-link',      [BookingController::class, 'payLink'])->name('bookings.pay-link');
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
@@ -132,6 +138,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');
         Route::delete('/integrations/{provider}',         [IntegrationController::class, 'disconnect'])->name('integrations.disconnect');
+        Route::post('/integrations/toyyibpay/test',       [IntegrationController::class, 'testToyyibpay'])->name('integrations.toyyibpay.test');
     });
 
     require __DIR__.'/auth-extra.php';

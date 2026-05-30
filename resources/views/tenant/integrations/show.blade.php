@@ -65,13 +65,24 @@
         </form>
 
         @if ($record->exists)
-            <form method="POST" action="{{ route('tenant.integrations.disconnect', $provider) }}"
-                  onsubmit="return confirm('{{ __('Disconnect and clear credentials?') }}');"
-                  style="text-align: right;">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-ghost" style="color: var(--err); font-size: 12px;">{{ __('Disconnect') }}</button>
-            </form>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                @if ($provider === 'toyyibpay' && $record->enabled)
+                    <form method="POST" action="{{ route('tenant.integrations.toyyibpay.test') }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="btn btn-sm">{{ __('Test connection') }}</button>
+                    </form>
+                @else
+                    <span></span>
+                @endif
+
+                <form method="POST" action="{{ route('tenant.integrations.disconnect', $provider) }}"
+                      onsubmit="return confirm('{{ __('Disconnect and clear credentials?') }}');"
+                      style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-ghost" style="color: var(--err); font-size: 12px;">{{ __('Disconnect') }}</button>
+                </form>
+            </div>
         @endif
 
         <div style="font-size: 11.5px; color: var(--ink-3); padding: 0 8px;">

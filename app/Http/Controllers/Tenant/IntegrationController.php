@@ -5,8 +5,12 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\TenantIntegration;
 use App\Models\WhatsappSession;
+use App\Services\Payments\Toyyibpay\ToyyibpayClient;
+use App\Services\Payments\Toyyibpay\ToyyibpayException;
+use App\Services\Payments\Toyyibpay\ToyyibpayLog;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class IntegrationController extends Controller
 {
@@ -91,6 +95,46 @@ class IntegrationController extends Controller
             ]));
     }
 
+    /**
+     * "Test connection" for Toyyibpay. Creates a 1-cent bill against the
+     * tenant's stored credentials and reports back the result without
+     * persisting any Payment row.
+     */
+    public function testToyyibpay()
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403);
+
+        try {
+            $client = ToyyibpayClient::forTenant($tenant->id);
+        } catch (ToyyibpayException $e) {
+            return redirect()
+                ->route('tenant.integrations.show', 'toyyibpay')
+                ->with('status', __('Save your credentials first, then click Test connection.'));
+        }
+
+        $result = $client->testConnection();
+
+        ToyyibpayLog::recordApiCall(
+            $tenant->id, null, 'testConnection',
+            ['sandbox' => $client->sandbox],
+            ['bill_code' => $result['bill_code'], 'raw_body' => $result['raw_body']],
+            $result['http_status'], $result['ok'],
+            $result['ok'] ? null : Str::limit($result['raw_body'], 200),
+        );
+
+        return redirect()
+            ->route('tenant.integrations.show', 'toyyibpay')
+            ->with('status', $result['ok']
+                ? __('✓ Toyyibpay is working. Test BillCode: :code (:env)', [
+                    'code' => $result['bill_code'],
+                    'env'  => $client->sandbox ? 'sandbox' : 'production',
+                  ])
+                : __('✗ Toyyibpay rejected the credentials: :err', [
+                    'err' => Str::limit($result['raw_body'], 200),
+                  ]));
+    }
+
     public function disconnect(string $provider)
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
@@ -110,12 +154,12 @@ class IntegrationController extends Controller
         $catalog = [
             'toyyibpay' => [
                 'name' => 'Toyyibpay',
-                'description' => 'Accept FPX, cards, and e-wallets. Fees ~1%.',
+                'description' => 'Accept FPX, cards, and e-wallets. Tenant uses their own Toyyibpay account — payouts land directly in their bank. After saving, click Test connection to verify the credentials.',
                 'pro' => true,
                 'fields' => [
-                    'user_secret_key' => ['label' => 'User secret key', 'type' => 'password'],
-                    'category_code' => ['label' => 'Category code', 'type' => 'text'],
-                    'is_sandbox' => ['label' => 'Use sandbox', 'type' => 'checkbox'],
+                    'user_secret_key' => ['label' => 'User secret key', 'type' => 'password', 'placeholder' => 'From Toyyibpay → Profile → User Secret Key'],
+                    'category_code'   => ['label' => 'Category code',   'type' => 'text',     'placeholder' => 'From Toyyibpay → Categories → your category'],
+                    'is_sandbox'      => ['label' => 'Use sandbox (dev.toyyibpay.com)', 'type' => 'checkbox'],
                 ],
             ],
             'google_calendar' => [

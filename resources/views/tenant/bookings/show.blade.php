@@ -37,6 +37,13 @@
                     @endif
 
                     @if (! $isPaid)
+                        <form method="POST" action="{{ route('tenant.bookings.pay-link', $booking->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="hidden" name="type" value="{{ $booking->deposit_paid_at ? 'balance' : 'deposit' }}">
+                            <button type="submit" class="btn btn-sm" title="{{ __('Generate Toyyibpay link') }}">
+                                {{ $booking->deposit_paid_at ? __('Get balance link') : __('Get deposit link') }}
+                            </button>
+                        </form>
                         <form method="POST" action="{{ route('tenant.bookings.send-reminder', $booking->id) }}" style="display:inline;">
                             @csrf
                             <button type="submit" class="btn btn-sm" {{ ($booking->guest?->email || $booking->guest?->phone) ? '' : 'disabled title="No email or phone on file"' }}>
@@ -55,6 +62,27 @@
         @if (session('status'))
             <div class="hauz-card" style="padding: 12px 16px; border-color: var(--ok); background: var(--ok-tint); color: var(--ok); font-size: 13px;">
                 {{ session('status') }}
+            </div>
+        @endif
+
+        @if (session('pay_link'))
+            <div class="hauz-card" style="padding: 16px 18px; background: var(--bg-elev);" x-data="{ copied: false }">
+                <div class="kicker" style="margin-bottom: 8px;">{{ __('Toyyibpay link') }}{{ session('pay_link_reused') ? ' · '.__('reused existing') : '' }}</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" class="input" readonly
+                           value="{{ session('pay_link') }}"
+                           style="flex:1; font-family: var(--mono, monospace); font-size: 12.5px;"
+                           x-ref="link" @click="$refs.link.select()">
+                    <button type="button" class="btn btn-sm"
+                            @click="navigator.clipboard.writeText($refs.link.value); copied=true; setTimeout(()=>copied=false, 1500)">
+                        <span x-show="!copied">{{ __('Copy') }}</span>
+                        <span x-show="copied" style="color: var(--ok);">{{ __('Copied ✓') }}</span>
+                    </button>
+                    <a href="{{ session('pay_link') }}" target="_blank" rel="noopener" class="btn btn-sm">{{ __('Open ↗') }}</a>
+                </div>
+                <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 6px;">
+                    {{ __('Share this link with the guest. The booking auto-updates when Toyyibpay confirms payment.') }}
+                </div>
             </div>
         @endif
 

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Actions\Booking\CreateBooking;
+use App\Actions\Payments\CreateToyyibpayBill;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Room;
+use App\Services\Payments\Toyyibpay\ToyyibpayException;
 use App\Services\WhatsApp\WhatsappMessenger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -176,6 +178,48 @@ class BookingController extends Controller
         $booking->update(['full_payment_reminder_at' => now()]);
 
         return back()->with('status', __('Payment reminder queued (email + WhatsApp where available).'));
+    }
+
+    /**
+     * Generate a Toyyibpay payment link for this booking. Returns the URL
+     * via flash so the tenant can copy + share it (or send via WA/email).
+     *
+     * Reuses an existing processing bill if one already exists rather than
+     * double-billing the guest.
+     */
+    public function payLink(Request $request, CreateToyyibpayBill $action, $id)
+    {
+        $booking = Booking::with(['property', 'guest', 'bookingGuests', 'tenant', 'payments'])->findOrFail($id);
+
+        $type = $request->input('type', Payment::TYPE_DEPOSIT);
+        if (! in_array($type, [Payment::TYPE_DEPOSIT, Payment::TYPE_BALANCE, Payment::TYPE_FULL], true)) {
+            $type = Payment::TYPE_DEPOSIT;
+        }
+
+        $totalPaid = (float) $booking->payments->where('status', Payment::STATUS_SUCCEEDED)->sum('amount');
+        $amount = match ($type) {
+            Payment::TYPE_DEPOSIT => (float) $booking->deposit_amount,
+            Payment::TYPE_BALANCE => max(0, (float) $booking->total_amount - $totalPaid),
+            Payment::TYPE_FULL    => max(0, (float) $booking->total_amount - $totalPaid),
+        };
+
+        if ($amount <= 0) {
+            return back()->with('status', __('Nothing left to charge — booking is fully paid.'));
+        }
+
+        try {
+            $result = $action->execute($booking, $type, $amount);
+        } catch (ToyyibpayException $e) {
+            return back()->with('status', __('Toyyibpay error: :err', ['err' => Str::limit($e->getMessage(), 200)]));
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->with('status', __('Could not create payment link. See logs for details.'));
+        }
+
+        return back()
+            ->with('status', __('Payment link ready: :url', ['url' => $result['payment_url']]))
+            ->with('pay_link', $result['payment_url'])
+            ->with('pay_link_reused', $result['reused']);
     }
 
     /**

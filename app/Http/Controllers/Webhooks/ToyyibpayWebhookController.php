@@ -6,53 +6,114 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
 use App\Models\Booking;
 use App\Models\Payment;
-use App\Models\PaymentTransaction;
 use App\Models\WebhookEvent;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
+use App\Services\Payments\Toyyibpay\ToyyibpayException;
+use App\Services\Payments\Toyyibpay\ToyyibpayLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Toyyibpay billCallbackUrl receiver.
+ *
+ * Per-tenant flow:
+ *   1. Look up Payment via `order_id` (= payment.public_id we set on createBill).
+ *   2. From the Payment's tenant, load THAT tenant's Toyyibpay secret.
+ *   3. Verify the documented MD5 hash signature.
+ *   4. Apply state change to Payment + Booking.
+ *   5. Log every step into payment_transactions + webhook_events.
+ *
+ * The route is public (rate-limited via `throttle:webhook-toyyibpay`) but
+ * defended by signature verification. Even an attacker who knows our
+ * webhook URL can't move a Payment to SUCCEEDED without the tenant's
+ * userSecretKey to compute a valid hash.
+ */
 class ToyyibpayWebhookController extends Controller
 {
-    public function handle(Request $request, ToyyibpayClient $client): JsonResponse
+    public function handle(Request $request): JsonResponse
     {
         $payload = $request->all();
 
-        $externalId = (string) ($payload['refno'] ?? $payload['billcode'] ?? '');
-        if (! $externalId) {
+        $externalId = (string) (
+            $payload['refno']
+            ?? $payload['billcode']
+            ?? $payload['order_id']
+            ?? ''
+        );
+        if ($externalId === '') {
             return response()->json(['error' => 'missing_external_id'], 400);
         }
 
-        if (\App\Models\WebhookEvent::where('provider', 'toyyibpay')->where('external_id', $externalId)->exists()) {
+        // Idempotency check — only against rows we've ALREADY successfully
+        // processed. Lets us replay accidentally-dropped events while still
+        // logging the duplicate hit.
+        if (WebhookEvent::query()
+            ->where('provider', 'toyyibpay')
+            ->where('external_id', $externalId)
+            ->whereNotNull('processed_at')
+            ->exists()) {
+            ToyyibpayLog::recordWebhook(0, null, $payload, 'replay', 'already processed');
             return response()->json(['status' => 'already_processed']);
         }
 
-        DB::beginTransaction();
+        // 1. Resolve the Payment + tenant.
+        $payment = $this->resolvePayment($payload);
+        if (! $payment) {
+            ToyyibpayLog::recordWebhook(0, null, $payload, 'no_payment', 'payment row not found');
+            return response()->json(['error' => 'payment_not_found'], 404);
+        }
+
+        // 2. Load tenant-specific client (so signature can be verified
+        //    against THAT tenant's secret).
         try {
-            $event = \App\Models\WebhookEvent::create([
-                'provider' => 'toyyibpay',
-                'event_type' => 'payment.callback',
-                'external_id' => $externalId,
-                'payload' => $payload,
-                'signature_status' => $client->verifyCallback($payload) ? 'verified' : 'unverified',
-            ]);
+            $client = ToyyibpayClient::forTenant($payment->tenant_id);
+        } catch (ToyyibpayException $e) {
+            ToyyibpayLog::recordWebhook(
+                $payment->tenant_id, $payment, $payload, 'no_creds', $e->getMessage()
+            );
+            return response()->json(['error' => 'tenant_creds_missing'], 409);
+        }
 
-            $payment = Payment::where('gateway_provider', 'toyyibpay')
-                ->where('gateway_ref', $payload['billcode'] ?? null)
-                ->first();
+        // 3. Verify MD5 hash. DuitNow QR callbacks have no hash — for those
+        //    we fall back to a server-side getBillTransactions check.
+        $signatureStatus = $client->signatureStatus($payload);
 
-            if (! $payment) {
-                $payment = Payment::where('public_id', $payload['order_id'] ?? null)->first();
+        if ($signatureStatus === 'invalid') {
+            ToyyibpayLog::recordWebhook(
+                $payment->tenant_id, $payment, $payload, 'invalid', 'MD5 mismatch'
+            );
+            // Don't 401 — Toyyibpay would retry, polluting logs. 200 + flag.
+            return response()->json(['error' => 'invalid_signature'], 200);
+        }
+
+        if ($signatureStatus === 'missing') {
+            // Likely DuitNow QR — confirm via server-side query.
+            try {
+                $check = $client->getBillTransactions((string) ($payload['billcode'] ?? ''));
+                ToyyibpayLog::recordApiCall(
+                    $payment->tenant_id, $payment, 'getBillTransactions',
+                    ['billCode' => $payload['billcode'] ?? ''],
+                    $check['response'], $check['http_status'], true
+                );
+            } catch (ToyyibpayException $e) {
+                ToyyibpayLog::recordWebhook(
+                    $payment->tenant_id, $payment, $payload, 'missing',
+                    'unverifiable + server-side check failed: '.$e->getMessage()
+                );
+                return response()->json(['error' => 'unverifiable'], 502);
             }
+        }
 
-            if (! $payment) {
-                DB::rollBack();
-                return response()->json(['status' => 'payment_not_found'], 404);
-            }
+        // 4. Apply state change in a transaction.
+        try {
+            DB::beginTransaction();
 
-            $statusId = (int) ($payload['status_id'] ?? 0);
-            $newStatus = match ($statusId) {
+            $log = ToyyibpayLog::recordWebhook(
+                $payment->tenant_id, $payment, $payload, $signatureStatus
+            );
+
+            $newStatus = match ((int) ($payload['status'] ?? 0)) {
                 1 => Payment::STATUS_SUCCEEDED,
                 3 => Payment::STATUS_FAILED,
                 default => Payment::STATUS_PROCESSING,
@@ -61,50 +122,55 @@ class ToyyibpayWebhookController extends Controller
             $payment->update([
                 'status' => $newStatus,
                 'paid_at' => $newStatus === Payment::STATUS_SUCCEEDED ? now() : null,
-                'meta' => array_merge($payment->meta ?? [], ['callback' => $payload]),
-            ]);
-
-            PaymentTransaction::create([
-                'tenant_id' => $payment->tenant_id,
-                'payment_id' => $payment->id,
-                'provider' => 'toyyibpay',
-                'event_type' => 'payment.callback',
-                'external_id' => $externalId,
-                'signature_status' => $event->signature_status,
-                'payload' => $payload,
-                'processed_at' => now(),
+                'meta' => array_merge($payment->meta ?? [], [
+                    'callback' => $payload,
+                    'callback_received_at' => now()->toIso8601String(),
+                ]),
             ]);
 
             if ($newStatus === Payment::STATUS_SUCCEEDED) {
                 $this->onPaymentSucceeded($payment);
             }
 
-            $event->update(['processed_at' => now()]);
+            $log['event']->update(['processed_at' => now()]);
 
             DB::commit();
-
             return response()->json(['status' => 'ok']);
         } catch (\Throwable $e) {
             DB::rollBack();
             report($e);
+            ToyyibpayLog::recordWebhook(
+                $payment->tenant_id, $payment, $payload, $signatureStatus,
+                'processing_error: '.$e->getMessage()
+            );
             return response()->json(['error' => 'processing_error'], 500);
         }
+    }
+
+    protected function resolvePayment(array $payload): ?Payment
+    {
+        $orderId = (string) ($payload['order_id'] ?? '');
+        $billCode = (string) ($payload['billcode'] ?? '');
+
+        return Payment::withoutGlobalScopes()
+            ->when($orderId !== '', fn ($q) => $q->where('public_id', $orderId))
+            ->when($orderId === '' && $billCode !== '',
+                fn ($q) => $q->where('gateway_provider', 'toyyibpay')
+                             ->where('gateway_ref', $billCode))
+            ->first();
     }
 
     protected function onPaymentSucceeded(Payment $payment): void
     {
         $booking = $payment->booking;
-        if (! $booking) {
-            return;
-        }
+        if (! $booking) return;
 
-        if (in_array($payment->type, [Payment::TYPE_DEPOSIT, Payment::TYPE_FULL])) {
+        if (in_array($payment->type, [Payment::TYPE_DEPOSIT, Payment::TYPE_FULL], true)) {
             $wasPending = $booking->status === Booking::STATUS_PENDING;
             $booking->update([
-                'deposit_paid_at' => now(),
+                'deposit_paid_at' => $booking->deposit_paid_at ?? now(),
                 'status' => Booking::STATUS_CONFIRMED,
             ]);
-
             if ($wasPending) {
                 SendBookingConfirmation::dispatch($booking->id);
             }
