@@ -232,10 +232,15 @@
                     'custom'         => __('Custom (pick weekdays + dates)'),
                 ];
                 $adjTypes = [
-                    'percent'  => __('+/- % of base'),
-                    'flat'     => __('+/- flat RM'),
-                    'override' => __('Override to flat RM'),
+                    'percent'  => __('Percent of base price (+/-)'),
+                    'flat'     => __('Add or subtract RM (+/-)'),
+                    'override' => __('Replace with fixed RM'),
                 ];
+                // A representative base price for the worked example shown
+                // below the adjustment row. Whole-house: the single room's
+                // price. Per-room: the cheapest room (matches the "from RM X"
+                // shown elsewhere on the card).
+                $baseExample = (float) ($wholeHouseRoom?->base_price ?? $property->rooms->min('base_price') ?? 0);
             @endphp
 
             {{-- Base rates summary --}}
@@ -291,7 +296,22 @@
                     showForm: false,
                     editingId: null,
                     form: {},
+                    basePrice: {{ $baseExample }},
                     rulesData: {{ $rulesDataJson }},
+                    adjustedExample() {
+                        const v = parseFloat(this.form.adjustment_value);
+                        if (isNaN(v)) return null;
+                        if (this.form.adjustment_type === 'percent')  return Math.max(0, this.basePrice * (1 + v / 100));
+                        if (this.form.adjustment_type === 'flat')     return Math.max(0, this.basePrice + v);
+                        if (this.form.adjustment_type === 'override') return Math.max(0, v);
+                        return null;
+                    },
+                    adjustedSign() {
+                        const v = parseFloat(this.form.adjustment_value);
+                        if (isNaN(v) || v === 0 || this.form.adjustment_type === 'override') return '';
+                        return v > 0 ? 'increase' : 'discount';
+                    },
+                    fmtRM(n) { return n == null ? '—' : 'RM ' + Number(n).toLocaleString('en-MY', { maximumFractionDigits: 2 }); },
                     edit(id) {
                         const data = this.rulesData[id];
                         if (!data) { console.warn('pricing rule not found in client data:', id); return; }
@@ -443,6 +463,53 @@
                                     <span x-text="form.adjustment_type === 'percent' ? '{{ __('% to add (use - for discount)') }}' : (form.adjustment_type === 'flat' ? '{{ __('RM to add (use - for discount)') }}' : '{{ __('Flat RM override') }}')"></span> *
                                 </label>
                                 <input class="input" type="number" name="adjustment_value" x-model.number="form.adjustment_value" step="0.01" required placeholder="20">
+                            </div>
+                        </div>
+
+                        {{-- Plain-language explainer + live worked example.
+                             Tenant told us the field was confusing — this block
+                             explains what each mode does in BM-friendly English
+                             and shows the actual result against their base rate. --}}
+                        <div style="padding: 12px 14px; background: var(--bg-tint); border: 1px solid var(--line); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2); line-height: 1.55;">
+                            <div style="font-weight: 600; color: var(--ink); margin-bottom: 4px; font-size: 12.5px;">
+                                {{ __('How this works') }}
+                            </div>
+
+                            {{-- Mode-specific blurb --}}
+                            <div x-show="form.adjustment_type === 'percent'">
+                                {{ __('Multiplies the base price by your percentage. Enter') }}
+                                <code style="background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;">20</code>
+                                {{ __('for +20% surcharge, or') }}
+                                <code style="background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;">-15</code>
+                                {{ __('for 15% discount.') }}
+                            </div>
+                            <div x-show="form.adjustment_type === 'flat'">
+                                {{ __('Adds or subtracts a fixed Ringgit amount to the base price. Enter') }}
+                                <code style="background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;">50</code>
+                                {{ __('to add RM 50, or') }}
+                                <code style="background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;">-30</code>
+                                {{ __('to take RM 30 off.') }}
+                            </div>
+                            <div x-show="form.adjustment_type === 'override'">
+                                {{ __('Replaces the base price entirely with a fixed amount. Use this for peak-season flat rates or special promo prices that ignore the normal pricing.') }}
+                            </div>
+
+                            {{-- Live worked example using the host's actual base --}}
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
+                                <span style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em;">{{ __('Example') }}</span>
+                                <span class="mono" style="font-size: 12.5px;">
+                                    <span x-text="fmtRM(basePrice)"></span>
+                                    <span style="color: var(--ink-3);">→</span>
+                                    <span x-show="adjustedExample() === null" style="color: var(--ink-3);">{{ __('enter a value above') }}</span>
+                                    <span x-show="adjustedExample() !== null"
+                                          x-text="fmtRM(adjustedExample())"
+                                          :style="adjustedSign() === 'discount' ? 'color: var(--ok); font-weight:700;' : (adjustedSign() === 'increase' ? 'color: var(--primary-deep); font-weight:700;' : 'color: var(--ink); font-weight:700;')"></span>
+                                    <span x-show="adjustedExample() !== null" style="color: var(--ink-3); font-size: 11.5px;">{{ __('per night') }}</span>
+                                </span>
+                            </div>
+
+                            <div style="margin-top: 8px; font-size: 11px; color: var(--ink-3);">
+                                💡 {{ __('Tip: rules with higher priority numbers run AFTER lower ones, so a "+20% weekend" + "+10% public holiday" on the same Saturday compounds to ~+32%, not +30%. Use one rule per pricing concept to avoid surprises.') }}
                             </div>
                         </div>
 
