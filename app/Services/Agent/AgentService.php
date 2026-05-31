@@ -157,6 +157,11 @@ class AgentService
         if ($finalText === '') {
             $finalText = $this->fallbackMessage($locale);
         }
+        // Defensive: normalize Markdown → WhatsApp-native formatting. The
+        // system prompt asks the LLM to do this but weaker models (we've
+        // seen DeepSeek v4 flash do it) emit Markdown tables / **bold**
+        // anyway, which renders as literal pipes and stars in WhatsApp.
+        $finalText = WhatsappFormatter::sanitize($finalText);
 
         // Accounting + conversation bookkeeping (always, even dry-run, so
         // the meter reflects actual API costs).
