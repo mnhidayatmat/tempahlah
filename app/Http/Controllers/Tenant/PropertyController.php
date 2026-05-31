@@ -16,7 +16,12 @@ class PropertyController extends Controller
     public function index()
     {
         $properties = Property::query()
-            ->with(['rooms:id,property_id,base_price'])
+            ->with([
+                'rooms:id,property_id,base_price',
+                // For the cover image on each card. Minimal columns; the
+                // view falls back to a gradient if no photo exists.
+                'photos:id,property_id,path,disk,is_hero,sort_order',
+            ])
             ->orderByDesc('created_at')
             ->get();
 
