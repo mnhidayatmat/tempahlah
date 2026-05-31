@@ -62,6 +62,11 @@
 
         $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM) {
             $cover = $coverGradients[$p->cover_kind] ?? $coverGradients['city'];
+            // For whole-house properties this is the single synthetic Room.
+            // For per-room properties this picks the cheapest — matching
+            // the "from RM X" headline. v1.5 will let the form choose the
+            // exact room when the property has many.
+            $defaultRoom = $p->rooms->sortBy('base_price')->first();
             return [
                 'id'        => $p->id,
                 'name'      => $p->name,
@@ -78,6 +83,8 @@
                 'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
                 'initial'   => mb_strtoupper(mb_substr($p->name, 0, 1)),
                 'booked'    => $bookedByProperty[$p->id] ?? [],
+                // Default room id used by the booking-form hidden input.
+                'room_id'   => $defaultRoom?->id,
                 // Dynamic per-date rates (60-day window starting today).
                 // Empty for dates outside the window — calendar falls back
                 // to `rate` (the "starting from" headline).
@@ -112,6 +119,8 @@
           locale: @js($isBM ? 'ms-MY' : 'en-MY'),
           isBM: @js($isBM),
           properties: @js($propertiesPayload),
+          toyyibpayConfigured: @js($toyyibpayConfigured),
+          depositPct: 20,
       })">
 
     {{-- ───── HERO BANNER ─────────────────────────────────────────── --}}
@@ -155,31 +164,38 @@
     </header>
 
     {{-- ───── PROPERTY CARDS ──────────────────────────────────────── --}}
-    <section class="wf-stack">
-        <div class="wf-section-eyebrow">{{ $isBM ? 'Pilih pakej' : 'Choose your stay' }}</div>
+    {{-- Only render the "Pilih pakej" picker when the tenant has 2+ active
+         properties. With a single homestay, the banner already identifies
+         it — forcing the customer to "pick" their only option is noise.
+         Alpine still defaults selectedIdx to 0 so the calendar + booking
+         flow work normally against that single property. --}}
+    @if ($properties->count() > 1)
+        <section class="wf-stack">
+            <div class="wf-section-eyebrow">{{ $isBM ? 'Pilih pakej' : 'Choose your stay' }}</div>
 
-        <template x-for="(p, i) in properties" :key="p.id">
-            <button type="button"
-                    class="wf-prop"
-                    :class="{ 'is-active': selectedIdx === i }"
-                    @click="selectProperty(i)">
-                <span class="wf-prop-bar"></span>
-                <div class="wf-prop-body">
-                    <div class="wf-prop-name" x-text="p.name"></div>
-                    <div class="wf-prop-meta">
-                        <span x-text="p.rooms"></span> {{ $isBM ? 'bilik' : 'rooms' }}
-                        <span class="wf-prop-meta-dot">·</span>
-                        <span x-text="p.sleeps || p.beds || 2"></span> {{ $isBM ? 'tetamu' : 'sleeps' }}
+            <template x-for="(p, i) in properties" :key="p.id">
+                <button type="button"
+                        class="wf-prop"
+                        :class="{ 'is-active': selectedIdx === i }"
+                        @click="selectProperty(i)">
+                    <span class="wf-prop-bar"></span>
+                    <div class="wf-prop-body">
+                        <div class="wf-prop-name" x-text="p.name"></div>
+                        <div class="wf-prop-meta">
+                            <span x-text="p.rooms"></span> {{ $isBM ? 'bilik' : 'rooms' }}
+                            <span class="wf-prop-meta-dot">·</span>
+                            <span x-text="p.sleeps || p.beds || 2"></span> {{ $isBM ? 'tetamu' : 'sleeps' }}
+                        </div>
                     </div>
-                </div>
-                <div class="wf-prop-price">
-                    <div class="wf-prop-price-rm">RM</div>
-                    <div class="wf-prop-price-num" x-text="formatMoney(p.rate)"></div>
-                    <div class="wf-prop-price-per">/ {{ $isBM ? 'malam' : 'night' }}</div>
-                </div>
-            </button>
-        </template>
-    </section>
+                    <div class="wf-prop-price">
+                        <div class="wf-prop-price-rm">RM</div>
+                        <div class="wf-prop-price-num" x-text="formatMoney(p.rate)"></div>
+                        <div class="wf-prop-price-per">/ {{ $isBM ? 'malam' : 'night' }}</div>
+                    </div>
+                </button>
+            </template>
+        </section>
+    @endif
 
     {{-- ───── DARK PROMPT BAR ─────────────────────────────────────── --}}
     <div class="wf-prompt" x-show="!checkin">
@@ -287,7 +303,20 @@
             </div>
         </div>
 
-        @if($contactPhone)
+        @if($toyyibpayConfigured)
+            {{-- Pay-deposit CTA: opens the reservation form. --}}
+            <button type="button" class="wf-reserve" @click="openBookForm = true; $nextTick(() => { const el = document.getElementById('wf-book-name'); if (el) el.focus(); })">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>{{ $isBM ? 'Tempah & bayar deposit' : 'Reserve & pay deposit' }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <div class="wf-reserve-hint">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>{{ $isBM ? 'Bayar selamat melalui Toyyibpay · FPX, kad, DuitNow' : 'Secure payment via Toyyibpay · FPX, cards, DuitNow' }}</span>
+            </div>
+        @elseif($contactPhone)
+            {{-- Fallback: tenant hasn't connected Toyyibpay yet. Keep the
+                 wa.me deeplink so the page still works out-of-the-box. --}}
             <a :href="reserveLink()" target="_blank" rel="noopener" class="wf-reserve">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
                 <span>{{ $isBM ? 'Tempah di WhatsApp' : 'Reserve on WhatsApp' }} · RM <span x-text="formatMoney(subtotal())"></span></span>
@@ -299,6 +328,87 @@
             </div>
         @endif
     </section>
+
+    @if($toyyibpayConfigured)
+    {{-- ───── BOOK FORM MODAL ─────────────────────────────────────── --}}
+    <div class="wf-book-overlay" x-show="openBookForm" x-cloak x-transition.opacity @click.self="openBookForm = false" @keydown.escape.window="openBookForm = false">
+        <div class="wf-book-card" @click.stop x-transition>
+            <button type="button" class="wf-book-close" @click="openBookForm = false" aria-label="{{ __('Close') }}">×</button>
+            <div class="wf-book-eyebrow">{{ $isBM ? 'Pengesahan tempahan' : 'Confirm your booking' }}</div>
+            <div class="wf-book-title" x-text="current.name"></div>
+
+            <div class="wf-book-recap">
+                <div class="wf-book-recap-row">
+                    <span class="lbl">{{ $isBM ? 'Tarikh' : 'Dates' }}</span>
+                    <span class="val"><span x-text="checkin ? fmtPill(checkin) : ''"></span> → <span x-text="checkout ? fmtPill(checkout) : ''"></span></span>
+                </div>
+                <div class="wf-book-recap-row">
+                    <span class="lbl">{{ $isBM ? 'Malam' : 'Nights' }}</span>
+                    <span class="val" x-text="nights()"></span>
+                </div>
+                <div class="wf-book-recap-row">
+                    <span class="lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</span>
+                    <span class="val" x-text="guests + ' ' + (isBM ? 'orang' : 'pax')"></span>
+                </div>
+                <div class="wf-book-recap-row">
+                    <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
+                    <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
+                </div>
+                <div class="wf-book-recap-row wf-book-recap-deposit">
+                    <span class="lbl">{{ $isBM ? 'Deposit (20%) — bayar sekarang' : 'Deposit (20%) — pay now' }}</span>
+                    <span class="val">RM <span x-text="formatMoney(depositAmount())"></span></span>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('tenant-public.booking.store') }}" class="wf-book-form">
+                @csrf
+                <input type="hidden" name="property_id" :value="current.id">
+                <input type="hidden" name="room_id" :value="current.room_id">
+                <input type="hidden" name="check_in" :value="checkin">
+                <input type="hidden" name="check_out" :value="checkout">
+                <input type="hidden" name="adults" :value="guests">
+                <input type="hidden" name="children" value="0">
+
+                <label class="wf-book-field">
+                    <span class="wf-book-label">{{ $isBM ? 'Nama penuh' : 'Full name' }}</span>
+                    <input id="wf-book-name" type="text" name="guest_name" required minlength="2" maxlength="120" autocomplete="name" value="{{ old('guest_name') }}">
+                </label>
+
+                <label class="wf-book-field">
+                    <span class="wf-book-label">{{ $isBM ? 'Emel' : 'Email' }}</span>
+                    <input type="email" name="guest_email" required maxlength="160" autocomplete="email" placeholder="you@example.com" value="{{ old('guest_email') }}">
+                </label>
+
+                <label class="wf-book-field">
+                    <span class="wf-book-label">{{ $isBM ? 'Nombor WhatsApp' : 'WhatsApp number' }}</span>
+                    <input type="tel" name="guest_phone" required minlength="7" maxlength="24" autocomplete="tel" placeholder="+60123456789" value="{{ old('guest_phone') }}">
+                </label>
+
+                <label class="wf-book-field">
+                    <span class="wf-book-label">{{ $isBM ? 'Permintaan khas (pilihan)' : 'Special requests (optional)' }}</span>
+                    <textarea name="special_requests" rows="2" maxlength="500" placeholder="{{ $isBM ? 'cth: daftar masuk awal' : 'e.g. early check-in' }}">{{ old('special_requests') }}</textarea>
+                </label>
+
+                @error('guest_email') <div class="wf-book-err">{{ $message }}</div> @enderror
+                @error('guest_phone') <div class="wf-book-err">{{ $message }}</div> @enderror
+
+                <button type="submit" class="wf-book-submit" @click="bookSubmitting = true">
+                    <span x-show="!bookSubmitting">{{ $isBM ? 'Bayar deposit' : 'Pay deposit' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
+                    <span x-show="bookSubmitting" x-cloak>{{ $isBM ? 'Memproses…' : 'Processing…' }}</span>
+                </button>
+                <p class="wf-book-fine">
+                    {{ $isBM
+                        ? 'Anda akan dialihkan ke Toyyibpay untuk membayar deposit. Resit & pengesahan dihantar ke emel + WhatsApp.'
+                        : 'You\'ll be redirected to Toyyibpay to pay the deposit. Receipt + confirmation are sent to your email + WhatsApp.' }}
+                </p>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    @if (session('booking_error'))
+        <div class="wf-flash wf-flash-err">{{ session('booking_error') }}</div>
+    @endif
 
     {{-- Empty-state hint when no dates picked --}}
     <div class="wf-hint" x-show="!checkin && !checkout">
@@ -1033,6 +1143,158 @@
         .wf-prompt { margin: 12px 12px 10px; }
         .wf-pills, .wf-bottom { margin-left: 12px; margin-right: 12px; }
     }
+
+    /* ── Flash banner ──────────────────────────────────────────── */
+    .wf-flash {
+        margin: 12px 16px 0;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    .wf-flash-err {
+        background: color-mix(in srgb, var(--err) 12%, transparent);
+        color: var(--err);
+        border: 1px solid color-mix(in srgb, var(--err) 30%, transparent);
+    }
+
+    /* ── Book form modal ──────────────────────────────────────── */
+    .wf-book-overlay {
+        position: fixed; inset: 0; z-index: 100;
+        background: rgba(28, 22, 20, 0.55);
+        backdrop-filter: blur(4px);
+        display: flex; align-items: flex-end; justify-content: center;
+        padding: 0;
+    }
+    @media (min-width: 768px) {
+        .wf-book-overlay {
+            align-items: center;
+            padding: 24px;
+        }
+    }
+    .wf-book-card {
+        position: relative;
+        width: 100%;
+        max-width: 460px;
+        background: var(--bg-elev);
+        border-radius: 22px 22px 0 0;
+        padding: 22px 20px calc(28px + env(safe-area-inset-bottom));
+        box-shadow: 0 -20px 60px -10px rgba(40,30,10,0.25);
+        max-height: 92dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    @media (min-width: 768px) {
+        .wf-book-card {
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 30px 80px -20px rgba(40,30,10,0.4);
+        }
+    }
+    .wf-book-close {
+        position: absolute; top: 12px; right: 12px;
+        width: 32px; height: 32px;
+        border: 0; background: var(--bg-sunk);
+        border-radius: 50%;
+        font-size: 22px; line-height: 1;
+        color: var(--ink-2);
+        cursor: pointer;
+        display: grid; place-items: center;
+    }
+    .wf-book-close:hover { background: var(--line); color: var(--ink); }
+    .wf-book-eyebrow {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--primary);
+        margin-bottom: 4px;
+    }
+    .wf-book-title {
+        font-family: var(--font-sans);
+        font-weight: 700;
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 16px;
+        line-height: 1.2;
+    }
+    .wf-book-recap {
+        background: var(--bg-sunk);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        display: flex; flex-direction: column; gap: 6px;
+    }
+    .wf-book-recap-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 13px;
+    }
+    .wf-book-recap-row .lbl { color: var(--ink-3); }
+    .wf-book-recap-row .val { color: var(--ink); font-weight: 500; font-family: var(--font-mono); }
+    .wf-book-recap-deposit {
+        margin-top: 4px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--line);
+    }
+    .wf-book-recap-deposit .lbl { color: var(--primary-deep); font-weight: 600; }
+    .wf-book-recap-deposit .val { color: var(--primary-deep); font-weight: 700; font-size: 15px; }
+    .wf-book-form { display: flex; flex-direction: column; gap: 12px; }
+    .wf-book-field { display: flex; flex-direction: column; gap: 4px; }
+    .wf-book-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink-2);
+    }
+    .wf-book-form input,
+    .wf-book-form textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg);
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .wf-book-form input:focus,
+    .wf-book-form textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    }
+    .wf-book-form textarea { resize: vertical; min-height: 56px; }
+    .wf-book-err {
+        background: color-mix(in srgb, var(--err) 10%, transparent);
+        color: var(--err);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12.5px;
+    }
+    .wf-book-submit {
+        margin-top: 4px;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-deep) 100%);
+        color: #fff;
+        border: 0;
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--primary-deep) 45%, transparent);
+        transition: transform 0.1s;
+    }
+    .wf-book-submit:hover { transform: translateY(-1px); }
+    .wf-book-submit:active { transform: translateY(0); }
+    .wf-book-submit:disabled { opacity: 0.7; cursor: wait; }
+    .wf-book-fine {
+        margin: 8px 0 0;
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: var(--ink-3);
+        text-align: center;
+    }
 </style>
 
 <script>
@@ -1053,6 +1315,10 @@
             checkin: null,
             checkout: null,
             guests: 2,
+            toyyibpayConfigured: opts.toyyibpayConfigured,
+            depositPct: opts.depositPct || 20,
+            openBookForm: false,
+            bookSubmitting: false,
 
             get current() { return this.properties[this.selectedIdx] || this.properties[0]; },
             get currentBookedSet() { return new Set(this.current?.booked || []); },
@@ -1183,6 +1449,13 @@
             avgRate() {
                 const n = this.nights();
                 return n > 0 ? this.subtotal() / n : (this.current?.rate || 0);
+            },
+
+            // Deposit due now — server recomputes from booking.deposit_pct,
+            // this is purely a display approximation matching the 20%
+            // default in PublicBookingController::store().
+            depositAmount() {
+                return Math.round(this.subtotal() * (this.depositPct / 100));
             },
             formatMoney(n) {
                 return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
