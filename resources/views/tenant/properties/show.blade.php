@@ -279,34 +279,33 @@
                     ],
                 ])->toArray();
 
-                // Pre-build the Alpine initial state so @json() gets a single clean variable.
-                // (Multi-line PHP literals inside @json() in an HTML attribute trip Blade's
-                // directive parser and surface as "Unclosed [ does not match )" at runtime.)
-                $alpineInitial = [
-                    'showForm'  => false,
-                    'editingId' => null,
-                    'form'      => new \stdClass(),
-                    'rulesData' => empty($rulesData) ? new \stdClass() : $rulesData,
-                ];
+                $rulesDataJson = json_encode(
+                    empty($rulesData) ? new \stdClass() : $rulesData,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE
+                );
+                $defaultRoomId = $wholeHouseRoomId ?? '';
             @endphp
 
             <div class="card" style="padding:20px; margin-top: 16px;"
-                 x-data='@json($alpineInitial)'
-                 x-init="
-                    edit = (id) => {
-                        const data = rulesData[id];
-                        if (!data) { console.warn('rule not found', id); return; }
-                        editingId = id;
-                        form = { ...data };
-                        showForm = true;
-                        $el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    };
-                    addNew = () => {
-                        editingId = null;
-                        form = { active: true, rule_type: 'weekend', adjustment_type: 'percent', priority: 100, weekday_mask: [5,6,0], room_id: '{{ $wholeHouseRoomId ?? '' }}' };
-                        showForm = !showForm;
-                    };
-                 ">
+                 x-data="{
+                    showForm: false,
+                    editingId: null,
+                    form: {},
+                    rulesData: {!! $rulesDataJson !!},
+                    edit(id) {
+                        const data = this.rulesData[id];
+                        if (!data) { console.warn('pricing rule not found in client data:', id); return; }
+                        this.editingId = id;
+                        this.form = { ...data };
+                        this.showForm = true;
+                        this.$nextTick(() => this.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                    },
+                    addNew() {
+                        this.editingId = null;
+                        this.form = { active: true, rule_type: 'weekend', adjustment_type: 'percent', priority: 100, weekday_mask: [5,6,0], room_id: '{{ $defaultRoomId }}' };
+                        this.showForm = !this.showForm;
+                    }
+                 }">
 
                 @if (session('status'))
                     <div style="margin-bottom:14px; padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
