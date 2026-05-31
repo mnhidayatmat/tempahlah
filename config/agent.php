@@ -42,6 +42,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Stale inbound cutoff — never reply to an inbound message that arrived
+    | more than this many minutes before the job runs. Protects guests from
+    | "out of the blue" robot replies if a queue backlog, sidecar restart,
+    | or any other delay holds the job. The customer should NEVER receive
+    | an unsolicited-feeling reply hours after their original message.
+    |--------------------------------------------------------------------------
+    */
+    'max_inbound_age_minutes' => (int) env('AGENT_MAX_INBOUND_AGE_MINUTES', 5),
+
+    /*
+    |--------------------------------------------------------------------------
     | Photos
     |--------------------------------------------------------------------------
     */

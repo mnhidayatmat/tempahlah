@@ -57,6 +57,25 @@ class ProcessAgentReply implements ShouldQueue
             if (! $tenant || ! $convo || ! $inbound) return;
             if (! $convo->isActive()) return;
 
+            // Stale-inbound guard: never reply to an inbound that arrived more
+            // than N minutes ago. This protects guests from "out of the blue"
+            // replies caused by queue backlogs, sidecar restarts, or any other
+            // delay between webhook receipt and job processing. If a customer
+            // messaged hours ago and gave up, we should NOT suddenly ping them
+            // with a robot reply once the queue catches up.
+            $maxAgeMinutes = (int) config('agent.max_inbound_age_minutes', 5);
+            $ageMinutes = $inbound->created_at?->diffInMinutes(now()) ?? 0;
+            if ($ageMinutes > $maxAgeMinutes) {
+                Log::info('Agent reply skipped: inbound too old', [
+                    'tenant_id'      => $this->tenantId,
+                    'inbound_msg_id' => $this->inboundMessageId,
+                    'inbound_phone'  => $inbound->recipient_phone,
+                    'age_minutes'    => $ageMinutes,
+                    'cap_minutes'    => $maxAgeMinutes,
+                ]);
+                return;
+            }
+
             $agent->handle($tenant, $convo, $inbound);
         } catch (\Throwable $e) {
             Log::warning('Agent reply job failed', [
