@@ -64,6 +64,7 @@
                 'rooms'     => (int) $p->rooms->count(),
                 'beds'      => (int) $p->beds_total,
                 'cover'     => $cover['g'],
+                'photo_url' => $p->cover_photo_url,
                 'kind'      => $p->cover_kind,
                 'tone'      => $cover['tone'],
                 'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
@@ -102,8 +103,17 @@
       })">
 
     {{-- ───── HERO BANNER ─────────────────────────────────────────── --}}
-    <header class="wf-banner" :style="`background: ${current.cover}`">
-        <div class="wf-banner-grain" aria-hidden="true"></div>
+    <header class="wf-banner"
+            :class="{ 'wf-banner-has-photo': !!current.photo_url }"
+            :style="current.photo_url
+                ? `background-image: url('${current.photo_url}'); background-size: cover; background-position: center; background-color: #1a1614;`
+                : `background: ${current.cover};`">
+        {{-- Diagonal-stripe grain only when there's no real photo; over a
+             photo it would look like an old TV. --}}
+        <div class="wf-banner-grain" aria-hidden="true" x-show="!current.photo_url"></div>
+        {{-- Slightly stronger top scrim when a photo is present, so the
+             locale + WhatsApp pills stay readable over varied imagery. --}}
+        <div class="wf-banner-vignette-top" aria-hidden="true" x-show="!!current.photo_url"></div>
         <div class="wf-banner-vignette" aria-hidden="true"></div>
 
         <div class="wf-banner-top">
@@ -382,6 +392,22 @@
         background: linear-gradient(180deg, transparent 0%, rgba(20,10,5,0.55) 100%);
         pointer-events: none;
     }
+    /* When the hero is showing a real cover photo, the H1 + tagline need
+       a deeper bottom scrim because real photos vary wildly in brightness. */
+    .wf-banner.wf-banner-has-photo .wf-banner-vignette {
+        height: 75%;
+        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.75) 100%);
+    }
+    /* Light top scrim only when there's a photo — keeps the locale +
+       WhatsApp pills (top-left / top-right) readable over bright skies. */
+    .wf-banner-vignette-top {
+        position: absolute; left: 0; right: 0; top: 0;
+        height: 35%;
+        background: linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 100%);
+        pointer-events: none;
+    }
+    /* Slight blueish-grey backdrop while the photo is still loading. */
+    .wf-banner.wf-banner-has-photo { background-color: #2c2622; }
     .wf-banner-top {
         position: absolute;
         top: calc(14px + env(safe-area-inset-top));

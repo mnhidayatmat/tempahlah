@@ -20,7 +20,12 @@ class TenantHomeController extends Controller
         $properties = Property::query()
             ->where('tenant_id', $tenant->id)
             ->where('status', Property::STATUS_ACTIVE)
-            ->with(['rooms:id,property_id,base_price,max_adults,max_children,beds'])
+            ->with([
+                'rooms:id,property_id,base_price,max_adults,max_children,beds',
+                // Cover photo for the hero banner. Minimal columns so we can
+                // pick the is_hero one (else fall back to first by sort_order).
+                'photos:id,property_id,path,disk,is_hero,sort_order',
+            ])
             ->orderBy('name')
             ->get();
 
@@ -32,6 +37,12 @@ class TenantHomeController extends Controller
                 fn ($r) => (int) $r->max_adults + (int) $r->max_children
             );
             $property->beds_total = (int) $property->rooms->sum(fn ($r) => (int) $r->beds);
+
+            // Resolve cover photo URL: prefer the explicit hero, else first
+            // by sort_order, else null (view falls back to the gradient).
+            $cover = $property->photos->firstWhere('is_hero', true)
+                ?? $property->photos->first();
+            $property->cover_photo_url = $cover?->url();
         }
 
         // Per-property booked-date sets — flatten each future booking into the
