@@ -73,8 +73,55 @@
                 linear-gradient(165deg, #0a1f2c 0%, #143a52 45%, #1c5b7d 100%);
             isolation: isolate;
         }
+        /* Mobile: the atmospheric stage adds nothing useful for someone
+           actively trying to sign up. Hide it entirely; form gets the
+           full viewport with just a slim brand strip above. */
         @media (max-width: 920px) {
-            .stage { padding: 28px 22px 36px; min-height: 360px; }
+            .stage { display: none; }
+        }
+
+        /* Mobile-only top strip — replaces the hidden stage chrome. */
+        .mobile-top {
+            display: none;
+        }
+        @media (max-width: 920px) {
+            .mobile-top {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 18px 22px;
+                background: var(--paper);
+                border-bottom: 1px solid var(--line);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .mobile-top .brand-mark {
+                width: 32px; height: 32px;
+                background: linear-gradient(155deg, #1c5b7d, #0e2a3a);
+                padding: 4px;
+            }
+            .mobile-top .brand-name {
+                font-family: 'Fraunces', serif;
+                font-style: italic;
+                font-weight: 500;
+                font-size: 18px;
+                color: var(--ink);
+                letter-spacing: -0.01em;
+            }
+            .mobile-top .brand { color: var(--ink); }
+            .mobile-top .locale {
+                background: var(--cream-warm);
+                border-color: var(--line-2);
+                backdrop-filter: none;
+            }
+            .mobile-top .locale a { color: var(--ink-3); }
+            .mobile-top .locale a.active {
+                background: var(--ink-deep);
+                color: var(--brass-soft);
+                box-shadow: 0 2px 6px -2px rgba(14,42,58,0.35);
+            }
         }
 
         /* Grain overlay — generated SVG noise, no external asset */
@@ -355,7 +402,16 @@
             animation: rise 0.8s cubic-bezier(.22,1,.36,1) 0.6s forwards;
             overflow-y: auto;
         }
-        @media (max-width: 920px) { .desk { padding: 36px 22px 56px; } }
+        @media (max-width: 920px) {
+            .desk {
+                padding: 28px 22px 40px;
+                min-height: calc(100dvh - 70px); /* sticky mobile-top offset */
+                justify-content: flex-start;
+                animation: rise 0.5s cubic-bezier(.22,1,.36,1) 0.05s forwards;
+            }
+            .heading { margin-bottom: 24px; }
+            .heading-title { font-size: 28px; }
+        }
         /* Paper texture: subtle horizontal lines like a ledger */
         .desk::before {
             content: '';
@@ -637,6 +693,19 @@
     </style>
 </head>
 <body>
+    {{-- Mobile-only top strip — slim brand + locale toggle, replaces the
+         hidden atmospheric stage on small screens. --}}
+    <div class="mobile-top" aria-hidden="false">
+        <a href="{{ url('/') }}" class="brand">
+            <span class="brand-mark"><img src="{{ asset('icons/logo.svg') }}" alt=""></span>
+            <span class="brand-name">Tempahlah</span>
+        </a>
+        <div class="locale" role="group" aria-label="Language">
+            <a href="{{ route('locale.switch', 'ms') }}" class="{{ $isBM ? 'active' : '' }}">BM</a>
+            <a href="{{ route('locale.switch', 'en') }}" class="{{ ! $isBM ? 'active' : '' }}">EN</a>
+        </div>
+    </div>
+
     <div class="ledger">
 
         {{-- ───── LEFT: Atmospheric stage ─────────────────────────── --}}
