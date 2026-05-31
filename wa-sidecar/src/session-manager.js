@@ -290,8 +290,24 @@ class SessionManager {
           m.message?.extendedTextMessage?.text ??
           '';
         if (!text) continue;
-        const fromJid = m.key.remoteJid ?? '';
-        const phone = fromJid.split('@')[0];
+
+        // WhatsApp's Multi-Device protocol routes some senders through
+        // anonymized "LID" JIDs (e.g. 204062519738487@lid) instead of the
+        // expected 60xxxxxxxxx@s.whatsapp.net. We can't reply to a LID —
+        // outbound to that JID looks "sent" but never reaches the user.
+        // Resolve to the underlying phone-number JID using whatever Baileys
+        // surfaces, in priority order.
+        const pnJid = resolvePhoneNumberJid(m.key, sock);
+
+        if (!pnJid) {
+          childLogger.warn(
+            { keyDump: m.key, remoteJid: m.key.remoteJid },
+            'inbound from unresolvable JID (likely @lid with no phone mapping yet) — skipping to avoid replying into the void',
+          );
+          continue;
+        }
+
+        const phone = pnJid.split('@')[0];
         await postWebhook('message.inbound', {
           tenantId,
           fromPhone: `+${phone}`,
@@ -311,6 +327,54 @@ function toJid(phone) {
   const digits = String(phone).replace(/[^0-9]/g, '');
   if (!digits) throw new Error('Invalid phone');
   return `${digits}@s.whatsapp.net`;
+}
+
+/**
+ * Resolve an inbound message's true phone-number JID. WhatsApp's MD
+ * protocol increasingly routes messages through "LID" (Linked-Identity)
+ * JIDs like `204062519738487@lid` — sending a reply to that JID looks
+ * "sent" but never lands in the user's chat.
+ *
+ * Strategies in priority order:
+ *   1. m.key.remoteJid                — already a phone JID? use it.
+ *   2. m.key.remoteJidAlt             — Baileys exposes the paired PN JID
+ *                                       when it knows the LID↔PN mapping.
+ *   3. m.key.senderPn                 — sender's phone-number JID (newer Baileys).
+ *   4. sock.signalRepository.lidMapping.getPNForLID(jid)
+ *                                     — explicit lookup against the live store.
+ *
+ * Returns the resolved `xxx@s.whatsapp.net` JID, or null if none of the
+ * strategies yield a phone-number JID (caller should skip the message).
+ */
+function resolvePhoneNumberJid(key, sock) {
+  const isPN = (j) => typeof j === 'string' && j.endsWith('@s.whatsapp.net');
+
+  if (isPN(key.remoteJid)) return key.remoteJid;
+  if (isPN(key.remoteJidAlt)) return key.remoteJidAlt;
+  if (isPN(key.senderPn)) return key.senderPn;
+
+  // Last-ditch: ask Baileys's LID mapping store to resolve the @lid JID.
+  // The API surface varies across Baileys versions — try the common
+  // shapes, swallow errors so a missing store doesn't kill the inbound
+  // handler.
+  const lidJid = key.remoteJid;
+  if (typeof lidJid === 'string' && lidJid.endsWith('@lid')) {
+    try {
+      const store = sock?.signalRepository?.lidMapping;
+      const fn = store?.getPNForLID ?? store?.getPnForLid;
+      if (typeof fn === 'function') {
+        const resolved = fn.call(store, lidJid);
+        // Some impls are async; if so we get a Promise — best-effort sync only
+        // here. The .then branch is just for visibility in logs if it ever
+        // returns one.
+        if (resolved && typeof resolved === 'string' && isPN(resolved)) {
+          return resolved;
+        }
+      }
+    } catch { /* fall through to null */ }
+  }
+
+  return null;
 }
 
 async function downloadMedia(url) {
