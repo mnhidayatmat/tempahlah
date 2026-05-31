@@ -68,12 +68,20 @@ cat /etc/nginx/sites-enabled/tempahlah.com.conf
 
 ## Notes
 
-- This config is for the **apex domain** only (`tempahlah.com`). The
-  wildcard `*.tempahlah.com` (tenant subdomains) shares the same vhost
-  because Laravel resolves the tenant from the host header via the
-  `ResolveTenantFromSubdomain` middleware. To make wildcard SSL work
-  you need a wildcard cert (`*.tempahlah.com`) via Let's Encrypt's
-  DNS-01 challenge — separate from this file.
+- This config covers the **apex domain** AND **every tenant subdomain**
+  (`server_name tempahlah.com www.tempahlah.com *.tempahlah.com;`).
+  Laravel resolves the tenant from the host header via the
+  `ResolveTenantFromSubdomain` middleware.
+- The `if ($host = 'www.tempahlah.com')` block is intentionally narrow
+  — it ONLY 301-redirects `www.` to the apex. A more permissive
+  `!= 'tempahlah.com'` would catch every subdomain and break tenant
+  routing.
+- SSL paths point at the **wildcard cert** issued via acme.sh + Name.com
+  DNS API, NOT the certbot HTTP-01 cert. See
+  [`INSTALL-WILDCARD-SSL.md`](INSTALL-WILDCARD-SSL.md) for the
+  wildcard-cert install + auto-renewal setup. The old certbot cert
+  at `/etc/letsencrypt/live/tempahlah.com/` is no longer used by
+  nginx but auto-renews harmlessly.
 - If `nginx -t` warns
   `conflicting server name "www.tempahlah.com" on 0.0.0.0:443` it
   means another vhost in `sites-enabled/` also declares `www.tempahlah.com`.
