@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Webhooks;
 
+use App\Actions\Invoicing\GenerateInvoice;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
+use App\Jobs\SendBookingReceipt;
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
@@ -172,12 +175,42 @@ class ToyyibpayWebhookController extends Controller
                 'status' => Booking::STATUS_CONFIRMED,
             ]);
             if ($wasPending) {
+                // 1. Warm confirmation message (existing flow).
                 SendBookingConfirmation::dispatch($booking->id);
+
+                // 2. Formal receipt: PDF + email + WhatsApp. Generated
+                //    server-to-server so it fires even if the customer
+                //    closed their browser before the return-page redirect.
+                //    Guarded by try/catch so any PDF/storage hiccup
+                //    doesn't 500 the webhook (Toyyibpay would retry).
+                try {
+                    $receipt = app(GenerateInvoice::class)->execute(
+                        $booking->fresh(['property', 'tenant', 'bookingGuests']),
+                        $payment,
+                        Invoice::TYPE_RECEIPT,
+                    );
+                    SendBookingReceipt::dispatch($booking->id, $receipt->id, $payment->id);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
         if ($payment->type === Payment::TYPE_BALANCE) {
             $booking->update(['balance_paid_at' => now()]);
+
+            // Balance payments also get a receipt (different from the
+            // confirmation flow — the booking was already confirmed).
+            try {
+                $receipt = app(GenerateInvoice::class)->execute(
+                    $booking->fresh(['property', 'tenant', 'bookingGuests']),
+                    $payment,
+                    Invoice::TYPE_RECEIPT,
+                );
+                SendBookingReceipt::dispatch($booking->id, $receipt->id, $payment->id);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 }

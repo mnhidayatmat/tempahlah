@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Http\Requests\Public;
+
+use App\Models\Property;
+use App\Models\Room;
+use App\Services\WhatsApp\PhoneNumber;
+use App\Support\Tenancy\BelongsToTenantScope;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+/**
+ * Validation for public-facing direct-booking submissions on a tenant
+ * subdomain. The tenant is resolved by ResolveTenantFromSubdomain
+ * middleware and stashed in `$request->attributes->subdomain_tenant`.
+ *
+ * Both property_id and room_id must belong to that same tenant — we
+ * verify this server-side using a withoutGlobalScopes() query so we don't
+ * trust the form input.
+ */
+class StoreBookingRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->attributes->get('subdomain_tenant') !== null;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'property_id'      => ['required', 'integer', 'exists:properties,id'],
+            'room_id'          => ['required', 'integer', 'exists:rooms,id'],
+            'check_in'         => ['required', 'date', 'after_or_equal:today'],
+            'check_out'        => ['required', 'date', 'after:check_in'],
+            'adults'           => ['required', 'integer', 'min:1', 'max:20'],
+            'children'         => ['nullable', 'integer', 'min:0', 'max:20'],
+            'guest_name'       => ['required', 'string', 'min:2', 'max:120'],
+            'guest_email'      => ['required', 'email:rfc', 'max:160'],
+            'guest_phone'      => ['required', 'string', 'min:7', 'max:24'],
+            'special_requests' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($v) {
+            $tenant = $this->attributes->get('subdomain_tenant');
+            if (! $tenant) return;
+
+            $propertyId = (int) $this->input('property_id');
+            $roomId     = (int) $this->input('room_id');
+
+            $property = Property::query()
+                ->withoutGlobalScope(BelongsToTenantScope::class)
+                ->where('tenant_id', $tenant->id)
+                ->where('id', $propertyId)
+                ->where('status', Property::STATUS_ACTIVE)
+                ->first();
+
+            if (! $property) {
+                $v->errors()->add('property_id', __('Selected property is not available.'));
+                return;
+            }
+
+            $room = Room::query()
+                ->withoutGlobalScope(BelongsToTenantScope::class)
+                ->where('tenant_id', $tenant->id)
+                ->where('property_id', $property->id)
+                ->where('id', $roomId)
+                ->first();
+
+            if (! $room) {
+                $v->errors()->add('room_id', __('Selected room is not available.'));
+            }
+
+            // Phone must normalize to E.164 (PhoneNumber returns null on
+            // garbage). We do this in withValidator instead of a custom
+            // rule so the normalized value is available to the controller
+            // via $this->normalizedPhone().
+            $normalized = PhoneNumber::normalize($this->input('guest_phone'));
+            if (! $normalized) {
+                $v->errors()->add('guest_phone', __('Please enter a valid phone number with country code.'));
+            }
+        });
+    }
+
+    public function normalizedPhone(): ?string
+    {
+        return PhoneNumber::normalize($this->input('guest_phone'));
+    }
+}

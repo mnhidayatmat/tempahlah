@@ -24,6 +24,11 @@ class WhatsappSession extends Model
         'auto_confirmation'    => true,
         'auto_reminder'        => true,
         'auto_checkin'         => true,
+        // Core direct-booking comms — invoice on booking creation, receipt
+        // on successful payment. Default on; tenants can disable via the
+        // WhatsApp integration page if they prefer manual sends.
+        'auto_invoice'         => true,
+        'auto_receipt'         => true,
         'reminder_days_before' => 3,
         'checkin_hours_before' => 24,
         'rate_limit_seconds'   => 8,

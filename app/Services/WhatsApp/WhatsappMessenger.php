@@ -4,6 +4,8 @@ namespace App\Services\WhatsApp;
 
 use App\Jobs\SendWhatsappMessage;
 use App\Models\Booking;
+use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhatsappMessage;
@@ -69,6 +71,36 @@ class WhatsappMessenger
             'auto_checkin',
             WhatsappMessage::KIND_CHECKIN,
             fn () => MessageTemplates::checkin($booking),
+        );
+    }
+
+    /**
+     * Pay-link invoice — sent right after a public booking is created on
+     * the tenant subdomain. Gated by the `auto_invoice` session pref
+     * (defaults to true since this is core booking-flow comms, not
+     * marketing).
+     */
+    public static function dispatchInvoice(Booking $booking, string $payUrl): ?WhatsappMessage
+    {
+        return self::autoDispatch(
+            $booking,
+            'auto_invoice',
+            WhatsappMessage::KIND_INVOICE,
+            fn () => MessageTemplates::invoice($booking, $payUrl),
+        );
+    }
+
+    /**
+     * Payment receipt — sent after the Toyyibpay webhook confirms a
+     * deposit/full payment. Carries the formal receipt number.
+     */
+    public static function dispatchReceipt(Booking $booking, Invoice $receipt, Payment $payment): ?WhatsappMessage
+    {
+        return self::autoDispatch(
+            $booking,
+            'auto_receipt',
+            WhatsappMessage::KIND_RECEIPT,
+            fn () => MessageTemplates::receipt($booking, $receipt, $payment),
         );
     }
 

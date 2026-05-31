@@ -3,6 +3,8 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\Booking;
+use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Support\Carbon;
 
 /**
@@ -120,6 +122,87 @@ class MessageTemplates
              . "🕒 Check-in from: {$checkInTime}\n"
              . "📍 Address: {$address}\n\n"
              . "Reply here with any issues. Welcome!";
+    }
+
+    /**
+     * Invoice / pay-link message — sent right after a public booking is
+     * created on the tenant subdomain. Carries the Toyyibpay deposit link.
+     */
+    public static function invoice(Booking $booking, string $payUrl): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $lead = $booking->bookingGuests()->where('is_lead', true)->first();
+        $name = $lead?->full_name ?? $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $ci = Carbon::parse($booking->check_in)->translatedFormat('D, j M Y');
+        $co = Carbon::parse($booking->check_out)->translatedFormat('D, j M Y');
+        $nights = (int) Carbon::parse($booking->check_in)->diffInDays(Carbon::parse($booking->check_out));
+        $deposit = self::rm($booking->deposit_amount);
+        $total = self::rm($booking->total_amount);
+        $guests = (int) ($booking->adults ?? 1);
+
+        if ($locale === 'ms') {
+            return "Salam {$name}!\n\n"
+                 . "Terima kasih kerana memilih *{$business}*. Tempahan anda sedang menunggu bayaran deposit:\n\n"
+                 . "📍 {$property}\n"
+                 . "📅 {$ci} → {$co} ({$nights} malam)\n"
+                 . "👥 {$guests} tetamu\n"
+                 . "💰 Deposit: {$deposit} daripada {$total}\n"
+                 . "🔖 Rujukan: {$booking->reference}\n\n"
+                 . "💳 Bayar deposit di sini:\n{$payUrl}\n\n"
+                 . "Pautan ini sah selama 7 hari. Setelah deposit dibayar, anda akan menerima pengesahan dan resit secara automatik.";
+        }
+
+        return "Hi {$name}!\n\n"
+             . "Thanks for choosing *{$business}*. Your booking is pending payment of the deposit:\n\n"
+             . "📍 {$property}\n"
+             . "📅 {$ci} → {$co} ({$nights} night" . ($nights > 1 ? 's' : '') . ")\n"
+             . "👥 {$guests} guest" . ($guests > 1 ? 's' : '') . "\n"
+             . "💰 Deposit: {$deposit} of {$total}\n"
+             . "🔖 Reference: {$booking->reference}\n\n"
+             . "💳 Pay deposit here:\n{$payUrl}\n\n"
+             . "This link is valid for 7 days. Once paid, you'll automatically receive a confirmation and receipt.";
+    }
+
+    /**
+     * Payment receipt message — sent after the Toyyibpay webhook flips a
+     * deposit/full payment to succeeded. Carries the formal receipt number.
+     */
+    public static function receipt(Booking $booking, Invoice $receipt, Payment $payment): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $lead = $booking->bookingGuests()->where('is_lead', true)->first();
+        $name = $lead?->full_name ?? $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $ci = Carbon::parse($booking->check_in)->translatedFormat('D, j M Y');
+        $co = Carbon::parse($booking->check_out)->translatedFormat('D, j M Y');
+        $nights = (int) Carbon::parse($booking->check_in)->diffInDays(Carbon::parse($booking->check_out));
+        $paid = self::rm($payment->amount);
+        $checkInTime = $booking->property?->check_in_time
+            ? substr((string) $booking->property->check_in_time, 0, 5)
+            : '15:00';
+
+        if ($locale === 'ms') {
+            return "Salam {$name}!\n\n"
+                 . "Bayaran diterima ✓ Terima kasih!\n\n"
+                 . "🧾 Resit: {$receipt->invoice_number}\n"
+                 . "📍 {$property}\n"
+                 . "📅 {$ci} → {$co} ({$nights} malam)\n"
+                 . "💳 Dibayar: {$paid} melalui Toyyibpay\n"
+                 . "🔖 Tempahan: {$booking->reference}\n\n"
+                 . "Resit PDF juga dihantar ke emel anda. Jumpa lagi pada {$ci} (daftar masuk selepas {$checkInTime}). Selamat datang ke *{$business}*!";
+        }
+
+        return "Hi {$name}!\n\n"
+             . "Payment received ✓ Thank you!\n\n"
+             . "🧾 Receipt: {$receipt->invoice_number}\n"
+             . "📍 {$property}\n"
+             . "📅 {$ci} → {$co} ({$nights} night" . ($nights > 1 ? 's' : '') . ")\n"
+             . "💳 Paid: {$paid} via Toyyibpay\n"
+             . "🔖 Booking: {$booking->reference}\n\n"
+             . "The receipt PDF has also been emailed to you. See you on {$ci} (check-in from {$checkInTime}). Welcome to *{$business}*!";
     }
 
     public static function test(?string $name = null): string
