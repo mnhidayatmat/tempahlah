@@ -28,7 +28,7 @@
 
             @foreach ($meta['fields'] as $key => $field)
                 @php
-                    $current = old($key, $record->config[$key] ?? '');
+                    $current = old($key, $record->config[$key] ?? ($field['default'] ?? ''));
                 @endphp
                 <div>
                     <label class="kicker" style="display:block; margin-bottom: 6px;">{{ $field['label'] }}</label>
@@ -37,6 +37,12 @@
                             <input type="checkbox" name="{{ $key }}" value="1" {{ $current ? 'checked' : '' }}>
                             <span>{{ __('Enabled') }}</span>
                         </label>
+                    @elseif ($field['type'] === 'select')
+                        <select class="input" name="{{ $key }}">
+                            @foreach ($field['options'] as $optValue => $optLabel)
+                                <option value="{{ $optValue }}" {{ (string) $current === (string) $optValue ? 'selected' : '' }}>{{ $optLabel }}</option>
+                            @endforeach
+                        </select>
                     @else
                         <input class="input"
                                type="{{ $field['type'] }}"
@@ -44,6 +50,9 @@
                                value="{{ $current }}"
                                placeholder="{{ $field['placeholder'] ?? '' }}"
                                autocomplete="off">
+                    @endif
+                    @if (! empty($field['help']))
+                        <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 4px;">{{ $field['help'] }}</div>
                     @endif
                 </div>
             @endforeach

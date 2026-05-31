@@ -24,12 +24,26 @@ class ToyyibpayClient
     public const PRODUCTION_BASE = 'https://toyyibpay.com';
     public const SANDBOX_BASE    = 'https://dev.toyyibpay.com';
 
+    // Toyyibpay billPaymentChannel codes.
+    //   0 = FPX (online banking) only — universally available
+    //   1 = Credit card only — requires merchant card activation
+    //   2 = FPX + credit card — same activation requirement as 1
+    // Default is 0 because (a) every Toyyibpay merchant has FPX from day
+    // one, (b) sandbox accounts often don't have card processing wired,
+    // (c) accounts that haven't completed the card-merchant onboarding
+    // see "this payment channel is not available" on the bill page when
+    // we send 1 or 2.
+    public const CHANNEL_FPX  = 0;
+    public const CHANNEL_CARD = 1;
+    public const CHANNEL_BOTH = 2;
+
     public function __construct(
         public readonly string $baseUrl,
         public readonly string $secretKey,
         public readonly string $categoryCode,
         public readonly int $tenantId,
         public readonly bool $sandbox = true,
+        public readonly int $paymentChannel = self::CHANNEL_FPX,
     ) {}
 
     /**
@@ -59,12 +73,20 @@ class ToyyibpayClient
 
         $sandbox = (bool) ($config['is_sandbox'] ?? true);
 
+        // Coerce to int and clamp to the three valid channel codes. Anything
+        // outside [0,1,2] falls back to FPX (safe universal default).
+        $channelRaw = (int) ($config['payment_channel'] ?? self::CHANNEL_FPX);
+        $channel = in_array($channelRaw, [self::CHANNEL_FPX, self::CHANNEL_CARD, self::CHANNEL_BOTH], true)
+            ? $channelRaw
+            : self::CHANNEL_FPX;
+
         return new self(
             baseUrl: $sandbox ? self::SANDBOX_BASE : self::PRODUCTION_BASE,
             secretKey: $secret,
             categoryCode: $cat,
             tenantId: $tenantId,
             sandbox: $sandbox,
+            paymentChannel: $channel,
         );
     }
 
@@ -105,7 +127,7 @@ class ToyyibpayClient
             'billTo' => $lead?->full_name ?? ($booking->guest?->name ?? 'Guest'),
             'billEmail' => $lead?->email ?? ($booking->guest?->email ?? 'noreply@tempahlah.com'),
             'billPhone' => $this->cleanPhone($lead?->phone ?? $booking->guest?->phone),
-            'billPaymentChannel' => 2,               // FPX + cards
+            'billPaymentChannel' => $this->paymentChannel,
             'billContentEmail' => 'Thank you for booking with Tempahlah.',
             'billChargeToCustomer' => 1,             // customer pays gateway fee
             'billExpiryDays' => 7,
@@ -215,7 +237,7 @@ class ToyyibpayClient
             'billPriceSetting' => 1,
             'billPayorInfo' => 0,
             'billAmount' => 100, // RM 1.00 (lowest sane integer)
-            'billPaymentChannel' => 2,
+            'billPaymentChannel' => $this->paymentChannel,
             'billExpiryDays' => 1,
         ];
 

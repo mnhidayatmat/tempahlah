@@ -168,6 +168,17 @@ class IntegrationController extends Controller
                     'user_secret_key' => ['label' => 'User secret key', 'type' => 'password', 'placeholder' => 'From Toyyibpay → Profile → User Secret Key'],
                     'category_code'   => ['label' => 'Category code',   'type' => 'text',     'placeholder' => 'From Toyyibpay → Categories → your category'],
                     'is_sandbox'      => ['label' => 'Use sandbox (dev.toyyibpay.com)', 'type' => 'checkbox'],
+                    'payment_channel' => [
+                        'label' => 'Payment methods',
+                        'type' => 'select',
+                        'options' => [
+                            '0' => 'FPX only (online banking) — works for every merchant',
+                            '1' => 'Credit/debit card only — requires card activation',
+                            '2' => 'FPX + cards — requires card activation',
+                        ],
+                        'default' => '0',
+                        'help' => 'If your bill page shows "selected payment channel is not available", your account has not activated cards yet — switch to FPX only.',
+                    ],
                 ],
             ],
             'google_calendar' => [
@@ -221,6 +232,7 @@ class IntegrationController extends Controller
                 'user_secret_key' => 'required|string|max:200',
                 'category_code' => 'required|string|max:32',
                 'is_sandbox' => 'sometimes|boolean',
+                'payment_channel' => 'sometimes|in:0,1,2',
             ],
             'google_calendar' => [
                 'client_id' => 'required|string|max:200',
