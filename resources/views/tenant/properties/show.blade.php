@@ -319,11 +319,13 @@
                     holidays: [],
                     holidaysLoading: false,
                     holidaysError: '',
+                    selectedHolidayDates: [],   // array of YYYY-MM-DD strings
                     async loadHolidays() {
                         if (this.holidaysLoading) return;
                         this.holidaysLoading = true;
                         this.holidaysError = '';
                         this.holidays = [];
+                        this.selectedHolidayDates = [];
                         try {
                             const url = `{{ url('/dashboard/api/public-holidays') }}/${this.holidayYear}`;
                             const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -332,6 +334,12 @@
                                 this.holidaysError = data.error || 'Could not load holidays.';
                             } else {
                                 this.holidays = data.holidays || [];
+                                // Pre-select ALL holidays by default — tenant can
+                                // uncheck specific ones (e.g. state-only holidays
+                                // they don't observe) before saving.
+                                this.selectedHolidayDates = this.holidays.map(h => h.date);
+                                // Default rule name in multi-pick mode: "Public holidays {year}"
+                                if (!this.editingId) this.form.name = 'Public holidays ' + this.holidayYear;
                             }
                         } catch (e) {
                             this.holidaysError = 'Network error loading holidays.';
@@ -339,13 +347,20 @@
                             this.holidaysLoading = false;
                         }
                     },
-                    pickHoliday(h) {
-                        // Auto-fill rule name + date_from/date_to to this single day.
-                        // Tenant can manually extend date_to if it's a multi-day
-                        // celebration (e.g. Raya = 2 days nationally).
-                        this.form.name = h.local_name + ' ' + this.holidayYear;
-                        this.form.date_from = h.date;
-                        this.form.date_to = h.date;
+                    selectAllHolidays() { this.selectedHolidayDates = this.holidays.map(h => h.date); },
+                    clearHolidays()      { this.selectedHolidayDates = []; },
+                    toggleHoliday(date) {
+                        const i = this.selectedHolidayDates.indexOf(date);
+                        if (i >= 0) this.selectedHolidayDates.splice(i, 1);
+                        else        this.selectedHolidayDates.push(date);
+                    },
+                    isHolidaySelected(date) { return this.selectedHolidayDates.includes(date); },
+                    // JSON payload sent to the server for bulk-create.
+                    holidayPicksJson() {
+                        const set = new Set(this.selectedHolidayDates);
+                        return JSON.stringify(
+                            this.holidays.filter(h => set.has(h.date)).map(h => ({ date: h.date, name: h.local_name }))
+                        );
                     },
                     fmtHolidayDate(iso) {
                         return new Date(iso + 'T00:00:00').toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -460,15 +475,17 @@
                             </div>
                         </div>
 
-                        {{-- Public holiday picker — Nager.Date upstream, cached
-                             24h per year server-side. Auto-fills name + date
-                             range when a holiday is clicked. --}}
-                        <div x-show="form.rule_type === 'holiday'" x-cloak
-                             x-init="$watch('form.rule_type', v => { if (v === 'holiday' && holidays.length === 0 && !holidaysLoading) loadHolidays(); })"
+                        {{-- Public holiday picker — Malaysia Holiday API,
+                             cached 24h server-side. Multi-select with all
+                             dates pre-checked by default. On Save, the server
+                             creates ONE rule per checked date (all sharing
+                             the same name prefix + adjustment). --}}
+                        <div x-show="form.rule_type === 'holiday' && !editingId" x-cloak
+                             x-init="$watch('form.rule_type', v => { if (v === 'holiday' && !this.editingId && holidays.length === 0 && !holidaysLoading) loadHolidays(); })"
                              style="padding: 12px 14px; background: var(--info-tint); border: 1px solid var(--line); border-radius: var(--r-md);">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap: wrap;">
                                 <div style="font-size: 12.5px; font-weight: 600; color: var(--ink);">
-                                    🇲🇾 {{ __('Pick a Malaysian public holiday') }}
+                                    🇲🇾 {{ __('Public holidays — pick which dates to mark up') }}
                                 </div>
                                 <div style="display:flex; align-items:center; gap: 6px;">
                                     <label class="kicker" style="font-size:9.5px;">{{ __('Year') }}</label>
@@ -488,42 +505,74 @@
                                  style="font-size: 11.5px; color: var(--warn); padding: 6px 0;"
                                  x-text="holidaysError"></div>
 
+                            {{-- Selection toolbar --}}
                             <div x-show="!holidaysLoading && !holidaysError && holidays.length > 0"
-                                 style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow-y: auto;">
-                                <template x-for="h in holidays" :key="h.date">
-                                    <button type="button"
-                                            @click="pickHoliday(h)"
-                                            :class="form.date_from === h.date ? 'pill is-active' : 'pill'"
-                                            :style="form.date_from === h.date
-                                                ? 'background: var(--primary); color: var(--ink-on-primary, #fff); border-color: var(--primary); cursor: pointer; padding: 4px 10px; height: auto; font-size: 11px;'
-                                                : 'background: var(--bg-elev); color: var(--ink-2); border: 1px solid var(--line); cursor: pointer; padding: 4px 10px; height: auto; font-size: 11px;'">
-                                        <span x-text="h.local_name"></span>
-                                        <span style="opacity: 0.7; margin-left: 4px;" x-text="fmtHolidayDate(h.date)"></span>
+                                 style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap: wrap;">
+                                <div style="font-size: 11.5px; color: var(--ink-3);">
+                                    <span x-text="selectedHolidayDates.length"></span>
+                                    {{ __('of') }}
+                                    <span x-text="holidays.length"></span>
+                                    {{ __('selected') }}
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn btn-sm btn-ghost" style="font-size:11px; padding:3px 9px;" @click="selectAllHolidays()">
+                                        ✓ {{ __('Select all') }}
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-ghost" style="font-size:11px; padding:3px 9px;" @click="clearHolidays()">
+                                        ✕ {{ __('Clear') }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {{-- Checkbox grid: each holiday is its own pill with a built-in checkbox --}}
+                            <div x-show="!holidaysLoading && !holidaysError && holidays.length > 0"
+                                 style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; padding: 4px;">
+                                <template x-for="h in holidays" :key="h.date">
+                                    <label
+                                        :style="isHolidaySelected(h.date)
+                                            ? 'display:flex; align-items:flex-start; gap:7px; padding: 6px 9px; background: var(--bg-elev); border: 1.5px solid var(--primary); border-radius: var(--r-md); cursor: pointer; font-size: 11.5px;'
+                                            : 'display:flex; align-items:flex-start; gap:7px; padding: 6px 9px; background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; font-size: 11.5px; opacity: 0.7;'">
+                                        <input type="checkbox"
+                                               :checked="isHolidaySelected(h.date)"
+                                               @change="toggleHoliday(h.date)"
+                                               style="margin-top: 2px; accent-color: var(--primary);">
+                                        <span style="flex:1; min-width:0;">
+                                            <span style="display:block; font-weight: 600; color: var(--ink); line-height: 1.3;" x-text="h.local_name"></span>
+                                            <span style="display:block; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); margin-top: 2px;" x-text="fmtHolidayDate(h.date)"></span>
+                                            <span x-show="h.state_codes && h.state_codes.length > 0"
+                                                  style="display:block; font-size: 10px; color: var(--ink-3); margin-top: 3px; line-height: 1.3;"
+                                                  x-text="(h.state_codes.length >= 14 ? '{{ __('All Malaysia') }}' : (h.state_codes || []).join(' · '))"></span>
+                                        </span>
+                                    </label>
                                 </template>
                             </div>
 
-                            <div style="margin-top: 8px; font-size: 11px; color: var(--ink-3); line-height: 1.5;">
-                                💡 {{ __('Click a holiday to auto-fill the name + date below. Multi-day celebrations (e.g. Hari Raya): pick the first day, then extend "Date to" manually. State-specific holidays (Sultan birthdays) may not appear — enter those manually.') }}
+                            {{-- The JSON payload of selected holidays — server-side bulk-create reads this --}}
+                            <input type="hidden" name="holiday_picks_json" :value="holidayPicksJson()">
+
+                            <div style="margin-top: 10px; font-size: 11px; color: var(--ink-3); line-height: 1.55;">
+                                💡 {{ __('All dates are checked by default. Uncheck any holidays you don\'t want to mark up (e.g. state-specific dates that don\'t apply to your property\'s location). Saving creates one rule per checked date, all with the same adjustment. Each rule can be edited or deleted individually afterwards.') }}
                             </div>
                         </div>
 
-                        {{-- Date range — required for holiday / school_holiday / season, optional otherwise --}}
-                        @php $datedTypes = "['holiday','school_holiday','season'].includes(form.rule_type)"; @endphp
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        {{-- Date range — required for school_holiday / season, optional for weekend/custom.
+                             HIDDEN when rule_type='holiday' because the holiday picker above is the
+                             source of truth (each checked holiday becomes its own one-day rule). --}}
+                        @php $datedTypes = "['school_holiday','season'].includes(form.rule_type)"; @endphp
+                        <div x-show="form.rule_type !== 'holiday' || editingId" x-cloak style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <div>
                                 <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">
                                     {{ __('Date from') }} <span x-text="{{ $datedTypes }} ? '*' : ''" style="color: var(--err);"></span>
                                     <span x-show="!({{ $datedTypes }})" style="color: var(--ink-3); font-weight:500;">{{ __('(optional)') }}</span>
                                 </label>
-                                <input class="input" type="date" name="date_from" x-model="form.date_from" x-bind:required="{{ $datedTypes }}">
+                                <input class="input" type="date" name="date_from" x-model="form.date_from" x-bind:required="form.rule_type !== 'holiday' && {{ $datedTypes }}">
                             </div>
                             <div>
                                 <label class="kicker" style="font-size:9.5px; display:block; margin-bottom:4px;">
                                     {{ __('Date to') }} <span x-text="{{ $datedTypes }} ? '*' : ''" style="color: var(--err);"></span>
                                     <span x-show="!({{ $datedTypes }})" style="color: var(--ink-3); font-weight:500;">{{ __('(optional)') }}</span>
                                 </label>
-                                <input class="input" type="date" name="date_to" x-model="form.date_to" x-bind:required="{{ $datedTypes }}">
+                                <input class="input" type="date" name="date_to" x-model="form.date_to" x-bind:required="form.rule_type !== 'holiday' && {{ $datedTypes }}">
                             </div>
                         </div>
 

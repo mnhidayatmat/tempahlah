@@ -7,6 +7,7 @@ use App\Models\PricingRule;
 use App\Models\Property;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PricingRuleController extends Controller
 {
@@ -14,6 +15,17 @@ class PricingRuleController extends Controller
     {
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant && $property->tenant_id === $tenant->id, 403);
+
+        // Bulk-create path for the public-holiday picker. When the form
+        // sends `holiday_picks_json` (a JSON array of {date, name}), we
+        // create ONE PricingRule per selected date, all sharing the same
+        // adjustment/priority/active/room_id. Rule names get appended
+        // with " — {holiday name}" so each row is identifiable in the
+        // rules list.
+        if ($request->input('rule_type') === PricingRule::TYPE_HOLIDAY
+            && filled($request->input('holiday_picks_json'))) {
+            return $this->bulkStoreHolidayRules($request, $tenant, $property);
+        }
 
         $validated = $this->validateRule($request);
 
@@ -35,6 +47,81 @@ class PricingRuleController extends Controller
         return redirect()
             ->route('tenant.properties.show', ['id' => $property->id, 'tab' => 'pricing'])
             ->with('status', __('Pricing rule ":name" added.', ['name' => $validated['name']]));
+    }
+
+    /**
+     * Bulk-create one PricingRule per checked holiday in the picker.
+     * Shared adjustment + name prefix + room scope + active state.
+     * All-or-nothing transaction — any validation failure rolls back.
+     */
+    protected function bulkStoreHolidayRules(Request $request, $tenant, Property $property)
+    {
+        $picks = json_decode((string) $request->input('holiday_picks_json'), true);
+        if (! is_array($picks) || count($picks) === 0) {
+            return back()->withInput()->withErrors([
+                'holiday_picks_json' => __('Select at least one holiday from the picker, or switch to a different rule type.'),
+            ]);
+        }
+
+        // Validate shared fields (the date_from/date_to validation in
+        // validateRule() doesnt apply — each rule gets its date from
+        // the holiday pick, not the form's date_from input).
+        $shared = $request->validate([
+            'room_id'          => 'nullable|integer|exists:rooms,id',
+            'name'             => 'required|string|max:60', // leaves room for the " — {holiday}" suffix to fit in the 80-char column
+            'adjustment_type'  => 'required|in:percent,flat,override',
+            'adjustment_value' => 'required|numeric',
+            'priority'         => 'nullable|integer|min:1|max:999',
+        ]);
+        $active = $request->boolean('active', true);
+
+        $created = 0;
+        DB::transaction(function () use ($picks, $shared, $tenant, $property, $active, &$created) {
+            foreach ($picks as $pick) {
+                $date = (string) ($pick['date'] ?? '');
+                $name = (string) ($pick['name'] ?? '');
+                if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $name === '') {
+                    continue; // skip malformed entries
+                }
+
+                // Idempotency: if a rule with the same name+date already
+                // exists for this property, skip — lets the tenant re-
+                // open the form and pick "Select all" without dupes.
+                $exists = PricingRule::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->where('property_id', $property->id)
+                    ->where('rule_type', PricingRule::TYPE_HOLIDAY)
+                    ->where('date_from', $date)
+                    ->where('date_to', $date)
+                    ->where('name', $shared['name'].' — '.$name)
+                    ->exists();
+                if ($exists) continue;
+
+                PricingRule::create([
+                    'tenant_id'    => $tenant->id,
+                    'property_id'  => $property->id,
+                    'room_id'      => $shared['room_id'] ?? null,
+                    'name'         => $shared['name'].' — '.$name,
+                    'rule_type'    => PricingRule::TYPE_HOLIDAY,
+                    'weekday_mask' => null,
+                    'date_from'    => $date,
+                    'date_to'      => $date,
+                    'adjustment_type'  => $shared['adjustment_type'],
+                    'adjustment_value' => $shared['adjustment_value'],
+                    'priority'     => (int) ($shared['priority'] ?? 100),
+                    'active'       => $active,
+                ]);
+                $created++;
+            }
+        });
+
+        $msg = $created === 0
+            ? __('No new rules created — all selected holidays already have a rule with this name.')
+            : trans_choice('{1} :count holiday rule added.|[2,*] :count holiday rules added.', $created, ['count' => $created]);
+
+        return redirect()
+            ->route('tenant.properties.show', ['id' => $property->id, 'tab' => 'pricing'])
+            ->with('status', $msg);
     }
 
     public function update(Request $request, Property $property, PricingRule $rule)
