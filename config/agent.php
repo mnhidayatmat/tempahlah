@@ -85,10 +85,14 @@ return [
             'label'    => 'DeepSeek',
             'api_key'  => env('DEEPSEEK_API_KEY'),
             'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1'),
-            'default'  => 'deepseek-chat',
+            // v4-flash is the new fast/cheap tier; v4-pro the balanced tier.
+            // deepseek-chat + deepseek-reasoner are sunsetting 2026-07-24.
+            'default'  => 'deepseek-v4-flash',
             'models'   => [
-                'deepseek-chat'     => 'DeepSeek Chat',
-                'deepseek-reasoner' => 'DeepSeek Reasoner',
+                'deepseek-v4-flash' => 'DeepSeek v4 Flash (fast, cheap)',
+                'deepseek-v4-pro'   => 'DeepSeek v4 Pro (balanced)',
+                'deepseek-chat'     => 'DeepSeek Chat (legacy — deprecated 2026-07-24)',
+                'deepseek-reasoner' => 'DeepSeek Reasoner (legacy — deprecated 2026-07-24)',
             ],
         ],
 
