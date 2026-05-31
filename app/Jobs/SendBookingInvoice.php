@@ -57,8 +57,10 @@ class SendBookingInvoice implements ShouldQueue
         }
 
         // WhatsApp arm — messenger handles all gating internally.
+        // Pass the Invoice so the messenger can attach the PDF as a
+        // WhatsApp document via a 7-day signed Spaces URL.
         try {
-            WhatsappMessenger::dispatchInvoice($booking, $this->payUrl);
+            WhatsappMessenger::dispatchInvoice($booking, $this->payUrl, $invoice);
         } catch (\Throwable $e) {
             report($e);
         }

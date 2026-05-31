@@ -10,6 +10,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappSession;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Public entry point for queueing outbound WhatsApp messages.
@@ -78,21 +80,23 @@ class WhatsappMessenger
      * Pay-link invoice — sent right after a public booking is created on
      * the tenant subdomain. Gated by the `auto_invoice` session pref
      * (defaults to true since this is core booking-flow comms, not
-     * marketing).
+     * marketing). Attaches the invoice PDF as a WhatsApp document.
      */
-    public static function dispatchInvoice(Booking $booking, string $payUrl): ?WhatsappMessage
+    public static function dispatchInvoice(Booking $booking, string $payUrl, ?Invoice $invoice = null): ?WhatsappMessage
     {
         return self::autoDispatch(
             $booking,
             'auto_invoice',
             WhatsappMessage::KIND_INVOICE,
             fn () => MessageTemplates::invoice($booking, $payUrl),
+            $invoice ? self::pdfMedia($invoice) : null,
         );
     }
 
     /**
      * Payment receipt — sent after the Toyyibpay webhook confirms a
-     * deposit/full payment. Carries the formal receipt number.
+     * deposit/full payment. Carries the formal receipt number AND the
+     * receipt PDF as a WhatsApp document.
      */
     public static function dispatchReceipt(Booking $booking, Invoice $receipt, Payment $payment): ?WhatsappMessage
     {
@@ -101,7 +105,43 @@ class WhatsappMessenger
             'auto_receipt',
             WhatsappMessage::KIND_RECEIPT,
             fn () => MessageTemplates::receipt($booking, $receipt, $payment),
+            self::pdfMedia($receipt),
         );
+    }
+
+    /**
+     * Build the `['url' => ..., 'kind' => 'pdf', 'filename' => ...]` media
+     * payload for an Invoice or Receipt. Uses a 7-day temporary signed URL
+     * from the configured filesystem so PDFs stay private even though the
+     * sidecar needs to download them.
+     *
+     * Returns null on any failure — the dispatch then sends the WA text
+     * body without an attachment rather than throwing.
+     */
+    protected static function pdfMedia(Invoice $invoice): ?array
+    {
+        if (! $invoice->pdf_path) return null;
+
+        try {
+            $disk = Storage::disk(config('filesystems.default'));
+            if (! $disk->exists($invoice->pdf_path)) return null;
+
+            // S3 / DO Spaces support temporaryUrl natively. Local-driver
+            // dev environments throw — fall through to no-media.
+            $url = $disk->temporaryUrl($invoice->pdf_path, now()->addDays(7));
+            return [
+                'url'      => $url,
+                'kind'     => 'pdf',
+                'filename' => $invoice->invoice_number.'.pdf',
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('WhatsApp PDF media: failed to build signed URL', [
+                'invoice_id' => $invoice->id,
+                'pdf_path'   => $invoice->pdf_path,
+                'error'      => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -139,20 +179,57 @@ class WhatsappMessenger
         string $prefKey,
         string $kind,
         \Closure $bodyFactory,
+        ?array $media = null,
     ): ?WhatsappMessage {
         $tenant = $booking->tenant;
-        if (! $tenant) return null;
+        if (! $tenant) {
+            Log::info('WhatsApp dispatch skipped: no tenant on booking', [
+                'booking_id' => $booking->id, 'kind' => $kind,
+            ]);
+            return null;
+        }
 
         $session = self::sessionFor($tenant);
-        if (! $session?->isConnected()) return null;
-        if (! $session->pref($prefKey)) return null;
+        if (! $session) {
+            Log::info('WhatsApp dispatch skipped: no session configured', [
+                'tenant_id' => $tenant->id, 'kind' => $kind,
+            ]);
+            return null;
+        }
+        if (! $session->isConnected()) {
+            // Most common cause of silent WA failures. Logged at info-level
+            // so it shows up under "why didn't my customer get a WA?".
+            Log::info('WhatsApp dispatch skipped: session not connected', [
+                'tenant_id'   => $tenant->id,
+                'kind'        => $kind,
+                'status'      => $session->status,
+                'last_error'  => $session->last_error,
+            ]);
+            return null;
+        }
+        if (! $session->pref($prefKey)) {
+            Log::info('WhatsApp dispatch skipped: auto-send pref off', [
+                'tenant_id' => $tenant->id, 'pref' => $prefKey,
+            ]);
+            return null;
+        }
 
         $phone = self::resolveGuestPhone($booking);
-        if (! $phone) return null;
+        if (! $phone) {
+            Log::info('WhatsApp dispatch skipped: no resolvable guest phone', [
+                'booking_id' => $booking->id, 'kind' => $kind,
+            ]);
+            return null;
+        }
 
-        if (self::guestOptedOut($booking->guest, $tenant)) return null;
+        if (self::guestOptedOut($booking->guest, $tenant)) {
+            Log::info('WhatsApp dispatch skipped: guest opted out', [
+                'tenant_id' => $tenant->id, 'guest_id' => $booking->guest_id,
+            ]);
+            return null;
+        }
 
-        return self::queue($tenant, $booking, $phone, $bodyFactory(), $kind);
+        return self::queue($tenant, $booking, $phone, $bodyFactory(), $kind, $media);
     }
 
     protected static function queue(
