@@ -473,60 +473,50 @@
         @media (max-width: 540px) { .grid-2 { grid-template-columns: 1fr; gap: 18px; } }
 
         .field { margin-bottom: 18px; }
-        .field-row {
-            display: flex;
-            align-items: baseline;
-            gap: 9px;
-            margin-bottom: 6px;
-        }
-        .field-num {
-            font-family: 'Geist Mono', monospace;
-            font-size: 10px;
-            color: var(--teal);
-            font-weight: 600;
-            letter-spacing: 0.16em;
-        }
         .field-label {
-            font-family: 'Geist Mono', monospace;
-            font-size: 10.5px;
+            display: block;
+            font-family: 'Geist', sans-serif;
+            font-size: 12.5px;
             font-weight: 600;
-            letter-spacing: 0.16em;
             color: var(--ink-2);
-            text-transform: uppercase;
+            margin-bottom: 6px;
         }
         .field-input {
             display: block;
             width: 100%;
-            padding: 8px 0 10px;
-            border: 0;
-            border-bottom: 1.5px solid var(--line-2);
-            background: transparent;
-            font: 500 17px/1.4 'Fraunces', serif;
+            padding: 11px 14px;
+            border: 1.5px solid var(--line-2);
+            border-radius: 8px;
+            background: #fff;
+            font-family: 'Geist', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.4;
             color: var(--ink);
             outline: none;
-            transition: border-color 0.2s ease, padding-bottom 0.2s ease, border-bottom-width 0.2s ease;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
-        .field-input::placeholder { color: var(--ink-3); font-style: italic; font-weight: 400; }
+        .field-input::placeholder {
+            color: var(--ink-3);
+            font-weight: 400;
+        }
         .field-input:focus {
-            border-bottom-color: var(--teal);
-            padding-bottom: 9px;
-            border-bottom-width: 2.5px;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 14%, transparent);
         }
         .field-err {
             display: block;
             font-size: 12px;
             color: var(--err);
-            margin-top: 7px;
+            margin-top: 6px;
             font-family: 'Geist', sans-serif;
         }
         .field-hint {
             display: block;
-            font-family: 'Geist Mono', monospace;
-            font-size: 9.5px;
-            letter-spacing: 0.06em;
+            font-family: 'Geist', sans-serif;
+            font-size: 11.5px;
             color: var(--ink-3);
             margin-top: 6px;
-            text-transform: lowercase;
         }
 
         /* Terms checkbox (matches login's Remember-me) */
@@ -807,12 +797,8 @@
                 <form method="POST" action="{{ route('register') }}" novalidate>
                     @csrf
 
-                    {{-- 01 — Your name --}}
                     <div class="field">
-                        <div class="field-row">
-                            <span class="field-num">01 /</span>
-                            <span class="field-label">{{ $isBM ? 'Nama anda' : 'Your name' }}</span>
-                        </div>
+                        <label for="name" class="field-label">{{ $isBM ? 'Nama anda' : 'Your name' }}</label>
                         <input id="name" name="name" type="text" required autocomplete="name" autofocus
                                value="{{ old('name') }}"
                                class="field-input"
@@ -820,27 +806,19 @@
                         @error('name') <span class="field-err">{{ $message }}</span> @enderror
                     </div>
 
-                    {{-- 02 — Business name (homestay) --}}
                     <div class="field">
-                        <div class="field-row">
-                            <span class="field-num">02 /</span>
-                            <span class="field-label">{{ $isBM ? 'Nama homestay' : 'Homestay name' }}</span>
-                        </div>
+                        <label for="business_name" class="field-label">{{ $isBM ? 'Nama homestay' : 'Homestay name' }}</label>
                         <input id="business_name" name="business_name" type="text" required
                                value="{{ old('business_name') }}"
                                class="field-input"
                                placeholder="{{ $isBM ? 'Wafa Homestay Kluang' : 'Aisha\'s Beach Retreat' }}">
                         @error('business_name') <span class="field-err">{{ $message }}</span> @enderror
-                        <span class="field-hint">{{ $isBM ? 'inilah nama yang tetamu akan nampak' : 'this is the name guests will see' }}</span>
+                        <span class="field-hint">{{ $isBM ? 'Inilah nama yang tetamu akan nampak.' : 'This is the name guests will see.' }}</span>
                     </div>
 
-                    {{-- 03 + 04 — Email + Phone (paired) --}}
                     <div class="grid-2">
                         <div class="field">
-                            <div class="field-row">
-                                <span class="field-num">03 /</span>
-                                <span class="field-label">{{ __('Email') }}</span>
-                            </div>
+                            <label for="email" class="field-label">{{ __('Email') }}</label>
                             <input id="email" name="email" type="email" required autocomplete="email"
                                    value="{{ old('email') }}"
                                    class="field-input"
@@ -848,10 +826,7 @@
                             @error('email') <span class="field-err">{{ $message }}</span> @enderror
                         </div>
                         <div class="field">
-                            <div class="field-row">
-                                <span class="field-num">04 /</span>
-                                <span class="field-label">{{ $isBM ? 'Telefon' : 'Phone' }}</span>
-                            </div>
+                            <label for="phone" class="field-label">{{ $isBM ? 'Telefon' : 'Phone' }}</label>
                             <input id="phone" name="phone" type="tel" required autocomplete="tel"
                                    value="{{ old('phone') }}"
                                    class="field-input"
@@ -860,23 +835,16 @@
                         </div>
                     </div>
 
-                    {{-- 05 + 06 — Password + Confirm (paired) --}}
                     <div class="grid-2">
                         <div class="field">
-                            <div class="field-row">
-                                <span class="field-num">05 /</span>
-                                <span class="field-label">{{ __('Password') }}</span>
-                            </div>
+                            <label for="password" class="field-label">{{ __('Password') }}</label>
                             <input id="password" name="password" type="password" required autocomplete="new-password"
                                    class="field-input"
                                    placeholder="••••••••">
                             @error('password') <span class="field-err">{{ $message }}</span> @enderror
                         </div>
                         <div class="field">
-                            <div class="field-row">
-                                <span class="field-num">06 /</span>
-                                <span class="field-label">{{ $isBM ? 'Sahkan' : 'Confirm' }}</span>
-                            </div>
+                            <label for="password_confirmation" class="field-label">{{ $isBM ? 'Sahkan kata laluan' : 'Confirm password' }}</label>
                             <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"
                                    class="field-input"
                                    placeholder="••••••••">

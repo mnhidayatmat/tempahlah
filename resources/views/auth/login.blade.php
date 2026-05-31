@@ -434,46 +434,41 @@
         .flash-err { background: #fdf1ef; color: #a44032; border-left: 3px solid #c8554a; }
 
         .field {
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
         .field-row {
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
+            display: block;
             margin-bottom: 6px;
         }
-        .field-num {
-            font-family: 'Geist Mono', monospace;
-            font-size: 10px;
-            color: var(--teal);
-            font-weight: 600;
-            letter-spacing: 0.16em;
-        }
         .field-label {
-            font-family: 'Geist Mono', monospace;
-            font-size: 10.5px;
+            display: block;
+            font-family: 'Geist', sans-serif;
+            font-size: 12.5px;
             font-weight: 600;
-            letter-spacing: 0.16em;
             color: var(--ink-2);
-            text-transform: uppercase;
         }
         .field-input {
             display: block;
             width: 100%;
-            padding: 8px 0 10px;
-            border: 0;
-            border-bottom: 1.5px solid var(--line-2);
-            background: transparent;
-            font: 500 17px/1.4 'Fraunces', serif;
+            padding: 11px 14px;
+            border: 1.5px solid var(--line-2);
+            border-radius: 8px;
+            background: #fff;
+            font-family: 'Geist', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.4;
             color: var(--ink);
             outline: none;
-            transition: border-color 0.2s ease, padding-bottom 0.2s ease;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
-        .field-input::placeholder { color: var(--ink-3); font-style: italic; font-weight: 400; }
+        .field-input::placeholder {
+            color: var(--ink-3);
+            font-weight: 400;
+        }
         .field-input:focus {
-            border-bottom-color: var(--teal);
-            padding-bottom: 9px;
-            border-bottom-width: 2.5px;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 14%, transparent);
         }
         .field-err {
             display: block;
@@ -483,15 +478,13 @@
             font-family: 'Geist', sans-serif;
         }
         .field-aux {
-            font-family: 'Geist Mono', monospace;
-            font-size: 10px;
-            letter-spacing: 0.12em;
-            color: var(--ink-3);
-            text-transform: uppercase;
+            font-family: 'Geist', sans-serif;
+            font-size: 12.5px;
+            color: var(--teal);
             text-decoration: none;
-            transition: color 0.2s ease;
+            transition: color 0.15s ease;
         }
-        .field-aux:hover { color: var(--teal); }
+        .field-aux:hover { color: var(--ink-deep); }
 
         .field-row-between { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 
@@ -757,10 +750,7 @@
                     @csrf
 
                     <div class="field">
-                        <div class="field-row">
-                            <span class="field-num">01 /</span>
-                            <span class="field-label">{{ __('Email') }}</span>
-                        </div>
+                        <label for="email" class="field-label">{{ __('Email') }}</label>
                         <input id="email" name="email" type="email" required autocomplete="email" autofocus
                                value="{{ old('email') }}"
                                class="field-input"
@@ -770,12 +760,9 @@
 
                     <div class="field">
                         <div class="field-row-between">
-                            <div class="field-row" style="margin:0;">
-                                <span class="field-num">02 /</span>
-                                <span class="field-label">{{ __('Password') }}</span>
-                            </div>
+                            <label for="password" class="field-label">{{ __('Password') }}</label>
                             @if (Route::has('password.request'))
-                                <a href="{{ route('password.request') }}" class="field-aux">{{ $isBM ? 'Lupa?' : 'Forgot?' }}</a>
+                                <a href="{{ route('password.request') }}" class="field-aux">{{ $isBM ? 'Lupa kata laluan?' : 'Forgot password?' }}</a>
                             @endif
                         </div>
                         <input id="password" name="password" type="password" required autocomplete="current-password"
