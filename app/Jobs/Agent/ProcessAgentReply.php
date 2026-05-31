@@ -3,6 +3,7 @@
 namespace App\Jobs\Agent;
 
 use App\Models\AgentConversation;
+use App\Models\Booking;
 use App\Models\Tenant;
 use App\Models\WhatsappMessage;
 use App\Services\Agent\AgentService;
@@ -76,6 +77,21 @@ class ProcessAgentReply implements ShouldQueue
                 return;
             }
 
+            // Existing-guest guard: if this phone already has a pending /
+            // confirmed / checked-in booking with this tenant, leave them
+            // to the human owner. The AI brochure voice intruding mid-trip
+            // is exactly the "robot suddenly replied" complaint we want
+            // to prevent. New prospects (no booking yet, or only cancelled
+            // / no-show / checked-out bookings) still get the agent.
+            $phone = $inbound->recipient_phone;
+            if ($phone && $this->hasActiveBooking($this->tenantId, $phone)) {
+                Log::info('Agent reply skipped: phone has active booking — handing off to human', [
+                    'tenant_id'     => $this->tenantId,
+                    'inbound_phone' => $phone,
+                ]);
+                return;
+            }
+
             $agent->handle($tenant, $convo, $inbound);
         } catch (\Throwable $e) {
             Log::warning('Agent reply job failed', [
@@ -86,5 +102,36 @@ class ProcessAgentReply implements ShouldQueue
         } finally {
             optional($lock)->release();
         }
+    }
+
+    /**
+     * Does this phone have any active or upcoming booking for this tenant?
+     *
+     * "Active" = pending / confirmed / checked-in. Bookings that are
+     * cancelled, no_show, or checked_out are explicitly NOT active —
+     * those phones are treated as new prospects and the agent engages.
+     *
+     * Matches on `booking_guests.phone` (which captures every guest on the
+     * booking, including the lead) as well as the linked `users.phone`
+     * (for bookings created via the marketplace flow where the lead is a
+     * registered user).
+     */
+    private function hasActiveBooking(int $tenantId, string $phone): bool
+    {
+        $activeStatuses = [
+            Booking::STATUS_PENDING,
+            Booking::STATUS_CONFIRMED,
+            Booking::STATUS_CHECKED_IN,
+        ];
+
+        return Booking::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('status', $activeStatuses)
+            ->where(function ($q) use ($phone) {
+                $q->whereHas('bookingGuests', fn ($bg) => $bg->where('phone', $phone))
+                  ->orWhereHas('guest', fn ($u) => $u->where('phone', $phone));
+            })
+            ->exists();
     }
 }
