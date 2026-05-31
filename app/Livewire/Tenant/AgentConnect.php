@@ -144,6 +144,42 @@ class AgentConnect extends Component
             ->get();
     }
 
+    /**
+     * Master switch lives OUTSIDE the settings <form>, so its `wire:model.live`
+     * change must persist on its own — otherwise the UI flips to "Off" but
+     * `tenant_integrations.config.enabled` stays true and the agent keeps
+     * replying to customers.
+     */
+    public function updatedEnabled(bool $value): void
+    {
+        if (! $this->tenantId) return;
+
+        $row = TenantIntegration::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('provider', 'agent')
+            ->first();
+
+        if (! $row) {
+            $row = new TenantIntegration([
+                'tenant_id' => $this->tenantId,
+                'provider'  => 'agent',
+            ]);
+            $row->config = ['enabled' => $value];
+        } else {
+            $cfg = is_array($row->config) ? $row->config : [];
+            $cfg['enabled'] = $value;
+            $row->config = $cfg;
+        }
+
+        $row->enabled = $value;
+        if ($value && ! $row->connected_at) {
+            $row->connected_at = now();
+        }
+        $row->save();
+
+        $this->flashOk($value ? __('AI agent turned on.') : __('AI agent turned off.'));
+    }
+
     public function save(): void
     {
         $this->validate([
