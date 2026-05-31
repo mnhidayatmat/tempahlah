@@ -86,6 +86,13 @@ class SessionManager {
 
     const jid = toJid(recipientPhone);
 
+    // Force every outbound business message to be non-ephemeral. If the host
+    // has set an account-level "disappearing messages" default (e.g. 90 days),
+    // WhatsApp would otherwise expire our booking confirmations, payment
+    // receipts and agent replies — leaving guests AND the host with no audit
+    // trail. ephemeralExpiration:0 overrides the chat default per-message.
+    const sendOpts = { ephemeralExpiration: 0 };
+
     let result;
     if (media?.url) {
       const buffer = await downloadMedia(media.url);
@@ -95,17 +102,17 @@ class SessionManager {
           mimetype: media.kind === 'pdf' ? 'application/pdf' : 'application/octet-stream',
           fileName: media.filename ?? 'document.pdf',
           caption: body,
-        });
+        }, sendOpts);
       } else if (media.kind === 'image') {
         result = await entry.sock.sendMessage(jid, {
           image: buffer,
           caption: body,
-        });
+        }, sendOpts);
       } else {
-        result = await entry.sock.sendMessage(jid, { text: body });
+        result = await entry.sock.sendMessage(jid, { text: body }, sendOpts);
       }
     } else {
-      result = await entry.sock.sendMessage(jid, { text: body });
+      result = await entry.sock.sendMessage(jid, { text: body }, sendOpts);
     }
 
     entry.lastSentAt = Date.now();
