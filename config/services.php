@@ -35,11 +35,4 @@ return [
         ],
     ],
 
-    // Calendarific — Malaysian public-holiday lookup for the pricing-rule
-    // form. Free tier (500 req/month) is plenty with our 24h server cache.
-    // Get a key at https://calendarific.com/signup
-    'calendarific' => [
-        'key' => env('CALENDARIFIC_API_KEY'),
-    ],
-
 ];

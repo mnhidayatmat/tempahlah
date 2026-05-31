@@ -11,20 +11,22 @@ use Illuminate\Support\Facades\Log;
 /**
  * Malaysian public-holiday lookup for the pricing-rule form.
  *
- * Source: Calendarific (https://calendarific.com) — free tier 500
- * calls/month, comprehensive Malaysia coverage including state-level
- * variations. Requires an API key in .env as CALENDARIFIC_API_KEY.
+ * Source: malaysia-holiday.dydxsoft.my — free, no API key required,
+ * complete MY coverage including all 13 states + 3 federal territories.
+ * Docs: https://malaysia-holiday.dydxsoft.my/api/docs
  *
- * (Nager.Date — our first choice — returns HTTP 204 for Malaysia. They
- * just don't cover MY at all.)
+ * We query WITHOUT a state filter to get the full nationwide list, then
+ * dedupe by (date, name) since the upstream lists the same holiday once
+ * per observing state (e.g. "Hari Thaipusam" appears 7 times for the 7
+ * states that observe it). Each deduped entry carries its state_codes so
+ * the UI can show which states observe it.
  *
  * Cached per-year for 24h server-side so a form open doesn't re-hit
- * the upstream. With the 24h cache, prod traffic is at most ~3 calls
- * per month per tenant — well inside the free tier.
+ * the upstream.
  */
 class PublicHolidayController extends Controller
 {
-    private const UPSTREAM_URL  = 'https://calendarific.com/api/v2/holidays';
+    private const UPSTREAM_URL  = 'https://malaysia-holiday.dydxsoft.my/api/v1/holidays';
     private const CACHE_TTL_HRS = 24;
     private const HTTP_TIMEOUT  = 8;
 
@@ -37,61 +39,54 @@ class PublicHolidayController extends Controller
             ], 422);
         }
 
-        $apiKey = config('services.calendarific.key');
-        if (! $apiKey) {
-            return response()->json([
-                'error'    => 'Public-holiday API not configured. Ask admin to set CALENDARIFIC_API_KEY in .env (free key at calendarific.com).',
-                'year'     => $year,
-                'holidays' => [],
-            ], 503);
-        }
-
         $cacheKey = "public_holidays_my_{$year}";
 
         try {
             $holidays = Cache::remember(
                 $cacheKey,
                 now()->addHours(self::CACHE_TTL_HRS),
-                function () use ($year, $apiKey) {
+                function () use ($year) {
                     $response = Http::timeout(self::HTTP_TIMEOUT)
                         ->retry(2, 250)
                         ->get(self::UPSTREAM_URL, [
-                            'api_key' => $apiKey,
-                            'country' => 'MY',
-                            'year'    => $year,
-                            // Federal national holidays only — state-specific
-                            // dates (Sultan birthdays etc.) vary per tenant
-                            // location and are noted as manual entry in the UI.
-                            'type'    => 'national',
+                            'year' => $year,
                         ]);
 
                     if (! $response->successful()) {
                         throw new \RuntimeException("Upstream {$response->status()}: ".substr((string) $response->body(), 0, 200));
                     }
 
-                    $list = data_get($response->json(), 'response.holidays', []);
+                    $list = (array) data_get($response->json(), 'data', []);
 
-                    // Normalize to only the fields the UI needs. Dedupe by
-                    // (date, name) since Calendarific can list the same
-                    // holiday multiple times with different "type" rows.
-                    return collect($list)
-                        ->map(function ($h) {
-                            $date = data_get($h, 'date.iso');
-                            // Some Calendarific entries return ISO with time
-                            // suffix (e.g. "2026-03-31T00:00:00+08:00") —
-                            // strip to plain YYYY-MM-DD.
-                            $date = $date ? substr((string) $date, 0, 10) : null;
-                            return [
-                                'date'       => $date,
-                                'local_name' => (string) ($h['name'] ?? ''),
-                                'name'       => (string) ($h['name'] ?? ''),
+                    // Dedupe by (date, name) — upstream lists the same
+                    // holiday once per observing state. Merge state_codes
+                    // so the UI can show coverage at a glance.
+                    $byKey = [];
+                    foreach ($list as $h) {
+                        $date = (string) ($h['date'] ?? '');
+                        $name = (string) ($h['name'] ?? '');
+                        if ($date === '' || $name === '') continue;
+
+                        $key = $date.'|'.$name;
+                        if (! isset($byKey[$key])) {
+                            $byKey[$key] = [
+                                'date'        => $date,
+                                'local_name'  => $name,
+                                'name'        => $name,
+                                'day_name'    => (string) ($h['day_name'] ?? ''),
+                                'state_codes' => [],
                             ];
-                        })
-                        ->filter(fn ($h) => ! empty($h['date']) && ! empty($h['local_name']))
-                        ->unique(fn ($h) => $h['date'].'|'.$h['local_name'])
-                        ->sortBy('date')
-                        ->values()
-                        ->all();
+                        }
+                        $byKey[$key]['state_codes'] = array_values(array_unique(array_merge(
+                            $byKey[$key]['state_codes'],
+                            (array) ($h['state_codes'] ?? [])
+                        )));
+                    }
+
+                    // Sort by date, then by name for stable order.
+                    $deduped = array_values($byKey);
+                    usort($deduped, fn ($a, $b) => $a['date'] <=> $b['date'] ?: $a['local_name'] <=> $b['local_name']);
+                    return $deduped;
                 }
             );
 
