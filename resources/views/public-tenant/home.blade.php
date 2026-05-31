@@ -360,7 +360,7 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('tenant-public.booking.store') }}" class="wf-book-form">
+            <form method="POST" action="{{ route('tenant-public.booking.store', ['tenant_slug' => $tenant->slug]) }}" class="wf-book-form">
                 @csrf
                 <input type="hidden" name="property_id" :value="current.id">
                 <input type="hidden" name="room_id" :value="current.room_id">
