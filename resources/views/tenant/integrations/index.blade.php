@@ -5,6 +5,7 @@
             ['key' => 'google_calendar', 'name' => 'Google Calendar',    'desc' => __('Two-way iCal/CalDAV sync. Prevents double-bookings.'),         'pro' => true],
             ['key' => 'ses',             'name' => 'Amazon SES',         'desc' => __('Send confirmations and reminders from your domain.'),         'pro' => false],
             ['key' => 'whatsapp',        'name' => 'WhatsApp Business',  'desc' => __('Auto-send deposit links and reminders.'),                     'pro' => true],
+            ['key' => 'agent',           'name' => 'AI Agent',           'desc' => __('Let an AI assistant reply to WhatsApp enquiries 24/7 — availability, photos, prices, location.'), 'pro' => true],
             ['key' => 'billplz',         'name' => 'Billplz (v2)',       'desc' => __('Recurring subscription billing.'),                            'pro' => true, 'soon' => true],
         ];
     @endphp

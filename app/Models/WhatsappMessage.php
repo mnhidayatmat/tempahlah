@@ -24,6 +24,7 @@ class WhatsappMessage extends Model
     public const KIND_RECEIPT      = 'receipt';
     public const KIND_TEST         = 'test';
     public const KIND_INBOUND      = 'inbound';
+    public const KIND_AGENT_REPLY  = 'agent_reply';
 
     public const STATUS_QUEUED       = 'queued';
     public const STATUS_SENDING      = 'sending';

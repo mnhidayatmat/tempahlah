@@ -1,0 +1,330 @@
+@php
+    $unlocked = $this->unlocked;
+    $waConnected = $this->whatsappConnected;
+    $providers = $this->availableProviders;
+    $models = $this->modelsForProvider;
+    $usage = $this->usageToday;
+    $convos = $this->recentConversations;
+    $usagePct = $usage['cap'] > 0 ? min(100, (int) round($usage['replies'] * 100 / $usage['cap'])) : 0;
+@endphp
+
+<div wire:poll.5s style="display:flex; flex-direction:column; gap: 20px;">
+
+    {{-- Pro gate ----------------------------------------------------- --}}
+    @if (! $unlocked)
+        <x-pro-lock
+            feature="ai_agent"
+            :title="__('AI Agent')"
+            :reason="__('Upgrade to Pro to let an AI assistant reply to WhatsApp enquiries on your behalf — availability checks, photos, location, and price quotes from your live data.')"
+            :cta="__('Unlock — RM49/mo')" />
+    @else
+
+    {{-- Flash -------------------------------------------------------- --}}
+    @if ($flash)
+        <div class="hauz-card"
+             style="padding: 10px 14px; font-size: 13px;
+                    border-color: var({{ $flashKind === 'err' ? '--err' : '--ok' }});
+                    background: var({{ $flashKind === 'err' ? '--err-tint' : '--ok-tint' }});
+                    color: var({{ $flashKind === 'err' ? '--err' : '--ok' }});">
+            {{ $flash }}
+        </div>
+    @endif
+
+    {{-- WhatsApp prerequisite --------------------------------------- --}}
+    @unless ($waConnected)
+        <div class="hauz-card"
+             style="padding: 14px 18px; border-color: var(--warn);
+                    background: var(--warn-tint); color: var(--ink-2); font-size: 13px;">
+            <strong style="color: var(--warn);">⚠️ {{ __('WhatsApp not connected') }}</strong>
+            <div style="margin-top: 4px;">
+                {{ __('The AI agent replies through your WhatsApp session. Please connect WhatsApp first.') }}
+            </div>
+            <a href="{{ route('tenant.integrations.show', 'whatsapp') }}"
+               class="btn btn-sm" style="margin-top: 10px;">
+                {{ __('Connect WhatsApp') }}
+            </a>
+        </div>
+    @endunless
+
+    {{-- ── Master switch + status ────────────────────────────────── --}}
+    <div class="hauz-card" style="padding: 18px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 0;">
+                <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px;">
+                    <h3 class="display-3" style="margin: 0;">{{ __('AI agent') }}</h3>
+                    @if ($enabled && $waConnected)
+                        <x-pill variant="ok" :dot="true">{{ __('Active') }}</x-pill>
+                    @elseif ($enabled)
+                        <x-pill variant="warn">{{ __('Waiting on WhatsApp') }}</x-pill>
+                    @else
+                        <x-pill>{{ __('Off') }}</x-pill>
+                    @endif
+                </div>
+                <p style="margin: 0; color: var(--ink-3); font-size: 13px; max-width: 540px;">
+                    {{ __('Auto-reply to guest enquiries using AI. Answers come from your real availability, prices, photos and location data.') }}
+                </p>
+            </div>
+            <label style="display:flex; align-items:center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" wire:model.live="enabled" style="width: 18px; height: 18px;">
+                <span style="font-weight: 600; font-size: 14px;">{{ $enabled ? __('Enabled') : __('Disabled') }}</span>
+            </label>
+        </div>
+    </div>
+
+    {{-- ── Usage meter ──────────────────────────────────────────── --}}
+    <div class="hauz-card" style="padding: 16px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap: 12px; flex-wrap: wrap;">
+            <div>
+                <div class="kicker">{{ __('Today (resets at midnight MYT)') }}</div>
+                <div style="font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--ink); margin-top: 4px;">
+                    {{ $usage['replies'] }} <span style="color: var(--ink-3); font-size: 14px;">/ {{ $usage['cap'] }} {{ __('replies') }}</span>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: var(--ink-3);">
+                <span style="font-family: var(--font-mono);">{{ $usage['inbounds'] }}</span> {{ __('inbound') }} ·
+                <span style="font-family: var(--font-mono);">{{ $usage['tools'] }}</span> {{ __('tool calls') }}
+            </div>
+        </div>
+        <div style="margin-top: 10px; height: 6px; background: var(--bg-sunk); border-radius: 999px; overflow: hidden;">
+            <div style="width: {{ $usagePct }}%; height: 100%; background: var(--primary);"></div>
+        </div>
+    </div>
+
+    {{-- ── Settings form ────────────────────────────────────────── --}}
+    <form wire:submit.prevent="save" style="display:flex; flex-direction:column; gap: 16px;">
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Model') }}</h4>
+
+            @if (empty($providers))
+                <div style="padding: 10px 12px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">
+                    {{ __('No AI providers configured on this server. Contact your administrator.') }}
+                </div>
+            @else
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Provider') }}</span>
+                        <select class="input" wire:model.live="llmProvider">
+                            @foreach ($providers as $key => $info)
+                                <option value="{{ $key }}">{{ $info['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Model') }}</span>
+                        <select class="input" wire:model="llmModel">
+                            @foreach ($models as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                </div>
+            @endif
+        </div>
+
+        {{-- Persona + language --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Voice') }}</h4>
+
+            <div>
+                <div style="font-size: 12.5px; color: var(--ink-3); margin-bottom: 6px;">{{ __('Persona') }}</div>
+                <div style="display:flex; gap: 6px; flex-wrap: wrap;">
+                    @foreach (['friendly' => '🤗 ' . __('Friendly'), 'formal' => '🎩 ' . __('Formal'), 'concise' => '⚡ ' . __('Concise')] as $key => $label)
+                        <button type="button" wire:click="$set('persona', '{{ $key }}')"
+                                class="btn btn-sm"
+                                style="{{ $persona === $key ? 'background: var(--primary); color: var(--ink-on-primary);' : '' }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <label style="display:flex; flex-direction:column; gap: 4px;">
+                <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Reply language') }}</span>
+                <select class="input" wire:model="replyLanguages" style="max-width: 280px;">
+                    <option value="auto">{{ __('Auto-detect from each message') }}</option>
+                    <option value="ms">{{ __('Always Bahasa Malaysia') }}</option>
+                    <option value="en">{{ __('Always English') }}</option>
+                </select>
+            </label>
+        </div>
+
+        {{-- Greeting + signature --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Greeting & signature') }}</h4>
+            <p style="margin: 0; font-size: 12px; color: var(--ink-3);">
+                {{ __('Tokens: ') }}<code>{{ '{{tenant_name}}' }}</code> · <code>{{ '{{property_name}}' }}</code>
+            </p>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <label style="display:flex; flex-direction:column; gap: 4px;">
+                    <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Greeting — Bahasa Malaysia') }}</span>
+                    <textarea class="input" rows="3" wire:model="greetingBm"></textarea>
+                </label>
+                <label style="display:flex; flex-direction:column; gap: 4px;">
+                    <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Greeting — English') }}</span>
+                    <textarea class="input" rows="3" wire:model="greetingEn"></textarea>
+                </label>
+            </div>
+            <label style="display:flex; flex-direction:column; gap: 4px;">
+                <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Signature (appended to every reply)') }}</span>
+                <input class="input" type="text" wire:model="signature" placeholder="— Aisha & team">
+            </label>
+        </div>
+
+        {{-- Business hours --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Business hours') }}</h4>
+            <label style="display:flex; align-items:center; gap: 8px;">
+                <input type="checkbox" wire:model.live="useBusinessHours">
+                <span style="font-size: 13px;">{{ __('Only reply during business hours (otherwise auto-reply with the out-of-hours message)') }}</span>
+            </label>
+            @if ($useBusinessHours)
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 360px;">
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Open') }}</span>
+                        <input class="input" type="time" wire:model="businessHoursStart">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Close') }}</span>
+                        <input class="input" type="time" wire:model="businessHoursEnd">
+                    </label>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Out-of-hours — BM') }}</span>
+                        <textarea class="input" rows="2" wire:model="outOfHoursBm"></textarea>
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap: 4px;">
+                        <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Out-of-hours — EN') }}</span>
+                        <textarea class="input" rows="2" wire:model="outOfHoursEn"></textarea>
+                    </label>
+                </div>
+            @endif
+        </div>
+
+        {{-- Escalation + handoff --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Escalation') }}</h4>
+            <label style="display:flex; flex-direction:column; gap: 4px;">
+                <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Trigger keywords (comma-separated)') }}</span>
+                <input class="input" type="text" wire:model="escalationKeywords"
+                       placeholder="manager, owner, complaint, refund, tuan rumah, aduan">
+            </label>
+            <label style="display:flex; flex-direction:column; gap: 4px;">
+                <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Notify me at (WhatsApp number)') }}</span>
+                <input class="input" type="text" wire:model="handoffPhone" placeholder="+60123456789" style="max-width: 280px;">
+                <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Optional. We will ping you when the AI escalates.') }}</span>
+            </label>
+        </div>
+
+        {{-- Knowledge base --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Custom knowledge') }}</h4>
+            <p style="margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5;">
+                {{ __('Free-text notes the AI will use verbatim — e.g. parking instructions, halal certification, surau location, late check-in policy. Keep it under 4,000 characters.') }}
+            </p>
+            <textarea class="input" rows="5" wire:model="customKnowledge" maxlength="4000"></textarea>
+        </div>
+
+        {{-- Limits --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Safety') }}</h4>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <label style="display:flex; flex-direction:column; gap: 4px;">
+                    <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Daily reply cap') }}</span>
+                    <input class="input" type="number" min="1" max="{{ config('agent.platform_max_cap') }}" wire:model="dailyCap">
+                </label>
+                <label style="display:flex; align-items:center; gap: 8px; margin-top: 22px;">
+                    <input type="checkbox" wire:model="sendPhotosEnabled">
+                    <span style="font-size: 13px;">{{ __('Allow sending photo images on request') }}</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display:flex; gap: 10px; justify-content:flex-end;">
+            <button type="submit" class="btn btn-primary">{{ __('Save settings') }}</button>
+        </div>
+    </form>
+
+    {{-- ── Test playground ─────────────────────────────────────── --}}
+    <div class="hauz-card" style="padding: 18px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
+            <h4 style="margin: 0; font-size: 15px;">{{ __('Test playground') }}</h4>
+            <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Simulates an inbound guest message. No WhatsApp send.') }}</span>
+        </div>
+        <div style="display:flex; gap: 8px; margin-top: 10px;">
+            <input class="input" type="text" wire:model="testMessage"
+                   placeholder="{{ __('e.g. Is your homestay available 25–28 June for 4 pax?') }}"
+                   style="flex: 1;">
+            <button type="button" class="btn btn-primary" wire:click="runTest" @disabled($testRunning || empty($availableProviders))>
+                @if ($testRunning) {{ __('Thinking…') }} @else {{ __('Test') }} @endif
+            </button>
+        </div>
+        @if ($testReply)
+            <div style="margin-top: 12px; padding: 12px 14px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 13px; line-height: 1.55; white-space: pre-wrap;">
+                {{ $testReply }}
+            </div>
+        @endif
+    </div>
+
+    {{-- ── Live conversations ─────────────────────────────────── --}}
+    <div class="hauz-card" style="padding: 18px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap: 12px; margin-bottom: 12px;">
+            <h4 style="margin: 0; font-size: 15px;">{{ __('Live conversations') }}</h4>
+            <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Most recent 8') }}</span>
+        </div>
+
+        @if ($convos->isEmpty())
+            <div style="padding: 18px; text-align: center; color: var(--ink-3); font-size: 13px;">
+                {{ __('No conversations yet. When a guest WhatsApps you, the agent will show up here.') }}
+            </div>
+        @else
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="text-align: left; color: var(--ink-3); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <th style="padding: 6px 8px; border-bottom: 1px solid var(--line);">{{ __('Guest') }}</th>
+                        <th style="padding: 6px 8px; border-bottom: 1px solid var(--line);">{{ __('Status') }}</th>
+                        <th style="padding: 6px 8px; border-bottom: 1px solid var(--line);">{{ __('Last inbound') }}</th>
+                        <th style="padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right;">{{ __('Action') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($convos as $c)
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid var(--line); font-family: var(--font-mono);">
+                                {{ $c->guest_phone }}
+                                @if ($c->guest_name)
+                                    <div style="font-family: var(--font-body); color: var(--ink-3); font-size: 11.5px;">{{ $c->guest_name }}</div>
+                                @endif
+                            </td>
+                            <td style="padding: 8px; border-bottom: 1px solid var(--line);">
+                                @if ($c->status === \App\Models\AgentConversation::STATUS_ACTIVE)
+                                    <x-pill variant="ok" :dot="true">{{ __('Active') }}</x-pill>
+                                @elseif ($c->status === \App\Models\AgentConversation::STATUS_ESCALATED)
+                                    <x-pill variant="warn">{{ __('Escalated') }}</x-pill>
+                                @else
+                                    <x-pill>{{ $c->status }}</x-pill>
+                                @endif
+                            </td>
+                            <td style="padding: 8px; border-bottom: 1px solid var(--line); color: var(--ink-3);">
+                                {{ optional($c->last_inbound_at)->diffForHumans() ?? '—' }}
+                            </td>
+                            <td style="padding: 8px; border-bottom: 1px solid var(--line); text-align: right;">
+                                @if ($c->status === \App\Models\AgentConversation::STATUS_ACTIVE)
+                                    <button class="btn btn-sm" wire:click="takeOver({{ $c->id }})"
+                                            wire:confirm="{{ __('Mute the AI on this conversation?') }}">
+                                        {{ __('Take over') }}
+                                    </button>
+                                @else
+                                    <button class="btn btn-sm" wire:click="reactivate({{ $c->id }})">
+                                        {{ __('Re-activate AI') }}
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+    @endif
+</div>

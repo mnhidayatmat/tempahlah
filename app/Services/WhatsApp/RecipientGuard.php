@@ -2,6 +2,7 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Models\AgentConversation;
 use App\Models\BookingGuest;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,14 +28,30 @@ class RecipientGuard
     }
 
     /**
+     * @param  string  $context  'booking_guest' (default) | 'agent_reply'
      * @return bool true if the tenant is allowed to send to $phone.
      */
-    public function allows(Tenant $tenant, string $phone): bool
+    public function allows(Tenant $tenant, string $phone, string $context = 'booking_guest'): bool
     {
         $normalized = PhoneNumber::normalize($phone);
         if (! $normalized) return false;
 
         if ($this->mode === 'permissive') return true;
+
+        // Agent replies are allowed when there's an active conversation
+        // with a recent inbound from the guest — mirrors WhatsApp's
+        // own 24h customer-service window rule.
+        if ($context === 'agent_reply') {
+            $exists = AgentConversation::query()
+                ->withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('guest_phone', $normalized)
+                ->where('status', AgentConversation::STATUS_ACTIVE)
+                ->where('last_inbound_at', '>=', now()->subHours(24))
+                ->exists();
+            if ($exists) return true;
+            // fall through to booked-guest check as belt-and-braces
+        }
 
         // strict_guests: phone must match a BookingGuest tied to one of this
         // tenant's bookings.

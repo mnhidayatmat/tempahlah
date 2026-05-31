@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 
 class IntegrationController extends Controller
 {
-    public const SUPPORTED = ['toyyibpay', 'google_calendar', 'whatsapp', 'ses', 'billplz'];
+    public const SUPPORTED = ['toyyibpay', 'google_calendar', 'whatsapp', 'agent', 'ses', 'billplz'];
 
     public function index()
     {
@@ -47,6 +47,14 @@ class IntegrationController extends Controller
         // WhatsApp uses a QR-scan Baileys session, not a credential form.
         if ($provider === 'whatsapp') {
             return view('tenant.integrations.whatsapp', [
+                'provider' => $provider,
+                'meta' => $this->providerMeta($provider),
+            ]);
+        }
+
+        // AI agent has its own dedicated Livewire panel — no credential form.
+        if ($provider === 'agent') {
+            return view('tenant.integrations.agent', [
                 'provider' => $provider,
                 'meta' => $this->providerMeta($provider),
             ]);
@@ -175,6 +183,12 @@ class IntegrationController extends Controller
             'whatsapp' => [
                 'name' => 'WhatsApp',
                 'description' => 'Scan a QR code with your phone to connect a WhatsApp account. Auto-send booking confirmations, reminders and check-in instructions.',
+                'pro' => true,
+                'fields' => [],
+            ],
+            'agent' => [
+                'name' => 'AI Agent',
+                'description' => 'When a guest messages your connected WhatsApp, an AI assistant replies on your behalf — checking availability, sending photos, sharing the location and quoting prices from your real data. Escalates to you for anything sensitive.',
                 'pro' => true,
                 'fields' => [],
             ],

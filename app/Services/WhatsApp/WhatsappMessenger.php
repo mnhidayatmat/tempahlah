@@ -72,6 +72,22 @@ class WhatsappMessenger
         );
     }
 
+    /**
+     * Outbound agent reply — used by the AI agent feature. Bypasses the
+     * BookingGuest requirement (see RecipientGuard agent_reply context).
+     */
+    public static function dispatchAgentReply(
+        Tenant $tenant,
+        string $recipientPhone,
+        string $body,
+        ?array $media = null,
+    ): ?WhatsappMessage {
+        $session = self::sessionFor($tenant);
+        if (! $session?->isConnected()) return null;
+
+        return self::queue($tenant, null, $recipientPhone, $body, WhatsappMessage::KIND_AGENT_REPLY, $media);
+    }
+
     public static function dispatchTest(Tenant $tenant, string $recipientPhone, ?string $name = null): ?WhatsappMessage
     {
         $session = self::sessionFor($tenant);

@@ -82,7 +82,10 @@ class SendWhatsappMessage implements ShouldQueue
         // 10 per session per UTC day — that's plenty for legitimate testing
         // without enabling cold-spam through the test endpoint.
         if ($msg->kind !== WhatsappMessage::KIND_TEST) {
-            if (! $guard->allows($tenant, $msg->recipient_phone)) {
+            $guardContext = $msg->kind === WhatsappMessage::KIND_AGENT_REPLY
+                ? 'agent_reply'
+                : 'booking_guest';
+            if (! $guard->allows($tenant, $msg->recipient_phone, $guardContext)) {
                 $msg->update([
                     'status' => WhatsappMessage::STATUS_BLOCKED,
                     'error' => 'recipient guard: '.$guard->reason(),

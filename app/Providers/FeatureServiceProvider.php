@@ -61,5 +61,7 @@ class FeatureServiceProvider extends ServiceProvider
         Feature::define('inventory_alerts', fn (Tenant $tenant) => $tenant->isPaid());
 
         Feature::define('refund_handling', fn (Tenant $tenant) => $tenant->isPaid());
+
+        Feature::define('ai_agent', fn (Tenant $tenant) => $tenant->isPaid());
     }
 }
