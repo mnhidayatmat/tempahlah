@@ -17,7 +17,11 @@ class PropertyController extends Controller
     {
         $properties = Property::query()
             ->with([
-                'rooms:id,property_id,base_price',
+                // `beds` carries the bedroom count for whole-house properties
+                // (where the single synthetic Room represents the whole place).
+                // Without it, the card renders "0 bedrooms" — actual DB value
+                // is correct, eager-load was just dropping the column.
+                'rooms:id,property_id,base_price,beds',
                 // For the cover image on each card. Minimal columns; the
                 // view falls back to a gradient if no photo exists.
                 'photos:id,property_id,path,disk,is_hero,sort_order',
