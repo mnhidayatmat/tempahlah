@@ -64,6 +64,19 @@ class AgentService
     ): mixed {
         $settings = AgentSettings::forTenant($tenant);
 
+        // Defense-in-depth: the webhook + job already gate on this, but
+        // disable MUST mean stop — if anything bypasses those gates and
+        // reaches us in live mode, we still refuse to send. Dry-run is
+        // allowed (it's the owner's own test playground; no customer is
+        // contacted).
+        if (! $dryRun && ! $settings->enabled) {
+            Log::info('Agent: live reply suppressed because agent disabled', [
+                'tenant_id' => $tenant->id,
+                'convo_id' => $convo->id,
+            ]);
+            return null;
+        }
+
         try {
             $llm = $this->factory->for($settings->llmProvider, $settings->llmModel);
         } catch (RuntimeException $e) {

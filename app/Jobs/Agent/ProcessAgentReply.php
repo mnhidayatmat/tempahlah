@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Tenant;
 use App\Models\WhatsappMessage;
 use App\Services\Agent\AgentService;
+use App\Services\Agent\AgentSettings;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,6 +16,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Laravel\Pennant\Feature;
 
 /**
  * Drive one inbound → reply round for the AI agent.
@@ -57,6 +59,27 @@ class ProcessAgentReply implements ShouldQueue
 
             if (! $tenant || ! $convo || ! $inbound) return;
             if (! $convo->isActive()) return;
+
+            // Re-check the agent kill-switch RIGHT BEFORE replying. The webhook
+            // gated this when the job was queued, but the tenant may have
+            // toggled the agent OFF (or their subscription may have lapsed)
+            // in the queue-delay window. Disable must mean stop — no stale
+            // reply from a queued job.
+            if (! Feature::for($tenant)->active('ai_agent')) {
+                Log::info('Agent reply skipped: Pennant ai_agent flag inactive at job time', [
+                    'tenant_id' => $this->tenantId,
+                    'inbound_msg_id' => $this->inboundMessageId,
+                ]);
+                return;
+            }
+            $settings = AgentSettings::forTenant($tenant);
+            if (! $settings->enabled) {
+                Log::info('Agent reply skipped: agent disabled by tenant at job time', [
+                    'tenant_id' => $this->tenantId,
+                    'inbound_msg_id' => $this->inboundMessageId,
+                ]);
+                return;
+            }
 
             // Stale-inbound guard: never reply to an inbound that arrived more
             // than N minutes ago. This protects guests from "out of the blue"
