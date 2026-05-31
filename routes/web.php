@@ -112,6 +112,13 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::delete('/properties/{property:public_id}/pricing-rules/{rule}',      [\App\Http\Controllers\Tenant\PricingRuleController::class, 'destroy'])->name('properties.pricing.destroy');
         Route::post('/properties/{property:public_id}/pricing-rules/{rule}/toggle', [\App\Http\Controllers\Tenant\PricingRuleController::class, 'toggle'])->name('properties.pricing.toggle');
 
+        // Malaysian public-holiday lookup for the pricing-rule form's
+        // "holiday" rule_type. Server-side cache 24h per year so opening
+        // Add rule doesn't re-fetch upstream every time.
+        Route::get('/api/public-holidays/{year}', [\App\Http\Controllers\Tenant\PublicHolidayController::class, 'index'])
+            ->whereNumber('year')
+            ->name('api.public-holidays');
+
         Route::get('/calendar',             [CalendarController::class, 'index'])->name('calendar');
 
         Route::get('/bookings',             [BookingController::class, 'index'])->name('bookings.index');

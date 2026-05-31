@@ -312,6 +312,44 @@
                         return v > 0 ? 'increase' : 'discount';
                     },
                     fmtRM(n) { return n == null ? '—' : 'RM ' + Number(n).toLocaleString('en-MY', { maximumFractionDigits: 2 }); },
+
+                    // Malaysian public holidays — fetched once per year, cached
+                    // server-side. Picker appears when rule_type === 'holiday'.
+                    holidayYear: new Date().getFullYear(),
+                    holidays: [],
+                    holidaysLoading: false,
+                    holidaysError: '',
+                    async loadHolidays() {
+                        if (this.holidaysLoading) return;
+                        this.holidaysLoading = true;
+                        this.holidaysError = '';
+                        this.holidays = [];
+                        try {
+                            const url = `{{ url('/dashboard/api/public-holidays') }}/${this.holidayYear}`;
+                            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                            const data = await res.json();
+                            if (!res.ok) {
+                                this.holidaysError = data.error || 'Could not load holidays.';
+                            } else {
+                                this.holidays = data.holidays || [];
+                            }
+                        } catch (e) {
+                            this.holidaysError = 'Network error loading holidays.';
+                        } finally {
+                            this.holidaysLoading = false;
+                        }
+                    },
+                    pickHoliday(h) {
+                        // Auto-fill rule name + date_from/date_to to this single day.
+                        // Tenant can manually extend date_to if it's a multi-day
+                        // celebration (e.g. Raya = 2 days nationally).
+                        this.form.name = h.local_name + ' ' + this.holidayYear;
+                        this.form.date_from = h.date;
+                        this.form.date_to = h.date;
+                    },
+                    fmtHolidayDate(iso) {
+                        return new Date(iso + 'T00:00:00').toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
+                    },
                     edit(id) {
                         const data = this.rulesData[id];
                         if (!data) { console.warn('pricing rule not found in client data:', id); return; }
@@ -419,6 +457,54 @@
                                         {{ $label }}
                                     </label>
                                 @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Public holiday picker — Nager.Date upstream, cached
+                             24h per year server-side. Auto-fills name + date
+                             range when a holiday is clicked. --}}
+                        <div x-show="form.rule_type === 'holiday'" x-cloak
+                             x-init="$watch('form.rule_type', v => { if (v === 'holiday' && holidays.length === 0 && !holidaysLoading) loadHolidays(); })"
+                             style="padding: 12px 14px; background: var(--info-tint); border: 1px solid var(--line); border-radius: var(--r-md);">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap: wrap;">
+                                <div style="font-size: 12.5px; font-weight: 600; color: var(--ink);">
+                                    🇲🇾 {{ __('Pick a Malaysian public holiday') }}
+                                </div>
+                                <div style="display:flex; align-items:center; gap: 6px;">
+                                    <label class="kicker" style="font-size:9.5px;">{{ __('Year') }}</label>
+                                    <select class="input" style="height: 28px; padding: 2px 8px; font-size: 12px; min-width: 80px;"
+                                            x-model.number="holidayYear" @change="loadHolidays()">
+                                        @for ($y = (int) date('Y') - 1; $y <= (int) date('Y') + 2; $y++)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div x-show="holidaysLoading" style="font-size: 11.5px; color: var(--ink-3);">
+                                {{ __('Loading holidays…') }}
+                            </div>
+                            <div x-show="holidaysError && !holidaysLoading" x-cloak
+                                 style="font-size: 11.5px; color: var(--warn); padding: 6px 0;"
+                                 x-text="holidaysError"></div>
+
+                            <div x-show="!holidaysLoading && !holidaysError && holidays.length > 0"
+                                 style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow-y: auto;">
+                                <template x-for="h in holidays" :key="h.date">
+                                    <button type="button"
+                                            @click="pickHoliday(h)"
+                                            :class="form.date_from === h.date ? 'pill is-active' : 'pill'"
+                                            :style="form.date_from === h.date
+                                                ? 'background: var(--primary); color: var(--ink-on-primary, #fff); border-color: var(--primary); cursor: pointer; padding: 4px 10px; height: auto; font-size: 11px;'
+                                                : 'background: var(--bg-elev); color: var(--ink-2); border: 1px solid var(--line); cursor: pointer; padding: 4px 10px; height: auto; font-size: 11px;'">
+                                        <span x-text="h.local_name"></span>
+                                        <span style="opacity: 0.7; margin-left: 4px;" x-text="fmtHolidayDate(h.date)"></span>
+                                    </button>
+                                </template>
+                            </div>
+
+                            <div style="margin-top: 8px; font-size: 11px; color: var(--ink-3); line-height: 1.5;">
+                                💡 {{ __('Click a holiday to auto-fill the name + date below. Multi-day celebrations (e.g. Hari Raya): pick the first day, then extend "Date to" manually. State-specific holidays (Sultan birthdays) may not appear — enter those manually.') }}
                             </div>
                         </div>
 
