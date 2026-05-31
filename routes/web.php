@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GuestOtpController;
 use App\Http\Controllers\Auth\TenantRegisterController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Public\PublicBookingController;
 use App\Http\Controllers\Public\TenantHomeController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\CalendarController;
@@ -40,6 +41,15 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
     ->name('tenant-public.')
     ->group(function () {
         Route::get('/', [TenantHomeController::class, 'index'])->name('home');
+
+        // Public direct-booking flow: guest fills the form on home, we
+        // create a pending booking + Toyyibpay deposit bill + invoice,
+        // then send the pay link via email + WhatsApp.
+        Route::post('/book', [PublicBookingController::class, 'store'])
+            ->middleware('throttle:booking-create-public')
+            ->name('booking.store');
+        Route::get('/book/sent/{reference}', [PublicBookingController::class, 'sent'])
+            ->name('booking.sent');
     });
 
 // -----------------------------------------------------------------------------

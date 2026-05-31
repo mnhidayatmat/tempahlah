@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Tenant;
+use App\Models\TenantIntegration;
 use App\Services\Pricing\PricingEngine;
 use App\Support\Tenancy\BelongsToTenantScope;
 use Carbon\CarbonPeriod;
@@ -116,11 +117,23 @@ class TenantHomeController extends Controller
 
         $contactPhone = preg_replace('/\D/', '', $tenant->business_phone ?? '');
 
+        // When the tenant has an enabled Toyyibpay integration, the public
+        // page shows the "Reserve & pay deposit" form CTA. Otherwise it
+        // falls back to the original wa.me deeplink so the page still
+        // works out-of-the-box during free-tier onboarding.
+        $toyyibpayConfigured = TenantIntegration::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('provider', TenantIntegration::PROVIDER_TOYYIBPAY)
+            ->where('enabled', true)
+            ->exists();
+
         return view('public-tenant.home', [
-            'tenant'           => $tenant,
-            'properties'       => $properties,
-            'contactPhone'     => $contactPhone,
-            'bookedByProperty' => $bookedByProperty,
+            'tenant'              => $tenant,
+            'properties'          => $properties,
+            'contactPhone'        => $contactPhone,
+            'bookedByProperty'    => $bookedByProperty,
+            'toyyibpayConfigured' => $toyyibpayConfigured,
         ]);
     }
 }
