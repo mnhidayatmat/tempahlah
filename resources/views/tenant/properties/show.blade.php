@@ -291,7 +291,7 @@
                     showForm: false,
                     editingId: null,
                     form: {},
-                    rulesData: {!! $rulesDataJson !!},
+                    rulesData: {{ $rulesDataJson }},
                     edit(id) {
                         const data = this.rulesData[id];
                         if (!data) { console.warn('pricing rule not found in client data:', id); return; }
