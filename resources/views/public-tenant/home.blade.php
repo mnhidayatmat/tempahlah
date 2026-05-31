@@ -19,6 +19,14 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style id="tenant-theme">:root { {!! $tenant->themeCssVariables() !!} }</style>
     <meta name="theme-color" content="{{ $tenant->themePrimary() }}">
+    {{-- iOS / Android PWA: when added to home screen, run as a standalone
+         app with a TRANSPARENT status bar so the cover photo can extend
+         under the wifi/signal/battery icons. white-translucent / black-
+         translucent both work but "black-translucent" gives white icons
+         which read best over our deep-bottom-scrim hero. --}}
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     @php
         $loc = app()->getLocale();
@@ -374,7 +382,13 @@
     /* ── Banner ────────────────────────────────────────────────── */
     .wf-banner {
         position: relative;
-        height: 240px;
+        /* Bleed under the iOS status bar / Android cutout. The visible
+           content area below the notch is still 240px; safe-area-inset-top
+           adds however many extra pixels the device's notch / status bar
+           occupies (0 on desktop and most browsers, ~44–59px on iOS phones
+           in standalone-PWA mode). */
+        height: calc(240px + env(safe-area-inset-top));
+        margin-top: 0;
         overflow: hidden;
         color: #fff;
     }
