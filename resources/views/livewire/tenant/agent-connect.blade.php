@@ -152,7 +152,7 @@
         <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
             <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Greeting & signature') }}</h4>
             <p style="margin: 0; font-size: 12px; color: var(--ink-3);">
-                {{ __('Tokens: ') }}<code>{{ '{{tenant_name}}' }}</code> · <code>{{ '{{property_name}}' }}</code>
+                {{ __('Tokens: ') }}<code>@{{tenant_name}}</code> · <code>@{{property_name}}</code>
             </p>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <label style="display:flex; flex-direction:column; gap: 4px;">
