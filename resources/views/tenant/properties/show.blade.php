@@ -225,7 +225,7 @@
                     5 => __('Fri'), 6 => __('Sat'), 0 => __('Sun'),
                 ];
                 $ruleTypes = [
-                    'weekend'        => __('Weekend (Fri-Sun by default)'),
+                    'weekend'        => __('Weekend'),
                     'holiday'        => __('Public holiday / festive date'),
                     'school_holiday' => __('School holiday (Cuti Sekolah)'),
                     'season'         => __('Seasonal date range'),
