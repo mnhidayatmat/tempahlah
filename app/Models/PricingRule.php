@@ -61,8 +61,14 @@ class PricingRule extends Model
             return false;
         }
 
-        if (! empty($this->weekday_mask) && ! in_array($date->dayOfWeek, $this->weekday_mask, true)) {
-            return false;
+        if (! empty($this->weekday_mask)) {
+            // weekday_mask is a JSON array. Form submissions arrive as strings
+            // ("0","6") but $date->dayOfWeek is an int — strict in_array would
+            // miss every weekend. Normalize both sides to int.
+            $maskInts = array_map('intval', (array) $this->weekday_mask);
+            if (! in_array((int) $date->dayOfWeek, $maskInts, true)) {
+                return false;
+            }
         }
 
         return true;
@@ -71,7 +77,11 @@ class PricingRule extends Model
     public function applyTo(float $price): float
     {
         return match ($this->adjustment_type) {
-            self::ADJUSTMENT_PERCENT => round($price * (1 + (float) $this->adjustment_value), 2),
+            // adjustment_value for percent rules is stored as a whole-number
+            // percentage (e.g. 20 = +20%, -15 = 15% discount) — that's what
+            // the dashboard form labels as "% to add (use - for discount)".
+            // Divide by 100 to get the multiplier.
+            self::ADJUSTMENT_PERCENT => round($price * (1 + ((float) $this->adjustment_value / 100)), 2),
             self::ADJUSTMENT_FLAT => round($price + (float) $this->adjustment_value, 2),
             self::ADJUSTMENT_OVERRIDE => round((float) $this->adjustment_value, 2),
             default => $price,
