@@ -1,4 +1,6 @@
 import express from 'express';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { requireBearer } from './auth.js';
@@ -84,7 +86,61 @@ app.use((err, _req, res, _next) => {
 
 app.listen(config.port, config.host, () => {
   logger.info({ port: config.port, host: config.host }, 'wa-sidecar listening');
+  // Fire-and-forget: rehydrate any paired sessions from disk so a sidecar
+  // restart doesn't strand tenants in "not connected" until they happen
+  // to open the dashboard. Errors per-tenant are logged but don't crash boot.
+  resumePairedSessions().catch((err) => {
+    logger.error({ err: err.message }, 'session auto-resume scan failed');
+  });
 });
+
+/**
+ * Walk SESSION_DIR for tenants that have a creds.json (a fully paired
+ * Baileys session). Stub dirs with no creds (a QR was generated but never
+ * scanned) are skipped — restarting those would just spawn a fresh QR
+ * nobody is watching for.
+ */
+async function resumePairedSessions() {
+  let entries;
+  try {
+    entries = await fs.readdir(config.sessionDir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      logger.info({ dir: config.sessionDir }, 'session dir does not exist yet — nothing to resume');
+      return;
+    }
+    throw err;
+  }
+
+  const tenantDirs = entries.filter((e) => e.isDirectory());
+  const resumable = [];
+  for (const d of tenantDirs) {
+    const credsPath = path.join(config.sessionDir, d.name, 'creds.json');
+    try {
+      await fs.access(credsPath);
+      resumable.push(d.name);
+    } catch {
+      logger.debug({ tenantId: d.name }, 'no creds.json — skipping resume');
+    }
+  }
+
+  if (resumable.length === 0) {
+    logger.info('no paired sessions on disk to resume');
+    return;
+  }
+
+  logger.info({ tenantIds: resumable, count: resumable.length }, 'resuming paired sessions');
+
+  // Start sessions in parallel but isolate failures.
+  await Promise.all(resumable.map(async (tenantId) => {
+    try {
+      const entry = await sessions.start(tenantId);
+      logger.info({ tenantId, status: entry.status }, 'session resumed');
+    } catch (err) {
+      logger.error({ tenantId, err: err.message }, 'session resume failed');
+    }
+  }));
+}
 
 process.on('SIGTERM', () => {
   logger.info('SIGTERM — exiting');
