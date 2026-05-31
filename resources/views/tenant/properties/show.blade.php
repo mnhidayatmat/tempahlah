@@ -334,11 +334,11 @@
                                 this.holidaysError = data.error || 'Could not load holidays.';
                             } else {
                                 this.holidays = data.holidays || [];
-                                // Pre-select ALL holidays by default — tenant can
-                                // uncheck specific ones (e.g. state-only holidays
-                                // they don't observe) before saving.
+                                /* Pre-select ALL holidays by default; tenant can
+                                   uncheck specific ones (state-only holidays
+                                   they do not observe) before saving. */
                                 this.selectedHolidayDates = this.holidays.map(h => h.date);
-                                // Default rule name in multi-pick mode: "Public holidays {year}"
+                                /* Default rule name in multi-pick mode */
                                 if (!this.editingId) this.form.name = 'Public holidays ' + this.holidayYear;
                             }
                         } catch (e) {
