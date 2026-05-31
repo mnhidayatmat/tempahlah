@@ -78,6 +78,10 @@
                 'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
                 'initial'   => mb_strtoupper(mb_substr($p->name, 0, 1)),
                 'booked'    => $bookedByProperty[$p->id] ?? [],
+                // Dynamic per-date rates (60-day window starting today).
+                // Empty for dates outside the window — calendar falls back
+                // to `rate` (the "starting from" headline).
+                'rates'     => $p->rates_by_date ?? (object) [],
             ];
         })->values();
     @endphp
@@ -233,7 +237,7 @@
                         :disabled="!d || isPast(d) || isBooked(d)"
                         @click="d && pickDay(d)">
                     <span class="wf-cal-day-num" x-text="d ? d.getDate() : ''"></span>
-                    <span class="wf-cal-day-rate" x-show="d && !isPast(d) && !isBooked(d) && !isCheckin(d) && !isCheckout(d)" x-text="d ? ('RM' + Math.round(current.rate)) : ''"></span>
+                    <span class="wf-cal-day-rate" x-show="d && !isPast(d) && !isBooked(d) && !isCheckin(d) && !isCheckout(d)" x-text="d ? ('RM' + Math.round(rateFor(d))) : ''"></span>
                 </button>
             </template>
         </div>
@@ -261,7 +265,7 @@
             </div>
 
             <div class="wf-summary-row">
-                <span class="lbl">RM <span x-text="formatMoney(current.rate)"></span> × <span x-text="nights()"></span> {{ $isBM ? 'malam' : 'nights' }}</span>
+                <span class="lbl">RM <span x-text="formatMoney(avgRate())"></span> × <span x-text="nights()"></span> {{ $isBM ? 'malam' : 'nights' }}</span>
                 <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
             </div>
             <div class="wf-summary-row wf-summary-row-guest">
@@ -1140,7 +1144,46 @@
                 if (!this.checkin || !this.checkout) return 0;
                 return Math.max(1, Math.round((new Date(this.checkout) - new Date(this.checkin)) / 86400000));
             },
-            subtotal() { return this.nights() * (this.current?.rate || 0); },
+
+            // YYYY-MM-DD for a JS Date (matches the keys in current.rates).
+            isoOf(d) {
+                if (!d) return '';
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            },
+
+            // Per-date rate from the dynamic-pricing map. Falls back to the
+            // "starting from" rate if the date is outside the pre-computed
+            // 60-day window (forward navigation past the window).
+            rateFor(d) {
+                if (!d || !this.current) return 0;
+                const iso = this.isoOf(d);
+                const rates = this.current.rates || {};
+                const r = rates[iso];
+                return (typeof r === 'number') ? r : (this.current.rate || 0);
+            },
+
+            // Sum per-night rates over the selected range — so weekend
+            // surcharges, school-holiday markups, etc. are reflected in
+            // the total instead of multiplying nights by a flat rate.
+            subtotal() {
+                if (!this.checkin || !this.checkout) return 0;
+                let total = 0;
+                const end = new Date(this.checkout + 'T00:00:00');
+                const cur = new Date(this.checkin + 'T00:00:00');
+                while (cur < end) {
+                    total += this.rateFor(cur);
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return total;
+            },
+
+            avgRate() {
+                const n = this.nights();
+                return n > 0 ? this.subtotal() / n : (this.current?.rate || 0);
+            },
             formatMoney(n) {
                 return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             },
