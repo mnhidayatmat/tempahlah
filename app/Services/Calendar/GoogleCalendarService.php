@@ -4,6 +4,8 @@ namespace App\Services\Calendar;
 
 use App\Models\Booking;
 use App\Models\TenantIntegration;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -172,46 +174,89 @@ class GoogleCalendarService
      * stored one if it's expired or about to expire. The new token + expiry
      * are persisted back to the TenantIntegration row.
      *
-     * Throws RuntimeException with code 'invalid_grant' if the refresh_token
-     * has been revoked (user removed access from their Google account) —
-     * caller should mark the integration as needing reconnect.
+     * Concurrency safe — wraps refresh in a Cache::lock() so two simultaneous
+     * sync jobs for the same tenant don't both hit Google's /token endpoint
+     * with the same refresh_token. Second caller blocks up to 5s for the
+     * first to finish, then re-reads from DB (so it picks up the freshly
+     * refreshed token without doing a second exchange).
+     *
+     * Throws RuntimeException with code 401 ('invalid_grant') if the
+     * refresh_token has been revoked (user removed access from their Google
+     * account) — also marks the integration disabled with a user-facing
+     * last_error so the next dashboard load shows the reconnect prompt.
      */
     public function freshAccessToken(TenantIntegration $integration): string
     {
+        // Fast path — no lock needed if token is still valid (60s safety
+        // margin so we don't hand back a token that expires mid-request).
         $config = $integration->config ?? [];
-        $expiresAt = (int) ($config['expires_at'] ?? 0);
-
-        // 60s safety margin so we don't hand back a token that expires
-        // mid-request.
-        if ($expiresAt > now()->addSeconds(60)->timestamp && ! empty($config['access_token'])) {
+        if (($config['expires_at'] ?? 0) > now()->addSeconds(60)->timestamp
+            && ! empty($config['access_token'])) {
             return $config['access_token'];
         }
 
-        if (empty($config['refresh_token'])) {
-            throw new \RuntimeException('Google Calendar: no refresh_token on file — tenant must reconnect.', 0);
+        // Slow path: acquire a tenant-scoped lock before refreshing so a
+        // burst of concurrent sync jobs doesn't all hit Google's /token at
+        // once with the same refresh_token.
+        $lockKey = 'google_calendar_refresh:tenant_'.$integration->tenant_id;
+        $lock = Cache::lock($lockKey, 10);
+
+        try {
+            $lock->block(5);
+        } catch (LockTimeoutException $e) {
+            // Couldn't get the lock — another worker is mid-refresh. Re-read
+            // the row from DB; they probably finished and wrote a new token.
+            $integration->refresh();
+            $config = $integration->config ?? [];
+            if (($config['expires_at'] ?? 0) > now()->addSeconds(60)->timestamp
+                && ! empty($config['access_token'])) {
+                return $config['access_token'];
+            }
+            throw new \RuntimeException(
+                'Google Calendar: could not acquire refresh lock and token still expired.', 0
+            );
         }
 
         try {
-            $tokens = $this->refreshAccessToken($config['refresh_token']);
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            $body = (string) $e->response?->body();
-            if (str_contains($body, 'invalid_grant')) {
-                $config['last_error'] = 'Google access was revoked. Please reconnect.';
-                $integration->config = $config;
-                $integration->enabled = false;
-                $integration->save();
-                throw new \RuntimeException('invalid_grant', 401, $e);
+            // Double-check inside the critical section. Another worker may
+            // have refreshed while we were waiting for the lock.
+            $integration->refresh();
+            $config = $integration->config ?? [];
+            if (($config['expires_at'] ?? 0) > now()->addSeconds(60)->timestamp
+                && ! empty($config['access_token'])) {
+                return $config['access_token'];
             }
-            throw $e;
+
+            if (empty($config['refresh_token'])) {
+                throw new \RuntimeException(
+                    'Google Calendar: no refresh_token on file — tenant must reconnect.', 0
+                );
+            }
+
+            try {
+                $tokens = $this->refreshAccessToken($config['refresh_token']);
+            } catch (\Illuminate\Http\Client\RequestException $e) {
+                $body = (string) $e->response?->body();
+                if (str_contains($body, 'invalid_grant')) {
+                    $config['last_error'] = 'Google access was revoked. Please reconnect.';
+                    $integration->config = $config;
+                    $integration->enabled = false;
+                    $integration->save();
+                    throw new \RuntimeException('invalid_grant', 401, $e);
+                }
+                throw $e;
+            }
+
+            $config['access_token'] = $tokens['access_token'];
+            $config['expires_at']   = now()->addSeconds((int) ($tokens['expires_in'] ?? 3600))->timestamp;
+            $config['last_error']   = null;
+            $integration->config = $config;
+            $integration->save();
+
+            return $tokens['access_token'];
+        } finally {
+            $lock->release();
         }
-
-        $config['access_token'] = $tokens['access_token'];
-        $config['expires_at']   = now()->addSeconds((int) ($tokens['expires_in'] ?? 3600))->timestamp;
-        $config['last_error']   = null;
-        $integration->config = $config;
-        $integration->save();
-
-        return $tokens['access_token'];
     }
 
     /**
