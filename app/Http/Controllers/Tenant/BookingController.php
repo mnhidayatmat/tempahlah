@@ -8,10 +8,18 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
+use App\Models\BookingGuest;
 use App\Models\CleaningTask;
+use App\Models\Commission;
+use App\Models\Dispute;
+use App\Models\GuestBlacklistEntry;
+use App\Models\IncidentReport;
+use App\Models\Invoice;
 use App\Models\LaundryTask;
 use App\Models\Payment;
+use App\Models\Review;
 use App\Models\Room;
+use App\Models\WhatsappMessage;
 use Illuminate\Support\Facades\DB;
 use App\Services\Payments\Toyyibpay\ToyyibpayException;
 use App\Services\WhatsApp\WhatsappMessenger;
@@ -306,6 +314,67 @@ class BookingController extends Controller
             ->route('tenant.bookings.show', $booking->id)
             ->with('status', __('Booking :ref cancelled. Dates are now available again.', [
                 'ref' => $booking->reference,
+            ]));
+    }
+
+    /**
+     * Hard-delete a booking + all linked operational rows.
+     * Intended for test/cleanup use. NOT a normal flow — `cancel()`
+     * is the right action for real cancellations.
+     *
+     * Refuses if the booking has linked Review / IncidentReport /
+     * Dispute / GuestBlacklistEntry rows — those are audit-grade and
+     * destroying them would lose evidence the platform needs for
+     * future complaints. Cancel instead.
+     *
+     * Cascade deletes (in one transaction):
+     *   - BookingGuest, Payment, Invoice, Commission
+     *   - CleaningTask, LaundryTask
+     *   - WhatsappMessage where booking_id = this booking
+     *   - The booking itself
+     */
+    public function destroy(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        $auditBlockers = [
+            'reviews'         => Review::where('booking_id', $booking->id)->count(),
+            'incidents'       => IncidentReport::where('booking_id', $booking->id)->count(),
+            'disputes'        => Dispute::where('booking_id', $booking->id)->count(),
+            'blacklist'       => GuestBlacklistEntry::where('booking_id', $booking->id)->count(),
+        ];
+        $totalAudit = array_sum($auditBlockers);
+        if ($totalAudit > 0) {
+            $parts = [];
+            foreach ($auditBlockers as $k => $n) {
+                if ($n > 0) $parts[] = "{$n} {$k}";
+            }
+            return back()->with('error', __('Cannot delete — this booking has linked records (:items). Cancel it instead so the audit trail stays intact.', [
+                'items' => implode(', ', $parts),
+            ]));
+        }
+
+        $ref = $booking->reference;
+
+        DB::transaction(function () use ($booking) {
+            // Order matters only loosely — none of these have FKs between
+            // each other, just back-references to the booking row that
+            // we delete last.
+            BookingGuest::where('booking_id', $booking->id)->delete();
+            Invoice::where('booking_id', $booking->id)->delete();
+            Commission::where('booking_id', $booking->id)->delete();
+            CleaningTask::where('booking_id', $booking->id)->delete();
+            LaundryTask::where('booking_id', $booking->id)->delete();
+            WhatsappMessage::where('booking_id', $booking->id)->delete();
+            // Payment last (commission may FK to it).
+            Payment::where('booking_id', $booking->id)->delete();
+            $booking->delete();
+        });
+
+        return redirect()
+            ->route('tenant.bookings.index')
+            ->with('status', __('Booking :ref permanently deleted along with its payments, invoices and tasks.', [
+                'ref' => $ref,
             ]));
     }
 }

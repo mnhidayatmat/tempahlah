@@ -41,7 +41,12 @@ class CreateBooking
             $isForeigner = (bool) ($data['is_foreigner'] ?? false);
             $tourismTax = $isForeigner ? round((float) config('homestay.tourism_tax_per_night_foreigner', 10) * $quote['count'], 2) : 0;
 
-            $total = round($quote['total'] + $sstAmount + $tourismTax, 2);
+            // Per-booking flat fee, snapshotted from the property so future
+            // changes to the property's fee don't retroactively alter
+            // existing bookings. NULL/0 → no fee, line omitted everywhere.
+            $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
+
+            $total = round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2);
             $depositPct = (float) ($data['deposit_pct'] ?? 20);
             $depositAmt = round($total * ($depositPct / 100), 2);
 
@@ -68,6 +73,7 @@ class CreateBooking
                 'base_amount' => $quote['total'],
                 'sst_amount' => $sstAmount,
                 'tourism_tax_amount' => $tourismTax,
+                'booking_fee_amount' => $bookingFee,
                 'total_amount' => $total,
                 'deposit_pct' => $depositPct,
                 'deposit_amount' => $depositAmt,

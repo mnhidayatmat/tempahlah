@@ -103,6 +103,11 @@
                 // "Direction" button opens this directly instead of building
                 // a Maps-search URL from the free-text address.
                 'map_url'   => $p->map_url,
+                // Per-booking flat fee (cleaning, service, etc.). Surfaces
+                // as its own line on the summary + invoice. fee_amount = 0
+                // means no fee — the line is hidden.
+                'fee_amount' => (float) ($p->booking_fee_amount ?? 0),
+                'fee_label'  => (string) ($p->booking_fee_label ?? ''),
                 'rate'      => (float) $p->starting_rate,
                 'sleeps'    => (int) $p->sleeps_total,
                 'default_guests' => (int) ($p->default_guests_resolved ?? max(1, (int) floor(($p->sleeps_total ?? 2) / 2))),
@@ -317,6 +322,11 @@
                 <span class="lbl">RM <span x-text="formatMoney(avgRate())"></span> × <span x-text="nights()"></span> {{ $isBM ? 'malam' : 'nights' }}</span>
                 <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
             </div>
+            {{-- Per-booking flat fee line (only when the host set one). --}}
+            <div class="wf-summary-row" x-show="feeAmount() > 0" x-cloak>
+                <span class="lbl" x-text="feeLabel()"></span>
+                <span class="val">RM <span x-text="formatMoney(feeAmount())"></span></span>
+            </div>
             <div class="wf-summary-row wf-summary-row-guest">
                 <div class="wf-guests-lbl">
                     <span class="lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</span>
@@ -329,7 +339,7 @@
             </div>
             <div class="wf-summary-row wf-summary-total">
                 <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
-                <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
+                <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
             </div>
             <div class="wf-summary-note">
                 ✻ {{ $isBM ? 'SST + cukai pelancongan akan disahkan tuan rumah di WhatsApp.' : 'SST + tourism tax confirmed by host on WhatsApp.' }}
@@ -352,7 +362,7 @@
                  wa.me deeplink so the page still works out-of-the-box. --}}
             <a :href="reserveLink()" target="_blank" rel="noopener" class="wf-reserve">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
-                <span>{{ $isBM ? 'Tempah di WhatsApp' : 'Reserve on WhatsApp' }} · RM <span x-text="formatMoney(subtotal())"></span></span>
+                <span>{{ $isBM ? 'Tempah di WhatsApp' : 'Reserve on WhatsApp' }} · RM <span x-text="formatMoney(grandTotal())"></span></span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
             <div class="wf-reserve-hint">
@@ -383,9 +393,13 @@
                     <span class="lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</span>
                     <span class="val" x-text="guests + ' ' + (isBM ? 'orang' : 'pax')"></span>
                 </div>
+                <div class="wf-book-recap-row" x-show="feeAmount() > 0" x-cloak>
+                    <span class="lbl" x-text="feeLabel()"></span>
+                    <span class="val">RM <span x-text="formatMoney(feeAmount())"></span></span>
+                </div>
                 <div class="wf-book-recap-row">
                     <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
-                    <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
+                    <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
                 </div>
                 <div class="wf-book-recap-row wf-book-recap-deposit">
                     <span class="lbl">{{ $isBM ? 'Deposit (20%) — bayar sekarang' : 'Deposit (20%) — pay now' }}</span>
@@ -1808,6 +1822,22 @@
                 return total;
             },
 
+            // Per-booking flat fee (cleaning fee, service fee, etc.).
+            // Server-side authoritative — these are display-only previews
+            // matching what PublicBookingController + CreateBooking compute
+            // from the same `properties.booking_fee_amount` column.
+            feeAmount() {
+                return Number(this.current?.fee_amount || 0);
+            },
+            feeLabel() {
+                const lbl = (this.current?.fee_label || '').trim();
+                if (lbl) return lbl;
+                return this.isBM ? 'Yuran tempahan' : 'Booking fee';
+            },
+            grandTotal() {
+                return this.subtotal() + this.feeAmount();
+            },
+
             avgRate() {
                 const n = this.nights();
                 return n > 0 ? this.subtotal() / n : (this.current?.rate || 0);
@@ -1815,9 +1845,11 @@
 
             // Deposit due now — server recomputes from booking.deposit_pct,
             // this is purely a display approximation matching the 20%
-            // default in PublicBookingController::store().
+            // default in PublicBookingController::store(). Computed off the
+            // grand total so the booking fee gets its share of the deposit
+            // collected up front.
             depositAmount() {
-                return Math.round(this.subtotal() * (this.depositPct / 100));
+                return Math.round(this.grandTotal() * (this.depositPct / 100));
             },
             formatMoney(n) {
                 return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -1838,7 +1870,7 @@
                 const ci = this.fmtPill(this.checkin);
                 const co = this.fmtPill(this.checkout);
                 const n  = this.nights();
-                const total = this.formatMoney(this.subtotal());
+                const total = this.formatMoney(this.grandTotal());
                 const msg = this.isBM
                     ? `Salam ${this.tenantName}! Saya nak tempah ${p.name}: ${ci} → ${co} (${n} malam), ${this.guests} tetamu. Jumlah anggaran RM ${total}. Boleh sahkan?`
                     : `Hi ${this.tenantName}! I'd like to book ${p.name}: ${ci} → ${co} (${n} ${n === 1 ? 'night' : 'nights'}), ${this.guests} guests. Estimated total RM ${total}. Could you confirm availability?`;

@@ -21,7 +21,7 @@ class GetQuoteTool extends Tool
     {
         return new ToolDefinition(
             name: $this->name(),
-            description: 'Compute a full nightly + total quote for a specific room and date range, including SST (if registered) and Malaysian tourism tax (RM 10 / night for foreign guests). Always call this before quoting a total to the guest — never invent prices.',
+            description: 'Compute a full nightly + total quote for a specific room and date range, including SST (if registered), Malaysian tourism tax (RM 10 / night for foreign guests), and any per-booking flat fee the host has configured (e.g. cleaning fee). Always call this before quoting a total to the guest — never invent prices.',
             schema: [
                 'type' => 'object',
                 'properties' => [
@@ -69,7 +69,13 @@ class GetQuoteTool extends Tool
         $guests  = max(1, (int) ($args['guests'] ?? 1));
         $tourismTax = $foreign ? 10.0 * $quote['count'] : 0.0;
 
-        $total = round($quote['total'] + $sstAmount + $tourismTax, 2);
+        // Per-booking flat fee (cleaning fee, service fee, etc.). Pulled
+        // from the property the room belongs to. 0 if the host hasn't set
+        // one. Mirrors CreateBooking's math.
+        $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
+        $bookingFeeLabel = (string) ($room->property->booking_fee_label ?? '');
+
+        $total = round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2);
         $deposit = round($total * 0.20, 2);
 
         $maxSleeps = (int) ($room->max_adults + $room->max_children);
@@ -91,6 +97,8 @@ class GetQuoteTool extends Tool
             'sst_rate'        => $sstRate,
             'sst_amount_rm'   => $sstAmount,
             'tourism_tax_rm'  => $tourismTax,
+            'booking_fee_rm'  => $bookingFee,
+            'booking_fee_label' => $bookingFee > 0 ? ($bookingFeeLabel ?: 'Booking fee') : '',
             'total_rm'        => $total,
             'deposit_rm'      => $deposit,
             'deposit_pct'     => 20,

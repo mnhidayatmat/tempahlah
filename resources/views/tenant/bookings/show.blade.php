@@ -82,6 +82,30 @@
                             </button>
                         </form>
                     @endif
+
+                    {{-- Hard delete — for test/cleanup. Strong typed confirm
+                         so a misclick can't wipe a real booking. The server
+                         additionally refuses if any audit-grade rows exist
+                         (reviews / incident reports / disputes / blacklist). --}}
+                    <form method="POST"
+                          action="{{ route('tenant.bookings.destroy', $booking->id) }}"
+                          style="display:inline;"
+                          onsubmit="
+                              var typed = prompt('{{ addslashes(__('PERMANENT DELETE — type the booking reference :ref to confirm. This wipes the booking, its payments, invoices and tasks. Use \'Cancel\' instead if it\'s a real booking.', ['ref' => $booking->reference])) }}', '');
+                              if (typed !== '{{ $booking->reference }}') {
+                                  if (typed !== null) alert('{{ addslashes(__('Reference did not match — delete aborted.')) }}');
+                                  return false;
+                              }
+                          ">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                                class="btn btn-sm"
+                                style="background: var(--err); color:#fff; border-color: var(--err);"
+                                title="{{ __('Permanently delete (cannot be undone)') }}">
+                            {{ __('Delete') }}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

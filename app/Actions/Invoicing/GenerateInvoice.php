@@ -42,6 +42,20 @@ class GenerateInvoice
             ],
         ];
 
+        // Per-booking flat fee (cleaning fee, service fee, etc.). Uses the
+        // host-defined label snapshotted from the property at booking time;
+        // falls back to a generic label if the host cleared it later.
+        if ((float) $booking->booking_fee_amount > 0) {
+            $feeLabel = $booking->property->booking_fee_label
+                ?: __('Booking fee');
+            $lineItems[] = [
+                'description' => $feeLabel,
+                'quantity' => 1,
+                'unit_price' => $booking->booking_fee_amount,
+                'total' => $booking->booking_fee_amount,
+            ];
+        }
+
         if ($booking->sst_amount > 0) {
             $lineItems[] = [
                 'description' => __('SST 8%'),

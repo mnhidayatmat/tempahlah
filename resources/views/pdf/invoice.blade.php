@@ -56,6 +56,9 @@
 
 <table class="totals-table">
     <tr><td class="label">{{ __('Subtotal') }}</td><td style="text-align:right;width:120px;">RM {{ number_format($invoice->subtotal, 2) }}</td></tr>
+    @if ((float) ($booking->booking_fee_amount ?? 0) > 0)
+    <tr><td class="label">{{ $booking->property->booking_fee_label ?: __('Booking fee') }}</td><td style="text-align:right;">RM {{ number_format($booking->booking_fee_amount, 2) }}</td></tr>
+    @endif
     @if ($invoice->sst_amount > 0)
     <tr><td class="label">{{ __('SST 8%') }}</td><td style="text-align:right;">RM {{ number_format($invoice->sst_amount, 2) }}</td></tr>
     @endif
