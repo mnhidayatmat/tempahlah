@@ -108,6 +108,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/properties/{property:public_id}/edit', [PropertyController::class, 'edit'])->name('properties.edit');
         Route::patch('/properties/{property:public_id}',          [PropertyController::class, 'update'])->name('properties.update');
         Route::patch('/properties/{property:public_id}/policies', [PropertyController::class, 'updatePolicies'])->name('properties.policies.update');
+        Route::patch('/properties/{property:public_id}/fee',      [PropertyController::class, 'updateFee'])->name('properties.fee.update');
         Route::delete('/properties/{property:public_id}',         [PropertyController::class, 'destroy'])->name('properties.destroy');
 
         // Property photos (upload to DO Spaces, delete, set hero, tag category)

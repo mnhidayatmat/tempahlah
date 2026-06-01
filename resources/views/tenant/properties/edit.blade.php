@@ -111,82 +111,10 @@
                 </div>
             </div>
 
-            {{-- Per-booking flat fee (cleaning fee, service fee, etc.) ─────
-                 Charged ONCE per booking — independent of nights or guest
-                 count. Pairs an amount with a guest-visible label. Both
-                 optional; clear the amount to disable the fee entirely.
-                 Lives in its own card so hosts don't confuse it with the
-                 per-night rate above. --}}
-            @php
-                $feeAmt   = old('booking_fee_amount', $property->booking_fee_amount);
-                $isBmLocale = app()->getLocale() === 'ms';
-                // Default label when the host hasn't set one yet — saves
-                // them a step on first set-up. They can still override it
-                // with anything (Cleaning fee / Service charge / etc.).
-                // The default is locale-aware: BM hosts see "Yuran tempahan",
-                // EN hosts see "Booking fee".
-                $defaultFeeLabel = $isBmLocale ? 'Yuran tempahan' : 'Booking fee';
-                $feeLabel = old('booking_fee_label', $property->booking_fee_label) ?: $defaultFeeLabel;
-            @endphp
-            <div class="hauz-card" style="padding: 22px;"
-                 x-data="{
-                     feeAmount: @js((string) ($feeAmt ?? '')),
-                     feeLabel:  @js((string) ($feeLabel ?? '')),
-                 }">
-                <div class="kicker" style="margin-bottom: 6px;">{{ $isBmLocale ? 'Yuran per tempahan (pilihan)' : 'Per-booking flat fee (optional)' }}</div>
-                <p style="margin: 0 0 14px; font-size: 12.5px; color: var(--ink-3); line-height: 1.55;">
-                    {{ $isBmLocale
-                        ? 'Caj sekali sahaja setiap tempahan — contohnya yuran pembersihan atau perkhidmatan. Berasingan daripada kadar semalaman. Kosongkan jumlah untuk mematikan yuran ini.'
-                        : 'Charged once per booking — e.g. cleaning fee or service fee. Separate from the per-night rate. Clear the amount to disable.' }}
-                </p>
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items:end;">
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
-                            {{ $isBmLocale ? 'Label (apa yang tetamu nampak)' : 'Label (what guests see)' }}
-                        </label>
-                        <input class="input"
-                               type="text"
-                               name="booking_fee_label"
-                               x-model="feeLabel"
-                               value="{{ $feeLabel }}"
-                               maxlength="80"
-                               placeholder="{{ $isBmLocale ? 'cth: Yuran pembersihan' : 'e.g. Cleaning fee' }}">
-                    </div>
-                    <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
-                            {{ $isBmLocale ? 'Jumlah (RM)' : 'Amount (RM)' }}
-                        </label>
-                        <input class="input"
-                               type="number"
-                               step="0.01"
-                               min="0"
-                               max="9999.99"
-                               name="booking_fee_amount"
-                               x-model="feeAmount"
-                               value="{{ $feeAmt }}"
-                               placeholder="0.00">
-                    </div>
-                </div>
-
-                {{-- Live preview — same pattern as the pricing-rule editor. --}}
-                <div style="margin-top: 14px; padding: 10px 12px; border-radius: var(--r-md); background: var(--bg-sunk); font-size: 12px; color: var(--ink-2); line-height: 1.5;"
-                     x-show="parseFloat(feeAmount) > 0"
-                     x-cloak>
-                    <span style="font-family: var(--font-mono); color: var(--ink-3);">{{ $isBmLocale ? 'Pratonton invois:' : 'Invoice preview:' }}</span>
-                    <span x-text="(feeLabel.trim() || @js($isBmLocale ? 'Yuran tempahan' : 'Booking fee'))"></span>
-                    <span style="float:right; font-family: var(--font-mono); color: var(--primary-deep); font-weight: 600;">
-                        RM <span x-text="parseFloat(feeAmount || 0).toFixed(2)"></span>
-                    </span>
-                </div>
-
-                @error('booking_fee_amount')
-                    <p style="margin: 10px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
-                @enderror
-                @error('booking_fee_label')
-                    <p style="margin: 6px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
-                @enderror
-            </div>
+            {{-- Per-booking flat fee was moved to the Pricing tab so all
+                 money-related controls (base rate, dynamic rules, flat
+                 fee) live in one place. See Property show.blade.php →
+                 tab=pricing. --}}
 
             {{-- Stay logistics --}}
             <div class="hauz-card" style="padding: 22px;">

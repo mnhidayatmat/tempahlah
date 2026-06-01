@@ -203,13 +203,8 @@ class PropertyController extends Controller
             // goo.gl/maps, waze.com — so we don't open arbitrary URLs from
             // the "Direction" button. Falsy/blank → fall back to address.
             'map_url'        => ['nullable', 'url', 'max:500', 'regex:/^https:\/\/(www\.|maps\.)?(google\.[a-z.]+\/maps|google\.[a-z.]+\/maps\/|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)\b/i'],
-            // Per-booking flat fee (cleaning fee, service fee, etc.). Charged
-            // ONCE per booking. Label is what guests see on the invoice; the
-            // amount must be 0 – 9,999.99 to keep accidental typos from
-            // multiplying RM 50 into RM 50,000. Both nullable — null on either
-            // side means "no booking fee on this property".
-            'booking_fee_amount' => 'nullable|numeric|min:0|max:9999.99',
-            'booking_fee_label'  => 'nullable|string|max:80',
+            // NOTE: booking_fee_amount + booking_fee_label moved to the
+            // Pricing tab; see updateFee() below.
             'bathrooms'      => 'nullable|integer|min:0|max:50',
             'toilets'        => 'nullable|integer|min:0|max:50',
             'pricing_mode'   => 'nullable|in:whole_house,per_room',
@@ -243,19 +238,6 @@ class PropertyController extends Controller
             }
         }
 
-        // Booking-fee normalisation: if the amount is empty/0, blank out
-        // BOTH columns so we don't leave an orphan label without an amount
-        // (which would print on invoices as "Cleaning fee — RM 0.00"). If
-        // the host sets an amount but forgets the label, default it.
-        $feeAmt = $validated['booking_fee_amount'] ?? null;
-        if ($feeAmt === null || (float) $feeAmt <= 0) {
-            $validated['booking_fee_amount'] = null;
-            $validated['booking_fee_label']  = null;
-        } else {
-            $validated['booking_fee_amount'] = round((float) $feeAmt, 2);
-            $validated['booking_fee_label']  = trim((string) ($validated['booking_fee_label'] ?? '')) ?: __('Booking fee');
-        }
-
         $amenityIds = $validated['amenities'] ?? [];
         unset($validated['amenities']);
 
@@ -276,6 +258,44 @@ class PropertyController extends Controller
         return redirect()
             ->route('tenant.settings.index')
             ->with('status', __('Homestay ":name" updated.', ['name' => $property->name]));
+    }
+
+    /**
+     * Dedicated endpoint for the "Per-booking flat fee" card on the
+     * Pricing tab. Separate from update() so the Pricing tab can save
+     * the fee without re-validating every field on the general edit
+     * form (name, address, policies, etc.).
+     *
+     * Normalisation: empty/0 amount → BOTH columns are nulled so we
+     * never persist an orphan label. Non-zero amount with a missing
+     * label → defaults to the translated "Booking fee" / "Yuran
+     * tempahan".
+     */
+    public function updateFee(Request $request, Property $property)
+    {
+        $validated = $request->validate([
+            'booking_fee_amount' => 'nullable|numeric|min:0|max:9999.99',
+            'booking_fee_label'  => 'nullable|string|max:80',
+        ]);
+
+        $amount = $validated['booking_fee_amount'] ?? null;
+        if ($amount === null || (float) $amount <= 0) {
+            $property->booking_fee_amount = null;
+            $property->booking_fee_label  = null;
+        } else {
+            $property->booking_fee_amount = round((float) $amount, 2);
+            $property->booking_fee_label  = trim((string) ($validated['booking_fee_label'] ?? '')) ?: __('Booking fee');
+        }
+        $property->save();
+
+        return redirect()
+            ->route('tenant.properties.show', ['id' => $property->id, 'tab' => 'pricing'])
+            ->with('status', $property->booking_fee_amount
+                ? __('Booking fee saved: :label · RM :amt', [
+                    'label' => $property->booking_fee_label,
+                    'amt'   => number_format((float) $property->booking_fee_amount, 2),
+                ])
+                : __('Booking fee removed.'));
     }
 
     public function destroy(Property $property)
