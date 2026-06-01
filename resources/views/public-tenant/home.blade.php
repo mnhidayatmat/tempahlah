@@ -237,7 +237,7 @@
 
     {{-- ───── DARK PROMPT BAR ─────────────────────────────────────── --}}
     <div class="wf-prompt" x-show="!checkin">
-        <span>{{ $isBM ? 'Ketuk mana-mana tarikh untuk tempah' : 'Click any date to make a booking' }}</span>
+        <span>{{ $isBM ? 'Pilih mana-mana tarikh untuk tempah' : 'Click any date to make a booking' }}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
     </div>
 
