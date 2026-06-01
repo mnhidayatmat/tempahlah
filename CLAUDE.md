@@ -405,6 +405,84 @@ Default super-admin: `admin@tempahlah.com` / `ChangeMe123!` → login at `/super
 
 ---
 
+## 🗓️ Planned: Google Calendar OAuth rebuild (1-click connect)
+
+> **Status**: design approved 2026-06-01, **not yet started**. User said "activate" before implementation. The current `/dashboard/integrations/google_calendar` page (manual Client ID / Secret / Calendar ID fields) is a v1 skeleton — non-functional end-to-end (no callback route, no token refresh, `pushBooking` never called, two mismatched storage models). This section is the build spec.
+
+### Goal
+Tenant clicks **one button** ("Connect Google Calendar"), grants access via Google's standard consent screen, picks a calendar from a dropdown, and confirmed bookings flow into that calendar automatically. Zero technical fields shown to the tenant. Same UX shape as Calendly / Notion / HubSpot.
+
+### Architecture: platform-owned OAuth app
+- **One** Google Cloud project + OAuth client, owned by Tempahlah. Credentials live in **platform `.env`**, never on the tenant.
+- Scopes: `https://www.googleapis.com/auth/calendar.events` (narrower than full `/calendar` — avoids "sensitive scope" verification friction where possible). If we need to list/create calendars too, add `/auth/calendar.calendarlist.readonly`.
+- Redirect URI (single, fixed): `https://tempahlah.com/oauth/google/callback`.
+- Google Cloud Console OAuth consent screen must be in **Production** mode (Testing caps at 100 users + shows "unverified app" warning). Submit for verification — 2–6 weeks lead time; start ASAP.
+
+### File-level change plan
+
+**New files**
+- `app/Services/Calendar/GoogleTokenManager.php` — `accessTokenFor(TenantIntegration)` checks expiry and refreshes if stale via `grant_type=refresh_token`; handles `invalid_grant` (user revoked) by flipping `enabled=false` + setting `last_error`. All other code calls only this — never raw access tokens.
+- `app/Http/Controllers/OAuth/GoogleCalendarOAuthController.php` — two actions:
+  - `start()` — signs `state = HMAC(tenantId|csrf_nonce|expiry)`, redirects to `GoogleCalendarService::authorizeUrl($state)`.
+  - `callback()` — validates `state` (HMAC + expiry + matches session), calls `exchangeCodeForTokens($code)`, calls Google `calendarList.list` to fetch tenant's calendars, stores `access_token`, `refresh_token`, `expires_at`, `google_email` (from `userinfo` endpoint) in `tenant_integrations.config`. Redirects to a calendar-picker step.
+- `app/Http/Controllers/Tenant/GoogleCalendarController.php` — `pickCalendar()` saves chosen `calendar_id` + `calendar_name`; `disconnect()` revokes the token (`POST oauth2.googleapis.com/revoke`) AND clears the local row.
+- `app/Listeners/PushBookingToGoogleCalendar.php` — listens on `BookingConfirmed` (and `BookingCancelled` for deletion). Queues to `sync` queue. Idempotency: store returned `google_event_id` on the booking (`meta.google_event_id`) so updates PATCH, cancellations DELETE.
+- `app/Jobs/RenewGoogleCalendarWatch.php` (v1.5, for two-way sync) — re-arms `events.watch` channels (expire ~7 days). Scheduled daily.
+- `app/Http/Controllers/Webhooks/GoogleCalendarWebhookController.php` (v1.5) — receives push notifications, pulls changed events, creates `CalendarBlock` rows.
+- `config/services.php` entry `google_calendar` → reads `env('GOOGLE_CALENDAR_CLIENT_ID' / '_CLIENT_SECRET' / '_REDIRECT_URI')`. **No more `env()` calls inside `GoogleCalendarService`** — that's a prod foot-gun after `config:cache`.
+
+**Modified files**
+- `app/Services/Calendar/GoogleCalendarService.php` — replace `env()` with `config()`. Methods: `authorizeUrl(state)`, `exchangeCodeForTokens(code)`, `refreshAccessToken(refresh_token)`, `listCalendars(access_token)`, `pushBooking(TenantIntegration, Booking)`, `updateBooking(...)`, `deleteBooking(...)`, `revoke(token)`. All API calls via `GoogleTokenManager::accessTokenFor()`. Stop using `ChannelIntegration`; standardize on `TenantIntegration`.
+- `app/Http/Controllers/Tenant/IntegrationController.php` — for `provider='google_calendar'`, return a new view (state machine: disconnected → connected-needs-calendar → connected). Remove `client_id` / `client_secret` / `calendar_id` from `providerMeta()['fields']` and from `validationRulesFor()`. Form-based `update()` no longer applies.
+- `app/Models/TenantIntegration.php` — already has encrypted `config` cast; document the shape: `{ access_token, refresh_token, expires_at, google_email, calendar_id, calendar_name, last_error, watch_channel_id, watch_expires_at }`.
+- `routes/web.php` — add (apex domain group, behind `auth`):
+  - `GET /oauth/google/start` → `GoogleCalendarOAuthController@start`
+  - `GET /oauth/google/callback` → `GoogleCalendarOAuthController@callback`
+  - `POST /dashboard/integrations/google_calendar/pick-calendar` → `GoogleCalendarController@pickCalendar`
+  - `POST /dashboard/integrations/google_calendar/disconnect` → `GoogleCalendarController@disconnect`
+  - (v1.5) `POST /api/webhooks/google-calendar` → `GoogleCalendarWebhookController@handle` (no `auth`, no CSRF — header-validated)
+- `resources/views/tenant/integrations/google_calendar.blade.php` (new, replaces shared `show.blade.php` for this provider) — three states:
+  1. **Disconnected** — big "Connect Google Calendar" button (Google brand styling per their guidelines), one-liner about what we'll do.
+  2. **Connected, needs calendar pick** — "Connected as {google_email}. Which calendar should bookings sync to?" + dropdown of their calendars + Save button. Default: create new "Tempahlah Bookings" calendar via API.
+  3. **Fully connected** — "Syncing to **{calendar_name}** as {google_email}" + "Disconnect" button (POST). Show `last_error` if any.
+- `.env.example` — already has `GOOGLE_CALENDAR_CLIENT_ID/SECRET/REDIRECT_URI` keys; add a comment block explaining these are platform-owned, not per-tenant.
+- `app/Providers/EventServiceProvider.php` — register `PushBookingToGoogleCalendar` listener on `BookingConfirmed` + `BookingCancelled`.
+- Supervisor `tempahlah-queue` worker — `sync` queue is already in the list; no change.
+
+**Dependencies**
+- Add `composer require google/apiclient:^2.15`. Reasons: handles token refresh + retries + batch + push-notification channel signing for free. Don't hand-roll HTTP — too many edge cases (rate-limit backoff, partial batch failures, channel signature verification). If lockfile bloat is a concern, `google/apiclient-services` lets you pull only `Calendar` service to keep size down.
+
+### Phase order (each step independently shippable)
+1. **OAuth handshake** — register Google project, set env vars, build start/callback controllers + state HMAC, drop the new disconnected-state view. Verify: click "Connect" → consent → return to picker step with calendars listed.
+2. **Calendar picker + storage** — store chosen calendar, render connected-state view, implement Disconnect (with revoke).
+3. **Push on booking confirm** — wire listener, `pushBooking()`, store `google_event_id`. Verify with a real booking on Wafa Homestay.
+4. **Push on booking update / cancel** — PATCH + DELETE paths.
+5. **Token refresh tested under expiry** — force `expires_at` to past in DB, trigger a sync, confirm refresh + new tokens stored.
+6. **(v1.5) Two-way sync** — `events.watch` registration, webhook handler converts external events → `CalendarBlock` rows (prevents double-bookings from the host's other calendars), scheduled watch renewal.
+
+### Verification checklist (each phase)
+- Tenant on Wafa Homestay can complete the OAuth flow without seeing any technical field.
+- After connect, `tenant_integrations.config` contains `access_token` + `refresh_token` + `expires_at` (all encrypted at rest via the existing Eloquent cast).
+- Creating a confirmed booking in `/dashboard/bookings/create` produces a Google Calendar event within ~10s (queue worker on `sync`).
+- Updating the booking's dates updates the calendar event (no duplicate).
+- Cancelling the booking removes the event.
+- Revoking access from `myaccount.google.com/permissions` → next push fails gracefully with `last_error='invalid_grant'`, tenant sees "Reconnect" prompt in the dashboard.
+- After `config:cache` on prod, OAuth still works (proves `env()` → `config()` migration is complete).
+
+### Risks / known gotchas
+- **Google app verification lead time** (2–6 weeks) — start the submission the day Phase 1 is shipped. Until verified, only `@tempahlah.com` Google Workspace users and explicit test users can connect without the scary warning. Workaround for early beta tenants: add them to the Testing user allowlist.
+- **`refresh_token` is only returned on first consent.** If a tenant re-connects without revoking first, Google returns `access_token` only and the old `refresh_token` must be reused — or force `prompt=consent` + `access_type=offline` (already in `authorizeUrl`) and accept the friction of re-prompting them every reconnect.
+- **HMAC `state`** must include both tenant ID AND a short-lived signature — otherwise a malicious actor could swap tenant IDs in the callback URL. Bind to session ID + 10-min expiry.
+- **Don't store user-readable tokens in logs.** All `Log::*` calls in the new code must mask the `access_token` and `refresh_token` strings.
+- **One calendar per tenant for v1.** Per-property calendars are a UX rabbit hole — defer.
+- **Token refresh race.** Two concurrent sync jobs could both notice expiry and both try to refresh. Wrap the refresh in a Redis lock keyed on tenant ID.
+- **Booking timezone.** Bookings use `Asia/Kuala_Lumpur` dates; push events as **all-day** (`start.date` / `end.date`) not `dateTime` to avoid TZ drift — current `pushBooking()` already does this correctly.
+
+### When implementation starts
+On user "activate / go ahead" — start with Phase 1 (OAuth handshake). Don't begin without the user creating the Google Cloud project + sharing the client ID / secret to put in prod `.env` (SSH into prod, edit `.env`, `config:cache`, `php8.4-fpm reload`). Until those creds exist, the code can be built locally against a personal Google project for development.
+
+---
+
 ## 📚 Design reference
 
 The full system design lives in conversation history under `/sc:design` output. Key sections:
