@@ -267,51 +267,35 @@
                 @endif
             </div>
 
-            {{-- ─── Per-booking flat fee ──────────────────────────────────
-                 Charged ONCE per booking (cleaning fee / service fee / etc.),
-                 independent of nights, rooms, or pricing rules. Snapshotted
-                 onto the booking row at creation time so historical bookings
-                 stay stable when the host later changes the property's fee.
-                 Empty/0 amount = no fee applied (line hidden everywhere). --}}
+            {{-- ─── Booking fee ──────────────────────────────────────────
+                 ONE field: amount. Label is fixed to "Booking fee" / "Yuran
+                 tempahan" and follows the viewer's locale automatically.
+                 Charged once per booking, independent of nights / rooms /
+                 pricing rules. Snapshotted onto the booking row at create
+                 time so historical bookings stay stable. Empty/0 disables. --}}
             @php
                 $isBmLocale = app()->getLocale() === 'ms';
-                $defaultFeeLabel = $isBmLocale ? 'Yuran tempahan' : 'Booking fee';
-                $existingFeeAmt = $property->booking_fee_amount;
-                $existingFeeLabel = $property->booking_fee_label ?: $defaultFeeLabel;
+                $bookingFeeLabel = $isBmLocale ? 'Yuran tempahan' : 'Booking fee';
+                $existingFeeAmt  = $property->booking_fee_amount;
             @endphp
 
             <div class="card" style="padding:20px; margin-top:16px;"
-                 x-data="{
-                     feeAmount: @js((string) ($existingFeeAmt ?? '')),
-                     feeLabel:  @js((string) $existingFeeLabel),
-                 }">
-                <div class="cm-eyebrow" style="margin-bottom:6px;">{{ __('Per-booking flat fee') }}</div>
+                 x-data="{ feeAmount: @js((string) ($existingFeeAmt ?? '')) }">
+                <div class="cm-eyebrow" style="margin-bottom:6px;">{{ $bookingFeeLabel }}</div>
                 <h3 style="margin:0 0 6px; font-size:16px; font-weight:700;">
                     {{ $isBmLocale ? 'Yuran tempahan (pilihan)' : 'Booking fee (optional)' }}
                 </h3>
                 <p style="margin:0 0 16px; font-size:12.5px; color: var(--ink-3); line-height: 1.55;">
                     {{ $isBmLocale
-                        ? 'Caj sekali sahaja setiap tempahan — contohnya yuran pembersihan atau perkhidmatan. Berasingan daripada kadar semalaman dan peraturan harga di bawah.'
-                        : 'Charged once per booking — e.g. cleaning fee or service fee. Separate from the per-night rate and the pricing rules below.' }}
+                        ? 'Caj sekali sahaja setiap tempahan. Berasingan daripada kadar semalaman dan peraturan harga di bawah. Kosongkan jumlah dan tekan Simpan untuk mematikan yuran ini.'
+                        : 'Charged once per booking. Separate from the per-night rate and the pricing rules below. Clear the amount and click Save to disable.' }}
                 </p>
 
                 <form method="POST" action="{{ route('tenant.properties.fee.update', ['property' => $property->public_id]) }}?tab=pricing">
                     @csrf
                     @method('PATCH')
 
-                    <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items:end;">
-                        <div>
-                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
-                                {{ $isBmLocale ? 'Label (apa yang tetamu nampak)' : 'Label (what guests see)' }}
-                            </label>
-                            <input class="input"
-                                   type="text"
-                                   name="booking_fee_label"
-                                   x-model="feeLabel"
-                                   value="{{ $existingFeeLabel }}"
-                                   maxlength="80"
-                                   placeholder="{{ $isBmLocale ? 'cth: Yuran pembersihan' : 'e.g. Cleaning fee' }}">
-                        </div>
+                    <div style="display:grid; grid-template-columns: 1fr auto; gap: 12px; align-items:end; max-width: 420px;">
                         <div>
                             <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
                                 {{ $isBmLocale ? 'Jumlah (RM)' : 'Amount (RM)' }}
@@ -331,31 +315,22 @@
                         </button>
                     </div>
 
-                    {{-- Live invoice preview — same pattern as the
-                         dynamic-pricing rule editor. --}}
+                    {{-- Live invoice preview — shows exactly how the line
+                         renders on the guest's invoice. Label is fixed. --}}
                     <div style="margin-top: 14px; padding: 10px 14px; border-radius: var(--r-md); background: var(--bg-sunk); font-size: 12.5px; color: var(--ink-2); line-height: 1.5; display:flex; justify-content:space-between; align-items:center;"
                          x-show="parseFloat(feeAmount) > 0"
                          x-cloak>
                         <span>
                             <span style="font-family: var(--font-mono); color: var(--ink-3); margin-right:6px;">{{ $isBmLocale ? 'Pratonton invois:' : 'Invoice preview:' }}</span>
-                            <span x-text="(feeLabel.trim() || @js($defaultFeeLabel))"></span>
+                            <span>{{ $bookingFeeLabel }}</span>
                         </span>
                         <span style="font-family: var(--font-mono); color: var(--primary-deep); font-weight: 600;">
                             RM <span x-text="parseFloat(feeAmount || 0).toFixed(2)"></span>
                         </span>
                     </div>
 
-                    <p style="margin: 10px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5;">
-                        {{ $isBmLocale
-                            ? 'Tip: Kosongkan jumlah dan klik Simpan untuk mematikan yuran ini.'
-                            : 'Tip: clear the amount and click Save to disable this fee.' }}
-                    </p>
-
                     @error('booking_fee_amount')
-                        <p style="margin: 8px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
-                    @enderror
-                    @error('booking_fee_label')
-                        <p style="margin: 6px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
+                        <p style="margin: 10px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
                     @enderror
                 </form>
             </div>

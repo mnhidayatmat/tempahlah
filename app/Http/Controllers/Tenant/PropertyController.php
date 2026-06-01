@@ -261,21 +261,20 @@ class PropertyController extends Controller
     }
 
     /**
-     * Dedicated endpoint for the "Per-booking flat fee" card on the
-     * Pricing tab. Separate from update() so the Pricing tab can save
-     * the fee without re-validating every field on the general edit
-     * form (name, address, policies, etc.).
+     * Dedicated endpoint for the "Booking fee" card on the Pricing tab.
+     * Single-field UX — amount only. The label is FIXED to "Booking fee"
+     * (EN) / "Yuran tempahan" (BM), resolved at render time based on
+     * the viewer's locale via __('Booking fee'). We persist `null` for
+     * booking_fee_label so the locale fallback in invoices / public
+     * page / agent always kicks in.
      *
-     * Normalisation: empty/0 amount → BOTH columns are nulled so we
-     * never persist an orphan label. Non-zero amount with a missing
-     * label → defaults to the translated "Booking fee" / "Yuran
-     * tempahan".
+     * Empty/0 amount → both columns nulled; the fee row disappears from
+     * the public summary, invoice line items, agent quote, etc.
      */
     public function updateFee(Request $request, Property $property)
     {
         $validated = $request->validate([
             'booking_fee_amount' => 'nullable|numeric|min:0|max:9999.99',
-            'booking_fee_label'  => 'nullable|string|max:80',
         ]);
 
         $amount = $validated['booking_fee_amount'] ?? null;
@@ -284,16 +283,18 @@ class PropertyController extends Controller
             $property->booking_fee_label  = null;
         } else {
             $property->booking_fee_amount = round((float) $amount, 2);
-            $property->booking_fee_label  = trim((string) ($validated['booking_fee_label'] ?? '')) ?: __('Booking fee');
+            // Always null on the column — the human label is resolved at
+            // render time so it follows the viewer's locale (not the
+            // host's at save time).
+            $property->booking_fee_label  = null;
         }
         $property->save();
 
         return redirect()
             ->route('tenant.properties.show', ['id' => $property->id, 'tab' => 'pricing'])
             ->with('status', $property->booking_fee_amount
-                ? __('Booking fee saved: :label · RM :amt', [
-                    'label' => $property->booking_fee_label,
-                    'amt'   => number_format((float) $property->booking_fee_amount, 2),
+                ? __('Booking fee saved: RM :amt', [
+                    'amt' => number_format((float) $property->booking_fee_amount, 2),
                 ])
                 : __('Booking fee removed.'));
     }
