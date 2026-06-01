@@ -30,6 +30,7 @@ class Property extends Model
         'property_type', 'star_rating', 'bathrooms', 'toilets', 'pricing_mode',
         'default_guests',
         'address_line1', 'address_line2', 'city', 'state', 'postcode', 'country',
+        'map_url',
         'lat', 'lng',
         'check_in_time', 'check_out_time',
         'house_rules', 'cancellation_policy',

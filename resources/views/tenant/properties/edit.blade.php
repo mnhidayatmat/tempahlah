@@ -79,6 +79,35 @@
                             <input class="input" type="text" name="postcode" value="{{ old('postcode', $property->postcode) }}" maxlength="16">
                         </div>
                     </div>
+
+                    {{-- Optional pre-pinned Google Maps URL.
+                         Tenants paste their property's Google Maps share-link
+                         here so the public booking page's "Arah / Direction"
+                         button opens the exact pin instead of geocoding the
+                         free-text address (which drifts badly for kampung
+                         addresses).
+                         Validation: must be https + on a recognised maps
+                         domain (google maps / maps.app.goo.gl / waze). --}}
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">
+                            {{ __('Google Maps URL') }}
+                            <span style="font-weight: 400; color: var(--ink-3); text-transform: none; letter-spacing: 0; margin-left: 6px;">{{ __('optional, for precise pin') }}</span>
+                        </label>
+                        <input class="input"
+                               type="url"
+                               name="map_url"
+                               value="{{ old('map_url', $property->map_url) }}"
+                               maxlength="500"
+                               placeholder="https://maps.app.goo.gl/...">
+                        <p style="margin: 6px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5;">
+                            {{ app()->getLocale() === 'ms'
+                                ? 'Buka Google Maps, cari rumah anda, tekan Share → Copy link. Tampal di sini. Tetamu yang tekan butang “Arah” pada laman tempahan akan terus ke pin tepat (bukan jalan utama kampung).'
+                                : 'Open Google Maps, find your property, tap Share → Copy link, paste it here. Guests who tap “Direction” on your booking page will jump straight to the exact pin (not the main village road).' }}
+                        </p>
+                        @error('map_url')
+                            <p style="margin: 6px 0 0; font-size: 11.5px; color: var(--err);">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
             </div>
 

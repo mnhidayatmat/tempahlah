@@ -198,6 +198,11 @@ class PropertyController extends Controller
             'postcode'       => 'nullable|string|max:16',
             'address_line1'  => 'required|string|max:160',
             'address_line2'  => 'nullable|string|max:160',
+            // Optional pre-pinned map URL. Accept the common public-share
+            // domains only — google.com/maps, maps.google.*, maps.app.goo.gl,
+            // goo.gl/maps, waze.com — so we don't open arbitrary URLs from
+            // the "Direction" button. Falsy/blank → fall back to address.
+            'map_url'        => ['nullable', 'url', 'max:500', 'regex:/^https:\/\/(www\.|maps\.)?(google\.[a-z.]+\/maps|google\.[a-z.]+\/maps\/|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)\b/i'],
             'bathrooms'      => 'nullable|integer|min:0|max:50',
             'toilets'        => 'nullable|integer|min:0|max:50',
             'pricing_mode'   => 'nullable|in:whole_house,per_room',

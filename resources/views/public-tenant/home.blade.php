@@ -98,6 +98,11 @@
                 'city'      => $p->city,
                 'state'     => $p->state,
                 'address'   => $addressFull,
+                // Pre-pinned Google Maps short-link the host pasted in the
+                // property edit form (optional). When non-null the bottom-nav
+                // "Direction" button opens this directly instead of building
+                // a Maps-search URL from the free-text address.
+                'map_url'   => $p->map_url,
                 'rate'      => (float) $p->starting_rate,
                 'sleeps'    => (int) $p->sleeps_total,
                 'default_guests' => (int) ($p->default_guests_resolved ?? max(1, (int) floor(($p->sleeps_total ?? 2) / 2))),
@@ -1632,6 +1637,11 @@
                 this.galleryIndex = (this.galleryIndex + 1) % n;
             },
             directionUrl() {
+                // Prefer the host-curated pre-pinned URL when they've set one
+                // — it lands on the exact pin every time. Fall back to a
+                // Maps-search by the free-text address (which can drift for
+                // vague kampung addresses but works for anything geocodable).
+                if (this.current?.map_url) return this.current.map_url;
                 const q = this.current?.address || `${this.current?.name || this.tenantName}, ${this.current?.city || ''}`;
                 return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
             },
