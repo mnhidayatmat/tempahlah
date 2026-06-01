@@ -164,11 +164,11 @@ class GoogleCalendarOAuthController extends Controller
             'google_email'  => $email,
             'google_name'   => $name,
 
-            // Calendar selection — Phase 2 will add a picker.
-            // For now default to 'primary' so the connect flow completes
-            // without an extra step.
-            'calendar_id'   => $integration->config['calendar_id'] ?? 'primary',
-            'calendar_name' => $integration->config['calendar_name'] ?? __('Primary calendar'),
+            // Calendar selection — preserve any existing choice (covers the
+            // "reconnect to refresh tokens" flow). If null, the integration
+            // page will render the picker step.
+            'calendar_id'   => $integration->config['calendar_id'] ?? null,
+            'calendar_name' => $integration->config['calendar_name'] ?? null,
 
             // Reset any prior error.
             'last_error'    => null,
@@ -177,7 +177,7 @@ class GoogleCalendarOAuthController extends Controller
 
         return redirect()
             ->route('tenant.integrations.show', 'google_calendar')
-            ->with('status', __('Google Calendar connected as :email.', [
+            ->with('status', __('Connected as :email — choose which calendar to sync to.', [
                 'email' => $email ?? __('your Google account'),
             ]));
     }

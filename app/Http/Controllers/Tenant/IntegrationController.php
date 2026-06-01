@@ -63,11 +63,44 @@ class IntegrationController extends Controller
 
         // Google Calendar uses platform-owned OAuth — no credential form.
         // Tenant clicks "Connect" → consent → tokens stored automatically.
+        // Three render states: disconnected / needs-picker / connected.
         if ($provider === 'google_calendar') {
+            $record = TenantIntegration::where('provider', 'google_calendar')->first();
+            $calendars = null;
+            $pickerError = null;
+
+            // Decide if we should render the picker:
+            //   - tokens present but no calendar chosen yet (fresh OAuth)
+            //   - or tenant explicitly clicked "Change calendar" (?edit=1)
+            $hasTokens = $record && ! empty($record->config['access_token']);
+            $needsPicker = $hasTokens && (
+                empty($record->config['calendar_id'])
+                || request()->boolean('edit')
+            );
+
+            if ($needsPicker) {
+                try {
+                    $accessToken = app(GoogleCalendarService::class)->freshAccessToken($record);
+                    $calendars = app(GoogleCalendarService::class)->listCalendars($accessToken);
+                    // Sort: primary first, then by name.
+                    usort($calendars, function ($a, $b) {
+                        if (($a['primary'] ?? false) !== ($b['primary'] ?? false)) {
+                            return ($a['primary'] ?? false) ? -1 : 1;
+                        }
+                        return strcasecmp($a['summary'] ?? '', $b['summary'] ?? '');
+                    });
+                } catch (\Throwable $e) {
+                    $pickerError = $e->getMessage();
+                }
+            }
+
             return view('tenant.integrations.google_calendar', [
-                'provider' => $provider,
-                'meta'     => $this->providerMeta($provider),
-                'record'   => TenantIntegration::where('provider', 'google_calendar')->first(),
+                'provider'    => $provider,
+                'meta'        => $this->providerMeta($provider),
+                'record'      => $record,
+                'needsPicker' => $needsPicker,
+                'calendars'   => $calendars,
+                'pickerError' => $pickerError,
             ]);
         }
 

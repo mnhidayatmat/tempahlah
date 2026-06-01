@@ -152,6 +152,69 @@ class GoogleCalendarService
     }
 
     /**
+     * Create a brand-new calendar in the user's account. Used by the picker
+     * when the tenant chooses "Create a new Tempahlah Bookings calendar".
+     * Returns the new calendar object — { id, summary, timeZone, ... }.
+     */
+    public function createCalendar(string $accessToken, string $summary, string $timeZone = 'Asia/Kuala_Lumpur'): array
+    {
+        return Http::withToken($accessToken)
+            ->post(self::CALENDAR_API.'/calendars', [
+                'summary'  => $summary,
+                'timeZone' => $timeZone,
+            ])
+            ->throw()
+            ->json();
+    }
+
+    /**
+     * Return a usable access_token for this integration, refreshing the
+     * stored one if it's expired or about to expire. The new token + expiry
+     * are persisted back to the TenantIntegration row.
+     *
+     * Throws RuntimeException with code 'invalid_grant' if the refresh_token
+     * has been revoked (user removed access from their Google account) —
+     * caller should mark the integration as needing reconnect.
+     */
+    public function freshAccessToken(TenantIntegration $integration): string
+    {
+        $config = $integration->config ?? [];
+        $expiresAt = (int) ($config['expires_at'] ?? 0);
+
+        // 60s safety margin so we don't hand back a token that expires
+        // mid-request.
+        if ($expiresAt > now()->addSeconds(60)->timestamp && ! empty($config['access_token'])) {
+            return $config['access_token'];
+        }
+
+        if (empty($config['refresh_token'])) {
+            throw new \RuntimeException('Google Calendar: no refresh_token on file — tenant must reconnect.', 0);
+        }
+
+        try {
+            $tokens = $this->refreshAccessToken($config['refresh_token']);
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            $body = (string) $e->response?->body();
+            if (str_contains($body, 'invalid_grant')) {
+                $config['last_error'] = 'Google access was revoked. Please reconnect.';
+                $integration->config = $config;
+                $integration->enabled = false;
+                $integration->save();
+                throw new \RuntimeException('invalid_grant', 401, $e);
+            }
+            throw $e;
+        }
+
+        $config['access_token'] = $tokens['access_token'];
+        $config['expires_at']   = now()->addSeconds((int) ($tokens['expires_in'] ?? 3600))->timestamp;
+        $config['last_error']   = null;
+        $integration->config = $config;
+        $integration->save();
+
+        return $tokens['access_token'];
+    }
+
+    /**
      * Phase 3: push a booking as an all-day event into the tenant's chosen
      * calendar. Stub for now — implemented when the BookingConfirmed
      * listener is wired up.
