@@ -1,61 +1,85 @@
 {{--
-    First-time onboarding walkthrough — Mobbin/Peloton-style centered
-    modal. Renders only for users with NULL tour_completed_at. POSTing
-    to /dashboard/onboarding/complete stamps the column so we never
-    re-show. Self-contained: Alpine x-data + scoped styles. Works
-    mobile + desktop (modal scales down to phone width at < 480px).
+    First-time onboarding walkthrough — Mobbin-style anchored popover.
+    Each step (other than welcome/finish) targets a sidebar nav item
+    via [data-tour="..."]: a spotlight ring is drawn around the target,
+    and the card is anchored next to it. On mobile the sidebar drawer
+    auto-opens for the targeted steps and the card docks at the
+    bottom of the viewport. Renders only when users.tour_completed_at
+    is null. POST to /dashboard/onboarding/complete stamps it.
 --}}
 @php
     $steps = [
+        // step 0 — welcome (centered, no target)
         [
             'eyebrow' => __('Welcome'),
             'title'   => __('Selamat datang ke Tempahlah!'),
-            'body'    => __("We'll walk you through Tempahlah in under a minute so you know where everything lives."),
+            'body'    => __("Quick walkthrough — we'll point out each part of the app so you know where everything lives."),
             'icon'    => 'wave',
+            'target'  => null,
         ],
         [
             'eyebrow' => __('Dashboard'),
             'title'   => __('Your home base'),
             'body'    => __('See revenue, active bookings and quick stats the moment you log in.'),
             'icon'    => 'dashboard',
+            'target'  => '[data-tour="dashboard"]',
         ],
         [
             'eyebrow' => __('Calendar'),
             'title'   => __('Every night at a glance'),
             'body'    => __('Tap any date to see who is checking in, who is leaving, and which rooms are free.'),
             'icon'    => 'calendar',
+            'target'  => '[data-tour="calendar"]',
         ],
         [
             'eyebrow' => __('Bookings'),
             'title'   => __('Take reservations your way'),
-            'body'    => __('Add walk-in, WhatsApp or marketplace bookings — Tempahlah handles deposits, tax and reminders for you.'),
+            'body'    => __('Add walk-in, WhatsApp or marketplace bookings — Tempahlah handles deposits and reminders for you.'),
             'icon'    => 'bookings',
+            'target'  => '[data-tour="bookings"]',
         ],
         [
             'eyebrow' => __('Properties'),
             'title'   => __('List your homestays'),
             'body'    => __('Upload photos, set prices, mark amenities — your direct booking page updates instantly.'),
             'icon'    => 'properties',
+            'target'  => '[data-tour="properties"]',
         ],
         [
-            'eyebrow' => __('Guests & Housekeeping'),
-            'title'   => __('Run the day-to-day'),
-            'body'    => __('Track repeat guests, blacklist troublemakers, and auto-schedule cleaning + laundry after every checkout.'),
+            'eyebrow' => __('Guests'),
+            'title'   => __('Know your guests'),
+            'body'    => __('Track repeat guests, contact details and lifetime spend. Blacklist troublemakers in one tap.'),
             'icon'    => 'guests',
+            'target'  => '[data-tour="guests"]',
         ],
         [
-            'eyebrow' => __('Reports & Settings'),
-            'title'   => __('Know what is working'),
-            'body'    => __('Trailing-12-month revenue, occupancy and per-property breakdowns. Tweak SST, brand and locale in Settings.'),
-            'icon'    => 'reports',
+            'eyebrow' => __('Housekeeping'),
+            'title'   => __('Auto-schedule turnover'),
+            'body'    => __('Cleaning + laundry tasks generate themselves from every confirmed booking — no double-entry.'),
+            'icon'    => 'sparkle',
+            'target'  => '[data-tour="housekeeping"]',
         ],
+        [
+            'eyebrow' => __('Reports'),
+            'title'   => __('Know what is working'),
+            'body'    => __('Trailing-12-month revenue, occupancy and per-property breakdowns. Export PDF or CSV anytime.'),
+            'icon'    => 'reports',
+            'target'  => '[data-tour="reports"]',
+        ],
+        [
+            'eyebrow' => __('Settings'),
+            'title'   => __('Make it yours'),
+            'body'    => __('Brand colours, SST, locale and your public URL — all in one place.'),
+            'icon'    => 'settings',
+            'target'  => '[data-tour="settings"]',
+        ],
+        // last step — finish (centered, CTA to add first property)
         [
             'eyebrow' => __('You are set'),
             'title'   => __('Mari mulakan!'),
-            'body'    => __('Add your first property to start taking bookings. We are here in the bottom-right if you need help.'),
+            'body'    => __('Add your first property to start taking bookings. You can always replay this tour from Settings.'),
             'icon'    => 'rocket',
-            'ctaLabel'  => __('Add my first property'),
-            'ctaRoute'  => 'tenant.properties.create',
+            'target'  => null,
         ],
     ];
 @endphp
@@ -70,104 +94,77 @@
     x-show="open"
     x-transition.opacity.duration.200ms
     @keydown.escape.window="dismiss()"
-    class="ob-overlay"
+    @resize.window.debounce.100ms="position()"
+    @scroll.window.debounce.50ms="position()"
+    class="ob-root"
     role="dialog"
     aria-modal="true"
     aria-labelledby="ob-title">
 
+    {{-- Backdrop: full dim when untargeted, transparent (spotlight handles dim) when targeted --}}
+    <div class="ob-backdrop" :class="targeted ? 'is-clear' : 'is-dim'" @click="dismiss()"></div>
+
+    {{-- Spotlight ring around the target element. Box-shadow trick:
+         a small div positioned over the target gets an enormous
+         outset shadow that paints the rest of the viewport dim. --}}
+    <div class="ob-spotlight"
+         x-show="targeted && ready"
+         x-transition.opacity.duration.200ms
+         :style="spotStyle"></div>
+
+    {{-- The popover card --}}
     <div class="ob-card"
-         x-show="open"
+         :class="{ 'is-center': !targeted }"
+         :style="cardStyle"
+         x-show="ready || !targeted"
          x-transition:enter="ob-anim-in"
          x-transition:enter-start="ob-anim-in-from"
-         x-transition:enter-end="ob-anim-in-to"
-         @click.outside="dismiss()">
+         x-transition:enter-end="ob-anim-in-to">
 
-        {{-- Close X --}}
-        <button type="button"
-                class="ob-close"
-                @click="dismiss()"
-                aria-label="{{ __('Close') }}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <button type="button" class="ob-close" @click="dismiss()" aria-label="{{ __('Close') }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
 
-        {{-- Illustration column — gradient block with a per-step inline SVG --}}
-        <div class="ob-illus">
-            <template x-if="step === 0">
-                {{-- wave --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="60" cy="60" r="46" stroke-opacity=".25" stroke-width="2"/>
-                    <path d="M40 56l8 16a4 4 0 007.2 0L62 56l5 12 7-22 8 20"/>
-                    <circle cx="60" cy="34" r="8" fill="#fff" stroke="none"/>
-                </svg>
-            </template>
-            <template x-if="step === 1">
-                {{-- dashboard chart --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="20" y="20" width="80" height="80" rx="10" stroke-opacity=".3" stroke-width="2"/>
-                    <path d="M32 82l16-22 14 12 24-32"/>
-                    <circle cx="32" cy="82" r="3.5" fill="#fff"/>
-                    <circle cx="48" cy="60" r="3.5" fill="#fff"/>
-                    <circle cx="62" cy="72" r="3.5" fill="#fff"/>
-                    <circle cx="86" cy="40" r="3.5" fill="#fff"/>
-                </svg>
-            </template>
-            <template x-if="step === 2">
-                {{-- calendar --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="20" y="28" width="80" height="72" rx="8"/>
-                    <path d="M20 48h80M40 20v16M80 20v16"/>
-                    <rect x="56" y="66" width="14" height="14" rx="3" fill="#fff" stroke="none"/>
-                </svg>
-            </template>
-            <template x-if="step === 3">
-                {{-- bookings receipt --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M30 16h60v88l-10-6-10 6-10-6-10 6-10-6-10 6V16z"/>
-                    <path d="M44 42h32M44 58h32M44 74h20" stroke-opacity=".7"/>
-                </svg>
-            </template>
-            <template x-if="step === 4">
-                {{-- house --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 60L60 28l38 32v40a4 4 0 01-4 4H26a4 4 0 01-4-4V60z"/>
-                    <path d="M50 104V72h20v32" />
-                </svg>
-            </template>
-            <template x-if="step === 5">
-                {{-- guests --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="48" cy="48" r="14"/>
-                    <circle cx="80" cy="54" r="11" stroke-opacity=".7"/>
-                    <path d="M24 96c0-12 11-20 24-20s24 8 24 20"/>
-                    <path d="M72 96c0-9 7-16 18-16s14 6 14 16" stroke-opacity=".7"/>
-                </svg>
-            </template>
-            <template x-if="step === 6">
-                {{-- bars + line --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 100h76"/>
-                    <rect x="32" y="64" width="12" height="36" rx="2" fill="#fff" fill-opacity=".4"/>
-                    <rect x="54" y="46" width="12" height="54" rx="2" fill="#fff" fill-opacity=".6"/>
-                    <rect x="76" y="30" width="12" height="70" rx="2" fill="#fff" fill-opacity=".85"/>
-                </svg>
-            </template>
-            <template x-if="step === 7">
-                {{-- rocket / sparkle --}}
-                <svg viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M60 16c14 12 22 28 22 46 0 10-4 18-10 24l-12-8-12 8c-6-6-10-14-10-24 0-18 8-34 22-46z"/>
-                    <circle cx="60" cy="56" r="6" fill="#fff" stroke="none"/>
-                    <path d="M44 92l-8 12M76 92l8 12M60 96v14"/>
-                </svg>
-            </template>
+        <div class="ob-head">
+            <div class="ob-chip">
+                <template x-if="steps[step].icon === 'wave'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11l2 4 3-7 2 5 2-3"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'dashboard'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'calendar'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'bookings'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v17l-3-2-3 2-2-2-3 2-3-2V4z"/><path d="M9 9h6M9 13h6"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'properties'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1H4a1 1 0 01-1-1v-9z"/><path d="M9 21V13h6v8"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'guests'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.5"/><circle cx="17" cy="10" r="2.6"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M15 19c0-2 2-4 4-4s2 2 2 4"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'sparkle'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'reports'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><rect x="6" y="11" width="3" height="9" rx="1"/><rect x="11" y="6" width="3" height="14" rx="1"/><rect x="16" y="14" width="3" height="6" rx="1"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'settings'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12l2-1-1-3-2 1-2-1V5h-3v2l-2 1-2-1-2-1-1 3 2 1v2l-2 1 1 3 2-1 2 1v2h3v-2l2-1 2 1 1-3-2-1v-2z"/></svg>
+                </template>
+                <template x-if="steps[step].icon === 'rocket'">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c4 4 6 8 6 12 0 3-2 5-3 6l-3-2-3 2c-1-1-3-3-3-6 0-4 2-8 6-12z"/><circle cx="12" cy="10" r="1.5"/></svg>
+                </template>
+            </div>
+            <div class="ob-eyebrow" x-text="steps[step].eyebrow"></div>
         </div>
 
-        {{-- Body --}}
-        <div class="ob-body">
-            <div class="ob-eyebrow" x-text="steps[step].eyebrow"></div>
-            <h2 id="ob-title" class="ob-title" x-text="steps[step].title"></h2>
-            <p class="ob-text" x-text="steps[step].body"></p>
+        <h2 id="ob-title" class="ob-title" x-text="steps[step].title"></h2>
+        <p class="ob-text" x-text="steps[step].body"></p>
 
-            {{-- Dot progress --}}
+        <div class="ob-foot">
             <div class="ob-dots" role="tablist" aria-label="{{ __('Progress') }}">
                 <template x-for="i in total" :key="i">
                     <button type="button"
@@ -179,24 +176,22 @@
                 </template>
             </div>
 
-            {{-- Primary CTA --}}
-            <template x-if="step < total - 1">
-                <button type="button" class="ob-cta" @click="next()">
-                    <span>{{ __('Next') }}</span>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:8px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                </button>
-            </template>
-            <template x-if="step === total - 1">
-                <a href="{{ route('tenant.properties.create') }}"
-                   class="ob-cta"
-                   @click="finish()">
-                    <span>{{ __('Add my first property') }}</span>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:8px;"><path d="M12 5v14M5 12h14"/></svg>
-                </a>
-            </template>
+            <div class="ob-actions">
+                <button type="button" class="ob-skip" @click="dismiss()" x-show="step < total - 1">{{ __('Skip') }}</button>
 
-            {{-- Secondary action --}}
-            <button type="button" class="ob-skip" @click="dismiss()" x-text="step < total - 1 ? '{{ __('Skip tour') }}' : '{{ __('Done') }}'"></button>
+                <template x-if="step < total - 1">
+                    <button type="button" class="ob-cta" @click="next()">
+                        <span>{{ __('Next') }}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    </button>
+                </template>
+                <template x-if="step === total - 1">
+                    <a href="{{ route('tenant.properties.create') }}" class="ob-cta" @click="finish()">
+                        <span>{{ __('Add property') }}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M12 5v14M5 12h14"/></svg>
+                    </a>
+                </template>
+            </div>
         </div>
     </div>
 </div>
@@ -204,174 +199,288 @@
 <style>
     [x-cloak] { display: none !important; }
 
-    .ob-overlay {
-        position: fixed; inset: 0; z-index: 1000;
-        background: color-mix(in oklab, var(--ink) 55%, transparent);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        display: flex; align-items: center; justify-content: center;
-        padding: 16px;
+    .ob-root { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+    .ob-root > * { pointer-events: auto; }
+
+    .ob-backdrop { position: absolute; inset: 0; transition: background-color 220ms ease, backdrop-filter 220ms ease; }
+    .ob-backdrop.is-dim   { background: color-mix(in oklab, var(--ink) 55%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .ob-backdrop.is-clear { background: transparent; pointer-events: none; } /* spotlight box-shadow paints the dim */
+
+    /* Spotlight ring — sits over the target with a huge outset shadow */
+    .ob-spotlight {
+        position: fixed;
+        border-radius: 12px;
+        pointer-events: none;
+        box-shadow:
+            0 0 0 9999px color-mix(in oklab, var(--ink) 55%, transparent),
+            0 0 0 2px var(--primary),
+            0 0 0 6px color-mix(in oklab, var(--primary) 25%, transparent);
+        transition: top 320ms cubic-bezier(.4,.2,.2,1), left 320ms cubic-bezier(.4,.2,.2,1),
+                    width 320ms cubic-bezier(.4,.2,.2,1), height 320ms cubic-bezier(.4,.2,.2,1);
     }
 
+    /* The card */
     .ob-card {
-        position: relative;
-        width: 100%; max-width: 420px;
+        position: fixed;
+        width: 340px; max-width: calc(100vw - 24px);
         background: var(--bg-elev);
         color: var(--ink);
-        border-radius: 24px;
-        box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--line);
-        overflow: hidden;
-        max-height: calc(100dvh - 32px);
-        overflow-y: auto;
+        border-radius: 18px;
+        box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--line);
+        padding: 18px 18px 14px;
+        transition: top 320ms cubic-bezier(.4,.2,.2,1), left 320ms cubic-bezier(.4,.2,.2,1);
+    }
+    .ob-card.is-center {
+        top: 50% !important; left: 50% !important;
+        transform: translate(-50%, -50%);
+        width: 380px;
     }
 
-    .ob-anim-in { transition: transform 280ms cubic-bezier(.2,.9,.3,1.2), opacity 220ms ease; }
-    .ob-anim-in-from { opacity: 0; transform: translateY(20px) scale(.94); }
+    .ob-anim-in { transition: transform 260ms cubic-bezier(.2,.9,.3,1.2), opacity 200ms ease; }
+    .ob-anim-in-from { opacity: 0; transform: translateY(8px) scale(.96); }
     .ob-anim-in-to   { opacity: 1; transform: translateY(0) scale(1); }
+    .ob-card.is-center.ob-anim-in-from { transform: translate(-50%, -46%) scale(.96); }
+    .ob-card.is-center.ob-anim-in-to   { transform: translate(-50%, -50%) scale(1); }
 
     .ob-close {
-        position: absolute; top: 14px; right: 14px; z-index: 2;
-        width: 32px; height: 32px;
+        position: absolute; top: 10px; right: 10px;
+        width: 26px; height: 26px;
         display: inline-flex; align-items: center; justify-content: center;
-        background: rgba(255,255,255,0.18);
-        color: #fff;
-        border: 1px solid rgba(255,255,255,0.28);
-        border-radius: 999px;
-        cursor: pointer;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        transition: background 140ms ease, transform 140ms ease;
+        background: transparent; color: var(--ink-3);
+        border: 0; border-radius: 8px; cursor: pointer;
+        transition: background 140ms ease, color 140ms ease;
         touch-action: manipulation;
     }
-    .ob-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+    .ob-close:hover { background: var(--bg-sunk); color: var(--ink); }
 
-    /* Illustration block — teal gradient using brand tokens */
-    .ob-illus {
-        height: 200px;
-        display: flex; align-items: center; justify-content: center;
-        background:
-            radial-gradient(circle at 25% 25%, color-mix(in oklab, var(--secondary) 65%, transparent), transparent 55%),
-            radial-gradient(circle at 80% 80%, color-mix(in oklab, var(--primary-deep) 75%, transparent), transparent 55%),
-            linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
-        position: relative;
-        overflow: hidden;
+    .ob-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .ob-chip {
+        width: 36px; height: 36px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 10px;
+        background: var(--primary-tint);
+        color: var(--primary-deep);
+        flex-shrink: 0;
     }
-    .ob-illus::after {
-        content: ''; position: absolute; inset: 0;
-        background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 14px);
-        pointer-events: none;
-    }
-    .ob-illus svg { position: relative; z-index: 1; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.18)); }
-
-    .ob-body { padding: 28px 28px 24px; text-align: center; }
-
     .ob-eyebrow {
-        font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--primary);
-        margin-bottom: 10px;
-    }
-    .ob-title {
-        font-size: 22px; font-weight: 800; line-height: 1.2;
-        letter-spacing: -0.01em;
-        color: var(--ink);
-        margin: 0 0 10px;
-    }
-    .ob-text {
-        font-size: 15px; line-height: 1.55;
-        color: var(--ink-2);
-        margin: 0 0 22px;
     }
 
-    .ob-dots {
-        display: flex; align-items: center; justify-content: center;
-        gap: 6px; margin-bottom: 20px;
+    .ob-title {
+        font-size: 17px; font-weight: 700; line-height: 1.3;
+        letter-spacing: -0.005em;
+        color: var(--ink);
+        margin: 0 0 6px;
     }
+    .ob-text {
+        font-size: 14px; line-height: 1.5;
+        color: var(--ink-2);
+        margin: 0 0 16px;
+    }
+
+    .ob-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+    .ob-dots { display: flex; align-items: center; gap: 5px; }
     .ob-dot {
-        width: 8px; height: 8px; border-radius: 999px;
+        width: 6px; height: 6px; border-radius: 999px;
         border: 0; padding: 0;
         background: var(--line-2);
         cursor: pointer;
-        transition: width 200ms ease, background 200ms ease, transform 200ms ease;
+        transition: width 200ms ease, background 200ms ease;
         touch-action: manipulation;
     }
-    .ob-dot:hover { transform: scale(1.2); }
     .ob-dot.is-done   { background: color-mix(in oklab, var(--primary) 50%, transparent); }
-    .ob-dot.is-active { background: var(--primary); width: 22px; }
+    .ob-dot.is-active { background: var(--primary); width: 18px; }
+
+    .ob-actions { display: flex; align-items: center; gap: 8px; }
+    .ob-skip {
+        background: transparent; border: 0;
+        font-size: 13px; font-weight: 600;
+        color: var(--ink-3); cursor: pointer;
+        padding: 8px 6px;
+        touch-action: manipulation;
+    }
+    .ob-skip:hover { color: var(--ink); }
 
     .ob-cta {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 100%;
-        padding: 14px 20px;
-        font-size: 16px; font-weight: 700;
+        padding: 9px 16px;
+        font-size: 14px; font-weight: 700;
         color: #fff; text-decoration: none;
         background: linear-gradient(180deg, var(--primary), var(--primary-deep));
         border: 0; border-radius: 999px;
-        box-shadow: 0 10px 20px -8px color-mix(in oklab, var(--primary) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.15);
+        box-shadow: 0 6px 14px -4px color-mix(in oklab, var(--primary) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.15);
         cursor: pointer;
-        transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+        transition: transform 140ms ease, filter 140ms ease;
         touch-action: manipulation;
-        min-height: 48px;
+        min-height: 38px;
     }
     .ob-cta:hover  { transform: translateY(-1px); filter: brightness(1.04); }
     .ob-cta:active { transform: translateY(0); }
 
-    .ob-skip {
-        display: block; width: 100%;
-        margin-top: 14px;
-        padding: 10px;
-        background: transparent; border: 0;
-        font-size: 14px; font-weight: 600;
-        color: var(--ink-3);
-        cursor: pointer;
-        touch-action: manipulation;
-        min-height: 44px;
-    }
-    .ob-skip:hover { color: var(--ink); }
-
-    /* Mobile tuning — keep readable but tighter padding */
-    @media (max-width: 480px) {
-        .ob-overlay { padding: 12px; }
-        .ob-card    { border-radius: 22px; }
-        .ob-illus   { height: 170px; }
-        .ob-illus svg { width: 100px; height: 100px; }
-        .ob-body    { padding: 24px 22px 22px; }
-        .ob-title   { font-size: 20px; }
-        .ob-text    { font-size: 14.5px; }
-        .ob-cta     { font-size: 16px; padding: 13px 18px; } /* >=16px keeps iOS auto-zoom off */
-    }
-
-    /* Dark-mode polish — keep the teal hero, lift the card surface */
-    html[data-theme="dark"] .ob-card {
-        box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px var(--line);
+    /* Mobile — keep card readable, dock at viewport bottom for targeted
+       steps so it never sits on top of the spotlighted nav item. */
+    @media (max-width: 768px) {
+        .ob-card        { width: calc(100vw - 24px); max-width: 420px; padding: 16px; }
+        .ob-card.is-center { width: calc(100vw - 24px); }
+        .ob-title       { font-size: 16px; }
+        .ob-text        { font-size: 14px; }
+        .ob-cta         { font-size: 14px; min-height: 40px; padding: 10px 16px; }
+        /* >=16px on actual inputs is the iOS auto-zoom rule; buttons are exempt. */
     }
 
     @media (prefers-reduced-motion: reduce) {
+        .ob-spotlight, .ob-card { transition: none; }
         .ob-anim-in { transition: none; }
-        .ob-cta, .ob-dot, .ob-close { transition: none; }
     }
 </style>
 
 <script>
-    // Alpine component — exposed via window so layout doesn't need a module build step.
-    // Posts to /dashboard/onboarding/complete on dismiss/finish to flip
-    // users.tour_completed_at = now() so the modal never returns.
+    // Alpine component — target-aware tour. Each step's `target`
+    // selector is queried at runtime; we draw a spotlight ring around
+    // the element and anchor the card next to it. Re-runs on resize.
     window.onboardingTour = function ({ total, completeUrl, csrf }) {
         return {
             open: true,
             step: 0,
             total,
             steps: @json($steps),
+            ready: false,
+            targeted: false,
+            spotStyle: '',
+            cardStyle: '',
+
+            init() {
+                // Tell the layout's sidebar listener to ignore click-away
+                // while the tour drives the drawer state.
+                window.__tempahlahTourActive = true;
+                // Defer first position calc so the modal can animate in.
+                this.$nextTick(() => this.position());
+                // Re-position on viewport changes (orientation, soft kb).
+                this._onResize = () => this.position();
+                window.addEventListener('orientationchange', this._onResize);
+            },
+
+            destroy() {
+                window.__tempahlahTourActive = false;
+                window.removeEventListener('orientationchange', this._onResize);
+                this.setSidebar(false);
+            },
+
+            isMobile() { return window.innerWidth < 1024; },
+
+            setSidebar(open) {
+                window.dispatchEvent(new CustomEvent('tour-set-sidebar', { detail: { open } }));
+            },
+
+            async position() {
+                const s = this.steps[this.step];
+                this.targeted = !!s.target;
+
+                if (!s.target) {
+                    // Centered step — no spotlight, hide drawer if we
+                    // opened it for a previous targeted step on mobile.
+                    if (this.isMobile()) this.setSidebar(false);
+                    this.spotStyle = '';
+                    this.cardStyle = '';
+                    this.ready = true;
+                    return;
+                }
+
+                // Targeted step — open the drawer on mobile so the
+                // sidebar nav item we're highlighting is actually visible.
+                if (this.isMobile()) {
+                    this.setSidebar(true);
+                    // Wait two frames for the drawer transform to settle.
+                    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                }
+
+                const target = document.querySelector(s.target);
+                if (!target) {
+                    // Fallback: target missing (e.g., sidebar not rendered)
+                    // — degrade to centered card without spotlight.
+                    this.targeted = false;
+                    this.spotStyle = '';
+                    this.cardStyle = '';
+                    this.ready = true;
+                    return;
+                }
+
+                // Make sure the target is within scroll.
+                target.scrollIntoView({ block: 'center', behavior: 'instant' });
+
+                const rect = target.getBoundingClientRect();
+                const pad = 6;
+                const spotTop    = Math.round(rect.top - pad);
+                const spotLeft   = Math.round(rect.left - pad);
+                const spotWidth  = Math.round(rect.width + pad * 2);
+                const spotHeight = Math.round(rect.height + pad * 2);
+                this.spotStyle = `top:${spotTop}px; left:${spotLeft}px; width:${spotWidth}px; height:${spotHeight}px;`;
+
+                // Card placement.
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const cardW = Math.min(340, vw - 24);
+                const cardH = 220; // estimate; box-sizing handles real height
+                const margin = 12;
+
+                let top, left;
+
+                if (this.isMobile()) {
+                    // Dock card at bottom of viewport so it never
+                    // overlaps the spotlight. Bottom-nav is ~64px tall
+                    // on mobile, plus safe-area, plus our own margin.
+                    left = Math.max(12, (vw - cardW) / 2);
+                    top = vh - cardH - 84;
+                    // If target is in the lower half, place card at TOP
+                    // of viewport instead — keeps spotlight visible.
+                    if (rect.top > vh / 2) {
+                        top = 16;
+                    }
+                } else {
+                    // Desktop: try placing card to the RIGHT of the
+                    // sidebar item, vertically centered on it.
+                    left = rect.right + margin;
+                    top  = rect.top + (rect.height / 2) - (cardH / 2);
+
+                    // If no room to the right, try below.
+                    if (left + cardW > vw - 16) {
+                        left = Math.max(16, rect.left);
+                        top  = rect.bottom + margin;
+                    }
+                    // If no room below either, place above.
+                    if (top + cardH > vh - 16) {
+                        top = Math.max(16, rect.top - cardH - margin);
+                    }
+                    // Final clamp.
+                    left = Math.min(Math.max(16, left), vw - cardW - 16);
+                    top  = Math.min(Math.max(16, top),  vh - cardH - 16);
+                }
+
+                this.cardStyle = `top:${Math.round(top)}px; left:${Math.round(left)}px;`;
+                this.ready = true;
+            },
+
             next() {
                 if (this.step < this.total - 1) {
+                    this.ready = false;
                     this.step += 1;
+                    this.$nextTick(() => this.position());
                 } else {
                     this.finish();
                 }
             },
-            goto(i) { if (i >= 0 && i < this.total) this.step = i; },
-            dismiss() { this.markComplete(); this.open = false; },
-            finish()  { this.markComplete(); /* navigation happens via the anchor href */ },
+            goto(i) {
+                if (i < 0 || i >= this.total || i === this.step) return;
+                this.ready = false;
+                this.step = i;
+                this.$nextTick(() => this.position());
+            },
+            dismiss() { this.markComplete(); this.open = false; this.destroy(); },
+            finish()  { this.markComplete(); /* anchor navigates */ },
+
             markComplete() {
                 try {
                     fetch(completeUrl, {
@@ -382,9 +491,9 @@
                             'Accept': 'application/json',
                         },
                         credentials: 'same-origin',
-                        keepalive: true, // survives page navigation on finish()
+                        keepalive: true,
                     }).catch(() => {});
-                } catch (e) { /* network-blocked = next login still shows tour, acceptable */ }
+                } catch (e) { /* network blocked — tour re-shows next login, acceptable */ }
             },
         };
     };

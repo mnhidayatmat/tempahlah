@@ -44,7 +44,10 @@
             $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
             $plan = $tenant?->subscription?->plan ?? 'free';
         @endphp
-        <div x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false" style="display:flex; height:100vh; overflow:hidden; background: var(--bg);">
+        <div x-data="{ sidebarOpen: false }"
+             @keydown.escape.window="sidebarOpen = false"
+             @tour-set-sidebar.window="sidebarOpen = $event.detail.open"
+             style="display:flex; height:100vh; overflow:hidden; background: var(--bg);">
             <div class="shell-backdrop" :class="{ 'is-open': sidebarOpen }" @click="sidebarOpen = false"></div>
             @include('partials.sidebar', ['plan' => $plan, 'tenant' => $tenant])
             <div style="flex:1; display:flex; flex-direction:column; min-width:0;">

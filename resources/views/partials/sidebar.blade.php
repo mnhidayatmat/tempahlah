@@ -7,26 +7,26 @@
 
     $groups = [
         ['title' => __('Operate'), 'items' => [
-            ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),   'icon' => 'home',     'route' => 'tenant.dashboard'],
-            ['key' => 'tenant.calendar',        'label' => __('Calendar'),    'icon' => 'calendar', 'route' => 'tenant.calendar'],
-            ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index', 'badge' => $pendingBookings ?: null],
-            ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index'],
-            ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index', 'badge' => $openCleaning ?: null],
+            ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),   'icon' => 'home',     'route' => 'tenant.dashboard',           'tour' => 'dashboard'],
+            ['key' => 'tenant.calendar',        'label' => __('Calendar'),    'icon' => 'calendar', 'route' => 'tenant.calendar',            'tour' => 'calendar'],
+            ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index',      'badge' => $pendingBookings ?: null, 'tour' => 'bookings'],
+            ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index',        'tour' => 'guests'],
+            ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index',  'badge' => $openCleaning ?: null, 'tour' => 'housekeeping'],
         ]],
         ['title' => __('Manage'), 'items' => [
-            ['key' => 'tenant.properties.*',    'label' => __('Properties'),  'icon' => 'building', 'route' => 'tenant.properties.index'],
-            ['key' => 'tenant.payments.*',      'label' => __('Payments'),    'icon' => 'card',     'route' => 'tenant.payments.index'],
-            ['key' => 'tenant.reports.*',       'label' => __('Reports'),     'icon' => 'chart',    'route' => 'tenant.reports.index'],
+            ['key' => 'tenant.properties.*',    'label' => __('Properties'),  'icon' => 'building', 'route' => 'tenant.properties.index',    'tour' => 'properties'],
+            ['key' => 'tenant.payments.*',      'label' => __('Payments'),    'icon' => 'card',     'route' => 'tenant.payments.index',      'tour' => 'payments'],
+            ['key' => 'tenant.reports.*',       'label' => __('Reports'),     'icon' => 'chart',    'route' => 'tenant.reports.index',       'tour' => 'reports'],
         ]],
         ['title' => __('Configure'), 'items' => [
-            ['key' => 'tenant.integrations.*',  'label' => __('Integrations'),'icon' => 'link',     'route' => 'tenant.integrations.index'],
-            ['key' => 'tenant.subscription',    'label' => __('Subscription'),'icon' => 'sparkle',  'route' => 'tenant.subscription'],
-            ['key' => 'tenant.settings.*',      'label' => __('Settings'),    'icon' => 'cog',      'route' => 'tenant.settings.index'],
+            ['key' => 'tenant.integrations.*',  'label' => __('Integrations'),'icon' => 'link',     'route' => 'tenant.integrations.index',  'tour' => 'integrations'],
+            ['key' => 'tenant.subscription',    'label' => __('Subscription'),'icon' => 'sparkle',  'route' => 'tenant.subscription',        'tour' => 'subscription'],
+            ['key' => 'tenant.settings.*',      'label' => __('Settings'),    'icon' => 'cog',      'route' => 'tenant.settings.index',      'tour' => 'settings'],
         ]],
     ];
 @endphp
 
-<aside class="shell-sidebar" :class="{ 'is-open': sidebarOpen }" @click.away="sidebarOpen = false" style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
+<aside class="shell-sidebar" :class="{ 'is-open': sidebarOpen }" @click.away="if (!window.__tempahlahTourActive) sidebarOpen = false" style="width:232px; flex-shrink:0; background: var(--bg); border-right: 1px solid var(--line); display:flex; flex-direction:column; height:100%;">
     {{-- Brand + tenant switcher --}}
     <div style="padding: 14px 12px 10px;">
         <button type="button"
@@ -65,6 +65,7 @@
                         $badge = $it['badge'] ?? null;
                     @endphp
                     <a href="{{ route($it['route']) }}"
+                       @isset($it['tour']) data-tour="{{ $it['tour'] }}" @endisset
                        style="display:flex; align-items:center; gap:12px;
                               padding: {{ $active ? '10px 12px 10px 8px' : '10px 14px' }};
                               border-left: 4px solid {{ $active ? 'var(--primary)' : 'transparent' }};
