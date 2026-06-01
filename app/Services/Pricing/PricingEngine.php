@@ -13,10 +13,16 @@ class PricingEngine
     {
         $price = (float) $room->base_price;
 
-        $rules = $room->pricingRules()
+        // Prefer the eager-loaded collection (`->pricingRules` magic
+        // property) when present — caller is expected to eager-load
+        // via `->with('rooms.pricingRules')` for bulk evaluations like
+        // the public-page 365-day pre-compute. Falls back to a single
+        // query when not loaded, so unit tests / one-off callers
+        // still work. Either way, filter + sort happen in PHP — never
+        // re-query the DB per date.
+        $rules = $room->pricingRules
             ->where('active', true)
-            ->orderBy('priority')
-            ->get();
+            ->sortBy('priority');
 
         foreach ($rules as $rule) {
             if ($rule->appliesTo($date)) {

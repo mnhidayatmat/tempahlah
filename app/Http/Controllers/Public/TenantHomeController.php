@@ -16,10 +16,12 @@ use Illuminate\View\View;
 class TenantHomeController extends Controller
 {
     /** How many days ahead to pre-compute dynamic per-date prices for the
-     *  calendar. 60 covers ~2 months of forward navigation, which matches
-     *  realistic enquiry windows for Malaysian homestays without exploding
-     *  the query count. */
-    private const RATE_WINDOW_DAYS = 60;
+     *  calendar. A full 365 covers a year of forward navigation. Cheap
+     *  now that PricingEngine uses the eager-loaded `pricingRules`
+     *  collection in PHP (1 DB query per page load total, not per date).
+     *  Was 60 — caused weekend / festive rules to silently stop applying
+     *  once the user paged past the cutoff. */
+    private const RATE_WINDOW_DAYS = 365;
 
     public function index(Request $request, PricingEngine $pricing): View
     {
