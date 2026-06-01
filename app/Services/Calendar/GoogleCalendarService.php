@@ -215,6 +215,66 @@ class GoogleCalendarService
     }
 
     /**
+     * Update an existing Google Calendar event with the current booking
+     * shape (dates, guest name, total, etc.). Used when a booking's
+     * details change after creation.
+     *
+     * Returns Google's response (id, htmlLink, ...) on success. Returns
+     * null if the integration isn't ready or the booking has no event
+     * to update.
+     */
+    public function updateBooking(TenantIntegration $integration, Booking $booking): ?array
+    {
+        $config = $integration->config ?? [];
+        $calendarId = $config['calendar_id'] ?? null;
+        $eventId    = $booking->meta['google_event_id'] ?? null;
+
+        if (! $calendarId || ! $eventId) {
+            return null;
+        }
+
+        $accessToken = $this->freshAccessToken($integration);
+        $event = $this->buildEventPayload($booking);
+
+        return Http::withToken($accessToken)
+            ->patch(self::CALENDAR_API.'/calendars/'.urlencode($calendarId).'/events/'.urlencode($eventId), $event)
+            ->throw()
+            ->json();
+    }
+
+    /**
+     * Delete an event from the tenant's calendar. Used when a booking is
+     * cancelled or hard-deleted.
+     *
+     * Treats 404 (not found) and 410 (already gone) as success — those
+     * mean the event is no longer there, which is the desired end state.
+     * 204 is the documented success status from Google.
+     *
+     * $calendarId override is for the hard-delete case where the booking
+     * row is gone before the job runs — caller passes the cached
+     * meta.google_calendar_id directly.
+     */
+    public function deleteEvent(TenantIntegration $integration, string $eventId, ?string $calendarId = null): bool
+    {
+        $calendarId = $calendarId ?: ($integration->config['calendar_id'] ?? null);
+        if (! $calendarId) {
+            return false;
+        }
+
+        $accessToken = $this->freshAccessToken($integration);
+
+        $response = Http::withToken($accessToken)
+            ->delete(self::CALENDAR_API.'/calendars/'.urlencode($calendarId).'/events/'.urlencode($eventId));
+
+        if (in_array($response->status(), [204, 404, 410], true)) {
+            return true;
+        }
+
+        $response->throw();
+        return $response->successful();
+    }
+
+    /**
      * Push a booking as an ALL-DAY event into the tenant's chosen calendar.
      *
      * All-day intentional (not dateTime) — bookings are date-bound stays,

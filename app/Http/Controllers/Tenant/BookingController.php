@@ -311,6 +311,12 @@ class BookingController extends Controller
                 ->update(['status' => 'cancelled']);
         });
 
+        // Remove the calendar block on the tenant's Google Calendar (if
+        // connected + this booking had been pushed). Smart sync job detects
+        // status=cancelled + has google_event_id → DELETE. Silent no-op when
+        // tenant hasn't connected GCal.
+        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+
         return redirect()
             ->route('tenant.bookings.show', $booking->id)
             ->with('status', __('Booking :ref cancelled. Dates are now available again.', [
@@ -357,6 +363,13 @@ class BookingController extends Controller
 
         $ref = $booking->reference;
 
+        // Capture GCal event pointers BEFORE the delete — the row's gone
+        // afterwards, so the smart-sync job can't lookup by booking_id.
+        // We queue a raw-id delete instead.
+        $gcalEventId    = $booking->meta['google_event_id'] ?? null;
+        $gcalCalendarId = $booking->meta['google_calendar_id'] ?? null;
+        $gcalTenantId   = $booking->tenant_id;
+
         DB::transaction(function () use ($booking) {
             // Order matters only loosely — none of these have FKs between
             // each other, just back-references to the booking row that
@@ -371,6 +384,11 @@ class BookingController extends Controller
             Payment::where('booking_id', $booking->id)->delete();
             $booking->delete();
         });
+
+        // Now that the transaction is committed, fire the Google delete.
+        if ($gcalEventId) {
+            \App\Jobs\DeleteGoogleCalendarEvent::dispatch($gcalTenantId, $gcalEventId, $gcalCalendarId);
+        }
 
         return redirect()
             ->route('tenant.bookings.index')
