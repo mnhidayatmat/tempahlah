@@ -8,79 +8,102 @@
     is null. POST to /dashboard/onboarding/complete stamps it.
 --}}
 @php
+    // Each step ships both EN + BM copy; the Alpine `lang` state picks
+    // which one to render. Default = 'en', tenant can flip to 'ms' via
+    // the toggle on the welcome step. Toggle does NOT change app locale.
     $steps = [
         // step 0 — welcome (centered, no target)
         [
-            'eyebrow' => __('Welcome'),
-            'title'   => __('Selamat datang ke Tempahlah!'),
-            'body'    => __("Quick walkthrough — we'll point out each part of the app so you know where everything lives."),
+            'eyebrow' => ['en' => 'Welcome',                       'ms' => 'Selamat datang'],
+            'title'   => ['en' => 'Welcome to Tempahlah!',         'ms' => 'Selamat datang ke Tempahlah!'],
+            'body'    => ['en' => "Quick walkthrough — we'll point out each part of the app so you know where everything lives.",
+                          'ms' => "Walkthrough ringkas — kami akan tunjuk setiap bahagian app supaya anda tahu di mana semua benda."],
             'icon'    => 'wave',
             'target'  => null,
         ],
         [
-            'eyebrow' => __('Dashboard'),
-            'title'   => __('Your home base'),
-            'body'    => __('See revenue, active bookings and quick stats the moment you log in.'),
+            'eyebrow' => ['en' => 'Dashboard', 'ms' => 'Dashboard'],
+            'title'   => ['en' => 'Your home base', 'ms' => 'Pusat operasi anda'],
+            'body'    => ['en' => 'See revenue, active bookings and quick stats the moment you log in.',
+                          'ms' => 'Lihat hasil, tempahan aktif dan statistik penting sebaik sahaja anda log masuk.'],
             'icon'    => 'dashboard',
             'target'  => '[data-tour="dashboard"]',
         ],
         [
-            'eyebrow' => __('Calendar'),
-            'title'   => __('Every night at a glance'),
-            'body'    => __('Tap any date to see who is checking in, who is leaving, and which rooms are free.'),
+            'eyebrow' => ['en' => 'Calendar', 'ms' => 'Kalendar'],
+            'title'   => ['en' => 'Every night at a glance', 'ms' => 'Setiap malam dalam satu pandangan'],
+            'body'    => ['en' => 'Tap any date to see who is checking in, who is leaving, and which rooms are free.',
+                          'ms' => 'Ketuk mana-mana tarikh untuk lihat siapa daftar masuk, siapa keluar, dan bilik mana yang kosong.'],
             'icon'    => 'calendar',
             'target'  => '[data-tour="calendar"]',
         ],
         [
-            'eyebrow' => __('Bookings'),
-            'title'   => __('Take reservations your way'),
-            'body'    => __('Add walk-in, WhatsApp or marketplace bookings — Tempahlah handles deposits and reminders for you.'),
+            'eyebrow' => ['en' => 'Bookings', 'ms' => 'Tempahan'],
+            'title'   => ['en' => 'Take reservations your way', 'ms' => 'Terima tempahan ikut cara anda'],
+            'body'    => ['en' => 'Add walk-in, WhatsApp or marketplace bookings — Tempahlah handles deposits and reminders for you.',
+                          'ms' => 'Tambah tempahan walk-in, WhatsApp atau marketplace — Tempahlah uruskan deposit & peringatan untuk anda.'],
             'icon'    => 'bookings',
             'target'  => '[data-tour="bookings"]',
         ],
         [
-            'eyebrow' => __('Properties'),
-            'title'   => __('List your homestays'),
-            'body'    => __('Upload photos, set prices, mark amenities — your direct booking page updates instantly.'),
+            'eyebrow' => ['en' => 'Properties', 'ms' => 'Homestay'],
+            'title'   => ['en' => 'List your homestays', 'ms' => 'Senaraikan homestay anda'],
+            'body'    => ['en' => 'Upload photos, set prices, mark amenities — your direct booking page updates instantly.',
+                          'ms' => 'Muat naik gambar, tetapkan harga, tanda kemudahan — laman tempahan terus anda dikemaskini serta-merta.'],
             'icon'    => 'properties',
             'target'  => '[data-tour="properties"]',
         ],
         [
-            'eyebrow' => __('Guests'),
-            'title'   => __('Know your guests'),
-            'body'    => __('Track repeat guests, contact details and lifetime spend. Blacklist troublemakers in one tap.'),
+            'eyebrow' => ['en' => 'Guests', 'ms' => 'Tetamu'],
+            'title'   => ['en' => 'Know your guests', 'ms' => 'Kenali tetamu anda'],
+            'body'    => ['en' => 'Track repeat guests, contact details and lifetime spend. Blacklist troublemakers in one tap.',
+                          'ms' => 'Jejak tetamu berulang, butiran hubungan dan jumlah perbelanjaan. Senarai hitam tetamu bermasalah dengan satu ketukan.'],
             'icon'    => 'guests',
             'target'  => '[data-tour="guests"]',
         ],
         [
-            'eyebrow' => __('Housekeeping'),
-            'title'   => __('Auto-schedule turnover'),
-            'body'    => __('Cleaning + laundry tasks generate themselves from every confirmed booking — no double-entry.'),
+            'eyebrow' => ['en' => 'Housekeeping', 'ms' => 'Housekeeping'],
+            'title'   => ['en' => 'Auto-schedule turnover', 'ms' => 'Jadual pertukaran automatik'],
+            'body'    => ['en' => 'Cleaning + laundry tasks generate themselves from every confirmed booking — no double-entry.',
+                          'ms' => 'Tugas pembersihan + dobi terjana sendiri dari setiap tempahan disahkan — tiada input berganda.'],
             'icon'    => 'sparkle',
             'target'  => '[data-tour="housekeeping"]',
         ],
         [
-            'eyebrow' => __('Reports'),
-            'title'   => __('Know what is working'),
-            'body'    => __('Trailing-12-month revenue, occupancy and per-property breakdowns. Export PDF or CSV anytime.'),
+            'eyebrow' => ['en' => 'Reports', 'ms' => 'Laporan'],
+            'title'   => ['en' => 'Know what is working', 'ms' => 'Tahu apa yang berjaya'],
+            'body'    => ['en' => 'Trailing-12-month revenue, occupancy and per-property breakdowns. Export PDF or CSV anytime.',
+                          'ms' => 'Hasil 12 bulan terkini, kadar penghunian dan pecahan setiap homestay. Eksport PDF atau CSV bila-bila masa.'],
             'icon'    => 'reports',
             'target'  => '[data-tour="reports"]',
         ],
         [
-            'eyebrow' => __('Settings'),
-            'title'   => __('Make it yours'),
-            'body'    => __('Brand colours, SST, locale and your public URL — all in one place.'),
+            'eyebrow' => ['en' => 'Settings', 'ms' => 'Tetapan'],
+            'title'   => ['en' => 'Make it yours', 'ms' => 'Sesuaikan ikut anda'],
+            'body'    => ['en' => 'Brand colours, SST, locale and your public URL — all in one place.',
+                          'ms' => 'Warna jenama, SST, bahasa dan URL awam anda — semuanya di satu tempat.'],
             'icon'    => 'settings',
             'target'  => '[data-tour="settings"]',
         ],
         // last step — finish (centered, CTA to add first property)
         [
-            'eyebrow' => __('You are set'),
-            'title'   => __('Mari mulakan!'),
-            'body'    => __('Add your first property to start taking bookings. You can always replay this tour from Settings.'),
+            'eyebrow' => ['en' => 'You are set', 'ms' => 'Anda dah sedia'],
+            'title'   => ['en' => "Let's get started!", 'ms' => 'Mari mulakan!'],
+            'body'    => ['en' => 'Add your first property to start taking bookings. You can always replay this tour from Settings.',
+                          'ms' => 'Tambah homestay pertama anda untuk mula terima tempahan. Anda boleh ulang tour ini dari Tetapan bila-bila masa.'],
             'icon'    => 'rocket',
             'target'  => null,
         ],
+    ];
+
+    // UI labels — same bilingual map, rendered via Alpine.
+    $labels = [
+        'skip'    => ['en' => 'Skip',          'ms' => 'Langkau'],
+        'next'    => ['en' => 'Next',          'ms' => 'Seterusnya'],
+        'finish'  => ['en' => 'Add property',  'ms' => 'Tambah homestay'],
+        'close'   => ['en' => 'Close',         'ms' => 'Tutup'],
+        'lang'    => ['en' => 'Language',      'ms' => 'Bahasa'],
+        'progress'=> ['en' => 'Progress',      'ms' => 'Kemajuan'],
     ];
 @endphp
 
@@ -121,7 +144,7 @@
          x-transition:enter-start="ob-anim-in-from"
          x-transition:enter-end="ob-anim-in-to">
 
-        <button type="button" class="ob-close" @click="dismiss()" aria-label="{{ __('Close') }}">
+        <button type="button" class="ob-close" @click="dismiss()" :aria-label="labels.close[lang]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
 
@@ -158,14 +181,30 @@
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c4 4 6 8 6 12 0 3-2 5-3 6l-3-2-3 2c-1-1-3-3-3-6 0-4 2-8 6-12z"/><circle cx="12" cy="10" r="1.5"/></svg>
                 </template>
             </div>
-            <div class="ob-eyebrow" x-text="steps[step].eyebrow"></div>
+            <div class="ob-eyebrow" x-text="steps[step].eyebrow[lang]"></div>
+
+            {{-- EN / BM toggle. Only on the welcome step — once they pick,
+                 the choice persists for the rest of the tour. --}}
+            <div class="ob-lang" x-show="step === 0" role="group" :aria-label="labels.lang[lang]">
+                <button type="button"
+                        class="ob-lang-pill"
+                        :class="lang === 'en' ? 'is-active' : ''"
+                        @click="lang = 'en'"
+                        aria-pressed="true"
+                        :aria-pressed="lang === 'en'">EN</button>
+                <button type="button"
+                        class="ob-lang-pill"
+                        :class="lang === 'ms' ? 'is-active' : ''"
+                        @click="lang = 'ms'"
+                        :aria-pressed="lang === 'ms'">BM</button>
+            </div>
         </div>
 
-        <h2 id="ob-title" class="ob-title" x-text="steps[step].title"></h2>
-        <p class="ob-text" x-text="steps[step].body"></p>
+        <h2 id="ob-title" class="ob-title" x-text="steps[step].title[lang]"></h2>
+        <p class="ob-text" x-text="steps[step].body[lang]"></p>
 
         <div class="ob-foot">
-            <div class="ob-dots" role="tablist" aria-label="{{ __('Progress') }}">
+            <div class="ob-dots" role="tablist" :aria-label="labels.progress[lang]">
                 <template x-for="i in total" :key="i">
                     <button type="button"
                             class="ob-dot"
@@ -177,17 +216,17 @@
             </div>
 
             <div class="ob-actions">
-                <button type="button" class="ob-skip" @click="dismiss()" x-show="step < total - 1">{{ __('Skip') }}</button>
+                <button type="button" class="ob-skip" @click="dismiss()" x-show="step < total - 1" x-text="labels.skip[lang]"></button>
 
                 <template x-if="step < total - 1">
                     <button type="button" class="ob-cta" @click="next()">
-                        <span>{{ __('Next') }}</span>
+                        <span x-text="labels.next[lang]"></span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                     </button>
                 </template>
                 <template x-if="step === total - 1">
                     <a href="{{ route('tenant.properties.create') }}" class="ob-cta" @click="finish()">
-                        <span>{{ __('Add property') }}</span>
+                        <span x-text="labels.finish[lang]"></span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M12 5v14M5 12h14"/></svg>
                     </a>
                 </template>
@@ -254,6 +293,32 @@
     .ob-close:hover { background: var(--bg-sunk); color: var(--ink); }
 
     .ob-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+    /* EN / BM toggle — sits at the right end of the head row on step 0 */
+    .ob-lang {
+        margin-left: auto;
+        display: inline-flex;
+        padding: 2px;
+        background: var(--bg-sunk);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+    }
+    .ob-lang-pill {
+        padding: 3px 9px;
+        font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+        color: var(--ink-3);
+        background: transparent; border: 0; border-radius: 999px;
+        cursor: pointer;
+        touch-action: manipulation;
+        transition: background 140ms ease, color 140ms ease;
+        min-height: 22px;
+    }
+    .ob-lang-pill:hover { color: var(--ink); }
+    .ob-lang-pill.is-active {
+        background: var(--bg-elev);
+        color: var(--primary);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
     .ob-chip {
         width: 36px; height: 36px;
         display: inline-flex; align-items: center; justify-content: center;
@@ -347,6 +412,11 @@
             step: 0,
             total,
             steps: @json($steps),
+            labels: @json($labels),
+            // Tour starts in English by default; user can flip to BM on
+            // the welcome step via the EN/BM pill. Choice persists for
+            // the rest of the tour. Doesn't touch the app's locale.
+            lang: 'en',
             ready: false,
             targeted: false,
             spotStyle: '',
