@@ -577,6 +577,18 @@
         -webkit-tap-highlight-color: transparent;
     }
     .wf-body * { box-sizing: border-box; }
+    /* Kill the 300ms double-tap-zoom delay on iOS for every interactive
+       element on this page. Combined with the 16px input font-size rule
+       below, this makes taps feel native (no auto-zoom on focus, no
+       300ms hesitation on double-tap). */
+    .wf-body button,
+    .wf-body a,
+    .wf-body [role="button"],
+    .wf-body input,
+    .wf-body textarea,
+    .wf-body select {
+        touch-action: manipulation;
+    }
 
     /* ── App shell — phone frame ──────────────────────────────── */
     .wf-app {
@@ -1502,10 +1514,15 @@
         border-radius: 10px;
         background: var(--bg);
         font-family: inherit;
-        font-size: 14px;
+        /* 16px is the iOS Safari auto-zoom-on-focus threshold. Anything
+           below and iOS zooms the viewport in on tap, which looks janky
+           and reads as "the page is broken" on a phone. Keep at 16. */
+        font-size: 16px;
         color: var(--ink);
         outline: none;
         transition: border-color 0.15s, box-shadow 0.15s;
+        /* Kills iOS Safari's 300ms double-tap-zoom delay on focusable inputs */
+        touch-action: manipulation;
     }
     .wf-book-form input:focus,
     .wf-book-form textarea:focus {
