@@ -119,8 +119,14 @@
                  per-night rate above. --}}
             @php
                 $feeAmt   = old('booking_fee_amount', $property->booking_fee_amount);
-                $feeLabel = old('booking_fee_label',  $property->booking_fee_label);
                 $isBmLocale = app()->getLocale() === 'ms';
+                // Default label when the host hasn't set one yet — saves
+                // them a step on first set-up. They can still override it
+                // with anything (Cleaning fee / Service charge / etc.).
+                // The default is locale-aware: BM hosts see "Yuran tempahan",
+                // EN hosts see "Booking fee".
+                $defaultFeeLabel = $isBmLocale ? 'Yuran tempahan' : 'Booking fee';
+                $feeLabel = old('booking_fee_label', $property->booking_fee_label) ?: $defaultFeeLabel;
             @endphp
             <div class="hauz-card" style="padding: 22px;"
                  x-data="{
