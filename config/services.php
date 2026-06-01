@@ -35,4 +35,26 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google Calendar (platform-owned OAuth app)
+    |--------------------------------------------------------------------------
+    | One OAuth client registered by Tempahlah at console.cloud.google.com.
+    | Tenants click "Connect Google Calendar" and grant access to their own
+    | calendar — they never see these credentials.
+    */
+    'google_calendar' => [
+        'client_id'     => env('GOOGLE_CALENDAR_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET'),
+        'redirect_uri'  => env('GOOGLE_CALENDAR_REDIRECT_URI', env('APP_URL').'/oauth/google/callback'),
+        // Narrower than full /auth/calendar — avoids "restricted scope"
+        // verification friction (events scope is "sensitive" but not "restricted").
+        'scopes' => [
+            'https://www.googleapis.com/auth/calendar.events',
+            'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+            'openid',
+            'email',
+        ],
+    ],
+
 ];

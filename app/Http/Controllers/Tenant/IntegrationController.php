@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\TenantIntegration;
 use App\Models\WhatsappSession;
+use App\Services\Calendar\GoogleCalendarService;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
 use App\Services\Payments\Toyyibpay\ToyyibpayException;
 use App\Services\Payments\Toyyibpay\ToyyibpayLog;
@@ -57,6 +58,16 @@ class IntegrationController extends Controller
             return view('tenant.integrations.agent', [
                 'provider' => $provider,
                 'meta' => $this->providerMeta($provider),
+            ]);
+        }
+
+        // Google Calendar uses platform-owned OAuth — no credential form.
+        // Tenant clicks "Connect" → consent → tokens stored automatically.
+        if ($provider === 'google_calendar') {
+            return view('tenant.integrations.google_calendar', [
+                'provider' => $provider,
+                'meta'     => $this->providerMeta($provider),
+                'record'   => TenantIntegration::where('provider', 'google_calendar')->first(),
             ]);
         }
 
@@ -148,6 +159,14 @@ class IntegrationController extends Controller
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
 
         $integration = TenantIntegration::where('provider', $provider)->first();
+
+        // For Google Calendar, best-effort revoke the refresh_token at Google's
+        // end so the tenant's permission grant in their Google account also
+        // disappears. We don't fail the disconnect if revoke errors out.
+        if ($provider === 'google_calendar' && $integration && ! empty($integration->config['refresh_token'])) {
+            app(GoogleCalendarService::class)->revokeToken($integration->config['refresh_token']);
+        }
+
         if ($integration) {
             $integration->update(['enabled' => false, 'config' => null, 'connected_at' => null]);
         }
@@ -183,13 +202,9 @@ class IntegrationController extends Controller
             ],
             'google_calendar' => [
                 'name' => 'Google Calendar',
-                'description' => 'Two-way iCal/CalDAV sync. Prevents double-bookings.',
+                'description' => 'One-click connect with your Google account. Bookings flow into your calendar automatically — no double-bookings.',
                 'pro' => true,
-                'fields' => [
-                    'client_id' => ['label' => 'OAuth Client ID', 'type' => 'text'],
-                    'client_secret' => ['label' => 'OAuth Client secret', 'type' => 'password'],
-                    'calendar_id' => ['label' => 'Calendar ID', 'type' => 'text', 'placeholder' => 'primary'],
-                ],
+                'fields' => [],
             ],
             'whatsapp' => [
                 'name' => 'WhatsApp',
@@ -234,11 +249,7 @@ class IntegrationController extends Controller
                 'is_sandbox' => 'sometimes|boolean',
                 'payment_channel' => 'sometimes|in:0,1,2',
             ],
-            'google_calendar' => [
-                'client_id' => 'required|string|max:200',
-                'client_secret' => 'required|string|max:200',
-                'calendar_id' => 'nullable|string|max:200',
-            ],
+            // google_calendar uses OAuth (no form) — no validation rules.
             'whatsapp' => [
                 'phone_number_id' => 'required|string|max:64',
                 'access_token' => 'required|string|max:500',

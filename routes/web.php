@@ -91,6 +91,18 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         return redirect()->route('register');
     })->name('tenant.onboard');
 
+    // OAuth callbacks (platform-owned OAuth apps — Tempahlah holds the
+    // client_id/secret; tenants just grant access to their own account).
+    // Lives at /oauth/google/* (not /dashboard/oauth/*) because the redirect
+    // URI registered with Google must be a fixed, short path.
+    Route::middleware(['auth', 'tenant.require'])
+        ->prefix('oauth/google')
+        ->name('oauth.google.')
+        ->group(function () {
+            Route::get('/start',    [\App\Http\Controllers\OAuth\GoogleCalendarOAuthController::class, 'start'])->name('start');
+            Route::get('/callback', [\App\Http\Controllers\OAuth\GoogleCalendarOAuthController::class, 'callback'])->name('callback');
+        });
+
     // Marketplace (public)
     Route::prefix('marketplace')->name('marketplace.')->middleware('throttle:marketplace-search')->group(function () {
         Route::get('/', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'search'])->name('search');

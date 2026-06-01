@@ -3,57 +3,161 @@
 namespace App\Services\Calendar;
 
 use App\Models\Booking;
-use App\Models\ChannelIntegration;
+use App\Models\TenantIntegration;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Google Calendar integration — platform-owned OAuth client.
+ *
+ * One OAuth app registered by Tempahlah. Each tenant goes through the consent
+ * flow and we store their access_token + refresh_token in
+ * tenant_integrations.config (encrypted at rest via the Eloquent cast).
+ *
+ * Phase 1 (this file): authorize URL, token exchange, userinfo fetch,
+ * calendar list, revoke. Phase 3+ will add booking-push methods.
+ */
 class GoogleCalendarService
 {
-    protected string $base = 'https://www.googleapis.com/calendar/v3';
+    protected const AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth';
+    protected const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+    protected const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
+    protected const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
+    protected const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
+    /**
+     * Build the URL we send the tenant to for Google's consent screen.
+     *
+     * `access_type=offline` + `prompt=consent` is REQUIRED to receive a
+     * refresh_token. Without prompt=consent, Google only returns it the
+     * very first time a user grants the scope — subsequent grants only
+     * include the short-lived access_token, which would break our refresh
+     * flow if the tenant ever reconnects.
+     */
     public function authorizeUrl(string $state): string
     {
         $params = http_build_query([
-            'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),
-            'redirect_uri' => env('GOOGLE_CALENDAR_REDIRECT_URI'),
+            'client_id'     => config('services.google_calendar.client_id'),
+            'redirect_uri'  => config('services.google_calendar.redirect_uri'),
             'response_type' => 'code',
-            'scope' => 'https://www.googleapis.com/auth/calendar',
-            'access_type' => 'offline',
-            'prompt' => 'consent',
-            'state' => $state,
+            'scope'         => implode(' ', config('services.google_calendar.scopes')),
+            'access_type'   => 'offline',
+            'prompt'        => 'consent',
+            'state'         => $state,
+            'include_granted_scopes' => 'true',
         ]);
 
-        return 'https://accounts.google.com/o/oauth2/v2/auth?'.$params;
+        return self::AUTH_BASE.'?'.$params;
     }
 
+    /**
+     * Exchange an authorization `code` for { access_token, refresh_token,
+     * expires_in, scope, token_type, id_token }.
+     *
+     * Throws on HTTP error (4xx/5xx) — callback handler should catch and
+     * show a friendly "Connection failed" page to the tenant.
+     */
     public function exchangeCodeForTokens(string $code): array
     {
-        $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'code' => $code,
-            'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),
-            'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET'),
-            'redirect_uri' => env('GOOGLE_CALENDAR_REDIRECT_URI'),
-            'grant_type' => 'authorization_code',
-        ])->throw()->json();
-
-        return $response;
+        return Http::asForm()
+            ->post(self::TOKEN_URL, [
+                'code'          => $code,
+                'client_id'     => config('services.google_calendar.client_id'),
+                'client_secret' => config('services.google_calendar.client_secret'),
+                'redirect_uri'  => config('services.google_calendar.redirect_uri'),
+                'grant_type'    => 'authorization_code',
+            ])
+            ->throw()
+            ->json();
     }
 
-    public function pushBooking(ChannelIntegration $integration, Booking $booking): void
+    /**
+     * Swap a refresh_token for a fresh access_token. Returns { access_token,
+     * expires_in, scope, token_type } — note refresh_token is NOT re-issued
+     * on a refresh call (the original one stays valid).
+     *
+     * If Google returns 400 with error=invalid_grant, the refresh_token has
+     * been revoked (user clicked "remove access" in their Google account).
+     * Caller should mark the integration as needing reconnect.
+     */
+    public function refreshAccessToken(string $refreshToken): array
     {
-        $creds = $integration->credentials_encrypted ?? [];
-        if (empty($creds['access_token']) || empty($creds['calendar_id'])) {
-            Log::warning('GoogleCalendar not connected', ['integration' => $integration->id]);
-            return;
-        }
+        return Http::asForm()
+            ->post(self::TOKEN_URL, [
+                'refresh_token' => $refreshToken,
+                'client_id'     => config('services.google_calendar.client_id'),
+                'client_secret' => config('services.google_calendar.client_secret'),
+                'grant_type'    => 'refresh_token',
+            ])
+            ->throw()
+            ->json();
+    }
 
-        Http::withToken($creds['access_token'])
-            ->post("{$this->base}/calendars/{$creds['calendar_id']}/events", [
-                'summary' => "Booking {$booking->reference}",
-                'description' => "{$booking->property->name} · {$booking->bookingGuests->where('is_lead', true)->first()?->full_name}",
-                'start' => ['date' => $booking->check_in->toDateString()],
-                'end' => ['date' => $booking->check_out->toDateString()],
-                'extendedProperties' => ['private' => ['booking_ref' => $booking->reference]],
+    /**
+     * Fetch the authenticated user's email + name. Used so we can show the
+     * tenant "Connected as wafa@gmail.com" rather than a faceless "Connected".
+     */
+    public function fetchUserInfo(string $accessToken): array
+    {
+        return Http::withToken($accessToken)
+            ->get(self::USERINFO_URL)
+            ->throw()
+            ->json();
+    }
+
+    /**
+     * List the user's calendars so they can pick which one to sync to.
+     * Returns array of { id, summary, primary?, accessRole, backgroundColor }.
+     */
+    public function listCalendars(string $accessToken): array
+    {
+        $response = Http::withToken($accessToken)
+            ->get(self::CALENDAR_API.'/users/me/calendarList', [
+                'minAccessRole' => 'writer',
+                'showHidden'    => 'false',
+            ])
+            ->throw()
+            ->json();
+
+        return $response['items'] ?? [];
+    }
+
+    /**
+     * Best-effort revoke. Google accepts either an access_token or a
+     * refresh_token. We always pass the refresh_token because it's the
+     * long-lived one — revoking it cascades to invalidate active access
+     * tokens too.
+     *
+     * Returns true if revoked (or already invalid — Google returns 400 in
+     * that case which we treat as success). Logs and returns false on
+     * unexpected failure but does NOT throw — disconnect should always
+     * clear local state regardless.
+     */
+    public function revokeToken(string $token): bool
+    {
+        try {
+            $response = Http::asForm()->post(self::REVOKE_URL, ['token' => $token]);
+            if ($response->successful() || $response->status() === 400) {
+                return true;
+            }
+            Log::warning('GoogleCalendar revoke unexpected status', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 200),
             ]);
+            return false;
+        } catch (\Throwable $e) {
+            Log::warning('GoogleCalendar revoke threw', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Phase 3: push a booking as an all-day event into the tenant's chosen
+     * calendar. Stub for now — implemented when the BookingConfirmed
+     * listener is wired up.
+     */
+    public function pushBooking(TenantIntegration $integration, Booking $booking): void
+    {
+        // Intentionally left blank — Phase 3.
     }
 }
