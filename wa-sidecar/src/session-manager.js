@@ -217,6 +217,38 @@ class SessionManager {
         entry.phone = sock.user?.id?.split(':')[0]?.replace(/^/, '+');
         entry.pushName = sock.user?.name ?? null;
         entry.lastError = null;
+
+        // Force-off the account-level "Default message timer" (the 24h /
+        // 7d / 90d disappearing-messages default WhatsApp applies to every
+        // NEW chat). Without this, even though we pass ephemeralExpiration:0
+        // per outbound, an inbound message arriving first can land in a
+        // chat with the host's account default already applied — so the
+        // host's own copy of confirmations, invoices and receipts vanishes
+        // after the timer. The booking-platform audit trail must NEVER
+        // expire on the host's device.
+        //
+        // Baileys exposes this as updateDefaultDisappearingMode(seconds);
+        // 0 = off. We pass it on every connect (idempotent) so a host who
+        // re-enables the default in their phone settings between sessions
+        // gets it flipped back off the moment our session reconnects.
+        try {
+          if (typeof sock.updateDefaultDisappearingMode === 'function') {
+            await sock.updateDefaultDisappearingMode(0);
+            childLogger.info('account default disappearing-messages forced OFF');
+          } else {
+            childLogger.warn(
+              'sock.updateDefaultDisappearingMode is not available on this Baileys version — skipping account-level force-off (per-message ephemeralExpiration:0 still applies)',
+            );
+          }
+        } catch (err) {
+          // Don't fail the connection — log and continue. Per-message
+          // ephemeralExpiration:0 still protects our outbound messages.
+          childLogger.warn(
+            { err: err?.message },
+            'failed to force-off account default disappearing-messages',
+          );
+        }
+
         await postWebhook('session.connected', {
           tenantId,
           phone: entry.phone,
