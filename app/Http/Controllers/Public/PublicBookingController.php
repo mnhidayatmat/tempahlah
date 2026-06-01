@@ -116,8 +116,19 @@ class PublicBookingController extends Controller
         ]);
     }
 
-    public function sent(Request $request, string $reference): View
+    public function sent(Request $request, string $tenant_slug, string $reference): View
     {
+        // NOTE: the first string positional argument is the `{tenant_slug}`
+        // placeholder from the subdomain (Route::domain('{tenant_slug}.…')),
+        // which Laravel injects BEFORE the URI's `{reference}`. We don't
+        // need the slug here (the middleware already resolved the tenant
+        // and stashed it on $request->attributes['subdomain_tenant']) —
+        // but we MUST accept it in the signature so Laravel binds the
+        // URI `{reference}` to the right argument. Without this fix,
+        // `$reference` was receiving the tenant slug and `firstOrFail()`
+        // would 404 every booking-sent page.
+        unset($tenant_slug);
+
         /** @var Tenant $tenant */
         $tenant = $request->attributes->get('subdomain_tenant');
 
