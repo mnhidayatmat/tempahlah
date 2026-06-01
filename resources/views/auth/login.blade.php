@@ -587,6 +587,55 @@
         .cta:hover .cta-label { transform: translateY(-32px); opacity: 0.0; }
         .cta:hover .cta-alt { opacity: 1; transform: translateY(0); }
 
+        /* "or" separator between password sign-in and Google. */
+        .or-sep {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0;
+            color: var(--ink-3);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-family: 'Geist Mono', ui-monospace, monospace;
+        }
+        .or-sep::before, .or-sep::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--line-2);
+        }
+
+        /* "Continue with Google" button — neutral surface so the Google
+           multi-colour mark is the visual anchor; matches Google's brand
+           guidelines (white background, 1px outline, dark text). */
+        .google-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 20px;
+            background: #ffffff;
+            color: var(--ink);
+            border: 1px solid var(--line-2);
+            border-radius: 14px;
+            font-family: 'Geist', system-ui, sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.005em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: border-color 0.18s ease, background 0.18s ease, transform 0.1s ease;
+            box-shadow: 0 1px 2px rgba(14, 42, 58, 0.04);
+        }
+        .google-cta:hover {
+            border-color: var(--ink-3);
+            background: #fafafa;
+        }
+        .google-cta:active { transform: scale(0.985); }
+        .google-cta svg { flex-shrink: 0; }
+
         .signup-line {
             margin: 28px 0 0;
             text-align: center;
@@ -790,6 +839,23 @@
                             {{ $isBM ? 'Selamat datang kembali ✦' : 'Welcome home ✦' }}
                         </span>
                     </button>
+
+                    <div class="or-sep" aria-hidden="true">
+                        <span>{{ $isBM ? 'atau' : 'or' }}</span>
+                    </div>
+
+                    {{-- Continue with Google — kicks off the OAuth dance.
+                         No form here; this is a plain link, the server signs
+                         a CSRF-safe state in the redirect. --}}
+                    <a class="google-cta" href="{{ route('auth.google.start', ['intent' => 'login']) }}">
+                        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                            <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                        </svg>
+                        <span>{{ $isBM ? 'Teruskan dengan Google' : 'Continue with Google' }}</span>
+                    </a>
 
                     <p class="signup-line">
                         {{ $isBM ? 'Belum ada akaun? ' : "Don't have an account? " }}

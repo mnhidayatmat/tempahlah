@@ -70,6 +70,16 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/login', [AuthenticatedSessionController::class, 'show'])->name('login');
         Route::post('/login', [AuthenticatedSessionController::class, 'store'])
             ->middleware('throttle:auth-login');
+
+        // "Continue with Google" — single OAuth flow that handles BOTH
+        // sign-in (existing email) and sign-up (creates a tenant on the
+        // fly from the Google profile name).
+        Route::get('/auth/google', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'start'])
+            ->middleware('throttle:auth-login')
+            ->name('auth.google.start');
+        Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\GoogleAuthController::class, 'callback'])
+            ->middleware('throttle:auth-login')
+            ->name('auth.google.callback');
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
