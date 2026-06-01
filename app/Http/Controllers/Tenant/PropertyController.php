@@ -202,6 +202,7 @@ class PropertyController extends Controller
             'toilets'        => 'nullable|integer|min:0|max:50',
             'pricing_mode'   => 'nullable|in:whole_house,per_room',
             'max_guests'     => 'nullable|integer|min:1|max:200',
+            'default_guests' => 'nullable|integer|min:1|max:200',
             'description_en' => 'nullable|string|max:2000',
             'description_bm' => 'nullable|string|max:2000',
             'check_in_time'  => 'required|date_format:H:i',

@@ -141,6 +141,13 @@
                             <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Whole-house capacity') }}</div>
                         </div>
                     @endif
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Default guests on booking page') }}</label>
+                        <input class="input" type="number" name="default_guests" value="{{ old('default_guests', $property->default_guests) }}" min="1" max="200" placeholder="{{ __('Auto') }}">
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">
+                            {{ __('Pre-fills the "tetamu" stepper on your public booking page. Leave blank to auto-default to half of max capacity.') }}
+                        </div>
+                    </div>
                 </div>
             </div>
 

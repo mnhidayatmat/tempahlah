@@ -74,6 +74,7 @@
                 'state'     => $p->state,
                 'rate'      => (float) $p->starting_rate,
                 'sleeps'    => (int) $p->sleeps_total,
+                'default_guests' => (int) ($p->default_guests_resolved ?? max(1, (int) floor(($p->sleeps_total ?? 2) / 2))),
                 'rooms'     => (int) $p->rooms->count(),
                 'beds'      => (int) $p->beds_total,
                 'cover'     => $cover['g'],
@@ -1314,7 +1315,10 @@
             today: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
             checkin: null,
             checkout: null,
-            guests: 2,
+            /* Pre-fill from the first property's tenant-configured default
+               (or floor(sleeps/2) if unset). On selectProperty() the stepper
+               resets to that property's own default. */
+            guests: opts.properties?.[0]?.default_guests || 2,
             toyyibpayConfigured: opts.toyyibpayConfigured,
             depositPct: opts.depositPct || 20,
             openBookForm: false,
@@ -1342,6 +1346,11 @@
                     }
                     if (conflict) { this.checkin = null; this.checkout = null; }
                 }
+                /* Reset guests to the new property's tenant-configured default
+                   (or fall back to floor(sleeps/2)) so switching properties
+                   doesn't carry over a now-inappropriate count. */
+                this.guests = this.current.default_guests
+                    || Math.max(1, Math.floor((this.current.sleeps || 2) / 2));
                 if (this.guests > (this.current.sleeps || 99)) this.guests = this.current.sleeps || 1;
             },
 

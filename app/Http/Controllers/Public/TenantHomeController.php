@@ -56,6 +56,10 @@ class TenantHomeController extends Controller
                 fn ($r) => (int) $r->max_adults + (int) $r->max_children
             );
             $property->beds_total = (int) $property->rooms->sum(fn ($r) => (int) $r->beds);
+            // Pre-filled value for the public "tetamu" stepper. Tenant
+            // sets this in /dashboard/properties/{id}/edit; falls back
+            // to floor(sleeps/2) when blank (see Property accessor).
+            $property->default_guests_resolved = $property->effectiveDefaultGuests();
 
             $rates = [];
             foreach ($window as $date) {
