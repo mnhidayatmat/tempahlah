@@ -32,24 +32,19 @@
 <div wire:poll.60s style="display:flex; flex-direction:column; gap:24px;">
 
     {{-- === PROFILE HEADER === --}}
-    <div style="position:relative; display:flex; align-items:center; gap:22px;
-                padding: 22px 26px;
-                background: var(--bg-elev);
-                border: 1px solid var(--line);
-                border-radius: var(--r-xl);
-                overflow: hidden;">
+    <div class="dash-hero">
         {{-- glow blobs --}}
-        <div style="position:absolute; top:-60px; right:-40px; width:240px; height:240px;
-                    background: var(--primary); opacity:.07; border-radius:999px; filter: blur(80px); pointer-events:none;"></div>
-        <div style="position:absolute; bottom:-80px; left:120px; width:200px; height:200px;
-                    background: var(--warn); opacity:.05; border-radius:999px; filter: blur(100px); pointer-events:none;"></div>
+        <div class="dash-hero-blob dash-hero-blob-a"></div>
+        <div class="dash-hero-blob dash-hero-blob-b"></div>
 
-        <x-avatar :name="auth()->user()->name" :size="64"/>
+        <div class="dash-hero-avatar">
+            <x-avatar :name="auth()->user()->name" :size="64"/>
+        </div>
 
-        <div style="flex:1; min-width:0; position:relative;">
+        <div class="dash-hero-body">
             <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Host Lounge') }} · {{ now()->isoFormat('dddd, D MMM') }}</div>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <h1 style="margin:0; font-size:28px; font-weight:700; letter-spacing:-.025em; line-height:1.1;">
+                <h1 class="dash-hero-title">
                     {{ __('Welcome back') }}, <span style="color: var(--primary);">{{ $firstName }}</span>!
                 </h1>
                 <span style="font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
@@ -61,7 +56,7 @@
                     {{ ucfirst($plan) }} {{ __('account') }}
                 </span>
             </div>
-            <div style="font-size:13.5px; color: var(--ink-3); margin-top:6px; max-width:560px;">
+            <div class="dash-hero-sub">
                 @if ($stats['bookings'] > 0)
                     {{ __('You have :n active bookings · :p properties live.', ['n' => $stats['bookings'], 'p' => $stats['properties']]) }}
                 @else
@@ -70,7 +65,7 @@
             </div>
         </div>
 
-        <div style="display:flex; gap:8px; position:relative;">
+        <div class="dash-hero-actions">
             <a href="{{ route('tenant.settings.index') }}" class="btn">{{ __('Profile Settings') }}</a>
             <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary">
                 <x-icon name="plus" :size="13"/> {{ __('Add homestay') }}
@@ -79,7 +74,9 @@
     </div>
 
     {{-- === STAT CARDS === --}}
-    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px;">
+    {{-- auto-fit so 4 cols on desktop, 2 cols on tablet/mobile naturally
+         (no inline grid-template that has to be CSS-overridden later). --}}
+    <div class="dash-stats">
         @foreach ([
             ['label' => __('Total Earnings'),       'value' => 'RM '.number_format($stats['revenue'], 2), 'sub' => __('Net payout · last 30 days'), 'icon' => 'card',     'tone' => 'primary'],
             ['label' => __('Active Bookings'),      'value' => $stats['bookings'].' '.__('guests'),       'sub' => __('Across :n rooms', ['n' => $stats['rooms']]), 'icon' => 'users', 'tone' => 'warn'],
@@ -114,7 +111,7 @@
     </div>
 
     {{-- === MAIN: CHART + TRANSACTIONS === --}}
-    <div style="display:grid; grid-template-columns: 1fr 360px; gap:16px; align-items:flex-start;">
+    <div class="dash-main">
 
         {{-- INCOME CHART --}}
         <div class="card" style="padding:24px;">

@@ -224,6 +224,92 @@
    pattern (Utama / Kalendar / Tempahan / Menu) so tenants get one-tap
    access to the most-used destinations without opening the drawer.
 ----------------------------------------------------------------------------- */
+/* -----------------------------------------------------------------------------
+   Tenant dashboard — responsive blocks
+   Replaces inline `display:flex; grid-template-columns: repeat(N, 1fr)` styles
+   that broke on mobile (one-word-per-line wrapping, overflowing stat cards).
+----------------------------------------------------------------------------- */
+.dash-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 22px;
+  padding: 22px 26px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+}
+.dash-hero-blob { position: absolute; border-radius: 999px; filter: blur(80px); pointer-events: none; }
+.dash-hero-blob-a { top: -60px; right: -40px; width: 240px; height: 240px; background: var(--primary); opacity: .07; }
+.dash-hero-blob-b { bottom: -80px; left: 120px; width: 200px; height: 200px; background: var(--warn); opacity: .05; filter: blur(100px); }
+.dash-hero-avatar { position: relative; z-index: 1; flex-shrink: 0; }
+.dash-hero-body { position: relative; z-index: 1; min-width: 0; }
+.dash-hero-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.1;
+}
+.dash-hero-sub {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  margin-top: 6px;
+  max-width: 560px;
+}
+.dash-hero-actions { position: relative; z-index: 1; display: flex; gap: 8px; flex-shrink: 0; }
+.dash-hero-actions .btn { white-space: nowrap; }
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.dash-main {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) {
+  /* Stat cards: 2 cols at tablet width */
+  .dash-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  /* Hero: stack vertically — avatar, text, buttons */
+  .dash-hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 20px 18px;
+    text-align: left;
+  }
+  .dash-hero-avatar { width: fit-content; }
+  .dash-hero-title { font-size: 22px; }
+  .dash-hero-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dash-hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .dash-hero-blob-b { left: -40px; }
+
+  /* Main: chart + transactions stack into 1 col (transactions go below) */
+  .dash-main { grid-template-columns: 1fr; }
+
+  /* Stat cards: keep 2 cols (fits 3-char RM values without truncation) */
+  .dash-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dash-stats .card { padding: 16px !important; }
+  .dash-stats .card > div:nth-child(2) { font-size: 20px !important; }
+}
+
 .shell-botnav { display: none; }
 @media (max-width: 768px) {
   .shell-botnav {
