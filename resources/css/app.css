@@ -73,73 +73,72 @@
     --sh-pop: 0 16px 48px -12px rgba(15,25,40,.20), 0 2px 6px rgba(15,25,40,.06);
   }
 
-  /* -----------------------------------------------------------------------------
-     Dark mode — opt-in via <html data-theme="dark">.
-     Same token names so every `var(--*)` reference in inline styles flips
-     automatically. Cool-tilted navy surfaces complement the teal brand
-     (vs the usual flat-grey dark theme which competes with primary).
-  ----------------------------------------------------------------------------- */
-  html[data-theme="dark"] {
-    --bg:      #0b1119;
-    --bg-elev: #141c27;
-    --bg-sunk: #060a10;
-    --bg-tint: #1c2533;
-
-    --ink:   #e8eef5;
-    --ink-2: #aebbcc;
-    --ink-3: #7d8a9b;
-    --ink-4: #4d5867;
-
-    --line:   rgba(255, 255, 255, 0.08);
-    --line-2: rgba(255, 255, 255, 0.14);
-
-    /* Brand stays teal — slightly lifted for contrast on dark */
-    --primary:       #3eaad6;
-    --primary-hover: #57b9df;
-    --primary-deep:  #2596c6;
-    --primary-tint:  rgba(62, 170, 214, 0.16);
-    --primary-soft:  rgba(62, 170, 214, 0.08);
-    --primary-edge:  rgba(62, 170, 214, 0.32);
-
-    --secondary:      #3fcdda;
-    --secondary-tint: rgba(63, 205, 218, 0.16);
-
-    --accent:      #f2c45a;
-    --accent-ink:  #1a1614;
-    --accent-tint: rgba(242, 196, 90, 0.16);
-
-    /* Status — soft glows instead of pale tints (white-bg tints don't read on dark) */
-    --ok:    #4ad19a;
-    --warn:  #f3c264;
-    --err:   #f17a6b;
-    --info:  #6db3ee;
-    --ok-tint:   rgba(74, 209, 154, 0.14);
-    --warn-tint: rgba(243, 194, 100, 0.14);
-    --err-tint:  rgba(241, 122, 107, 0.14);
-    --info-tint: rgba(109, 179, 238, 0.14);
-
-    --pro:      #6db3ee;
-    --pro-tint: rgba(109, 179, 238, 0.14);
-
-    /* Shadows: invisible on dark; use border-only depth instead */
-    --sh-1: 0 0 0 1px rgba(255,255,255,0.04);
-    --sh-2: 0 0 0 1px rgba(255,255,255,0.05), 0 8px 24px -12px rgba(0,0,0,0.5);
-    --sh-pop: 0 0 0 1px rgba(255,255,255,0.06), 0 18px 48px -16px rgba(0,0,0,0.6);
-
-    color-scheme: dark; /* tells browser to render form controls in dark */
-  }
-  /* Form inputs use the standard background — on dark, switch placeholder
-     visibility + remove the bright white autofill yellow */
-  html[data-theme="dark"] input,
-  html[data-theme="dark"] textarea,
-  html[data-theme="dark"] select { color-scheme: dark; }
-  html[data-theme="dark"] input:-webkit-autofill {
-    -webkit-text-fill-color: var(--ink);
-    -webkit-box-shadow: 0 0 0 1000px var(--bg-elev) inset;
-    transition: background-color 5000s ease-in-out 0s;
-  }
-
   body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+}
+
+/* -----------------------------------------------------------------------------
+   Dark mode — opt-in via <html data-theme="dark">.
+   IMPORTANT: lives OUTSIDE @layer base so it isn't trumped by the
+   unlayered tenant-theme <style id="tenant-theme">:root{...}</style>
+   injected in the auth layout's <head>. Unlayered + higher selector
+   specificity (html[attr] beats :root) means dark vars always win.
+----------------------------------------------------------------------------- */
+html[data-theme="dark"] {
+  --bg:      #0b1119;
+  --bg-elev: #141c27;
+  --bg-sunk: #060a10;
+  --bg-tint: #1c2533;
+
+  --ink:   #e8eef5;
+  --ink-2: #aebbcc;
+  --ink-3: #7d8a9b;
+  --ink-4: #4d5867;
+
+  --line:   rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.14);
+
+  /* Brand stays teal — slightly lifted for contrast on dark */
+  --primary:       #3eaad6;
+  --primary-hover: #57b9df;
+  --primary-deep:  #2596c6;
+  --primary-tint:  rgba(62, 170, 214, 0.16);
+  --primary-soft:  rgba(62, 170, 214, 0.08);
+  --primary-edge:  rgba(62, 170, 214, 0.32);
+
+  --secondary:      #3fcdda;
+  --secondary-tint: rgba(63, 205, 218, 0.16);
+
+  --accent:      #f2c45a;
+  --accent-ink:  #1a1614;
+  --accent-tint: rgba(242, 196, 90, 0.16);
+
+  /* Status — soft glows instead of pale tints */
+  --ok:    #4ad19a;
+  --warn:  #f3c264;
+  --err:   #f17a6b;
+  --info:  #6db3ee;
+  --ok-tint:   rgba(74, 209, 154, 0.14);
+  --warn-tint: rgba(243, 194, 100, 0.14);
+  --err-tint:  rgba(241, 122, 107, 0.14);
+  --info-tint: rgba(109, 179, 238, 0.14);
+
+  --pro:      #6db3ee;
+  --pro-tint: rgba(109, 179, 238, 0.14);
+
+  /* Shadows: drop-shadows are invisible on near-black; use hairline borders */
+  --sh-1: 0 0 0 1px rgba(255,255,255,0.04);
+  --sh-2: 0 0 0 1px rgba(255,255,255,0.05), 0 8px 24px -12px rgba(0,0,0,0.5);
+  --sh-pop: 0 0 0 1px rgba(255,255,255,0.06), 0 18px 48px -16px rgba(0,0,0,0.6);
+
+  color-scheme: dark;
+}
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select { color-scheme: dark; }
+html[data-theme="dark"] input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-elev) inset;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 @theme {
