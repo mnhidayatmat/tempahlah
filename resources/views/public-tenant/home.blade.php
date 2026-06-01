@@ -92,6 +92,24 @@
                 ->values()
                 ->all();
 
+            // Top amenities for the Utama chip strip — already eager-loaded
+            // on the controller. Sorted by a category priority (essentials
+            // first, then food, leisure, family, cultural, safety, etc.)
+            // then by per-amenity sort_order. Take up to 10; UI can scroll.
+            $catPriority = ['essential' => 0, 'kitchen' => 1, 'outdoor' => 2, 'leisure' => 3, 'family' => 4, 'cultural' => 5, 'safety' => 6, 'tech' => 7];
+            $topAmenities = $p->amenities
+                ->sortBy(fn ($a) => sprintf('%02d-%04d',
+                    $catPriority[$a->category] ?? 99,
+                    (int) ($a->sort_order ?? 0),
+                ))
+                ->take(10)
+                ->map(fn ($a) => [
+                    'icon'  => (string) ($a->icon ?? '✓'),
+                    'label' => $isBM ? (string) $a->label_bm : (string) $a->label_en,
+                ])
+                ->values()
+                ->all();
+
             return [
                 'id'        => $p->id,
                 'name'      => $p->name,
@@ -116,6 +134,13 @@
                 'cover'     => $cover['g'],
                 'photo_url' => $p->cover_photo_url,
                 'photos'    => $galleryPhotos,
+                // Locale-aware short description for the "About" card. Falls
+                // back to the other locale if the host only filled one side.
+                'description' => trim((string) ($isBM
+                    ? ($p->description_bm ?: $p->description_en)
+                    : ($p->description_en ?: $p->description_bm))),
+                'amenities' => $topAmenities,
+                'bathrooms_total' => (int) (($p->bathrooms ?? 0) + ($p->toilets ?? 0)),
                 'kind'      => $p->cover_kind,
                 'tone'      => $cover['tone'],
                 'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
@@ -234,6 +259,94 @@
             </template>
         </section>
     @endif
+
+    {{-- ───── UTAMA OVERVIEW SECTIONS ──────────────────────────────
+         All sections below auto-render against current.* — switching
+         properties (when tenant has 2+) updates them reactively.
+         Each section hides when its underlying data is empty, so a
+         brand-new tenant with minimal data still sees a clean page.
+    ───────────────────────────────────────────────────────────── --}}
+
+    {{-- 1) Quick-stats strip — 4 tiles, always renders. --}}
+    <section class="wf-stats">
+        <div class="wf-stat">
+            <div class="wf-stat-icon">🛏️</div>
+            <div class="wf-stat-num" x-text="current.beds || current.rooms"></div>
+            <div class="wf-stat-lbl">{{ $isBM ? 'Bilik' : 'Bedrooms' }}</div>
+        </div>
+        <div class="wf-stat">
+            <div class="wf-stat-icon">👥</div>
+            <div class="wf-stat-num" x-text="current.sleeps"></div>
+            <div class="wf-stat-lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</div>
+        </div>
+        <div class="wf-stat" x-show="current.bathrooms_total > 0" x-cloak>
+            <div class="wf-stat-icon">🚿</div>
+            <div class="wf-stat-num" x-text="current.bathrooms_total"></div>
+            <div class="wf-stat-lbl">{{ $isBM ? 'Bilik air' : 'Baths' }}</div>
+        </div>
+        <div class="wf-stat">
+            <div class="wf-stat-icon">💰</div>
+            <div class="wf-stat-num">
+                <span style="font-size: 12px; opacity: 0.6;">RM</span><span x-text="Math.round(current.rate).toLocaleString()"></span>
+            </div>
+            <div class="wf-stat-lbl">{{ $isBM ? '/ malam' : '/ night' }}</div>
+        </div>
+    </section>
+
+    {{-- 2) About — short description card. Hidden when both locale
+         descriptions are blank (new tenant before they fill it in). --}}
+    <section class="wf-about" x-show="current.description && current.description.length > 0" x-cloak>
+        <div class="wf-section-eyebrow">{{ $isBM ? 'Tentang' : 'About' }}</div>
+        <p class="wf-about-body" x-text="current.description"></p>
+    </section>
+
+    {{-- 3) Top amenities chips — horizontal scrollable strip. --}}
+    <section class="wf-amenities" x-show="current.amenities && current.amenities.length > 0" x-cloak>
+        <div class="wf-section-eyebrow">{{ $isBM ? 'Kemudahan' : 'What\'s included' }}</div>
+        <div class="wf-amenities-row">
+            <template x-for="(a, i) in current.amenities" :key="i">
+                <div class="wf-amenity-chip">
+                    <span class="wf-amenity-icon" x-text="a.icon"></span>
+                    <span class="wf-amenity-lbl" x-text="a.label"></span>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    {{-- 4) Photo strip — horizontal swipe of thumbnails. Tap any →
+         opens the existing gallery lightbox at that index. --}}
+    <section class="wf-photostrip" x-show="current.photos && current.photos.length > 1" x-cloak>
+        <div class="wf-section-eyebrow-row">
+            <div class="wf-section-eyebrow">{{ $isBM ? 'Galeri' : 'Gallery' }}</div>
+            <button type="button" class="wf-photostrip-all" @click="openGallery()">
+                <span x-text="`${current.photos.length} ${'{{ $isBM ? 'foto' : 'photos' }}'} →`"></span>
+            </button>
+        </div>
+        <div class="wf-photostrip-row">
+            <template x-for="(url, i) in current.photos.slice(0, 8)" :key="i">
+                <button type="button" class="wf-photostrip-tile" @click="galleryIndex = i; galleryOpen = true; document.body.style.overflow='hidden'; navTab='gallery';">
+                    <img :src="url" :alt="`${current.name} ${i+1}`" loading="lazy">
+                </button>
+            </template>
+        </div>
+    </section>
+
+    {{-- 5) Location card — address + Get directions. Skips when no
+         address has been entered. --}}
+    <section class="wf-location" x-show="current.address && current.address.length > 0" x-cloak>
+        <div class="wf-section-eyebrow">{{ $isBM ? 'Lokasi' : 'Location' }}</div>
+        <div class="wf-location-card">
+            <div class="wf-location-pin">📍</div>
+            <div class="wf-location-text">
+                <div class="wf-location-name" x-text="current.name"></div>
+                <div class="wf-location-addr" x-text="current.address"></div>
+            </div>
+            <a class="wf-location-cta" :href="directionUrl()" target="_blank" rel="noopener">
+                <span>🧭</span>
+                <span>{{ $isBM ? 'Arah' : 'Directions' }}</span>
+            </a>
+        </div>
+    </section>
 
     {{-- ───── DARK PROMPT BAR ─────────────────────────────────────── --}}
     <div class="wf-prompt" x-show="!checkin">
@@ -848,6 +961,201 @@
         opacity: 0.8;
         margin-top: 3px;
     }
+
+    /* ──────────────────── Utama overview sections ────────────────────
+       All five sections share a tight horizontal margin matching the
+       phone-frame inner padding, and a 12-14px vertical rhythm between
+       them so the page reads as a scannable summary above the calendar.
+       Each section auto-hides via x-show on current.* when its data is
+       empty — new tenants with minimal data still see a clean page.
+    ──────────────────────────────────────────────────────────────── */
+
+    /* 1) Quick-stats — 4 even tiles, never wraps even on narrow phones */
+    .wf-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin: 16px 14px 4px;
+    }
+    .wf-stat {
+        background: var(--bg-elev);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 6px 10px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    .wf-stat-icon { font-size: 18px; margin-bottom: 4px; }
+    .wf-stat-num  {
+        font-family: var(--font-mono);
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+    }
+    .wf-stat-lbl  {
+        font-size: 10.5px;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 2px;
+    }
+
+    /* 2) About — short body copy in a soft tinted card */
+    .wf-about {
+        margin: 14px 14px 0;
+        background: var(--bg-elev);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px 16px;
+    }
+    .wf-about .wf-section-eyebrow { margin-bottom: 8px; }
+    .wf-about-body {
+        margin: 0;
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: var(--ink-2);
+        white-space: pre-wrap;
+    }
+
+    /* 3) Amenities — emoji-led pill chips on a horizontal scroll rail */
+    .wf-amenities { margin: 14px 0 0; }
+    .wf-amenities .wf-section-eyebrow { margin: 0 14px 8px; }
+    .wf-amenities-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 4px 14px 6px;
+        scrollbar-width: none;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+    }
+    .wf-amenities-row::-webkit-scrollbar { display: none; }
+    .wf-amenity-chip {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 13px 8px 11px;
+        background: var(--bg-elev);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        scroll-snap-align: start;
+        font-size: 12.5px;
+        color: var(--ink-2);
+        white-space: nowrap;
+    }
+    .wf-amenity-icon { font-size: 15px; line-height: 1; }
+    .wf-amenity-lbl  { font-weight: 500; }
+
+    /* 4) Photo strip — horizontal tile rail; 4:5 portrait crops feel
+       hotel-magazine-ish and let one more tile peek in vs square. */
+    .wf-photostrip { margin: 16px 0 0; }
+    .wf-section-eyebrow-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin: 0 14px 8px;
+    }
+    .wf-photostrip-all {
+        background: transparent;
+        border: 0;
+        color: var(--primary);
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        padding: 0;
+    }
+    .wf-photostrip-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 4px 14px 8px;
+        scrollbar-width: none;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+    .wf-photostrip-row::-webkit-scrollbar { display: none; }
+    .wf-photostrip-tile {
+        flex: 0 0 132px;
+        aspect-ratio: 4 / 5;
+        border: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        padding: 0;
+        cursor: pointer;
+        background: var(--bg-elev);
+        scroll-snap-align: start;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(15,25,40,0.06);
+    }
+    .wf-photostrip-tile img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.25s ease;
+    }
+    .wf-photostrip-tile:active img { transform: scale(1.03); }
+
+    /* 5) Location — pin + address + Directions CTA */
+    .wf-location { margin: 16px 14px 4px; }
+    .wf-location .wf-section-eyebrow { margin-bottom: 8px; }
+    .wf-location-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-elev);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px;
+    }
+    .wf-location-pin {
+        font-size: 22px;
+        flex-shrink: 0;
+        width: 40px; height: 40px;
+        background: color-mix(in srgb, var(--primary) 9%, transparent);
+        border-radius: 10px;
+        display: grid; place-items: center;
+    }
+    .wf-location-text { flex: 1; min-width: 0; }
+    .wf-location-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wf-location-addr {
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--ink-3);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .wf-location-cta {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 8px 12px;
+        background: var(--primary);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--primary) 55%, transparent);
+        transition: transform 0.15s ease;
+    }
+    .wf-location-cta:active { transform: scale(0.96); }
 
     /* ── Dark prompt strip ────────────────────────────────────── */
     .wf-prompt {

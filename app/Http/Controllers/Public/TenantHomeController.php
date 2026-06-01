@@ -35,9 +35,11 @@ class TenantHomeController extends Controller
                 // pricingRules() relation needed on each room for PricingEngine.
                 'rooms:id,property_id,base_price,max_adults,max_children,beds',
                 'rooms.pricingRules',
-                // Cover photo for the hero banner. Minimal columns so we can
-                // pick the is_hero one (else fall back to first by sort_order).
+                // Cover photo for the hero banner + photo strip on Utama.
                 'photos:id,property_id,path,disk,is_hero,sort_order',
+                // Amenities for the Utama "Top amenities" chip row.
+                // Eager-loaded with their icon + locale labels.
+                'amenities:id,key,label_bm,label_en,icon,category,sort_order',
             ])
             ->orderBy('name')
             ->get();
