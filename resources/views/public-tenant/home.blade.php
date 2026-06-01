@@ -67,11 +67,37 @@
             // the "from RM X" headline. v1.5 will let the form choose the
             // exact room when the property has many.
             $defaultRoom = $p->rooms->sortBy('base_price')->first();
+            // Full address for the "Direction" bottom-nav button (Google
+            // Maps deep-link). Use whatever fields are populated, joined by
+            // commas; the property name is prepended so the map result is
+            // accurate when only the city/state is set.
+            $addressParts = array_filter([
+                $p->name,
+                $p->address_line1,
+                $p->address_line2,
+                $p->postcode ? trim(($p->postcode ?? '').' '.($p->city ?? '')) : $p->city,
+                $p->state,
+                $p->country ?: 'Malaysia',
+            ]);
+            $addressFull = implode(', ', $addressParts);
+
+            // All photo URLs (cover first if marked is_hero, then by
+            // sort_order). Fed into the gallery lightbox.
+            $sortedPhotos = $p->photos
+                ->sortBy(fn ($ph) => ($ph->is_hero ? 0 : 1).str_pad((string) ($ph->sort_order ?? 0), 6, '0', STR_PAD_LEFT))
+                ->values();
+            $galleryPhotos = $sortedPhotos
+                ->map(fn ($ph) => $ph->url())
+                ->filter()
+                ->values()
+                ->all();
+
             return [
                 'id'        => $p->id,
                 'name'      => $p->name,
                 'city'      => $p->city,
                 'state'     => $p->state,
+                'address'   => $addressFull,
                 'rate'      => (float) $p->starting_rate,
                 'sleeps'    => (int) $p->sleeps_total,
                 'default_guests' => (int) ($p->default_guests_resolved ?? max(1, (int) floor(($p->sleeps_total ?? 2) / 2))),
@@ -79,6 +105,7 @@
                 'beds'      => (int) $p->beds_total,
                 'cover'     => $cover['g'],
                 'photo_url' => $p->cover_photo_url,
+                'photos'    => $galleryPhotos,
                 'kind'      => $p->cover_kind,
                 'tone'      => $cover['tone'],
                 'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
@@ -422,28 +449,113 @@
     </div>
 
     {{-- ───── BOTTOM NAV ──────────────────────────────────────────── --}}
-    <nav class="wf-botnav">
-        <button type="button" class="wf-botnav-item is-active" aria-label="Home">
+    {{-- 5-item dock with raised middle "TEMPAH" pillar.
+         Order: Utama · Homestay · TEMPAH (raised) · Direction · WhatsApp
+         The middle item is rendered with .wf-botnav-pillar — a floating
+         circle that sits ABOVE the bar. The bar has an SVG cut-out behind
+         it so the circle's bottom half visually lifts out of the dock. --}}
+    <nav class="wf-botnav" :class="{ 'wf-botnav-has-gallery': current.photos && current.photos.length }">
+        {{-- Utama / Home — scroll to top --}}
+        <button type="button"
+                class="wf-botnav-item"
+                :class="{ 'is-active': navTab === 'home' }"
+                @click="goHome"
+                aria-label="{{ $isBM ? 'Utama' : 'Home' }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-6h6v6"/></svg>
             <span>{{ $isBM ? 'Utama' : 'Home' }}</span>
         </button>
-        <button type="button" class="wf-botnav-item" @click="scrollToCalendar" aria-label="Calendar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>{{ $isBM ? 'Kalendar' : 'Calendar' }}</span>
+
+        {{-- Gallery — open photo lightbox (hidden when property has 0 photos) --}}
+        <button type="button"
+                class="wf-botnav-item"
+                :class="{ 'is-active': navTab === 'gallery' }"
+                :disabled="!current.photos || current.photos.length === 0"
+                @click="openGallery()"
+                aria-label="{{ $isBM ? 'Galeri' : 'Gallery' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+            <span>{{ $isBM ? 'Galeri' : 'Gallery' }}</span>
         </button>
-        @if($tenant->business_phone)
-            <a href="tel:{{ $tenant->business_phone }}" class="wf-botnav-item" aria-label="Call">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                <span>{{ $isBM ? 'Telefon' : 'Call' }}</span>
-            </a>
-        @endif
+
+        {{-- TEMPAH — raised middle pillar --}}
+        <button type="button"
+                class="wf-botnav-item wf-botnav-pillar"
+                :class="{ 'is-active': navTab === 'book' }"
+                @click="goBook"
+                aria-label="{{ $isBM ? 'Tempah' : 'Book' }}">
+            <span class="wf-botnav-pillar-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span class="wf-botnav-pillar-label">{{ $isBM ? 'TEMPAH' : 'BOOK' }}</span>
+        </button>
+
+        {{-- Direction — opens Google Maps to the property address --}}
+        <a :href="directionUrl()"
+           target="_blank"
+           rel="noopener"
+           class="wf-botnav-item"
+           :class="{ 'is-active': navTab === 'direction' }"
+           @click="navTab = 'direction'"
+           aria-label="{{ $isBM ? 'Arah' : 'Direction' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>{{ $isBM ? 'Arah' : 'Direction' }}</span>
+        </a>
+
+        {{-- WhatsApp --}}
         @if($contactPhone)
-            <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener" class="wf-botnav-item" aria-label="WhatsApp">
+            <a href="https://wa.me/{{ $contactPhone }}"
+               target="_blank"
+               rel="noopener"
+               class="wf-botnav-item"
+               :class="{ 'is-active': navTab === 'wa' }"
+               @click="navTab = 'wa'"
+               aria-label="WhatsApp">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
                 <span>WhatsApp</span>
             </a>
+        @else
+            {{-- No WA configured — keep grid columns balanced with a placeholder --}}
+            <span class="wf-botnav-item" style="opacity:0.4; pointer-events:none;" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                <span>—</span>
+            </span>
         @endif
     </nav>
+
+    {{-- ───── GALLERY LIGHTBOX ─────────────────────────────────── --}}
+    <div class="wf-gallery"
+         x-show="galleryOpen"
+         x-cloak
+         x-transition.opacity
+         @click.self="closeGallery()"
+         @keydown.escape.window="closeGallery()"
+         @keydown.arrow-left.window="galleryOpen && galleryPrev()"
+         @keydown.arrow-right.window="galleryOpen && galleryNext()">
+        <button type="button" class="wf-gallery-close" @click="closeGallery()" aria-label="Close">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="wf-gallery-stage">
+            <button type="button"
+                    class="wf-gallery-arrow wf-gallery-arrow-prev"
+                    @click.stop="galleryPrev()"
+                    x-show="current.photos && current.photos.length > 1"
+                    aria-label="Previous">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <img :src="current.photos[galleryIndex]"
+                 :alt="`${current.name} photo ${galleryIndex+1}`"
+                 class="wf-gallery-img">
+            <button type="button"
+                    class="wf-gallery-arrow wf-gallery-arrow-next"
+                    @click.stop="galleryNext()"
+                    x-show="current.photos && current.photos.length > 1"
+                    aria-label="Next">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+        <div class="wf-gallery-counter" x-show="current.photos && current.photos.length > 1">
+            <span x-text="galleryIndex + 1"></span> / <span x-text="current.photos.length"></span>
+        </div>
+    </div>
 
 </main>
 
@@ -1059,22 +1171,32 @@
         letter-spacing: 0.01em;
     }
 
-    /* ── Bottom nav ────────────────────────────────────────────── */
+    /* ── Bottom nav (5-item dock with raised middle TEMPAH pillar) ──
+       5-column grid; the middle column hosts a floating circle that
+       sits visually ABOVE the dock surface. A small downward shadow
+       on the bar combined with the larger upward shadow on the circle
+       gives the "lifted-out" effect from the template. */
     .wf-botnav {
         position: fixed;
         bottom: 0; left: 0; right: 0;
         max-width: 440px;
         margin: 0 auto;
-        height: calc(64px + env(safe-area-inset-bottom));
+        /* Taller than the previous 64px to give the pillar's bottom
+           half somewhere to anchor inside the dock. */
+        height: calc(72px + env(safe-area-inset-bottom));
         padding-bottom: env(safe-area-inset-bottom);
-        background: rgba(255,255,255,0.92);
+        background: rgba(255,255,255,0.96);
         backdrop-filter: saturate(180%) blur(20px);
         -webkit-backdrop-filter: saturate(180%) blur(20px);
         border-top: 1px solid var(--line);
         z-index: 30;
         display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: 1fr;
+        grid-template-columns: repeat(5, 1fr);
+        /* Allow the pillar's circle to overflow upward without clipping. */
+        overflow: visible;
+        /* Soft "lifted off the floor" shadow that the template's bar
+           gives off so users notice the dock as a distinct surface. */
+        box-shadow: 0 -8px 24px -12px rgba(40, 30, 10, 0.10);
     }
     @media (min-width: 768px) {
         .wf-botnav {
@@ -1086,15 +1208,16 @@
             border-bottom-right-radius: 31px;
         }
     }
+
     .wf-botnav-item {
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        gap: 3px;
+        gap: 4px;
         background: transparent; border: 0;
-        padding: 8px 4px 4px;
+        padding: 8px 4px 6px;
         color: var(--ink-3);
         font-family: inherit;
-        font-size: 10.5px; font-weight: 600;
+        font-size: 11px; font-weight: 600;
         cursor: pointer;
         position: relative;
         letter-spacing: 0.005em;
@@ -1106,14 +1229,139 @@
         stroke-width: 2;
     }
     .wf-botnav-item:active { transform: scale(0.94); }
+    .wf-botnav-item:disabled { opacity: 0.4; cursor: not-allowed; }
+    .wf-botnav-item:disabled:active { transform: none; }
+
+    /* Active state — label flips to primary + dot beneath the label
+       (matches the template's tiny dot under "Utama"). No top bar
+       indicator any more — the dot reads cleaner under five items. */
     .wf-botnav-item.is-active { color: var(--primary-deep); }
-    .wf-botnav-item.is-active::before {
+    .wf-botnav-item.is-active::after {
         content: "";
         position: absolute;
-        top: 0; left: 50%; transform: translateX(-50%);
-        width: 28px; height: 3px;
+        bottom: 2px; left: 50%; transform: translateX(-50%);
+        width: 4px; height: 4px;
         background: var(--primary);
-        border-radius: 0 0 999px 999px;
+        border-radius: 999px;
+    }
+
+    /* ── Raised middle pillar (TEMPAH) ─────────────────────────── */
+    .wf-botnav-pillar {
+        /* Pull the entire column up so the circle floats above the
+           dock. The label tucks neatly back inside the dock. */
+        position: relative;
+        padding-top: 0;
+        padding-bottom: 6px;
+        gap: 2px;
+    }
+    .wf-botnav-pillar-circle {
+        /* The lifted disc. Solid primary fill, white icon. */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 52px; height: 52px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-deep) 100%);
+        color: #fff;
+        margin-top: -22px;   /* the lift */
+        box-shadow:
+            0 8px 18px -6px color-mix(in srgb, var(--primary-deep) 60%, transparent),
+            0 0 0 4px var(--bg-elev);   /* white halo cut-out into the dock */
+        transition: transform .12s ease;
+    }
+    .wf-botnav-pillar-circle svg {
+        width: 24px; height: 24px;
+        color: #fff;
+    }
+    .wf-botnav-pillar:active .wf-botnav-pillar-circle { transform: scale(0.93); }
+    .wf-botnav-pillar-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+    }
+    .wf-botnav-pillar.is-active .wf-botnav-pillar-label { color: var(--primary-deep); }
+    /* Don't show the under-label dot on the pillar — it'd sit
+       awkwardly below the uppercase wordmark. */
+    .wf-botnav-pillar.is-active::after { display: none; }
+
+    /* Extra bottom padding on the app shell so content isn't hidden
+       behind the (slightly taller) new dock or the floating circle. */
+    .wf-app { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+    /* ── Gallery lightbox ──────────────────────────────────────── */
+    .wf-gallery {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgba(20, 16, 14, 0.94);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 56px 16px 32px;
+    }
+    .wf-gallery-close {
+        position: absolute;
+        top: 14px; right: 14px;
+        width: 40px; height: 40px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        border: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background .12s;
+    }
+    .wf-gallery-close:hover { background: rgba(255,255,255,0.22); }
+    .wf-gallery-stage {
+        position: relative;
+        max-width: 100%;
+        max-height: 75dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .wf-gallery-img {
+        max-width: 100%;
+        max-height: 75dvh;
+        object-fit: contain;
+        border-radius: 14px;
+        box-shadow: 0 20px 60px -10px rgba(0,0,0,0.5);
+    }
+    .wf-gallery-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px; height: 44px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.14);
+        color: #fff;
+        border: 0;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background .12s;
+    }
+    .wf-gallery-arrow:hover { background: rgba(255,255,255,0.26); }
+    .wf-gallery-arrow-prev { left: 8px; }
+    .wf-gallery-arrow-next { right: 8px; }
+    @media (min-width: 768px) {
+        .wf-gallery-arrow-prev { left: -56px; }
+        .wf-gallery-arrow-next { right: -56px; }
+    }
+    .wf-gallery-counter {
+        margin-top: 14px;
+        color: rgba(255,255,255,0.7);
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        letter-spacing: 0.06em;
     }
 
     /* ── Empty state ──────────────────────────────────────────── */
@@ -1323,6 +1571,53 @@
             depositPct: opts.depositPct || 20,
             openBookForm: false,
             bookSubmitting: false,
+
+            /* ── Bottom-nav state ──────────────────────────────────
+               navTab is the currently-highlighted dock item. Set
+               by the click handlers AND by goBook so the active
+               "dot" indicator follows the user's last action.
+               galleryOpen/galleryIndex drive the lightbox modal. */
+            navTab: 'home',
+            galleryOpen: false,
+            galleryIndex: 0,
+
+            goHome() {
+                this.navTab = 'home';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+            goBook() {
+                this.navTab = 'book';
+                this.scrollToCalendar();
+            },
+            openGallery() {
+                if (!this.current?.photos || this.current.photos.length === 0) return;
+                this.navTab = 'gallery';
+                this.galleryIndex = 0;
+                this.galleryOpen = true;
+                /* Prevent background scroll while lightbox is open. */
+                document.body.style.overflow = 'hidden';
+            },
+            closeGallery() {
+                this.galleryOpen = false;
+                document.body.style.overflow = '';
+                /* Don't keep gallery highlighted after close — fall back
+                   to whichever section the user was viewing. */
+                this.navTab = 'home';
+            },
+            galleryPrev() {
+                const n = this.current?.photos?.length || 0;
+                if (n === 0) return;
+                this.galleryIndex = (this.galleryIndex - 1 + n) % n;
+            },
+            galleryNext() {
+                const n = this.current?.photos?.length || 0;
+                if (n === 0) return;
+                this.galleryIndex = (this.galleryIndex + 1) % n;
+            },
+            directionUrl() {
+                const q = this.current?.address || `${this.current?.name || this.tenantName}, ${this.current?.city || ''}`;
+                return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+            },
 
             get current() { return this.properties[this.selectedIdx] || this.properties[0]; },
             get currentBookedSet() { return new Set(this.current?.booked || []); },
