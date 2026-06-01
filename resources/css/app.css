@@ -172,10 +172,125 @@
   .display-2 { font-size: 24px; }
   .display-3 { font-size: 18px; }
   .btn { font-size: 12.5px; }
-  .input { font-size: 14px; }   /* 14px+ prevents iOS Safari zoom-on-focus */
+  .input { font-size: 16px; }   /* iOS auto-zooms on tap < 16px; bumped from 14 */
+
+  /* Inline `grid-template-columns: repeat(N, 1fr)` styles live on dozens
+     of dashboard cards and don't collapse for mobile (inline beats media
+     queries). Blanket-override every such grid to single-column on
+     phones — far better than 4-tile rows squeezed into 320px. */
+  [style*="grid-template-columns: repeat(2,"],
+  [style*="grid-template-columns: repeat(3,"],
+  [style*="grid-template-columns: repeat(4,"],
+  [style*="grid-template-columns:repeat(2,"],
+  [style*="grid-template-columns:repeat(3,"],
+  [style*="grid-template-columns:repeat(4,"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* auto-fit grids: relax the minmax floor so a 260px tile doesn't
+     overflow on a 360px screen. Use !important sparingly here. */
+  [style*="minmax(260px"],
+  [style*="minmax(280px"],
+  [style*="minmax(290px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Bottom-nav clearance — `.shell-main-pad` already gets padding here.
+     Push it further so the fixed mobile bottom-nav doesn't cover content. */
+  .shell-main-pad { padding-bottom: 96px !important; }
+
+  /* Tighten common surfaces */
+  .card, .hauz-card { border-radius: var(--r-md); }
+  .display-1 { font-size: 32px; }
+  .display-2 { font-size: 24px; }
+  .display-3 { font-size: 18px; }
+  .btn { font-size: 12.5px; }
+
+  /* Topbar polish — title should truncate, not wrap onto a second row */
+  .shell-topbar-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .shell-topbar-breadcrumbs { display: none !important; }
 
   /* Public/auth header tightening */
   .public-shell-main { padding: 20px 16px !important; }
+}
+
+/* -----------------------------------------------------------------------------
+   Fixed bottom-nav for authenticated dashboard on mobile.
+   Hidden on desktop entirely. Mirrors the public booking page's nav
+   pattern (Utama / Kalendar / Tempahan / Menu) so tenants get one-tap
+   access to the most-used destinations without opening the drawer.
+----------------------------------------------------------------------------- */
+.shell-botnav { display: none; }
+@media (max-width: 768px) {
+  .shell-botnav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg-elev) 96%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  }
+  .shell-botnav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink-3);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: color .12s, background .12s;
+    /* kill iOS double-tap-zoom + 300ms delay */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .shell-botnav a:active { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .shell-botnav a .botnav-ico {
+    font-size: 19px;
+    line-height: 1;
+    margin-bottom: 1px;
+    transition: transform .12s;
+  }
+  .shell-botnav a.is-active {
+    color: var(--primary);
+  }
+  .shell-botnav a.is-active .botnav-ico { transform: scale(1.08); }
+
+  /* Menu button (4th slot) is a real button, not a link — opens the drawer */
+  .shell-botnav button {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 6px 4px;
+    color: var(--ink-3);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 10px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    font-family: inherit;
+  }
+  .shell-botnav button:active { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .shell-botnav button .botnav-ico { font-size: 19px; line-height: 1; margin-bottom: 1px; }
 }
 
 /* Utility: opt-in horizontal scroll for wide tables/grids on mobile */

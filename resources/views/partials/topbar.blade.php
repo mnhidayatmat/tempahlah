@@ -23,7 +23,7 @@
 
     <div style="flex:1; min-width:0;">
         @if ($crumbs)
-            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color: var(--ink-3); margin-bottom:2px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;">
+            <div class="shell-topbar-breadcrumbs" style="display:flex; align-items:center; gap:6px; font-size:11px; color: var(--ink-3); margin-bottom:2px; text-transform:uppercase; letter-spacing:.08em; font-weight:700;">
                 @foreach ((array) $crumbs as $i => $c)
                     @if ($i > 0)<span style="opacity:.4;">/</span>@endif
                     <span>{{ $c }}</span>

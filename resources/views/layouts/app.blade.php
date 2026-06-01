@@ -49,6 +49,45 @@
                     @yield('content')
                 </main>
             </div>
+
+            {{-- Mobile-only bottom nav. Hidden on desktop via CSS in
+                 app.css → .shell-botnav. Mirrors the public booking
+                 page's nav pattern so tenants get one-tap access to
+                 Utama / Kalendar / Tempahan without opening the drawer. --}}
+            @php
+                $path = '/'.ltrim(request()->path(), '/');
+                $botActive = [
+                    'home'     => $path === '/dashboard' || $path === '/dashboard/',
+                    'cal'      => str_starts_with($path, '/dashboard/calendar'),
+                    'bookings' => str_starts_with($path, '/dashboard/bookings'),
+                ];
+            @endphp
+            <nav class="shell-botnav" aria-label="{{ __('Primary navigation') }}">
+                <a href="{{ route('tenant.dashboard') }}"
+                   class="{{ $botActive['home'] ? 'is-active' : '' }}"
+                   aria-current="{{ $botActive['home'] ? 'page' : 'false' }}">
+                    <span class="botnav-ico">🏠</span>
+                    <span>{{ __('Utama') }}</span>
+                </a>
+                <a href="{{ route('tenant.calendar') }}"
+                   class="{{ $botActive['cal'] ? 'is-active' : '' }}"
+                   aria-current="{{ $botActive['cal'] ? 'page' : 'false' }}">
+                    <span class="botnav-ico">📅</span>
+                    <span>{{ __('Kalendar') }}</span>
+                </a>
+                <a href="{{ route('tenant.bookings.index') }}"
+                   class="{{ $botActive['bookings'] ? 'is-active' : '' }}"
+                   aria-current="{{ $botActive['bookings'] ? 'page' : 'false' }}">
+                    <span class="botnav-ico">📋</span>
+                    <span>{{ __('Tempahan') }}</span>
+                </a>
+                <button type="button"
+                        @click="sidebarOpen = true"
+                        aria-label="{{ __('Open menu') }}">
+                    <span class="botnav-ico">☰</span>
+                    <span>{{ __('Menu') }}</span>
+                </button>
+            </nav>
         </div>
     @else
         {{-- Public / auth pages keep simple chrome --}}
