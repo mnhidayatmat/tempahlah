@@ -178,6 +178,8 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
         Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export.pdf',   [ReportController::class, 'exportPdf'])->name('reports.export-pdf');
+        Route::post('/onboarding/complete', [\App\Http\Controllers\Tenant\OnboardingController::class, 'complete'])->name('onboarding.complete');
+
         Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
 

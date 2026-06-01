@@ -32,6 +32,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at', 'phone_verified_at', 'locale',
         'mykad_encrypted', 'avatar_path', 'fcm_tokens',
         'user_type', 'last_login_at', 'last_login_ip',
+        'tour_completed_at',
     ];
 
     protected $hidden = [
@@ -44,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'tour_completed_at' => 'datetime',
             'fcm_tokens' => 'array',
             'mykad_encrypted' => 'encrypted',
             'password' => 'hashed',

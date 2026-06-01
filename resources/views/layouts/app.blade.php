@@ -102,6 +102,13 @@
                     <span>{{ __('Menu') }}</span>
                 </button>
             </nav>
+
+            {{-- First-time welcome walkthrough. Renders once per user;
+                 hidden forever after dismiss/finish (writes
+                 users.tour_completed_at). --}}
+            @if (auth()->user() && auth()->user()->tour_completed_at === null)
+                @include('partials.onboarding-tour')
+            @endif
         </div>
     @else
         {{-- Public / auth pages keep simple chrome --}}
