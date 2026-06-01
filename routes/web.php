@@ -139,6 +139,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/bookings/{id}/send-reminder', [BookingController::class, 'sendReminder'])->name('bookings.send-reminder');
         Route::post('/bookings/{id}/whatsapp',      [BookingController::class, 'sendWhatsapp'])->name('bookings.whatsapp');
         Route::post('/bookings/{id}/pay-link',      [BookingController::class, 'payLink'])->name('bookings.pay-link');
+        Route::post('/bookings/{id}/cancel',        [BookingController::class, 'cancel'])->name('bookings.cancel');
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');

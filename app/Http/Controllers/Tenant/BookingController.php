@@ -8,8 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
+use App\Models\CleaningTask;
+use App\Models\LaundryTask;
 use App\Models\Payment;
 use App\Models\Room;
+use Illuminate\Support\Facades\DB;
 use App\Services\Payments\Toyyibpay\ToyyibpayException;
 use App\Services\WhatsApp\WhatsappMessenger;
 use Carbon\Carbon;
@@ -250,5 +253,59 @@ class BookingController extends Controller
         }
 
         return back()->with('status', __('WhatsApp :kind queued.', ['kind' => $kind]));
+    }
+
+    /**
+     * Cancel a booking (soft — flips status, doesn't delete the row).
+     * Frees the room dates back to availability and cancels any
+     * scheduled cleaning/laundry tasks linked to the booking.
+     *
+     * Hard rules:
+     *   - Already-cancelled / no-show bookings: no-op (flash a note).
+     *   - Checked-out bookings: refused. Once the guest has departed
+     *     the booking is settled history; deleting it would orphan
+     *     payments, invoices and commission records.
+     *   - Refunds NOT auto-issued. Host arranges any refund outside
+     *     the platform; the booking record stays for the audit trail.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        if (in_array($booking->status, [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW], true)) {
+            return back()->with('status', __('Booking is already cancelled.'));
+        }
+        if ($booking->status === Booking::STATUS_CHECKED_OUT) {
+            return back()->with('error', __('Cannot cancel — guest has already checked out. Past bookings are kept for the audit trail.'));
+        }
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        DB::transaction(function () use ($booking, $validated) {
+            $booking->update([
+                'status'              => Booking::STATUS_CANCELLED,
+                'cancelled_at'        => now(),
+                'cancellation_reason' => $validated['reason'] ?? null,
+            ]);
+
+            // Cancel any scheduled cleaning + laundry tasks for this
+            // booking — they're no longer needed. Tasks already in
+            // progress / completed are left alone (work was done).
+            CleaningTask::where('booking_id', $booking->id)
+                ->whereIn('status', ['pending', 'scheduled'])
+                ->update(['status' => 'cancelled']);
+
+            LaundryTask::where('booking_id', $booking->id)
+                ->whereIn('status', ['pending', 'scheduled'])
+                ->update(['status' => 'cancelled']);
+        });
+
+        return redirect()
+            ->route('tenant.bookings.show', $booking->id)
+            ->with('status', __('Booking :ref cancelled. Dates are now available again.', [
+                'ref' => $booking->reference,
+            ]));
     }
 }

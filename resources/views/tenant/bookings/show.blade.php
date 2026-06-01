@@ -55,6 +55,33 @@
                             <button type="submit" class="btn btn-primary btn-sm">{{ __('Mark paid') }}</button>
                         </form>
                     @endif
+
+                    @php
+                        $canCancel = ! in_array($booking->status, [
+                            \App\Models\Booking::STATUS_CANCELLED,
+                            \App\Models\Booking::STATUS_NO_SHOW,
+                            \App\Models\Booking::STATUS_CHECKED_OUT,
+                        ], true);
+                    @endphp
+                    @if ($canCancel)
+                        <form method="POST"
+                              action="{{ route('tenant.bookings.cancel', $booking->id) }}"
+                              style="display:inline;"
+                              onsubmit="
+                                  var r = prompt('{{ addslashes(__('Cancel booking :ref? Optional: enter a reason (visible only to you).', ['ref' => $booking->reference])) }}', '');
+                                  if (r === null) return false;
+                                  this.querySelector('input[name=reason]').value = r;
+                              ">
+                            @csrf
+                            <input type="hidden" name="reason" value="">
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, transparent);"
+                                    title="{{ __('Cancel this booking and free the dates') }}">
+                                {{ __('Cancel booking') }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>
