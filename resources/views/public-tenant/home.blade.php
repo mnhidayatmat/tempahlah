@@ -538,7 +538,9 @@
         <button type="button" class="wf-gallery-close" @click="closeGallery()" aria-label="Close">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <div class="wf-gallery-stage">
+        <div class="wf-gallery-stage"
+             @touchstart="galleryTouchStart($event)"
+             @touchend="galleryTouchEnd($event)">
             <button type="button"
                     class="wf-gallery-arrow wf-gallery-arrow-prev"
                     @click.stop="galleryPrev()"
@@ -1355,18 +1357,24 @@
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
-        width: 44px; height: 44px;
+        width: 48px; height: 48px;
         border-radius: 999px;
-        background: rgba(255,255,255,0.14);
+        /* Bumped from 0.14 → 0.28 so the arrows actually catch the eye
+           over a dark photo. Still subtle enough not to dominate. */
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
         color: #fff;
-        border: 0;
+        border: 1px solid rgba(255,255,255,0.18);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: background .12s;
+        transition: background .12s, transform .12s;
+        z-index: 2;
     }
-    .wf-gallery-arrow:hover { background: rgba(255,255,255,0.26); }
+    .wf-gallery-arrow:hover { background: rgba(0,0,0,0.65); }
+    .wf-gallery-arrow:active { transform: translateY(-50%) scale(0.94); }
     .wf-gallery-arrow-prev { left: 8px; }
     .wf-gallery-arrow-next { right: 8px; }
     @media (min-width: 768px) {
@@ -1635,6 +1643,29 @@
                 const n = this.current?.photos?.length || 0;
                 if (n === 0) return;
                 this.galleryIndex = (this.galleryIndex + 1) % n;
+            },
+            /* Touch-swipe between photos. Native mobile gesture — feels
+               broken without it ("cannot scroll the images"). Stores the
+               starting touch X, then on touchend compares against ending
+               X and fires next/prev if horizontal travel exceeds the
+               threshold AND wasn't predominantly vertical (avoids
+               hijacking scroll). */
+            _touchStartX: 0,
+            _touchStartY: 0,
+            galleryTouchStart(e) {
+                if (!e.changedTouches || !e.changedTouches[0]) return;
+                this._touchStartX = e.changedTouches[0].clientX;
+                this._touchStartY = e.changedTouches[0].clientY;
+            },
+            galleryTouchEnd(e) {
+                if (!e.changedTouches || !e.changedTouches[0]) return;
+                const dx = e.changedTouches[0].clientX - this._touchStartX;
+                const dy = e.changedTouches[0].clientY - this._touchStartY;
+                const threshold = 40; /* px — short enough to feel responsive */
+                if (Math.abs(dx) < threshold) return;          /* not a swipe */
+                if (Math.abs(dy) > Math.abs(dx)) return;        /* mostly vertical, let scroll happen */
+                if (dx < 0) this.galleryNext();                 /* swipe left → next */
+                else        this.galleryPrev();                  /* swipe right → prev */
             },
             directionUrl() {
                 // Prefer the host-curated pre-pinned URL when they've set one
