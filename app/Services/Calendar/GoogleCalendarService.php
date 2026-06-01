@@ -215,12 +215,93 @@ class GoogleCalendarService
     }
 
     /**
-     * Phase 3: push a booking as an all-day event into the tenant's chosen
-     * calendar. Stub for now — implemented when the BookingConfirmed
-     * listener is wired up.
+     * Push a booking as an ALL-DAY event into the tenant's chosen calendar.
+     *
+     * All-day intentional (not dateTime) — bookings are date-bound stays,
+     * not appointments, and using `date` rather than `dateTime` avoids
+     * timezone drift between server / Google / tenant's browser.
+     *
+     * Returns Google's event object (id, htmlLink, ...) on success, null
+     * if the integration isn't ready. Throws on HTTP errors so the queue
+     * can retry per the job's $tries policy.
      */
-    public function pushBooking(TenantIntegration $integration, Booking $booking): void
+    public function pushBooking(TenantIntegration $integration, Booking $booking): ?array
     {
-        // Intentionally left blank — Phase 3.
+        $config = $integration->config ?? [];
+        $calendarId = $config['calendar_id'] ?? null;
+        if (! $calendarId) {
+            Log::info('GoogleCalendar push: no calendar_id on integration', [
+                'integration_id' => $integration->id,
+            ]);
+            return null;
+        }
+
+        // Auto-refresh access_token if expired.
+        $accessToken = $this->freshAccessToken($integration);
+
+        $event = $this->buildEventPayload($booking);
+
+        $response = Http::withToken($accessToken)
+            ->post(self::CALENDAR_API.'/calendars/'.urlencode($calendarId).'/events', $event)
+            ->throw()
+            ->json();
+
+        return $response;
+    }
+
+    /**
+     * Compose the Google Calendar event payload from a Booking. Kept as a
+     * separate method so Phase 4 (update/cancel) can reuse the same shape.
+     */
+    protected function buildEventPayload(Booking $booking): array
+    {
+        $lead = $booking->bookingGuests?->where('is_lead', true)->first();
+        $guestName = $lead?->full_name ?? $booking->guest?->name ?? __('Guest');
+        $propertyName = $booking->property?->name ?? __('Property');
+
+        // Title: "[Wafa Homestay] Aisha Rahman · #BK-12345"
+        $summary = sprintf('[%s] %s · #%s', $propertyName, $guestName, $booking->reference);
+
+        // Multi-line description with the key booking facts + a back-link.
+        $nights = $booking->check_in->diffInDays($booking->check_out);
+        $descLines = [
+            sprintf('%s — %d %s', $propertyName, $nights, $nights === 1 ? 'night' : 'nights'),
+            'Guest: '.$guestName,
+        ];
+        if ($lead?->phone) $descLines[] = 'Phone: '.$lead->phone;
+        if ($lead?->email) $descLines[] = 'Email: '.$lead->email;
+
+        $descLines[] = 'Guests: '.((int) $booking->adults).' adult'.($booking->adults > 1 ? 's' : '');
+        if (! empty($booking->children)) {
+            $descLines[] = '         '.((int) $booking->children).' child'.($booking->children > 1 ? 'ren' : '');
+        }
+        $descLines[] = 'Total: RM '.number_format((float) $booking->total_amount, 2);
+        $descLines[] = 'Reference: '.$booking->reference;
+        $descLines[] = '';
+        $descLines[] = '—';
+        $descLines[] = 'Auto-synced from Tempahlah.';
+        $descLines[] = config('app.url').'/dashboard/bookings/'.$booking->id;
+
+        return [
+            'summary'     => $summary,
+            'description' => implode("\n", $descLines),
+            // All-day event — start.date INCLUSIVE, end.date EXCLUSIVE
+            // (this is Google's contract for all-day events; matches how
+            // hotel/Airbnb bookings work — check-out day not blocked).
+            'start'       => ['date' => $booking->check_in->toDateString()],
+            'end'         => ['date' => $booking->check_out->toDateString()],
+            // Stamp our IDs so we can later look up "what booking was this
+            // event for" in two-way sync (Phase 6 / v1.5).
+            'extendedProperties' => [
+                'private' => [
+                    'tempahlah_booking_id'  => (string) $booking->id,
+                    'tempahlah_booking_ref' => (string) $booking->reference,
+                    'tempahlah_source'      => 'tempahlah',
+                ],
+            ],
+            // Show the event as "busy" so other apps treating the calendar
+            // as availability (e.g. iCal pulls) correctly see the block.
+            'transparency' => 'opaque',
+        ];
     }
 }

@@ -193,6 +193,10 @@ class ToyyibpayWebhookController extends Controller
                 } catch (\Throwable $e) {
                     report($e);
                 }
+
+                // 3. Sync to tenant's connected Google Calendar (if any).
+                //    No-ops silently when the tenant hasn't connected GCal.
+                \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
             }
         }
 

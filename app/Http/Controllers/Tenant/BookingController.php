@@ -167,9 +167,10 @@ class BookingController extends Controller
         $booking->update($update);
 
         // First time we've recognized this booking as confirmed → fire the
-        // confirmation comms (email + WhatsApp).
+        // confirmation comms (email + WhatsApp) + sync to Google Calendar.
         if ($wasPending) {
             SendBookingConfirmation::dispatch($booking->id);
+            \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
         }
 
         return back()->with('status', __('Booking marked as paid (RM :amount recorded).', [
