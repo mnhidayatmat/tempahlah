@@ -82,7 +82,7 @@
                     <span>{{ __('Tempahan') }}</span>
                 </a>
                 <button type="button"
-                        @click="sidebarOpen = true"
+                        @click.stop="sidebarOpen = true"
                         aria-label="{{ __('Open menu') }}">
                     <span class="botnav-ico">☰</span>
                     <span>{{ __('Menu') }}</span>

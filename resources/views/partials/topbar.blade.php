@@ -11,7 +11,7 @@
     {{-- Hamburger (mobile only) --}}
     <button type="button"
             class="shell-mobile-only"
-            @click="sidebarOpen = true"
+            @click.stop="sidebarOpen = true"
             aria-label="{{ __('Open menu') }}"
             style="width:36px; height:36px; padding:0; border:1px solid var(--line-2); background: var(--bg-elev); border-radius: var(--r-md); cursor:pointer; align-items:center; justify-content:center; color: var(--ink);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
