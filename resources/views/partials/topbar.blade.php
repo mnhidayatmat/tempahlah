@@ -54,6 +54,29 @@
                     background: var(--bg-sunk);">⌘K</kbd>
     </div>
 
+    {{-- Theme toggle (sun ↔ moon). Persists to localStorage on click;
+         the inline <head> init reads it back on next page load so there's
+         no flash of wrong theme. Works on both desktop and mobile. --}}
+    <button type="button"
+            class="theme-toggle"
+            onclick="(function(b){var c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);try{localStorage.setItem('tempahlah-theme',c);}catch(e){};var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',c==='dark'?'#0b1119':'#2596c6');})(this)"
+            aria-label="{{ __('Toggle theme') }}"
+            title="{{ __('Toggle theme') }}"
+            style="width:34px; height:34px; padding:0; border:1px solid var(--line-2); background: var(--bg-elev);
+                   border-radius: var(--r-pill); cursor:pointer; display:inline-flex;
+                   align-items:center; justify-content:center; color: var(--ink-2);
+                   transition: background .12s, color .12s, transform .12s;">
+        {{-- Sun (shown in dark mode → click goes to light) --}}
+        <svg class="theme-toggle-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        {{-- Moon (shown in light mode → click goes to dark) --}}
+        <svg class="theme-toggle-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
     {{-- BM/EN toggle --}}
     <div class="shell-topbar-locale" style="display:inline-flex; border: 1px solid var(--line-2); border-radius: var(--r-pill); padding:2px; background: var(--bg-sunk);">
         <a href="{{ route('locale.switch', 'ms') }}"

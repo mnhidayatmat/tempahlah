@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    {{-- Theme init — runs BEFORE first paint to set html[data-theme]
+         from persisted preference (localStorage) or system pref. No
+         flash-of-light-then-dark on page load. Must stay inline + run
+         synchronously, hence the top-of-head placement and IIFE. --}}
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('tempahlah-theme');
+                var sysDark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (sysDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) { /* localStorage may be blocked in some contexts; default = light */ }
+        })();
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
