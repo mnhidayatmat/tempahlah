@@ -31,6 +31,7 @@ class Property extends Model
         'default_guests',
         'address_line1', 'address_line2', 'city', 'state', 'postcode', 'country',
         'map_url',
+        'booking_fee_amount', 'booking_fee_label',
         'lat', 'lng',
         'check_in_time', 'check_out_time',
         'house_rules', 'cancellation_policy',
@@ -43,6 +44,7 @@ class Property extends Model
         'marketplace_published_at' => 'datetime',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
+        'booking_fee_amount' => 'decimal:2',
         'meta' => 'array',
     ];
 
