@@ -1,4 +1,4 @@
-const CACHE = 'tempahlah-v1';
+const CACHE = 'tempahlah-v2';
 const ASSETS = [
   '/',
   '/manifest.webmanifest',
