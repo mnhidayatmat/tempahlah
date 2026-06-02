@@ -161,6 +161,54 @@ class PublicBookingController extends Controller
     }
 
     /**
+     * Guest-facing booking detail page reached via the signed magic-link in
+     * the confirmation email + WhatsApp. The `signed` route middleware has
+     * already verified the HMAC + expiry — at this point we only need to
+     * resolve the booking and confirm it belongs to THIS subdomain's tenant
+     * (defence-in-depth: a leaked link still can't be opened on a different
+     * tenant's subdomain even though the signature would mathematically check
+     * out, because the URL is host-bound).
+     */
+    public function show(Request $request, string $tenant_slug, string $booking): View
+    {
+        unset($tenant_slug); // resolved by middleware → $request->attributes
+
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('subdomain_tenant');
+
+        $bookingModel = Booking::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->where('tenant_id', $tenant->id)
+            ->where('public_id', $booking)
+            ->with([
+                'property:id,name,city,state,address_line1,address_line2,postcode,check_in_time,check_out_time',
+                'room:id,name',
+                'bookingGuests',
+                'payments' => fn ($q) => $q->orderByDesc('id'),
+                'tenant',
+            ])
+            ->firstOrFail();
+
+        // Outstanding balance + most-recent open pay link (if any) — re-uses
+        // the same Payment.meta.payment_url that book-sent.blade.php reads.
+        // `meta` is array-cast but may be NULL when the row was created
+        // without metadata, so guard with is_array() before key access.
+        $openPayment = $bookingModel->payments
+            ->first(fn ($p) => in_array($p->status, [Payment::STATUS_PENDING, Payment::STATUS_PROCESSING], true)
+                && is_array($p->meta) && ! empty($p->meta['payment_url']));
+
+        return view('public-tenant.booking-detail', [
+            'tenant'      => $tenant,
+            'booking'     => $bookingModel,
+            'leadGuest'   => $bookingModel->bookingGuests->firstWhere('is_lead', true)
+                              ?? $bookingModel->bookingGuests->first(),
+            'balanceDue'  => $bookingModel->balanceDue(),
+            'openPayUrl'  => is_array($openPayment?->meta) ? ($openPayment->meta['payment_url'] ?? null) : null,
+            'contactPhone'=> preg_replace('/\D/', '', $tenant->business_phone ?? ''),
+        ]);
+    }
+
+    /**
      * Build a WhatsApp deeplink with the booking enquiry prefilled. Used
      * as the graceful fallback when Toyyibpay isn't set up yet.
      *

@@ -48,11 +48,15 @@ class WhatsappMessenger
 
     public static function dispatchConfirmation(Booking $booking, ?string $invoiceUrl = null): ?WhatsappMessage
     {
+        // Signed magic-link to the guest portal — the customer taps it from
+        // the WhatsApp message to view their booking again without a password.
+        $portalUrl = $booking->guestPortalUrl();
+
         return self::autoDispatch(
             $booking,
             'auto_confirmation',
             WhatsappMessage::KIND_CONFIRMATION,
-            fn () => MessageTemplates::confirmation($booking, $invoiceUrl),
+            fn () => MessageTemplates::confirmation($booking, $invoiceUrl, $portalUrl),
         );
     }
 

@@ -20,7 +20,7 @@ class MessageTemplates
     /**
      * Booking confirmation, fires after deposit is paid.
      */
-    public static function confirmation(Booking $booking, ?string $invoiceUrl = null): string
+    public static function confirmation(Booking $booking, ?string $invoiceUrl = null, ?string $portalUrl = null): string
     {
         $locale = $booking->tenant?->default_locale ?? app()->getLocale();
         $name = $booking->guest?->name ?? '';
@@ -41,6 +41,9 @@ class MessageTemplates
             if ($invoiceUrl) {
                 $body .= "\n📄 Invois: {$invoiceUrl}\n";
             }
+            if ($portalUrl) {
+                $body .= "\n🔗 Lihat tempahan: {$portalUrl}\n";
+            }
             $body .= "\nKami nantikan kedatangan anda. Sebarang pertanyaan, balas mesej ini.";
             return $body;
         }
@@ -53,6 +56,9 @@ class MessageTemplates
               . "🔖 Reference: {$booking->reference}\n";
         if ($invoiceUrl) {
             $body .= "\n📄 Invoice: {$invoiceUrl}\n";
+        }
+        if ($portalUrl) {
+            $body .= "\n🔗 View booking: {$portalUrl}\n";
         }
         $body .= "\nWe're looking forward to hosting you. Reply here with any questions.";
         return $body;

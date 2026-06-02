@@ -131,4 +131,30 @@ class Booking extends Model
         $paid = (float) ($this->payments()->where('status', 'succeeded')->sum('amount') ?? 0);
         return round((float) $this->total_amount - $paid, 2);
     }
+
+    /**
+     * Signed magic-link URL to the guest-facing booking detail page on the
+     * tenant's own subdomain (e.g. wafahomestay.tempahlah.com/booking/{ulid}).
+     *
+     * Expires 90 days after check-out — long enough to cover refund / complaint
+     * windows without leaving an indefinitely-live link in the guest's inbox.
+     *
+     * Embedded in every BookingConfirmation email + WhatsApp message so the
+     * guest can return to their booking without a password.
+     */
+    public function guestPortalUrl(): string
+    {
+        $slug = $this->tenant?->slug;
+        if (! $slug) {
+            // Fallback to apex — shouldn't happen in practice (every booking
+            // has a tenant), but keeps the link generator safe.
+            return config('app.url');
+        }
+
+        return \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'tenant-public.booking.show',
+            $this->check_out->copy()->addDays(90),
+            ['tenant_slug' => $slug, 'booking' => $this->public_id],
+        );
+    }
 }

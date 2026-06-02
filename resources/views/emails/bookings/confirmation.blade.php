@@ -11,9 +11,11 @@
 - **{{ __('Guests') }}:** {{ $booking->adults }} adults, {{ $booking->children }} children
 - **{{ __('Total') }}:** RM {{ number_format($booking->total_amount, 2) }}
 
-<x-mail::button :url="config('app.url')">
-{{ __('View Booking') }}
+<x-mail::button :url="$booking->guestPortalUrl()">
+{{ __('View booking') }}
 </x-mail::button>
+
+{{ __('This link works without a password and is unique to your booking. Please don\'t share it.') }}
 
 {{ __('See you soon!') }}<br>
 {{ $booking->property->name }}

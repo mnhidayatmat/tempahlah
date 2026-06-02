@@ -50,6 +50,14 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
             ->name('booking.store');
         Route::get('/book/sent/{reference}', [PublicBookingController::class, 'sent'])
             ->name('booking.sent');
+
+        // Guest-facing booking detail page reached via a signed magic-link in
+        // the confirmation email + WhatsApp. No password — `signed` middleware
+        // verifies the HMAC over the URL (expires 90d post-checkout). The
+        // {booking} param is the public_id (ULID); model binding resolves it.
+        Route::get('/booking/{booking:public_id}', [PublicBookingController::class, 'show'])
+            ->middleware('signed')
+            ->name('booking.show');
     });
 
 // -----------------------------------------------------------------------------
