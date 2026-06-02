@@ -143,7 +143,12 @@
                 'bathrooms_total' => (int) (($p->bathrooms ?? 0) + ($p->toilets ?? 0)),
                 'kind'      => $p->cover_kind,
                 'tone'      => $cover['tone'],
-                'tone_label'=> $isBM ? $cover['lbl_ms'] : $cover['lbl_en'],
+                // Was a hardcoded category label ("Tanah Tinggi" / "Beachfront")
+                // derived from `cover_kind`. Customers found it confusing — it
+                // looked like part of the address. Show the property's actual
+                // street/area instead (address_line1), and gracefully hide the
+                // span when it's blank (city/state still render in the next span).
+                'tone_label'=> trim((string) ($p->address_line1 ?? '')),
                 'initial'   => mb_strtoupper(mb_substr($p->name, 0, 1)),
                 'booked'    => $bookedByProperty[$p->id] ?? [],
                 // Default room id used by the booking-form hidden input.
@@ -217,8 +222,12 @@
         <div class="wf-banner-bottom">
             <div class="wf-banner-kicker">
                 <span class="wf-banner-tone" x-text="current.tone"></span>
-                <span x-text="current.tone_label"></span>
-                <span class="wf-banner-dot">·</span>
+                <template x-if="current.tone_label">
+                    <span x-text="current.tone_label"></span>
+                </template>
+                <template x-if="current.tone_label && (current.city || current.state)">
+                    <span class="wf-banner-dot">·</span>
+                </template>
                 <span x-text="(current.city || '') + (current.state ? ', ' + current.state : '')"></span>
             </div>
             <h1 class="wf-banner-name">{{ $tenant->business_name }}</h1>
@@ -580,6 +589,27 @@
         @if($contactPhone)
             {{ $isBM ? 'Mesej kami untuk soalan:' : 'Message us for questions:' }}
             <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener">WhatsApp ↗</a>
+        @endif
+    </div>
+
+    {{-- ───── OWNER AREA (footer) ─────────────────────────────────
+         Discreet link for the tenant owner / staff to jump back to
+         the dashboard. Auth is shared across subdomains via the
+         `.tempahlah.com` session cookie, so we can detect whether
+         the visitor is signed in AND a member of THIS tenant.
+         - Owner of this tenant   → "Open dashboard"
+         - Anyone else / signed out → "Owner area" (apex /login)
+         Sits in the scrolling page (above the fixed bottom nav) so
+         it never competes with the customer CTAs above the fold. --}}
+    <div class="wf-owner-area">
+        @if ($ownerCanAccess)
+            <a href="{{ $apexUrl }}/dashboard" rel="noopener">
+                {{ $isBM ? 'Buka papan pemuka' : 'Open dashboard' }} →
+            </a>
+        @else
+            <a href="{{ $apexUrl }}/login" rel="noopener">
+                {{ $isBM ? 'Ruang pemilik' : 'Owner area' }} →
+            </a>
         @endif
     </div>
 
@@ -1378,11 +1408,42 @@
         font-size: 12px;
         color: var(--ink-3);
         font-weight: 500;
-        padding: 16px 18px 4px;
+        /* Extra bottom padding clears the raised TEMPAH pillar circle
+           that floats above the fixed dock — otherwise the hint text
+           sits underneath the floating disc on mobile. */
+        padding: 16px 18px 40px;
         line-height: 1.5;
+        max-width: 360px;
+        margin: 0 auto;
     }
     .wf-hint strong { color: var(--primary-deep); font-weight: 700; }
     .wf-hint a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+    /* ── Owner area (footer link for tenant owner / staff) ───────
+       Deliberately small + muted — this is host UX, not customer UX.
+       Sits in the scroll area above the fixed bottom nav. Hover lifts
+       the underline only. Respects existing token palette. */
+    .wf-owner-area {
+        text-align: center;
+        padding: 20px 18px 8px;
+        font-family: 'Geist Mono', ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+    .wf-owner-area a {
+        color: var(--ink-3);
+        text-decoration: none;
+        border-bottom: 1px dashed var(--line);
+        padding: 2px 0;
+        transition: color 120ms ease, border-color 120ms ease;
+    }
+    .wf-owner-area a:hover,
+    .wf-owner-area a:focus-visible {
+        color: var(--primary-deep);
+        border-bottom-color: var(--primary);
+        outline: none;
+    }
 
     .wf-bottom {
         margin: 14px 16px 4px;
