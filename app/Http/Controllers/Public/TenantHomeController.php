@@ -125,6 +125,20 @@ class TenantHomeController extends Controller
 
         $contactPhone = preg_replace('/\D/', '', $tenant->business_phone ?? '');
 
+        // Discreet "Open dashboard" footer link for the tenant owner / staff
+        // when they visit their own public page. Session is shared across
+        // subdomains via SESSION_DOMAIN=.tempahlah.com, so Auth::user() is
+        // populated here. Gated on an ACTIVE tenant_users pivot for THIS
+        // tenant — never show a "Dashboard" link to a host of a different
+        // tenant (would drop them into the wrong tenant context).
+        $ownerCanAccess = false;
+        if ($user = $request->user()) {
+            $ownerCanAccess = $user->tenants()
+                ->wherePivot('status', 'active')
+                ->whereKey($tenant->id)
+                ->exists();
+        }
+
         // When the tenant has an enabled Toyyibpay integration, the public
         // page shows the "Reserve & pay deposit" form CTA. Otherwise it
         // falls back to the original wa.me deeplink so the page still
@@ -142,6 +156,8 @@ class TenantHomeController extends Controller
             'contactPhone'        => $contactPhone,
             'bookedByProperty'    => $bookedByProperty,
             'toyyibpayConfigured' => $toyyibpayConfigured,
+            'ownerCanAccess'      => $ownerCanAccess,
+            'apexUrl'             => rtrim((string) config('app.url'), '/'),
         ]);
     }
 }
