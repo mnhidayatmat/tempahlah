@@ -337,9 +337,20 @@
             color: var(--ink);
             box-shadow: var(--sh-sm);
         }
-        .tm-nav-cta .tm-btn-ghost { display: none; }
-        @media (min-width: 768px) { .tm-nav-cta .tm-btn-ghost { display: inline-flex; } }
         .tm-nav-cta .tm-btn { padding: 9px 18px; font-size: 14px; }
+        /* Mobile — keep both Login + Start free visible. Tighten the
+           ghost (Login) so brand + locale + 2 buttons fit on 375px.
+           Below 380px we drop the border and treat Login as a plain
+           text link, and we hide the locale pills to buy more width. */
+        @media (max-width: 767px) {
+            .tm-nav-cta { gap: 6px; }
+            .tm-nav-inner { gap: 10px; padding: 12px 16px; }
+            .tm-nav-cta .tm-btn { padding: 8px 12px; font-size: 13px; }
+            .tm-nav-cta .tm-btn-ghost { background: transparent; border-color: transparent; padding: 8px 6px; }
+        }
+        @media (max-width: 380px) {
+            .tm-locale { display: none; }
+        }
 
         /* ========== HERO ========== */
         .tm-hero {
