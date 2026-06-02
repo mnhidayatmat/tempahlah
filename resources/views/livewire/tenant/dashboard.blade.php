@@ -114,8 +114,18 @@
     <div class="dash-main">
 
         {{-- INCOME CHART --}}
+        <style>
+            .dash-chart-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:22px; }
+            .dash-chart-range { display:inline-flex; gap:2px; padding:3px; background: var(--bg-elev); border-radius:999px; border:.5px solid var(--line); flex-shrink:0; }
+            .dash-chart-range button { border:0; border-radius:999px; padding:7px 14px; font-size:12.5px; line-height:1.2; white-space:nowrap; cursor:pointer; }
+            @media (max-width: 640px) {
+                .dash-chart-head { flex-direction:column; align-items:stretch; gap:14px; }
+                .dash-chart-range { display:flex; width:100%; }
+                .dash-chart-range button { flex:1 1 0; padding:8px 6px; font-size:12px; }
+            }
+        </style>
         <div class="card" style="padding:24px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px;">
+            <div class="dash-chart-head">
                 <div>
                     <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Weekly Metrics Rhythm') }}</div>
                     <h3 style="margin:0; font-size:18px; font-weight:700; letter-spacing:-.02em;">{{ __('Booking Income Stream') }}</h3>
@@ -123,16 +133,13 @@
                         {{ __('Track your net earnings split. Showing direct booking velocity.') }}
                     </div>
                 </div>
-                <div style="display:flex; gap:2px; padding:3px;
-                            background: var(--bg-elev); border-radius:999px; border:.5px solid var(--line);">
+                <div class="dash-chart-range">
                     @foreach (['30d' => __('Last 30 Days'), 'qtr' => __('Quarterly'), 'ytd' => __('YTD')] as $key => $label)
                         @php $active = $range === $key; @endphp
                         <button wire:click="setRange('{{ $key }}')"
-                                class="btn btn-sm"
-                                style="border:0; background: {{ $active ? 'var(--primary)' : 'transparent' }};
+                                style="background: {{ $active ? 'var(--primary)' : 'transparent' }};
                                        color: {{ $active ? 'var(--primary-ink)' : 'var(--ink-2)' }};
-                                       font-weight: {{ $active ? '600' : '500' }};
-                                       border-radius:999px;">{{ $label }}</button>
+                                       font-weight: {{ $active ? '600' : '500' }};">{{ $label }}</button>
                     @endforeach
                 </div>
             </div>
