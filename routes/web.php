@@ -163,7 +163,12 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/bookings/{id}/whatsapp',      [BookingController::class, 'sendWhatsapp'])->name('bookings.whatsapp');
         Route::post('/bookings/{id}/pay-link',      [BookingController::class, 'payLink'])->name('bookings.pay-link');
         Route::post('/bookings/{id}/cancel',        [BookingController::class, 'cancel'])->name('bookings.cancel');
+        Route::post('/bookings/{id}/check-out',     [BookingController::class, 'checkOut'])->name('bookings.check-out')->whereNumber('id');
         Route::delete('/bookings/{id}',             [BookingController::class, 'destroy'])->name('bookings.destroy')->whereNumber('id');
+
+        // Refunds — auto-created on checkout, host updates status here.
+        Route::post('/bookings/{id}/refunds',       [\App\Http\Controllers\Tenant\RefundController::class, 'store'])->name('refunds.store')->whereNumber('id');
+        Route::patch('/refunds/{id}',               [\App\Http\Controllers\Tenant\RefundController::class, 'update'])->name('refunds.update')->whereNumber('id');
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');

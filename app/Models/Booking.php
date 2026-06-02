@@ -106,6 +106,11 @@ class Booking extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class)->orderByDesc('created_at');
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);

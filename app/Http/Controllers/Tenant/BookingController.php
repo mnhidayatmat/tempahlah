@@ -120,7 +120,7 @@ class BookingController extends Controller
     public function show($id)
     {
         $booking = Booking::query()
-            ->with(['guest:id,name,email,phone', 'property:id,name,city', 'room:id,name', 'payments'])
+            ->with(['guest:id,name,email,phone', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name'])
             ->findOrFail($id);
 
         return view('tenant.bookings.show', compact('booking'));
@@ -322,6 +322,71 @@ class BookingController extends Controller
             ->with('status', __('Booking :ref cancelled. Dates are now available again.', [
                 'ref' => $booking->reference,
             ]));
+    }
+
+    /**
+     * Mark guest as checked out. Stamps booking.checked_out_at and
+     * status=checked_out. Auto-creates a pending Refund row for the
+     * deposit amount (the property's booking fee) so the host has a
+     * clear next action: transfer the money back + record the bank ref.
+     *
+     * Idempotent — re-POSTing on an already-checked-out booking
+     * doesn't create duplicate refunds (we check for any open refund
+     * row first).
+     */
+    public function checkOut(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        $allowedFrom = [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN];
+        if (! in_array($booking->status, $allowedFrom, true)) {
+            return back()->with('error', __('Cannot check out — booking status is :s.', ['s' => $booking->status]));
+        }
+
+        DB::transaction(function () use ($booking) {
+            $booking->update([
+                'status'          => Booking::STATUS_CHECKED_OUT,
+                'checked_out_at'  => now(),
+                // If they never explicitly checked-in, stamp it now too
+                // so the timeline isn't missing a step.
+                'checked_in_at'   => $booking->checked_in_at ?? now(),
+            ]);
+
+            // Auto-create the refund record. Only when a deposit was
+            // actually paid AND there's no existing open refund row.
+            $depositPaid = (float) ($booking->deposit_amount ?? 0);
+            if ($depositPaid > 0 && $booking->deposit_paid_at) {
+                $hasOpen = \App\Models\Refund::where('booking_id', $booking->id)
+                    ->whereIn('status', [
+                        \App\Models\Refund::STATUS_PENDING,
+                        \App\Models\Refund::STATUS_PROCESSING,
+                        \App\Models\Refund::STATUS_COMPLETED,
+                    ])->exists();
+
+                if (! $hasOpen) {
+                    // Match the deposit payment row (typically the booking
+                    // fee) so the refund is traceable to the original txn.
+                    $depositPayment = $booking->payments
+                        ->where('status', 'succeeded')
+                        ->where('type', \App\Models\Payment::TYPE_DEPOSIT)
+                        ->first();
+
+                    \App\Models\Refund::create([
+                        'public_id'    => (string) \Illuminate\Support\Str::ulid(),
+                        'tenant_id'    => $booking->tenant_id,
+                        'booking_id'   => $booking->id,
+                        'payment_id'   => $depositPayment?->id,
+                        'amount'       => $depositPaid,
+                        'currency'     => $booking->currency ?? 'MYR',
+                        'reason'       => \App\Models\Refund::REASON_CHECKOUT_COMPLETE,
+                        'status'       => \App\Models\Refund::STATUS_PENDING,
+                        'requested_at' => now(),
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('status', __('Guest checked out. Refund prepared.'));
     }
 
     /**

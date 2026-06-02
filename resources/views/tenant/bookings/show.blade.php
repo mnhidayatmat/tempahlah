@@ -62,7 +62,23 @@
                             \App\Models\Booking::STATUS_NO_SHOW,
                             \App\Models\Booking::STATUS_CHECKED_OUT,
                         ], true);
+                        $canCheckOut = in_array($booking->status, [
+                            \App\Models\Booking::STATUS_CONFIRMED,
+                            \App\Models\Booking::STATUS_CHECKED_IN,
+                        ], true);
                     @endphp
+                    @if ($canCheckOut)
+                        <form method="POST"
+                              action="{{ route('tenant.bookings.check-out', $booking->id) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('{{ addslashes(__('Mark guest as checked out? This stamps the checkout time and prepares a refund for the deposit.')) }}');">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-primary"
+                                    title="{{ __('Stamp checkout time + auto-prepare deposit refund') }}">
+                                {{ __('Check out guest') }}
+                            </button>
+                        </form>
+                    @endif
                     @if ($canCancel)
                         <form method="POST"
                               action="{{ route('tenant.bookings.cancel', $booking->id) }}"
@@ -198,6 +214,8 @@
                         </div>
                     </div>
                 @endif
+
+                @include('tenant.bookings.partials.refunds', ['booking' => $booking])
             </div>
 
             <div style="display:flex; flex-direction:column; gap: 14px;">
