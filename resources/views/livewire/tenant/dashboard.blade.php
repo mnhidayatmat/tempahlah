@@ -254,53 +254,42 @@
                 </a>
             </div>
         @else
-            <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="dash-shelf">
                 @foreach ($shelf as $p)
-                    <a href="{{ route('tenant.properties.show', $p->id) }}"
-                       class="card"
-                       style="padding:14px; display:grid; grid-template-columns: auto 1fr auto auto auto;
-                              gap:18px; align-items:center; text-decoration:none; color: inherit;
-                              transition: border-color 200ms;">
-                        <div style="width:56px; height:56px; border-radius:10px; overflow:hidden; flex-shrink:0;">
+                    <a href="{{ route('tenant.properties.show', $p->id) }}" class="card dash-shelf-row">
+                        <div class="dash-shelf-thumb">
                             <x-property-visual :property="$p" :size="56"/>
                         </div>
-                        <div style="min-width:0;">
-                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                                <span style="font-size:9.5px; font-weight:700; letter-spacing:.10em; text-transform:uppercase;
-                                             padding:3px 7px; border-radius:4px;
-                                             background: var(--primary-tint); color: var(--primary);">
-                                    {{ $p->city ?? $p->state ?? __('Listed') }}
-                                </span>
-                                <span style="font-size:11px; color: var(--ink-3);">
+
+                        <div class="dash-shelf-main">
+                            <div class="dash-shelf-tags">
+                                <span class="dash-shelf-city">{{ $p->city ?? $p->state ?? __('Listed') }}</span>
+                                <span class="dash-shelf-status">{{ ucfirst($p->status ?? 'active') }}</span>
+                                <span class="dash-shelf-published">
                                     {{ __('Published') }}: {{ optional($p->created_at)->format('d M Y') ?? '—' }}
                                 </span>
                             </div>
-                            <div style="font-size:15px; font-weight:700; letter-spacing:-.02em;">{{ $p->name }}</div>
-                            <div style="font-size:12px; color: var(--ink-3); margin-top:2px;">
+                            <div class="dash-shelf-name">{{ $p->name }}</div>
+                            <div class="dash-shelf-meta">
                                 {{ $p->rooms_count ?? 0 }} {{ __('rooms') }} · ★ {{ $p->rating ?? '—' }}
                             </div>
                         </div>
-                        <div style="text-align:right;">
-                            <div class="cm-eyebrow" style="margin-bottom:5px;">{{ __('Revenue · 30d') }}</div>
-                            <div class="mono" style="font-size:15px; font-weight:700; color: var(--primary);">
+
+                        <div class="dash-shelf-stat dash-shelf-stat-revenue">
+                            <div class="cm-eyebrow dash-shelf-stat-label">{{ __('Revenue · 30d') }}</div>
+                            <div class="mono dash-shelf-stat-value" style="color: var(--primary);">
                                 RM {{ number_format($p->stats_revenue_30d ?? 0) }}
                             </div>
                         </div>
-                        <div style="text-align:right;">
-                            <div class="cm-eyebrow" style="margin-bottom:5px;">{{ __('From / night') }}</div>
-                            <div class="mono" style="font-size:15px; font-weight:700;">
+
+                        <div class="dash-shelf-stat dash-shelf-stat-rate">
+                            <div class="cm-eyebrow dash-shelf-stat-label">{{ __('From / night') }}</div>
+                            <div class="mono dash-shelf-stat-value">
                                 RM {{ number_format($p->stats_starting_rate ?? 0) }}
                             </div>
-                            <span style="display:inline-block; margin-top:4px; font-size:9.5px; font-weight:600;
-                                         padding:2px 7px; border-radius:999px;
-                                         background: var(--ok-tint); color: var(--ok);">
-                                {{ ucfirst($p->status ?? 'active') }}
-                            </span>
                         </div>
-                        <div style="width:32px; height:32px; border-radius:999px;
-                                    border:1px solid var(--line); background: var(--bg-sunk);
-                                    color: var(--ink-3);
-                                    display:flex; align-items:center; justify-content:center;">
+
+                        <div class="dash-shelf-more" aria-hidden="true">
                             <x-icon name="more" :size="14"/>
                         </div>
                     </a>

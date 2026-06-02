@@ -373,6 +373,111 @@ html[data-theme="dark"] input:-webkit-autofill {
   .dash-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .dash-stats .card { padding: 16px !important; }
   .dash-stats .card > div:nth-child(2) { font-size: 20px !important; }
+
+  /* Hero buttons (Profile Settings + Add homestay) hidden on mobile —
+     both are reachable via the bottom-nav menu / Properties tab, and
+     stacked full-width buttons added too much vertical bulk above
+     stat cards. */
+  .dash-hero-actions { display: none; }
+}
+
+/* -----------------------------------------------------------------------------
+   HOMESTAY SHELF — desktop 5-col grid; mobile 2-row stacked layout.
+   Mobile rebuild was needed because the original inline-styled grid
+   (auto 1fr auto auto auto) crushed all 5 columns into one phone width
+   and the result was unreadable.
+----------------------------------------------------------------------------- */
+.dash-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-shelf-row {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 18px;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 200ms, transform 160ms;
+}
+.dash-shelf-row:hover { border-color: var(--primary-edge); }
+.dash-shelf-thumb {
+  width: 56px; height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dash-shelf-main { min-width: 0; }
+.dash-shelf-tags {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px; flex-wrap: wrap;
+}
+.dash-shelf-city {
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 4px;
+  background: var(--primary-tint); color: var(--primary);
+}
+.dash-shelf-published { font-size: 11px; color: var(--ink-3); }
+.dash-shelf-name {
+  font-size: 15px; font-weight: 700;
+  letter-spacing: -.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-shelf-meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+.dash-shelf-stat { text-align: right; }
+.dash-shelf-stat-label { margin-bottom: 5px; }
+.dash-shelf-stat-value { font-size: 15px; font-weight: 700; }
+.dash-shelf-status {
+  display: inline-block; margin-top: 4px;
+  font-size: 9.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--ok-tint); color: var(--ok);
+}
+
+.dash-shelf-more {
+  width: 32px; height: 32px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg-sunk);
+  color: var(--ink-3);
+  display: flex; align-items: center; justify-content: center;
+}
+
+@media (max-width: 768px) {
+  /* Two-row layout:
+       [thumb] [name + tags + meta]      [more]
+       [stats row spanning content area      ]
+     Thumb spans both rows on the left to keep visual anchor. */
+  .dash-shelf-row {
+    grid-template-columns: 56px 1fr 32px;
+    grid-template-areas:
+      "thumb main  more"
+      "thumb stats stats";
+    gap: 10px 12px;
+    padding: 12px;
+    align-items: start;
+  }
+  .dash-shelf-thumb { grid-area: thumb; }
+  .dash-shelf-main  { grid-area: main; }
+  .dash-shelf-more  { grid-area: more; align-self: start; }
+  .dash-shelf-stat-revenue { grid-area: stats; align-self: end; }
+  /* Hide the second stat block ("From / night") on mobile —
+     revenue + status pill on row 2 is the priority; rate is
+     visible on the property detail page in one tap. */
+  .dash-shelf-stat-rate { display: none; }
+  /* Reflow the kept stat to one inline row instead of label-above-value */
+  .dash-shelf-stat-revenue {
+    text-align: left;
+    display: flex; align-items: baseline; gap: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+  }
+  .dash-shelf-stat-label { margin-bottom: 0; font-size: 10px; }
+  .dash-shelf-stat-value { font-size: 14px; }
+  .dash-shelf-name { font-size: 14px; }
+  .dash-shelf-meta { font-size: 11.5px; }
 }
 
 /* Theme toggle — show moon icon in light mode, sun icon in dark mode */
