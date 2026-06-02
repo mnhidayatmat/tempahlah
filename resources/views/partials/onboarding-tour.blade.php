@@ -413,10 +413,10 @@
             total,
             steps: @json($steps),
             labels: @json($labels),
-            // Tour starts in English by default; user can flip to BM on
+            // Tour starts in BM by default; user can flip to EN on
             // the welcome step via the EN/BM pill. Choice persists for
             // the rest of the tour. Doesn't touch the app's locale.
-            lang: 'en',
+            lang: 'ms',
             ready: false,
             targeted: false,
             spotStyle: '',
