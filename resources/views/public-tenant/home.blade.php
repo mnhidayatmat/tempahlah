@@ -220,6 +220,10 @@
         </div>
 
         <div class="wf-banner-bottom">
+            {{-- Business name leads the hero so the homestay brand reads first.
+                 The address kicker sits below in a smaller, lighter treatment so
+                 it informs without competing with the name. --}}
+            <h1 class="wf-banner-name">{{ $tenant->business_name }}</h1>
             <div class="wf-banner-kicker">
                 <span class="wf-banner-tone" x-text="current.tone"></span>
                 <template x-if="current.tone_label">
@@ -230,7 +234,6 @@
                 </template>
                 <span x-text="(current.city || '') + (current.state ? ', ' + current.state : '')"></span>
             </div>
-            <h1 class="wf-banner-name">{{ $tenant->business_name }}</h1>
             <p class="wf-banner-tag">{{ $isBM ? 'Tempah terus, tanpa komisen.' : 'Skip the queue, book direct.' }}</p>
         </div>
     </header>
@@ -843,6 +846,7 @@
     }
     .wf-banner-kicker {
         display: inline-flex; align-items: center; gap: 6px;
+        margin-top: 8px;
         font-size: 11.5px; font-weight: 600;
         color: rgba(255,255,255,0.92);
         text-shadow: 0 1px 4px rgba(0,0,0,0.4);
