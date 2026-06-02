@@ -85,6 +85,10 @@ class PropertyController extends Controller
                 'check_out_time' => '11:00',
                 'description_en' => $validated['description'] ?? null,
                 'status' => Property::STATUS_DRAFT,
+                // Sensible default — RM 100 booking fee = the "pay now"
+                // amount on the public booking flow. Host can edit or
+                // zero it from Property → Pricing → Booking fee.
+                'booking_fee_amount' => 100.00,
             ]);
 
             if ($mode === Property::PRICING_WHOLE_HOUSE) {

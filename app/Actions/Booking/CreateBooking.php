@@ -47,8 +47,27 @@ class CreateBooking
             $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
 
             $total = round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2);
-            $depositPct = (float) ($data['deposit_pct'] ?? 20);
-            $depositAmt = round($total * ($depositPct / 100), 2);
+
+            // Deposit / pay-now logic:
+            // - When the caller passes `deposit_pct` explicitly (host
+            //   creating a manual booking in the dashboard), we compute
+            //   a percentage-based deposit as before.
+            // - When NOT passed (public booking flow), the property's
+            //   flat booking fee IS the pay-now amount — much friendlier
+            //   for Malaysian homestay guests than "deposit (20%)".
+            if (array_key_exists('deposit_pct', $data) && $data['deposit_pct'] !== null) {
+                $depositPct = (float) $data['deposit_pct'];
+                $depositAmt = round($total * ($depositPct / 100), 2);
+            } elseif ($bookingFee > 0) {
+                $depositAmt = $bookingFee;
+                $depositPct = $total > 0 ? round(($bookingFee / $total) * 100, 2) : 0;
+            } else {
+                // Fallback for properties without a fee — keep the
+                // historical 20% so callers that rely on a non-zero
+                // deposit_amount still work.
+                $depositPct = 20.0;
+                $depositAmt = round($total * 0.20, 2);
+            }
 
             $channel = $data['channel'] ?? Booking::CHANNEL_DIRECT;
             $commissionAmt = $channel === Booking::CHANNEL_MARKETPLACE

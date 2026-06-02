@@ -463,7 +463,7 @@
             {{-- Pay-deposit CTA: opens the reservation form. --}}
             <button type="button" class="wf-reserve" @click="openBookForm = true; $nextTick(() => { const el = document.getElementById('wf-book-name'); if (el) el.focus(); })">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>{{ $isBM ? 'Tempah & bayar deposit' : 'Reserve & pay deposit' }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
+                <span>{{ $isBM ? 'Tempah & bayar sekarang' : 'Reserve & pay now' }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
             <div class="wf-reserve-hint">
@@ -514,8 +514,11 @@
                     <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
                     <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
                 </div>
-                <div class="wf-book-recap-row wf-book-recap-deposit">
-                    <span class="lbl">{{ $isBM ? 'Deposit (20%) — bayar sekarang' : 'Deposit (20%) — pay now' }}</span>
+                {{-- "Pay now" line — tied to the property's booking fee
+                     (set in Property → Pricing → Booking fee, default
+                     RM 100). Replaces the old hardcoded 20% deposit. --}}
+                <div class="wf-book-recap-row wf-book-recap-deposit" x-show="depositAmount() > 0" x-cloak>
+                    <span class="lbl">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }}</span>
                     <span class="val">RM <span x-text="formatMoney(depositAmount())"></span></span>
                 </div>
             </div>
@@ -553,13 +556,13 @@
                 @error('guest_phone') <div class="wf-book-err">{{ $message }}</div> @enderror
 
                 <button type="submit" class="wf-book-submit" @click="bookSubmitting = true">
-                    <span x-show="!bookSubmitting">{{ $isBM ? 'Bayar deposit' : 'Pay deposit' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
+                    <span x-show="!bookSubmitting">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
                     <span x-show="bookSubmitting" x-cloak>{{ $isBM ? 'Memproses…' : 'Processing…' }}</span>
                 </button>
                 <p class="wf-book-fine">
                     {{ $isBM
-                        ? 'Anda akan dialihkan ke Toyyibpay untuk membayar deposit. Resit & pengesahan dihantar ke emel + WhatsApp.'
-                        : 'You\'ll be redirected to Toyyibpay to pay the deposit. Receipt + confirmation are sent to your email + WhatsApp.' }}
+                        ? 'Anda akan dialihkan ke Toyyibpay untuk membayar yuran tempahan. Resit & pengesahan dihantar ke emel + WhatsApp.'
+                        : 'You\'ll be redirected to Toyyibpay to pay the booking fee. Receipt + confirmation are sent to your email + WhatsApp.' }}
                 </p>
             </form>
         </div>
@@ -2151,12 +2154,13 @@
                 return n > 0 ? this.subtotal() / n : (this.current?.rate || 0);
             },
 
-            // Deposit due now — server recomputes from booking.deposit_pct,
-            // this is purely a display approximation matching the 20%
-            // default in PublicBookingController::store(). Computed off the
-            // grand total so the booking fee gets its share of the deposit
-            // collected up front.
+            // Pay-now amount — equals the property's booking fee.
+            // Mirrors the server-side logic in CreateBooking: when the
+            // public flow doesn't pass deposit_pct, the booking fee IS
+            // the deposit. Falls back to 20% only if no fee configured.
             depositAmount() {
+                const fee = this.feeAmount();
+                if (fee > 0) return fee;
                 return Math.round(this.grandTotal() * (this.depositPct / 100));
             },
             formatMoney(n) {

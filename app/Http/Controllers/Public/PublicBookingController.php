@@ -70,7 +70,10 @@ class PublicBookingController extends Controller
                 'guest_country'    => 'MY',
                 'is_foreigner'     => false,
                 'channel'          => Booking::CHANNEL_DIRECT,
-                'deposit_pct'      => 20,
+                // Omit deposit_pct — CreateBooking will use the
+                // property's flat booking_fee_amount as the pay-now
+                // amount (default RM 100). Falls back to 20% only if
+                // the property has no fee configured.
                 'special_requests' => $data['special_requests'] ?? null,
             ]);
         } catch (\RuntimeException $e) {

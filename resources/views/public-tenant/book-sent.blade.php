@@ -58,14 +58,14 @@
                 <span class="val">RM {{ number_format($booking->total_amount, 2) }}</span>
             </div>
             <div class="bs-summary-row bs-summary-deposit">
-                <span class="lbl">{{ $isBM ? 'Deposit perlu dibayar' : 'Deposit due now' }}</span>
+                <span class="lbl">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }}</span>
                 <span class="val">RM {{ number_format($booking->deposit_amount, 2) }}</span>
             </div>
         </div>
 
         @if($payUrl)
             <a href="{{ $payUrl }}" class="bs-cta">
-                {{ $isBM ? 'Bayar deposit' : 'Pay deposit' }} — RM {{ number_format($booking->deposit_amount, 2) }} →
+                {{ $isBM ? 'Bayar sekarang' : 'Pay now' }} — RM {{ number_format($booking->deposit_amount, 2) }} →
             </a>
             <p class="bs-fine">
                 {{ $isBM
