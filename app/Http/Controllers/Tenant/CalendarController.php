@@ -19,7 +19,7 @@ class CalendarController extends Controller
 
         $properties = Property::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'city', 'state']);
+            ->get(['id', 'name', 'city', 'state', 'pricing_mode']);
 
         $propertyId = (int) $request->query('property_id', 0);
         if (! $propertyId || ! $properties->firstWhere('id', $propertyId)) {

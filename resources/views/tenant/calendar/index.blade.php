@@ -67,38 +67,62 @@
             </div>
         @else
 
-            {{-- Property summary strip --}}
-            <div class="card" style="padding: 18px 22px; display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
-                <div style="min-width:0; flex: 1 1 240px;">
-                    <div style="font-size:12.5px; color: var(--ink-3); margin-bottom:2px; display:inline-flex; align-items:center; gap:4px;">
-                        <x-icon name="pin" :size="10"/>
-                        {{ $property?->city ?? '—' }} · {{ $rooms->count() }} {{ trans_choice('{1} room|[2,*] rooms', $rooms->count()) }}
+            {{-- Property summary card --}}
+            @php
+                // Whole-house properties carry a single synthetic "Whole house"
+                // Room, so a raw room count reads as "1 room" — misleading. Show
+                // "Whole house · N bedrooms" (bedrooms live on that room's `beds`).
+                $isWholeHouse = (bool) $property?->isWholeHousePricing();
+                $bedroomCount = (int) ($rooms->first()?->beds ?? 0);
+                $unitLabel = $isWholeHouse
+                    ? __('Whole house').($bedroomCount > 0
+                        ? ' · '.trans_choice('{1} :n bedroom|[2,*] :n bedrooms', $bedroomCount, ['n' => $bedroomCount])
+                        : '')
+                    : trans_choice('{0} No rooms|{1} :n room|[2,*] :n rooms', $rooms->count(), ['n' => $rooms->count()]);
+
+                $stats = [
+                    ['label' => __('Occupancy').' · '.$cursor->format('M'), 'value' => $occupancyPct.'%'],
+                    ['label' => __('Revenue'), 'value' => 'RM '.number_format($monthRevenue, 0)],
+                    ['label' => __('Bookings'), 'value' => (string) $monthBookings],
+                ];
+            @endphp
+            <div class="card" style="padding: 18px 20px; display:flex; gap:20px 28px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+
+                {{-- Identity --}}
+                <div style="min-width:0; flex: 1 1 240px; display:flex; flex-direction:column; gap:7px;">
+                    <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color: var(--ink-3);">
+                            <x-icon name="pin" :size="11"/>{{ $property?->city ?? '—' }}
+                        </span>
+                        <span style="display:inline-flex; align-items:center; gap:5px; height:21px; padding:0 9px;
+                                     border-radius:999px; background: var(--primary-tint); color: var(--primary);
+                                     font-size:11px; font-weight:600; white-space:nowrap;">
+                            {{ $isWholeHouse ? '🏠' : '🛏️' }} {{ $unitLabel }}
+                        </span>
                     </div>
                     <div style="font-family: var(--font-display); font-size:22px; font-weight:600; letter-spacing:-.02em; line-height:1.15; color: var(--ink);">
                         {{ $property?->name ?? $monthLabel }}
                     </div>
                 </div>
-                <div style="width:1px; height:40px; background: var(--line);"></div>
-                <div>
-                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Occupancy') }} · {{ $cursor->format('M') }}</div>
-                    <div class="mono" style="font-size:16px; font-weight:700;">{{ $occupancyPct }}%</div>
-                </div>
-                <div>
-                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Revenue') }}</div>
-                    <div class="mono" style="font-size:16px; font-weight:700;">RM {{ number_format($monthRevenue, 0) }}</div>
-                </div>
-                <div>
-                    <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Bookings') }}</div>
-                    <div class="mono" style="font-size:16px; font-weight:700;">{{ $monthBookings }}</div>
-                </div>
-                <div style="flex:1;"></div>
-                <div style="display:flex; gap:12px; font-size:11.5px;">
-                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
-                        <span style="width:10px; height:10px; border-radius:3px; background: var(--primary);"></span>{{ __('Confirmed') }}</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
-                        <span style="width:10px; height:10px; border-radius:3px; background: var(--warn);"></span>{{ __('Deposit') }}</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-2);">
-                        <span style="width:10px; height:10px; border-radius:3px; background: var(--err);"></span>{{ __('Unpaid') }}</span>
+
+                {{-- Stats + legend --}}
+                <div style="display:flex; flex-direction:column; align-items:flex-start; gap:12px;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        @foreach ($stats as $s)
+                            <div style="background: var(--bg-sunk); border:1px solid var(--line); border-radius:12px;
+                                        padding:9px 14px; min-width:88px;">
+                                <div class="cm-eyebrow" style="margin-bottom:3px; white-space:nowrap;">{{ $s['label'] }}</div>
+                                <div class="mono" style="font-size:17px; font-weight:700; line-height:1; color: var(--ink);">{{ $s['value'] }}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div style="display:flex; gap:14px; font-size:11px; flex-wrap:wrap;">
+                        @foreach ([['Confirmed','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--err)']] as [$lbl, $clr])
+                            <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-3);">
+                                <span style="width:8px; height:8px; border-radius:999px; background: {{ $clr }};"></span>{{ __($lbl) }}
+                            </span>
+                        @endforeach
+                    </div>
                 </div>
             </div>
 
