@@ -6,12 +6,6 @@
             return 'unpaid';
         };
         $totalRoomsCount = $rooms->count() ?: 1;
-
-        $mood = $occupancyPct >= 75
-            ? ['tone' => 'var(--primary)', 'text' => __('Busy month — your home is buzzing.')]
-            : ($occupancyPct >= 45
-                ? ['tone' => 'var(--warn)', 'text' => __('Steady rhythm, with quiet weekdays for upkeep.')]
-                : ['tone' => 'var(--ink-3)', 'text' => __('Quiet stretch. A good time to refresh listings or rest.')]);
     @endphp
 
     <div style="display:flex; flex-direction:column; gap:16px;">
@@ -80,8 +74,8 @@
                         <x-icon name="pin" :size="10"/>
                         {{ $property?->city ?? '—' }} · {{ $rooms->count() }} {{ trans_choice('{1} room|[2,*] rooms', $rooms->count()) }}
                     </div>
-                    <div style="font-family: var(--font-display); font-size:22px; font-weight:600; letter-spacing:-.02em; line-height:1.15; color: {{ $mood['tone'] }};">
-                        {{ $mood['text'] }}
+                    <div style="font-family: var(--font-display); font-size:22px; font-weight:600; letter-spacing:-.02em; line-height:1.15; color: var(--ink);">
+                        {{ $property?->name ?? $monthLabel }}
                     </div>
                 </div>
                 <div style="width:1px; height:40px; background: var(--line);"></div>
