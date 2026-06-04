@@ -158,10 +158,10 @@
                                         @if ($isToday)
                                             <span style="font-family: var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.01em;
                                                          color: var(--primary-ink);
-                                                         background: linear-gradient(150deg, var(--primary), oklch(60% 0.18 35));
+                                                         background: var(--primary);
                                                          width:24px; height:24px; border-radius:999px;
                                                          display:inline-flex; align-items:center; justify-content:center;
-                                                         box-shadow: 0 2px 8px oklch(67% 0.16 45 / 0.4);">
+                                                         box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 30%, transparent);">
                                                 {{ $d->day }}
                                             </span>
                                         @else
