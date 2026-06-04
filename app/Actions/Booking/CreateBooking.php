@@ -74,6 +74,17 @@ class CreateBooking
                 ? round($quote['total'] * (float) config('homestay.marketplace_commission_rate', 0.03), 2)
                 : 0;
 
+            // Payment-lifecycle deadlines, driven by the tenant's policy:
+            //  - balance/full-payment reminder + due date: X days before check-in
+            //    (caller may override the lead time via reminder_days).
+            //  - booking-fee deadline: now + fee_payment_hours (after which an
+            //    unpaid pending booking auto-cancels).
+            $reminderDays = array_key_exists('reminder_days', $data) && $data['reminder_days'] !== null
+                ? (int) $data['reminder_days']
+                : $tenant->fullPaymentDaysBefore();
+            $balanceDueAt = $checkIn->subDays($reminderDays);
+            $feeDueAt = CarbonImmutable::now()->addHours($tenant->feePaymentHours());
+
             $guest = $this->resolveGuest($data);
 
             $booking = Booking::create([
@@ -99,8 +110,16 @@ class CreateBooking
                 'is_foreigner' => $isForeigner,
                 'commission_amount' => $commissionAmt,
                 'special_requests' => $data['special_requests'] ?? null,
-                'full_payment_reminder_at' => $checkIn->subDays((int) ($data['reminder_days'] ?? 7)),
-                'meta' => ['quote_breakdown' => $quote['nights']],
+                'balance_due_at' => $balanceDueAt,
+                'full_payment_reminder_at' => $balanceDueAt,
+                'fee_due_at' => $feeDueAt,
+                'meta' => [
+                    'quote_breakdown' => $quote['nights'],
+                    // Snapshot the refund policy the guest agreed to at booking
+                    // time so it stays stable on the invoice even if the tenant
+                    // edits their policy later.
+                    'refund_policy' => $tenant->refundPolicyText(),
+                ],
             ]);
 
             BookingGuest::create([

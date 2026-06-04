@@ -52,6 +52,13 @@ class SettingsController extends Controller
             'sst_registered'  => 'sometimes|boolean',
             'sst_rate'        => 'nullable|numeric|min:0|max:1',
             'default_locale'  => 'required|in:ms,en',
+            'full_payment_days_before' => 'required|integer|min:0|max:60',
+            'fee_payment_hours'        => 'required|integer|min:1|max:336',
+            'cancel_balance_on'        => ['required', Rule::in([
+                Tenant::CANCEL_BALANCE_DUE_DATE,
+                Tenant::CANCEL_BALANCE_CHECK_IN,
+            ])],
+            'refund_policy'            => 'nullable|string|max:2000',
             'primary_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'accent_color'    => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],

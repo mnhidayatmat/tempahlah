@@ -277,7 +277,7 @@ class BookingController extends Controller
      *   - Refunds NOT auto-issued. Host arranges any refund outside
      *     the platform; the booking record stays for the audit trail.
      */
-    public function cancel(Request $request, $id)
+    public function cancel(Request $request, \App\Actions\Booking\CancelBooking $cancelBooking, $id)
     {
         $booking = Booking::findOrFail($id);
 
@@ -292,30 +292,9 @@ class BookingController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
-        DB::transaction(function () use ($booking, $validated) {
-            $booking->update([
-                'status'              => Booking::STATUS_CANCELLED,
-                'cancelled_at'        => now(),
-                'cancellation_reason' => $validated['reason'] ?? null,
-            ]);
-
-            // Cancel any scheduled cleaning + laundry tasks for this
-            // booking — they're no longer needed. Tasks already in
-            // progress / completed are left alone (work was done).
-            CleaningTask::where('booking_id', $booking->id)
-                ->whereIn('status', ['pending', 'scheduled'])
-                ->update(['status' => 'cancelled']);
-
-            LaundryTask::where('booking_id', $booking->id)
-                ->whereIn('status', ['pending', 'scheduled'])
-                ->update(['status' => 'cancelled']);
-        });
-
-        // Remove the calendar block on the tenant's Google Calendar (if
-        // connected + this booking had been pushed). Smart sync job detects
-        // status=cancelled + has google_event_id → DELETE. Silent no-op when
-        // tenant hasn't connected GCal.
-        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+        // Shared cancel logic: status flip + free dates + cancel tasks +
+        // remove GCal event + notify the guest (email + WhatsApp).
+        $cancelBooking->execute($booking, $validated['reason'] ?? null);
 
         return redirect()
             ->route('tenant.bookings.show', $booking->id)

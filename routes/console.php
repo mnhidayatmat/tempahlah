@@ -15,3 +15,11 @@ Schedule::command('wa:dispatch-checkin-instructions')
     ->hourly()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Payment lifecycle — chases + auto-cancels unpaid booking fees and balances
+// per each tenant's payment policy. Hourly so the hours-based fee window is
+// honoured; the balance reminder/cancel are date-based and fire once.
+Schedule::command('bookings:process-payment-lifecycle')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();

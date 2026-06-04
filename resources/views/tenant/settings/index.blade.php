@@ -187,6 +187,48 @@
                 </div>
             </div>
 
+            {{-- Payment & refund policy --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Payment & refund policy') }}</div>
+                <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
+                    {{ __('Controls automatic payment reminders + cancellation of unpaid bookings, and the refund terms guests see when they book.') }}
+                </p>
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: flex-start;">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Full payment due (days before check-in)') }}</label>
+                        <input class="input" type="number" name="full_payment_days_before" min="0" max="60" step="1"
+                               value="{{ old('full_payment_days_before', $tenant->fullPaymentDaysBefore()) }}">
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Balance reminder (email + WhatsApp) fires this many days before arrival.') }}</div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Booking-fee pay window (hours)') }}</label>
+                        <input class="input" type="number" name="fee_payment_hours" min="1" max="336" step="1"
+                               value="{{ old('fee_payment_hours', $tenant->feePaymentHours()) }}">
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Unpaid bookings auto-cancel after this. e.g. 24 = 1 day.') }}</div>
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Cancel unpaid balance on') }}</label>
+                        <select class="input" name="cancel_balance_on">
+                            <option value="check_in" {{ old('cancel_balance_on', $tenant->cancelBalanceOn()) === 'check_in' ? 'selected' : '' }}>{{ __('Check-in day') }}</option>
+                            <option value="due_date" {{ old('cancel_balance_on', $tenant->cancelBalanceOn()) === 'due_date' ? 'selected' : '' }}>{{ __('Payment due date') }}</option>
+                        </select>
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('When a still-unpaid confirmed booking is cancelled.') }}</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Refund / return policy') }}</label>
+                    <div style="margin-bottom: 8px; padding: 10px 12px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2);">
+                        <strong>{{ __('Always applies:') }}</strong> {{ __(\App\Models\Tenant::DEFAULT_REFUND_POLICY) }}
+                    </div>
+                    <textarea class="input" name="refund_policy" rows="3" maxlength="2000"
+                              style="height:auto; padding:10px 12px; resize:vertical;"
+                              placeholder="{{ __('Add any extra refund terms here (optional), e.g. balance refundable up to 7 days before check-in.') }}">{{ old('refund_policy', $tenant->refund_policy) }}</textarea>
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Shown to guests at booking time and printed on their invoice.') }}</div>
+                </div>
+            </div>
+
             {{-- Workspace defaults --}}
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>

@@ -24,6 +24,7 @@ class Tenant extends Model
         'bank_account_holder', 'status', 'sst_registered', 'sst_rate',
         'logo_path', 'primary_color', 'secondary_color', 'accent_color',
         'default_locale', 'suspended_at', 'suspended_reason',
+        'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on', 'refund_policy',
     ];
 
     public const THEME_DEFAULTS = [
@@ -32,13 +33,69 @@ class Tenant extends Model
         'accent'    => '#e8b94a',
     ];
 
+    /** Platform fallbacks for the booking payment lifecycle. */
+    public const PAYMENT_POLICY_DEFAULTS = [
+        'full_payment_days_before' => 7,
+        'fee_payment_hours'        => 24,
+        'cancel_balance_on'        => 'check_in', // 'due_date' | 'check_in'
+    ];
+
+    public const CANCEL_BALANCE_DUE_DATE = 'due_date';
+    public const CANCEL_BALANCE_CHECK_IN = 'check_in';
+
+    /**
+     * Platform-wide default refund rule applied to every booking. Tenants
+     * may append extra terms via the `refund_policy` column — the booking
+     * fee being non-refundable is the non-negotiable baseline.
+     */
+    public const DEFAULT_REFUND_POLICY = 'The booking fee is non-refundable if you cancel your booking.';
+
     protected $casts = [
         'motac_verified_at' => 'datetime',
         'suspended_at' => 'datetime',
         'sst_registered' => 'boolean',
         'sst_rate' => 'decimal:4',
         'bank_account_encrypted' => 'encrypted',
+        'full_payment_days_before' => 'integer',
+        'fee_payment_hours' => 'integer',
     ];
+
+    /** Balance reminder/due lead time (days before check-in). */
+    public function fullPaymentDaysBefore(): int
+    {
+        return $this->full_payment_days_before !== null
+            ? (int) $this->full_payment_days_before
+            : self::PAYMENT_POLICY_DEFAULTS['full_payment_days_before'];
+    }
+
+    /** Hours a guest has to pay the booking fee before the booking auto-cancels. */
+    public function feePaymentHours(): int
+    {
+        return $this->fee_payment_hours !== null
+            ? (int) $this->fee_payment_hours
+            : self::PAYMENT_POLICY_DEFAULTS['fee_payment_hours'];
+    }
+
+    /** When an unpaid balance auto-cancels: on the due date, or on check-in day. */
+    public function cancelBalanceOn(): string
+    {
+        return in_array($this->cancel_balance_on, [self::CANCEL_BALANCE_DUE_DATE, self::CANCEL_BALANCE_CHECK_IN], true)
+            ? $this->cancel_balance_on
+            : self::PAYMENT_POLICY_DEFAULTS['cancel_balance_on'];
+    }
+
+    /**
+     * Full refund/return policy shown to guests at booking time and on the
+     * invoice: the platform default first, then any tenant-appended terms.
+     */
+    public function refundPolicyText(): string
+    {
+        $extra = trim((string) ($this->refund_policy ?? ''));
+
+        return $extra !== ''
+            ? __(self::DEFAULT_REFUND_POLICY)."\n".$extra
+            : __(self::DEFAULT_REFUND_POLICY);
+    }
 
     public function owner(): BelongsTo
     {

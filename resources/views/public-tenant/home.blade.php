@@ -567,6 +567,11 @@
                 @error('guest_email') <div class="wf-book-err">{{ $message }}</div> @enderror
                 @error('guest_phone') <div class="wf-book-err">{{ $message }}</div> @enderror
 
+                <div class="wf-book-policy">
+                    <span class="wf-book-policy-title">{{ $isBM ? 'Polisi bayaran balik' : 'Refund policy' }}</span>
+                    {{ $tenant->refundPolicyText() }}
+                </div>
+
                 <button type="submit" class="wf-book-submit" @click="bookSubmitting = true">
                     <span x-show="!bookSubmitting">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
                     <span x-show="bookSubmitting" x-cloak>{{ $isBM ? 'Memproses…' : 'Processing…' }}</span>
@@ -1963,6 +1968,22 @@
         line-height: 1.4;
         color: var(--ink-3);
         text-align: center;
+    }
+    .wf-book-policy {
+        margin: 4px 0 2px;
+        padding: 10px 12px;
+        background: var(--bg-sunk, #f4f4f2);
+        border-radius: 10px;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--ink-2);
+        white-space: pre-line;
+    }
+    .wf-book-policy-title {
+        display: block;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 2px;
     }
 </style>
 

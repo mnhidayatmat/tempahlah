@@ -211,6 +211,44 @@ class MessageTemplates
              . "The receipt PDF has also been emailed to you. See you on {$ci} (check-in from {$checkInTime}). Welcome to *{$business}*!";
     }
 
+    /**
+     * Cancellation notice — sent when a booking is cancelled (most often by
+     * the auto-cancel lifecycle when the booking fee or balance went unpaid).
+     */
+    public static function cancellation(Booking $booking, ?string $reason = null): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $lead = $booking->bookingGuests()->where('is_lead', true)->first();
+        $name = $lead?->full_name ?? $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $ci = Carbon::parse($booking->check_in)->translatedFormat('D, j M Y');
+
+        if ($locale === 'ms') {
+            $body = "Salam {$name},\n\n"
+                  . "Tempahan anda di *{$business}* telah dibatalkan.\n\n"
+                  . "📍 {$property}\n"
+                  . "📅 {$ci}\n"
+                  . "🔖 Rujukan: {$booking->reference}\n";
+            if ($reason) {
+                $body .= "\nSebab: {$reason}\n";
+            }
+            $body .= "\nJika anda masih berminat untuk menginap, sila buat tempahan baharu atau hubungi kami. Terima kasih.";
+            return $body;
+        }
+
+        $body = "Hi {$name},\n\n"
+              . "Your booking at *{$business}* has been cancelled.\n\n"
+              . "📍 {$property}\n"
+              . "📅 {$ci}\n"
+              . "🔖 Reference: {$booking->reference}\n";
+        if ($reason) {
+            $body .= "\nReason: {$reason}\n";
+        }
+        $body .= "\nIf you'd still like to stay, please make a new booking or get in touch. Thank you.";
+        return $body;
+    }
+
     public static function test(?string $name = null): string
     {
         $locale = app()->getLocale();

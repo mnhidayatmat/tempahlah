@@ -114,6 +114,21 @@ class WhatsappMessenger
     }
 
     /**
+     * Cancellation notice — sent when a booking is cancelled (auto-cancel for
+     * unpaid fee/balance, or a host-initiated cancel). Gated by the
+     * `auto_cancellation` session pref (default true).
+     */
+    public static function dispatchCancellation(Booking $booking, ?string $reason = null): ?WhatsappMessage
+    {
+        return self::autoDispatch(
+            $booking,
+            'auto_cancellation',
+            WhatsappMessage::KIND_CANCELLATION,
+            fn () => MessageTemplates::cancellation($booking, $reason),
+        );
+    }
+
+    /**
      * Build the `['url' => ..., 'kind' => 'pdf', 'filename' => ...]` media
      * payload for an Invoice or Receipt. Uses a 7-day temporary signed URL
      * from the configured filesystem so PDFs stay private even though the

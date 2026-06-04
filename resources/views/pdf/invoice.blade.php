@@ -80,5 +80,18 @@
     {!! nl2br(e($template->terms_text)) !!}
 </div>
 @endif
+
+@php
+    // Refund/return policy snapshotted onto the booking at creation time so it
+    // stays stable even if the tenant later edits their policy. Fall back to
+    // the tenant's current policy text for older bookings without a snapshot.
+    $refundPolicy = $booking->meta['refund_policy'] ?? $tenant->refundPolicyText();
+@endphp
+@if ($refundPolicy)
+<div class="footer">
+    <strong>{{ __('Refund / cancellation policy') }}:</strong><br>
+    {!! nl2br(e($refundPolicy)) !!}
+</div>
+@endif
 </body>
 </html>

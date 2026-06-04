@@ -22,6 +22,7 @@ class WhatsappMessage extends Model
     public const KIND_CHECKIN      = 'checkin';
     public const KIND_INVOICE      = 'invoice';
     public const KIND_RECEIPT      = 'receipt';
+    public const KIND_CANCELLATION = 'cancellation';
     public const KIND_TEST         = 'test';
     public const KIND_INBOUND      = 'inbound';
     public const KIND_AGENT_REPLY  = 'agent_reply';
