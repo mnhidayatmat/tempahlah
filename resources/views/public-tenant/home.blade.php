@@ -335,7 +335,7 @@
             </button>
         </div>
         <div class="wf-photostrip-row">
-            <template x-for="(url, i) in current.photos.slice(0, 8)" :key="i">
+            <template x-for="(url, i) in current.photos" :key="i">
                 <button type="button" class="wf-photostrip-tile" @click="galleryIndex = i; galleryOpen = true; document.body.style.overflow='hidden'; navTab='gallery';">
                     <img :src="url" :alt="`${current.name} ${i+1}`" loading="lazy">
                 </button>
