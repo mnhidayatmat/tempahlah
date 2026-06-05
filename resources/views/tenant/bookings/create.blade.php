@@ -38,7 +38,19 @@
                 <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary" style="text-decoration:none;">{{ __('Add a property') }}</a>
             </div>
         @else
-            <form method="POST" action="{{ route('tenant.bookings.store') }}" style="display:flex; flex-direction:column; gap:14px;">
+            <form method="POST" action="{{ route('tenant.bookings.store') }}" style="display:flex; flex-direction:column; gap:14px;"
+                  x-data="{
+                      roomFees: {{ Js::from($roomFees) }},
+                      bookingFee: '{{ old('deposit_amount') }}',
+                      onRoomChange(id) {
+                          // Pre-fill the booking fee from the property's fee unless
+                          // the host has already typed a custom amount.
+                          if (this.bookingFee === '' && this.roomFees[id] != null) {
+                              this.bookingFee = this.roomFees[id];
+                          }
+                      },
+                  }"
+                  x-init="if (bookingFee === '' && $refs.roomSelect && roomFees[$refs.roomSelect.value] != null) bookingFee = roomFees[$refs.roomSelect.value]">
                 @csrf
 
                 {{-- Stay --}}
@@ -47,7 +59,7 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                         <label style="grid-column: 1 / 3;">
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Room') }}</div>
-                            <select name="room_id" required class="input">
+                            <select name="room_id" required class="input" x-ref="roomSelect" @change="onRoomChange($event.target.value)">
                                 <option value="">{{ __('— select a room —') }}</option>
                                 @foreach ($rooms as $room)
                                     <option value="{{ $room->id }}" @selected(old('room_id') == $room->id)>
@@ -137,8 +149,9 @@
                             </select>
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Deposit %') }}</div>
-                            <input type="number" name="deposit_pct" required min="0" max="100" step="1" value="{{ old('deposit_pct', 20) }}" class="input">
+                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Booking fee (RM)') }}</div>
+                            <input type="number" name="deposit_amount" required min="0" max="1000000" step="0.01" x-model="bookingFee" class="input" placeholder="0.00">
+                            <div style="font-size:11px; color:var(--ink-3); margin-top:5px;">{{ __('Upfront amount the guest pays to secure the booking.') }}</div>
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Reminder days before') }}</div>

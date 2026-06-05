@@ -63,14 +63,21 @@ class BookingController extends Controller
     public function create()
     {
         $rooms = Room::query()
-            ->with('property:id,name')
+            ->with('property:id,name,booking_fee_amount')
             ->where('status', '!=', 'archived')
             ->orderBy('property_id')
             ->orderBy('name')
             ->get(['id', 'property_id', 'name', 'base_price', 'max_adults', 'max_children']);
 
+        // room_id => the property's booking fee, so the form can pre-fill the
+        // "Booking fee" field (the pay-now amount) when a room is chosen.
+        $roomFees = $rooms->mapWithKeys(fn ($room) => [
+            $room->id => round((float) ($room->property?->booking_fee_amount ?? 0), 2),
+        ]);
+
         return view('tenant.bookings.create', [
             'rooms' => $rooms,
+            'roomFees' => $roomFees,
             'today' => Carbon::today()->toDateString(),
             'tomorrow' => Carbon::tomorrow()->toDateString(),
         ]);
@@ -94,7 +101,7 @@ class BookingController extends Controller
                 Booking::CHANNEL_MARKETPLACE,
                 Booking::CHANNEL_WALK_IN,
             ])],
-            'deposit_pct' => 'required|numeric|min:0|max:100',
+            'deposit_amount' => 'required|numeric|min:0|max:1000000',
             'reminder_days' => 'nullable|integer|min:0|max:60',
             'special_requests' => 'nullable|string|max:1000',
         ]);
