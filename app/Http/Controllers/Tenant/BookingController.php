@@ -19,6 +19,7 @@ use App\Models\LaundryTask;
 use App\Models\Payment;
 use App\Models\Review;
 use App\Models\Room;
+use App\Models\User;
 use App\Models\WhatsappMessage;
 use Illuminate\Support\Facades\DB;
 use App\Services\Payments\Toyyibpay\ToyyibpayException;
@@ -115,6 +116,152 @@ class BookingController extends Controller
         return redirect()
             ->route('tenant.bookings.show', $booking->id)
             ->with('status', __('Booking :ref created.', ['ref' => $booking->reference]));
+    }
+
+    public function edit($id)
+    {
+        $booking = Booking::query()
+            ->with(['guest:id,name,email,phone', 'property:id,name', 'room:id,name', 'bookingGuests'])
+            ->findOrFail($id);
+
+        $rooms = Room::query()
+            ->with('property:id,name')
+            ->where('status', '!=', 'archived')
+            ->orderBy('property_id')
+            ->orderBy('name')
+            ->get(['id', 'property_id', 'name', 'base_price', 'max_adults', 'max_children']);
+
+        return view('tenant.bookings.edit', compact('booking', 'rooms'));
+    }
+
+    /**
+     * Update an existing booking in place. Unlike store(), this does NOT
+     * recompute pricing — the host edits amounts directly. That's deliberate:
+     * imported / historical bookings carry exact agreed prices that must not
+     * be overwritten by the room-rate engine. `nights` is re-derived from the
+     * dates; `deposit_pct` is re-derived from deposit ÷ total.
+     *
+     * Note: setting status to `cancelled` here is a raw override — it does NOT
+     * run the CancelBooking side-effects (free dates, cancel tasks, notify
+     * guest). Use the dedicated "Cancel booking" button for a real cancellation.
+     */
+    public function update(Request $request, $id)
+    {
+        $booking = Booking::with(['bookingGuests', 'guest'])->findOrFail($id);
+
+        $validated = $request->validate([
+            'room_id' => ['required', Rule::exists('rooms', 'id')],
+            'check_in' => 'required|date',
+            'check_out' => 'required|date|after:check_in',
+            'guest_name' => 'required|string|max:120',
+            'guest_email' => 'nullable|email|max:160',
+            'guest_phone' => 'nullable|string|max:30',
+            'guest_country' => 'nullable|string|size:2',
+            'adults' => 'required|integer|min:1|max:60',
+            'children' => 'nullable|integer|min:0|max:60',
+            'is_foreigner' => 'nullable|boolean',
+            'channel' => ['required', Rule::in([
+                Booking::CHANNEL_DIRECT,
+                Booking::CHANNEL_MARKETPLACE,
+                Booking::CHANNEL_WALK_IN,
+                Booking::CHANNEL_BOOKING,
+                Booking::CHANNEL_AIRBNB,
+            ])],
+            'status' => ['required', Rule::in([
+                Booking::STATUS_PENDING,
+                Booking::STATUS_CONFIRMED,
+                Booking::STATUS_CHECKED_IN,
+                Booking::STATUS_CHECKED_OUT,
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_NO_SHOW,
+            ])],
+            'base_amount' => 'required|numeric|min:0|max:1000000',
+            'total_amount' => 'required|numeric|min:0|max:1000000',
+            'deposit_amount' => 'nullable|numeric|min:0|max:1000000',
+            'special_requests' => 'nullable|string|max:1000',
+        ]);
+
+        // Room must belong to the current tenant (BelongsToTenant scope filters this).
+        $room = Room::find($validated['room_id']);
+        abort_unless($room, 403);
+
+        $checkIn = Carbon::parse($validated['check_in'])->startOfDay();
+        $checkOut = Carbon::parse($validated['check_out'])->startOfDay();
+
+        // Date-overlap guard — only for bookings that still hold the room
+        // (pending/confirmed/checked-in). Past/cancelled bookings don't block.
+        // Excludes THIS booking so editing its own dates never self-conflicts.
+        if (in_array($validated['status'], [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN], true)) {
+            $conflict = Booking::query()
+                ->withoutGlobalScopes()
+                ->where('room_id', $room->id)
+                ->where('id', '!=', $booking->id)
+                ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN])
+                ->where('check_in', '<', $checkOut->toDateString())
+                ->where('check_out', '>', $checkIn->toDateString())
+                ->exists();
+
+            if ($conflict) {
+                return back()->withInput()->with('status', __('Those dates overlap another active booking on this room.'));
+            }
+        }
+
+        $nights = max(1, $checkIn->diffInDays($checkOut));
+        $isForeigner = (bool) ($validated['is_foreigner'] ?? false);
+        $total = round((float) $validated['total_amount'], 2);
+        $deposit = round((float) ($validated['deposit_amount'] ?? $booking->deposit_amount), 2);
+
+        DB::transaction(function () use ($booking, $room, $validated, $checkIn, $checkOut, $nights, $isForeigner, $total, $deposit) {
+            $booking->update([
+                'room_id' => $room->id,
+                'property_id' => $room->property_id,
+                'channel' => $validated['channel'],
+                'status' => $validated['status'],
+                'check_in' => $checkIn->toDateString(),
+                'check_out' => $checkOut->toDateString(),
+                'nights' => $nights,
+                'adults' => (int) $validated['adults'],
+                'children' => (int) ($validated['children'] ?? 0),
+                'is_foreigner' => $isForeigner,
+                'base_amount' => round((float) $validated['base_amount'], 2),
+                'total_amount' => $total,
+                'deposit_amount' => $deposit,
+                'deposit_pct' => $total > 0 ? round($deposit / $total * 100, 2) : 0,
+                'special_requests' => $validated['special_requests'] ?? null,
+            ]);
+
+            // Keep the lead BookingGuest row in step with the edited contact.
+            $lead = $booking->bookingGuests->firstWhere('is_lead', true) ?? $booking->bookingGuests->first();
+            if ($lead) {
+                $lead->update([
+                    'full_name' => $validated['guest_name'],
+                    'email' => $validated['guest_email'] ?? null,
+                    'phone' => $validated['guest_phone'] ?? null,
+                    'country' => $validated['guest_country'] ?? 'MY',
+                    'is_foreigner' => $isForeigner,
+                ]);
+            }
+
+            // The bookings list + calendar display the linked User's name, so
+            // sync name/phone there too. Email is only updated when it's new
+            // and not already taken (the users.email column is unique).
+            if ($guest = $booking->guest) {
+                $changes = ['name' => $validated['guest_name']];
+                if (! empty($validated['guest_phone'])) {
+                    $changes['phone'] = $validated['guest_phone'];
+                }
+                $newEmail = $validated['guest_email'] ?? null;
+                if ($newEmail && $newEmail !== $guest->email
+                    && ! User::where('email', $newEmail)->where('id', '!=', $guest->id)->exists()) {
+                    $changes['email'] = $newEmail;
+                }
+                $guest->update($changes);
+            }
+        });
+
+        return redirect()
+            ->route('tenant.bookings.show', $booking->id)
+            ->with('status', __('Booking :ref updated.', ['ref' => $booking->reference]));
     }
 
     public function show($id)

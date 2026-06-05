@@ -26,6 +26,10 @@
                 <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
                     <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
 
+                    <a href="{{ route('tenant.bookings.edit', $booking->id) }}" class="btn btn-sm" title="{{ __('Edit booking details') }}" style="text-decoration:none;">
+                        {{ __('Edit') }}
+                    </a>
+
                     @if ($waConnected && $booking->guest?->phone)
                         <form method="POST" action="{{ route('tenant.bookings.whatsapp', $booking->id) }}" style="display:inline;">
                             @csrf
