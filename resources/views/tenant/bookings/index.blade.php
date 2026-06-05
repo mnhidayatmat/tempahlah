@@ -1,22 +1,4 @@
 <x-app-layout :title="__('Bookings')">
-    @php
-        $paymentState = function ($b) {
-            if ($b->balance_paid_at) return ['key' => 'paid', 'variant' => 'ok', 'label' => __('Paid')];
-            if ($b->deposit_paid_at) return ['key' => 'deposit', 'variant' => 'warn', 'label' => __('Deposit')];
-            return ['key' => 'unpaid', 'variant' => 'err', 'label' => __('Unpaid')];
-        };
-        $statusOptions = \App\Models\Booking::statusLabels();
-        // Border accent per status so the dropdown reads at a glance.
-        $statusAccent = [
-            'pending'     => 'var(--warn)',
-            'confirmed'   => 'var(--primary)',
-            'checked_in'  => 'var(--ok)',
-            'checked_out' => 'var(--ink-3)',
-            'cancelled'   => 'var(--err)',
-            'no_show'     => 'var(--err)',
-        ];
-    @endphp
-
     <div style="display:flex; flex-direction:column; gap: 20px;">
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; flex-wrap: wrap;">
             <div>
@@ -70,14 +52,13 @@
                 <table style="width:100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: var(--bg-sunk);">
-                            @foreach ([__('Guest'), __('Property'), __('Dates'), __('Status'), __('Channel'), __('Payment'), __('Total')] as $i => $h)
-                                <th style="text-align: {{ $i === 6 ? 'right' : 'left' }}; padding: 10px 14px; font-weight:500; font-size:11px; color: var(--ink-3); text-transform: uppercase; letter-spacing:.08em;">{{ $h }}</th>
+                            @foreach ([__('Guest'), __('Property'), __('Dates'), __('Payment Status'), __('Channel'), __('Total')] as $i => $h)
+                                <th style="text-align: {{ $i === 5 ? 'right' : 'left' }}; padding: 10px 14px; font-weight:500; font-size:11px; color: var(--ink-3); text-transform: uppercase; letter-spacing:.08em;">{{ $h }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($bookings as $b)
-                            @php $ps = $paymentState($b); @endphp
                             <tr style="border-top: .5px solid var(--line);">
                                 <td style="padding: 12px 14px;">
                                     <a href="{{ route('tenant.bookings.show', $b->id) }}" style="display:flex; align-items:center; gap:10px; text-decoration:none; color: inherit;">
@@ -93,30 +74,10 @@
                                     {{ $b->check_in->format('d M') }} – {{ $b->check_out->format('d M') }}
                                 </td>
                                 <td style="padding: 12px 14px;">
-                                    <form method="POST" action="{{ route('tenant.bookings.update-status', $b->id) }}" style="margin:0;">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="status" onchange="this.form.submit()" title="{{ __('Change status') }}"
-                                                style="font-size:12px; padding:5px 8px; border-radius:8px; cursor:pointer;
-                                                       border:1px solid var(--line);
-                                                       border-left:3px solid {{ $statusAccent[$b->status] ?? 'var(--line)' }};
-                                                       background: var(--bg-elev); color: var(--ink-1);">
-                                            @unless (array_key_exists($b->status, $statusOptions))
-                                                {{-- e.g. an unpaid online booking still in `pending` — show its
-                                                     actual state so it isn't misrepresented as a selectable one. --}}
-                                                <option value="{{ $b->status }}" selected>{{ \App\Models\Booking::statusLabel($b->status) }}</option>
-                                            @endunless
-                                            @foreach ($statusOptions as $val => $label)
-                                                <option value="{{ $val }}" @selected($b->status === $val)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </form>
+                                    <x-pill :variant="$b->paymentStatusVariant()" :dot="true">{{ $b->paymentStatusLabel() }}</x-pill>
                                 </td>
                                 <td style="padding: 12px 14px;">
                                     <x-pill>{{ ucfirst((string) ($b->channel ?? 'direct')) }}</x-pill>
-                                </td>
-                                <td style="padding: 12px 14px;">
-                                    <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
                                 </td>
                                 <td style="padding: 12px 14px; text-align:right;" class="mono">RM{{ number_format((float) $b->total_amount, 0) }}</td>
                             </tr>

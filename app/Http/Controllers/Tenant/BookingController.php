@@ -204,9 +204,10 @@ class BookingController extends Controller
      * be overwritten by the room-rate engine. `nights` is re-derived from the
      * dates; `deposit_pct` is re-derived from deposit ÷ total.
      *
-     * Note: setting status to `cancelled` here is a raw override — it does NOT
-     * run the CancelBooking side-effects (free dates, cancel tasks, notify
-     * guest). Use the dedicated "Cancel booking" button for a real cancellation.
+     * Note: setting payment status to `cancelled` here is a raw override — it
+     * does NOT run the CancelBooking side-effects (free dates, cancel tasks,
+     * notify guest). Use the dedicated "Cancel booking" button for a real
+     * cancellation.
      */
     public function update(Request $request, $id)
     {
@@ -230,14 +231,7 @@ class BookingController extends Controller
                 Booking::CHANNEL_BOOKING,
                 Booking::CHANNEL_AIRBNB,
             ])],
-            'status' => ['required', Rule::in([
-                Booking::STATUS_PENDING,
-                Booking::STATUS_CONFIRMED,
-                Booking::STATUS_CHECKED_IN,
-                Booking::STATUS_CHECKED_OUT,
-                Booking::STATUS_CANCELLED,
-                Booking::STATUS_NO_SHOW,
-            ])],
+            'payment_status' => ['required', Rule::in(array_keys(Booking::paymentStatusOptions()))],
             'base_amount' => 'required|numeric|min:0|max:1000000',
             'total_amount' => 'required|numeric|min:0|max:1000000',
             'deposit_amount' => 'nullable|numeric|min:0|max:1000000',
@@ -251,10 +245,15 @@ class BookingController extends Controller
         $checkIn = Carbon::parse($validated['check_in'])->startOfDay();
         $checkOut = Carbon::parse($validated['check_out'])->startOfDay();
 
+        // Translate the chosen merged payment-status into concrete column
+        // updates (lifecycle status + payment timestamps).
+        $statusUpdates = $booking->paymentStatusUpdates($validated['payment_status']);
+        $resultingStatus = $statusUpdates['status'] ?? $booking->status;
+
         // Date-overlap guard — only for bookings that still hold the room
         // (pending/confirmed/checked-in). Past/cancelled bookings don't block.
         // Excludes THIS booking so editing its own dates never self-conflicts.
-        if (in_array($validated['status'], [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN], true)) {
+        if (in_array($resultingStatus, [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN], true)) {
             $conflict = Booking::query()
                 ->withoutGlobalScopes()
                 ->where('room_id', $room->id)
@@ -274,12 +273,11 @@ class BookingController extends Controller
         $total = round((float) $validated['total_amount'], 2);
         $deposit = round((float) ($validated['deposit_amount'] ?? $booking->deposit_amount), 2);
 
-        DB::transaction(function () use ($booking, $room, $validated, $checkIn, $checkOut, $nights, $isForeigner, $total, $deposit) {
-            $booking->update([
+        DB::transaction(function () use ($booking, $room, $validated, $checkIn, $checkOut, $nights, $isForeigner, $total, $deposit, $statusUpdates) {
+            $booking->update(array_merge([
                 'room_id' => $room->id,
                 'property_id' => $room->property_id,
                 'channel' => $validated['channel'],
-                'status' => $validated['status'],
                 'check_in' => $checkIn->toDateString(),
                 'check_out' => $checkOut->toDateString(),
                 'nights' => $nights,
@@ -291,7 +289,8 @@ class BookingController extends Controller
                 'deposit_amount' => $deposit,
                 'deposit_pct' => $total > 0 ? round($deposit / $total * 100, 2) : 0,
                 'special_requests' => $validated['special_requests'] ?? null,
-            ]);
+            // Lifecycle status + payment timestamps from the merged payment-status.
+            ], $statusUpdates));
 
             // Keep the lead BookingGuest row in step with the edited contact.
             $lead = $booking->bookingGuests->firstWhere('is_lead', true) ?? $booking->bookingGuests->first();

@@ -45,15 +45,136 @@ class Booking extends Model
     }
 
     /**
-     * Resolve ANY status to a display label — includes `pending` so a
-     * not-yet-paid online booking still renders correctly even though it
-     * isn't a manually-selectable option.
+     * Resolve ANY status to a display label. "Pay Booking Fee" has been
+     * removed from the system entirely — `pending` (the transient state an
+     * online Toyyibpay booking sits in before its fee clears) now resolves to
+     * the same "Paid Booking Fee" label as `confirmed`, so the unpaid wording
+     * never surfaces anywhere. Only "Paid Booking Fee" remains.
      */
     public static function statusLabel(?string $status): string
     {
-        $all = self::statusLabels() + [self::STATUS_PENDING => __('Pay Booking Fee')];
+        $all = self::statusLabels() + [self::STATUS_PENDING => __('Paid Booking Fee')];
 
         return $all[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
+    }
+
+    /**
+     * The single, merged "Payment Status" the host sees + edits — it folds the
+     * old separate Status and Payment columns into one value. The first three
+     * are payment-driven (derived from the deposit/balance timestamps); the
+     * rest are lifecycle states carried on the `status` column. This array is
+     * the single source of truth for the edit-form dropdown.
+     */
+    public static function paymentStatusOptions(): array
+    {
+        return [
+            'pending'                => __('Pending'),
+            'paid_booking_fee'       => __('Paid Booking Fee'),
+            'paid_full'              => __('Paid Full Payment'),
+            self::STATUS_CHECKED_IN  => __('Checked in'),
+            self::STATUS_CHECKED_OUT => __('Checked out'),
+            self::STATUS_CANCELLED   => __('Cancelled'),
+            self::STATUS_NO_SHOW     => __('No-show'),
+        ];
+    }
+
+    /**
+     * Resolve THIS booking to its merged payment-status key. Lifecycle states
+     * (checked-in/out, cancelled, no-show) take precedence once reached;
+     * otherwise the key is derived from how much has been paid.
+     */
+    public function paymentStatusKey(): string
+    {
+        // Lifecycle states win once reached.
+        return match ($this->status) {
+            self::STATUS_CHECKED_IN  => self::STATUS_CHECKED_IN,
+            self::STATUS_CHECKED_OUT => self::STATUS_CHECKED_OUT,
+            self::STATUS_CANCELLED   => self::STATUS_CANCELLED,
+            self::STATUS_NO_SHOW     => self::STATUS_NO_SHOW,
+            // Otherwise derive from how much has been paid. A `confirmed`
+            // booking counts as at least "Paid Booking Fee" even without a
+            // stamped deposit date — in this system a booking is confirmed
+            // precisely when its booking fee clears. Only an unpaid `pending`
+            // hold reads "Pending".
+            default => $this->balance_paid_at
+                ? 'paid_full'
+                : (($this->deposit_paid_at || $this->status === self::STATUS_CONFIRMED)
+                    ? 'paid_booking_fee'
+                    : 'pending'),
+        };
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        $key = $this->paymentStatusKey();
+
+        return self::paymentStatusOptions()[$key] ?? ucfirst(str_replace('_', ' ', $key));
+    }
+
+    /** Pill colour variant for the merged payment-status badge. */
+    public function paymentStatusVariant(): string
+    {
+        return match ($this->paymentStatusKey()) {
+            'paid_full'              => 'ok',
+            'paid_booking_fee'       => 'info',
+            'pending'                => 'warn',
+            self::STATUS_CHECKED_IN  => 'primary',
+            self::STATUS_CHECKED_OUT => 'default',
+            self::STATUS_CANCELLED, self::STATUS_NO_SHOW => 'err',
+            default                  => 'default',
+        };
+    }
+
+    /**
+     * Translate a chosen merged payment-status key into the concrete column
+     * updates (lifecycle `status` + payment timestamps) to persist. Existing
+     * timestamps are preserved where possible so re-saving doesn't move a paid
+     * date. Caller merges the returned array into update().
+     */
+    public function paymentStatusUpdates(string $key, ?\Carbon\Carbon $now = null): array
+    {
+        $now ??= now();
+
+        return match ($key) {
+            'pending' => [
+                'status'          => self::STATUS_PENDING,
+                'deposit_paid_at' => null,
+                'balance_paid_at' => null,
+                'cancelled_at'    => null,
+            ],
+            'paid_booking_fee' => [
+                'status'          => self::STATUS_CONFIRMED,
+                'deposit_paid_at' => $this->deposit_paid_at ?? $now,
+                'balance_paid_at' => null,
+                'cancelled_at'    => null,
+            ],
+            'paid_full' => [
+                'status'          => self::STATUS_CONFIRMED,
+                'deposit_paid_at' => $this->deposit_paid_at ?? $now,
+                'balance_paid_at' => $this->balance_paid_at ?? $now,
+                'cancelled_at'    => null,
+            ],
+            self::STATUS_CHECKED_IN => [
+                'status'        => self::STATUS_CHECKED_IN,
+                'checked_in_at' => $this->checked_in_at ?? $now,
+                'cancelled_at'  => null,
+            ],
+            self::STATUS_CHECKED_OUT => [
+                'status'         => self::STATUS_CHECKED_OUT,
+                'checked_in_at'  => $this->checked_in_at ?? $now,
+                'checked_out_at' => $this->checked_out_at ?? $now,
+                'cancelled_at'   => null,
+            ],
+            self::STATUS_CANCELLED => [
+                'status'       => self::STATUS_CANCELLED,
+                'cancelled_at' => $this->cancelled_at ?? $now,
+            ],
+            self::STATUS_NO_SHOW => [
+                'status'       => self::STATUS_NO_SHOW,
+                'cancelled_at' => $this->cancelled_at ?? $now,
+            ],
+            default => [],
+        };
     }
 
     public const CHANNEL_DIRECT = 'direct';
