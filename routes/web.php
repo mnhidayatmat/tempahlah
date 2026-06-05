@@ -166,6 +166,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/bookings/create',      [BookingController::class, 'create'])->name('bookings.create');
         Route::post('/bookings',            [BookingController::class, 'store'])->name('bookings.store');
         Route::get('/bookings/{id}/edit',   [BookingController::class, 'edit'])->name('bookings.edit')->whereNumber('id');
+        Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus'])->name('bookings.update-status')->whereNumber('id');
         Route::patch('/bookings/{id}',      [BookingController::class, 'update'])->name('bookings.update')->whereNumber('id');
         Route::get('/bookings/{id}',        [BookingController::class, 'show'])->name('bookings.show')->whereNumber('id');
         Route::post('/bookings/{id}/mark-paid',      [BookingController::class, 'markPaid'])->name('bookings.mark-paid');

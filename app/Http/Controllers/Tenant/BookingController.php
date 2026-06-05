@@ -125,6 +125,62 @@ class BookingController extends Controller
             ->with('status', __('Booking :ref created.', ['ref' => $booking->reference]));
     }
 
+    /**
+     * Quick status change from the bookings list (inline dropdown). A direct
+     * override — it stamps the matching timestamp (checked_in_at/out_at/
+     * cancelled_at) for consistency but does NOT run the CancelBooking
+     * side-effects (guest notice, task cancellation, GCal removal). Use the
+     * "Cancel booking" button on the show page for a real, guest-notifying
+     * cancellation.
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in([
+                Booking::STATUS_PENDING,
+                Booking::STATUS_CONFIRMED,
+                Booking::STATUS_CHECKED_IN,
+                Booking::STATUS_CHECKED_OUT,
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_NO_SHOW,
+            ])],
+        ]);
+
+        $new = $validated['status'];
+        $now = now();
+        $updates = ['status' => $new];
+
+        switch ($new) {
+            case Booking::STATUS_CHECKED_IN:
+                $updates['checked_in_at'] = $booking->checked_in_at ?? $now;
+                $updates['cancelled_at'] = null;
+                break;
+            case Booking::STATUS_CHECKED_OUT:
+                $updates['checked_in_at'] = $booking->checked_in_at ?? $now;
+                $updates['checked_out_at'] = $booking->checked_out_at ?? $now;
+                $updates['cancelled_at'] = null;
+                break;
+            case Booking::STATUS_CANCELLED:
+            case Booking::STATUS_NO_SHOW:
+                $updates['cancelled_at'] = $booking->cancelled_at ?? $now;
+                break;
+            case Booking::STATUS_PENDING:
+            case Booking::STATUS_CONFIRMED:
+                // Re-activating a previously-cancelled booking clears the stamp.
+                $updates['cancelled_at'] = null;
+                break;
+        }
+
+        $booking->update($updates);
+
+        return back()->with('status', __('Booking :ref status set to :s.', [
+            'ref' => $booking->reference,
+            's' => str_replace('_', ' ', $new),
+        ]));
+    }
+
     public function edit($id)
     {
         $booking = Booking::query()
