@@ -25,16 +25,18 @@ class Booking extends Model
     public const STATUS_NO_SHOW = 'no_show';
 
     /**
-     * Host-facing status labels (single source of truth for every status
-     * dropdown / badge). `pending` reads as "Pay Booking Fee" because that's
-     * what it means in the Tempahlah flow — the booking is created but the
-     * booking fee hasn't been paid yet. The stored value stays `pending`.
+     * Host-selectable status labels (single source of truth for the status
+     * dropdowns). `confirmed` reads as "Paid Booking Fee" because in the
+     * Tempahlah flow a confirmed booking is one whose booking fee has been
+     * paid. `pending` is intentionally NOT offered here — hosts don't manually
+     * put a booking back into the unpaid state; it only ever arises internally
+     * from the online flow before the Toyyibpay fee clears. The stored values
+     * are unchanged.
      */
     public static function statusLabels(): array
     {
         return [
-            self::STATUS_PENDING     => __('Pay Booking Fee'),
-            self::STATUS_CONFIRMED   => __('Confirmed'),
+            self::STATUS_CONFIRMED   => __('Paid Booking Fee'),
             self::STATUS_CHECKED_IN  => __('Checked in'),
             self::STATUS_CHECKED_OUT => __('Checked out'),
             self::STATUS_CANCELLED   => __('Cancelled'),
@@ -42,9 +44,16 @@ class Booking extends Model
         ];
     }
 
+    /**
+     * Resolve ANY status to a display label — includes `pending` so a
+     * not-yet-paid online booking still renders correctly even though it
+     * isn't a manually-selectable option.
+     */
     public static function statusLabel(?string $status): string
     {
-        return self::statusLabels()[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
+        $all = self::statusLabels() + [self::STATUS_PENDING => __('Pay Booking Fee')];
+
+        return $all[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
     }
 
     public const CHANNEL_DIRECT = 'direct';

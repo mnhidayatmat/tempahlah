@@ -126,8 +126,12 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Status') }}</div>
+                        @php $statusChoices = \App\Models\Booking::statusLabels(); @endphp
                         <select name="status" required class="input">
-                            @foreach (\App\Models\Booking::statusLabels() as $key => $label)
+                            @unless (array_key_exists($booking->status, $statusChoices))
+                                <option value="{{ $booking->status }}" @selected(old('status', $booking->status) === $booking->status)>{{ \App\Models\Booking::statusLabel($booking->status) }}</option>
+                            @endunless
+                            @foreach ($statusChoices as $key => $label)
                                 <option value="{{ $key }}" @selected(old('status', $booking->status) === $key)>{{ $label }}</option>
                             @endforeach
                         </select>

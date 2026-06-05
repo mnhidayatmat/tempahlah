@@ -101,6 +101,11 @@
                                                        border:1px solid var(--line);
                                                        border-left:3px solid {{ $statusAccent[$b->status] ?? 'var(--line)' }};
                                                        background: var(--bg-elev); color: var(--ink-1);">
+                                            @unless (array_key_exists($b->status, $statusOptions))
+                                                {{-- e.g. an unpaid online booking still in `pending` — show its
+                                                     actual state so it isn't misrepresented as a selectable one. --}}
+                                                <option value="{{ $b->status }}" selected>{{ \App\Models\Booking::statusLabel($b->status) }}</option>
+                                            @endunless
                                             @foreach ($statusOptions as $val => $label)
                                                 <option value="{{ $val }}" @selected($b->status === $val)>{{ $label }}</option>
                                             @endforeach
