@@ -95,8 +95,17 @@ class TenantHomeController extends Controller
             $property->cover_photo_url = $cover?->url();
         }
 
-        // Per-property booked-date sets — flatten each future booking into the
-        // YYYY-MM-DD strings the calendar should disable. Skip cancelled/no-show.
+        // Per-property booked-date sets — flatten each held booking into the
+        // YYYY-MM-DD strings the calendar should disable.
+        //
+        // A date only greys out once the booking is actually HELD: the fee
+        // (or balance) has been paid, OR a host has confirmed/checked the
+        // booking in/out. An unpaid `pending` booking — e.g. a guest who
+        // started the form but hasn't paid the Toyyibpay fee yet — does NOT
+        // block the calendar; those auto-cancel after the fee window. This
+        // mirrors the Toyyibpay webhook, which flips `status=confirmed` +
+        // stamps `deposit_paid_at` the moment the fee clears. Cancelled /
+        // no-show are excluded regardless of any earlier payment.
         $bookedByProperty = [];
         if ($properties->isNotEmpty()) {
             $bookings = Booking::query()
@@ -104,6 +113,15 @@ class TenantHomeController extends Controller
                 ->whereIn('property_id', $properties->pluck('id'))
                 ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
                 ->where('check_out', '>=', now()->startOfDay())
+                ->where(function ($q) {
+                    $q->whereIn('status', [
+                        Booking::STATUS_CONFIRMED,
+                        Booking::STATUS_CHECKED_IN,
+                        Booking::STATUS_CHECKED_OUT,
+                    ])
+                        ->orWhereNotNull('deposit_paid_at')
+                        ->orWhereNotNull('balance_paid_at');
+                })
                 ->get(['property_id', 'check_in', 'check_out']);
 
             foreach ($properties as $property) {
