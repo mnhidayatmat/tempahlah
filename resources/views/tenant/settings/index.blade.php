@@ -213,9 +213,21 @@
                             <option value="check_in" {{ old('cancel_balance_on', $tenant->cancelBalanceOn()) === 'check_in' ? 'selected' : '' }}>{{ __('Check-in day') }}</option>
                             <option value="due_date" {{ old('cancel_balance_on', $tenant->cancelBalanceOn()) === 'due_date' ? 'selected' : '' }}>{{ __('Payment due date') }}</option>
                         </select>
-                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('When a still-unpaid confirmed booking is cancelled.') }}</div>
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Only applies if auto-cancel below is on.') }}</div>
                     </div>
                 </div>
+
+                <label style="display:flex; align-items:flex-start; gap: 10px; margin-top: 16px; cursor: pointer;">
+                    <input type="hidden" name="auto_cancel_unpaid_balance" value="0">
+                    <input type="checkbox" name="auto_cancel_unpaid_balance" value="1" style="margin-top: 2px;"
+                           {{ old('auto_cancel_unpaid_balance', $tenant->autoCancelUnpaidBalance()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Auto-cancel deposit-paid bookings if the balance is unpaid') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('Leave OFF if you collect the balance on arrival (recommended). When ON, a confirmed booking whose balance is still unpaid is cancelled on the date set above — and its dates are freed.') }}
+                        </span>
+                    </span>
+                </label>
 
                 <div style="margin-top: 16px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Refund / return policy') }}</label>

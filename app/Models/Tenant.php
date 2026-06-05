@@ -24,7 +24,8 @@ class Tenant extends Model
         'bank_account_holder', 'status', 'sst_registered', 'sst_rate',
         'logo_path', 'primary_color', 'secondary_color', 'accent_color',
         'default_locale', 'suspended_at', 'suspended_reason',
-        'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on', 'refund_policy',
+        'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on',
+        'auto_cancel_unpaid_balance', 'refund_policy',
     ];
 
     public const THEME_DEFAULTS = [
@@ -38,6 +39,10 @@ class Tenant extends Model
         'full_payment_days_before' => 7,
         'fee_payment_hours'        => 24,
         'cancel_balance_on'        => 'check_in', // 'due_date' | 'check_in'
+        // OFF by default — collecting the balance on arrival is the common
+        // homestay model, so a deposit-paid booking is never auto-cancelled
+        // for an unpaid balance unless the host explicitly opts in.
+        'auto_cancel_unpaid_balance' => false,
     ];
 
     public const CANCEL_BALANCE_DUE_DATE = 'due_date';
@@ -58,6 +63,7 @@ class Tenant extends Model
         'bank_account_encrypted' => 'encrypted',
         'full_payment_days_before' => 'integer',
         'fee_payment_hours' => 'integer',
+        'auto_cancel_unpaid_balance' => 'boolean',
     ];
 
     /** Balance reminder/due lead time (days before check-in). */
@@ -82,6 +88,19 @@ class Tenant extends Model
         return in_array($this->cancel_balance_on, [self::CANCEL_BALANCE_DUE_DATE, self::CANCEL_BALANCE_CHECK_IN], true)
             ? $this->cancel_balance_on
             : self::PAYMENT_POLICY_DEFAULTS['cancel_balance_on'];
+    }
+
+    /**
+     * Whether to auto-cancel a confirmed (deposit-paid) booking whose balance
+     * is still unpaid past the deadline. OFF by default — most homestay hosts
+     * collect the balance on arrival, so cancelling a paid reservation out
+     * from under them is destructive. Opt-in for strict-prepayment hosts.
+     */
+    public function autoCancelUnpaidBalance(): bool
+    {
+        return $this->auto_cancel_unpaid_balance !== null
+            ? (bool) $this->auto_cancel_unpaid_balance
+            : self::PAYMENT_POLICY_DEFAULTS['auto_cancel_unpaid_balance'];
     }
 
     /**

@@ -186,6 +186,14 @@ class ProcessPaymentLifecycle extends Command
                         continue;
                     }
 
+                    // Opt-in only. By default a deposit-paid booking is never
+                    // auto-cancelled for an unpaid balance — homestay hosts
+                    // typically collect the balance on arrival, so cancelling
+                    // a paid reservation out from under them is destructive.
+                    if (! $tenant->autoCancelUnpaidBalance()) {
+                        continue;
+                    }
+
                     $deadline = $tenant->cancelBalanceOn() === \App\Models\Tenant::CANCEL_BALANCE_DUE_DATE
                         ? ($booking->balance_due_at ? Carbon::parse($booking->balance_due_at)->startOfDay() : Carbon::parse($booking->check_in)->startOfDay())
                         : Carbon::parse($booking->check_in)->startOfDay();

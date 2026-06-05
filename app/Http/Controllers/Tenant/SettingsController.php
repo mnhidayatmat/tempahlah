@@ -58,6 +58,7 @@ class SettingsController extends Controller
                 Tenant::CANCEL_BALANCE_DUE_DATE,
                 Tenant::CANCEL_BALANCE_CHECK_IN,
             ])],
+            'auto_cancel_unpaid_balance' => 'nullable|boolean',
             'refund_policy'            => 'nullable|string|max:2000',
             'primary_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
@@ -72,6 +73,7 @@ class SettingsController extends Controller
         ]);
 
         $validated['sst_registered'] = $request->boolean('sst_registered');
+        $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
         if (! $validated['sst_registered']) {
             $validated['sst_rate'] = 0;
         } elseif (empty($validated['sst_rate'])) {
