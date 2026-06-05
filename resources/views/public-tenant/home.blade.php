@@ -819,18 +819,23 @@
         background: linear-gradient(180deg, transparent 0%, rgba(20,10,5,0.55) 100%);
         pointer-events: none;
     }
-    /* When the hero is showing a real cover photo, the H1 + tagline need
-       a deeper bottom scrim because real photos vary wildly in brightness. */
+    /* When the hero is showing a real cover photo, the H1 + address need a
+       deep bottom scrim. Real cover photos vary wildly in brightness — a host
+       can upload a bright/white image — so the scrim ramps to near-opaque
+       black at the very bottom. That guarantees the white text always sits on
+       a dark band and stays legible regardless of the photo (the "system"
+       differentiating text from a white background is this guaranteed scrim,
+       not per-image analysis), while a dark photo just reads as before. */
     .wf-banner.wf-banner-has-photo .wf-banner-vignette {
-        height: 75%;
-        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.75) 100%);
+        height: 82%;
+        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.30) 35%, rgba(0,0,0,0.66) 70%, rgba(0,0,0,0.92) 100%);
     }
     /* Light top scrim only when there's a photo — keeps the locale +
        WhatsApp pills (top-left / top-right) readable over bright skies. */
     .wf-banner-vignette-top {
         position: absolute; left: 0; right: 0; top: 0;
-        height: 35%;
-        background: linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 100%);
+        height: 40%;
+        background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%);
         pointer-events: none;
     }
     /* Slight blueish-grey backdrop while the photo is still loading. */
@@ -867,7 +872,10 @@
         letter-spacing: -0.025em;
         line-height: 1.1;
         margin: 0;
-        text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        /* Dual shadow — a tight dark halo + a soft spread — so the name stays
+           legible even if the scrim is light at the top of the text on a very
+           bright cover photo. */
+        text-shadow: 0 1px 2px rgba(0,0,0,0.65), 0 2px 14px rgba(0,0,0,0.5);
     }
 
     .wf-pill {
