@@ -225,7 +225,7 @@
                  it informs without competing with the name. --}}
             <h1 class="wf-banner-name">{{ $tenant->business_name }}</h1>
             <div class="wf-banner-kicker">
-                <span class="wf-banner-tone" x-text="current.tone"></span>
+                <svg class="wf-banner-pin" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
                 <template x-if="current.tone_label">
                     <span x-text="current.tone_label"></span>
                 </template>
@@ -234,7 +234,6 @@
                 </template>
                 <span x-text="(current.city || '') + (current.state ? ', ' + current.state : '')"></span>
             </div>
-            <p class="wf-banner-tag">{{ $isBM ? 'Tempah terus, tanpa komisen.' : 'Skip the queue, book direct.' }}</p>
         </div>
     </header>
 
@@ -853,16 +852,15 @@
         display: inline-flex; align-items: center; gap: 6px;
         margin-top: 8px;
         font-size: 11.5px; font-weight: 600;
-        color: rgba(255,255,255,0.92);
-        text-shadow: 0 1px 4px rgba(0,0,0,0.4);
-        background: rgba(20,12,6,0.32);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        padding: 5px 11px;
-        border-radius: 999px;
+        color: rgba(255,255,255,0.95);
+        text-shadow: 0 1px 5px rgba(0,0,0,0.55);
         margin-bottom: 10px;
     }
-    .wf-banner-tone { font-size: 13px; }
+    .wf-banner-pin {
+        flex-shrink: 0;
+        color: rgba(255,255,255,0.95);
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+    }
     .wf-banner-dot { color: rgba(255,255,255,0.5); }
     .wf-banner-name {
         font-size: 26px; font-weight: 700;
@@ -870,12 +868,6 @@
         line-height: 1.1;
         margin: 0;
         text-shadow: 0 2px 8px rgba(0,0,0,0.35);
-    }
-    .wf-banner-tag {
-        margin: 6px 0 0;
-        font-size: 13px; font-weight: 500;
-        color: rgba(255,255,255,0.92);
-        text-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
 
     .wf-pill {
