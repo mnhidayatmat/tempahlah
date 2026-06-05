@@ -60,7 +60,7 @@
             ],
         ];
 
-        $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM) {
+        $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM, $bookedByProperty) {
             $cover = $coverGradients[$p->cover_kind] ?? $coverGradients['city'];
             // For whole-house properties this is the single synthetic Room.
             // For per-room properties this picks the cheapest — matching
