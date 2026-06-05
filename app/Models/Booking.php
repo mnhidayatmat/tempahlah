@@ -24,6 +24,29 @@ class Booking extends Model
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_NO_SHOW = 'no_show';
 
+    /**
+     * Host-facing status labels (single source of truth for every status
+     * dropdown / badge). `pending` reads as "Pay Booking Fee" because that's
+     * what it means in the Tempahlah flow — the booking is created but the
+     * booking fee hasn't been paid yet. The stored value stays `pending`.
+     */
+    public static function statusLabels(): array
+    {
+        return [
+            self::STATUS_PENDING     => __('Pay Booking Fee'),
+            self::STATUS_CONFIRMED   => __('Confirmed'),
+            self::STATUS_CHECKED_IN  => __('Checked in'),
+            self::STATUS_CHECKED_OUT => __('Checked out'),
+            self::STATUS_CANCELLED   => __('Cancelled'),
+            self::STATUS_NO_SHOW     => __('No-show'),
+        ];
+    }
+
+    public static function statusLabel(?string $status): string
+    {
+        return self::statusLabels()[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
+    }
+
     public const CHANNEL_DIRECT = 'direct';
     public const CHANNEL_MARKETPLACE = 'marketplace';
     public const CHANNEL_AIRBNB = 'airbnb';

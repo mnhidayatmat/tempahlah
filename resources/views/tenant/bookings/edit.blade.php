@@ -127,14 +127,7 @@
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Status') }}</div>
                         <select name="status" required class="input">
-                            @foreach ([
-                                \App\Models\Booking::STATUS_PENDING     => __('Pending'),
-                                \App\Models\Booking::STATUS_CONFIRMED   => __('Confirmed'),
-                                \App\Models\Booking::STATUS_CHECKED_IN  => __('Checked in'),
-                                \App\Models\Booking::STATUS_CHECKED_OUT => __('Checked out'),
-                                \App\Models\Booking::STATUS_CANCELLED   => __('Cancelled'),
-                                \App\Models\Booking::STATUS_NO_SHOW     => __('No-show'),
-                            ] as $key => $label)
+                            @foreach (\App\Models\Booking::statusLabels() as $key => $label)
                                 <option value="{{ $key }}" @selected(old('status', $booking->status) === $key)>{{ $label }}</option>
                             @endforeach
                         </select>

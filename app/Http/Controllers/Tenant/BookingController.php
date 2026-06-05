@@ -177,7 +177,7 @@ class BookingController extends Controller
 
         return back()->with('status', __('Booking :ref status set to :s.', [
             'ref' => $booking->reference,
-            's' => str_replace('_', ' ', $new),
+            's' => Booking::statusLabel($new),
         ]));
     }
 

@@ -5,14 +5,7 @@
             if ($b->deposit_paid_at) return ['key' => 'deposit', 'variant' => 'warn', 'label' => __('Deposit')];
             return ['key' => 'unpaid', 'variant' => 'err', 'label' => __('Unpaid')];
         };
-        $statusOptions = [
-            \App\Models\Booking::STATUS_PENDING     => __('Pending'),
-            \App\Models\Booking::STATUS_CONFIRMED   => __('Confirmed'),
-            \App\Models\Booking::STATUS_CHECKED_IN  => __('Checked in'),
-            \App\Models\Booking::STATUS_CHECKED_OUT => __('Checked out'),
-            \App\Models\Booking::STATUS_CANCELLED   => __('Cancelled'),
-            \App\Models\Booking::STATUS_NO_SHOW     => __('No-show'),
-        ];
+        $statusOptions = \App\Models\Booking::statusLabels();
         // Border accent per status so the dropdown reads at a glance.
         $statusAccent = [
             'pending'     => 'var(--warn)',
