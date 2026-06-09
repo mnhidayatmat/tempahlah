@@ -8,10 +8,66 @@
         $totalRoomsCount = $rooms->count() ?: 1;
     @endphp
 
-    <div style="display:flex; flex-direction:column; gap:16px;">
+    {{-- Mobile compaction: fit the whole month with minimal/no vertical scroll.
+         Desktop (>640px) is untouched. Day cells shrink and swap guest-name
+         chips for colour-coded occupancy dots; the summary slims to a stat
+         strip; the day-detail panel stacks below the grid. --}}
+    <style>
+        .cal-weekday-abbr { display: none; }   /* desktop shows full weekday names */
+
+        @media (max-width: 640px) {
+            .cal-root { gap: 10px !important; }
+            .cal-toolbar { gap: 6px !important; }
+
+            /* Summary → slim stat strip (identity + legend dropped; the
+               property name is already in the page breadcrumb/title). */
+            .cal-summary { padding: 10px 12px !important; gap: 10px !important; }
+            .cal-summary-id { display: none !important; }
+            .cal-summary-meta { width: 100%; }
+            .cal-summary-meta > div:first-child {
+                width: 100%; gap: 6px !important; flex-wrap: nowrap !important;
+            }
+            .cal-summary-meta > div:first-child > div {
+                flex: 1 1 0; min-width: 0 !important; padding: 7px 9px !important;
+            }
+            .cal-summary-meta > div:first-child > div .cm-eyebrow { font-size: 8.5px !important; }
+            .cal-summary-meta > div:first-child > div .mono { font-size: 14px !important; }
+            .cal-summary-meta > div:last-child { display: none !important; }  /* legend */
+
+            /* Detail panel stacks under the grid */
+            .cal-main { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+            /* Weekday header: single letters, centered, slim */
+            .cal-weekday-full { display: none; }
+            .cal-weekday-abbr { display: inline; }
+            .cal-weekday { padding: 7px 0 !important; text-align: center !important; font-size: 10px !important; }
+
+            /* Day cells: short, dot-based occupancy */
+            .cal-cells { gap: 4px !important; padding: 0 6px 8px !important; }
+            .cal-cell-empty { min-height: 0 !important; }
+            .cal-cell {
+                min-height: 46px !important; padding: 5px 5px 6px !important;
+                border-radius: 9px !important; gap: 3px !important;
+            }
+            .cal-cell-events { display: none !important; }  /* in/out shown on tap in detail panel */
+
+            /* Guest-name chips → wrapped row of colour-coded dots */
+            .cal-cell-chips {
+                flex-direction: row !important; flex-wrap: wrap !important;
+                gap: 3px !important; align-content: flex-start;
+            }
+            .cal-cell-chips > span { background: transparent !important; padding: 0 !important; gap: 0 !important; }
+            .cal-cell-chips > span > span:first-child {
+                width: 11px !important; height: 11px !important; font-size: 0 !important;  /* keep colour dot, drop initial */
+            }
+            .cal-cell-chips > span > span:nth-child(2) { display: none !important; }       /* drop guest name */
+        }
+    </style>
+
+    <div class="cal-root" style="display:flex; flex-direction:column; gap:16px;">
 
         {{-- Toolbar --}}
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="cal-toolbar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             @if ($properties->count() > 1)
                 <div class="card" style="display:flex; padding:3px; gap:2px;">
                     @foreach ($properties as $p)
@@ -86,10 +142,10 @@
                     ['label' => __('Bookings'), 'value' => (string) $monthBookings],
                 ];
             @endphp
-            <div class="card" style="padding: 18px 20px; display:flex; gap:20px 28px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+            <div class="card cal-summary" style="padding: 18px 20px; display:flex; gap:20px 28px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
 
                 {{-- Identity --}}
-                <div style="min-width:0; flex: 1 1 240px; display:flex; flex-direction:column; gap:7px;">
+                <div class="cal-summary-id" style="min-width:0; flex: 1 1 240px; display:flex; flex-direction:column; gap:7px;">
                     <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color: var(--ink-3);">
                             <x-icon name="pin" :size="11"/>{{ $property?->city ?? '—' }}
@@ -106,7 +162,7 @@
                 </div>
 
                 {{-- Stats + legend --}}
-                <div style="display:flex; flex-direction:column; align-items:flex-start; gap:12px;">
+                <div class="cal-summary-meta" style="display:flex; flex-direction:column; align-items:flex-start; gap:12px;">
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         @foreach ($stats as $s)
                             <div style="background: var(--bg-sunk); border:1px solid var(--line); border-radius:12px;
@@ -127,26 +183,26 @@
             </div>
 
             {{-- Main: grid + (optional) detail panel --}}
-            <div style="display:grid; grid-template-columns: {{ $selectedDay ? '1fr 340px' : '1fr' }}; gap:16px; align-items:flex-start; transition: grid-template-columns 200ms;">
+            <div class="cal-main" style="display:grid; grid-template-columns: {{ $selectedDay ? '1fr 340px' : '1fr' }}; gap:16px; align-items:flex-start; transition: grid-template-columns 200ms;">
 
                 {{-- Month grid --}}
-                <div class="card" style="padding:0; overflow:hidden;">
+                <div class="card cal-grid-card" style="padding:0; overflow:hidden;">
                     {{-- Weekday header --}}
-                    <div style="display:grid; grid-template-columns: repeat(7, 1fr); padding: 4px 0; background:transparent;">
+                    <div class="cal-weekdays" style="display:grid; grid-template-columns: repeat(7, 1fr); padding: 4px 0; background:transparent;">
                         @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $i => $wd)
-                            <div style="padding: 12px 14px; font-size:11px; font-weight:600;
+                            <div class="cal-weekday" style="padding: 12px 14px; font-size:11px; font-weight:600;
                                         color: {{ ($i === 0 || $i === 6) ? 'var(--primary)' : 'var(--ink-3)' }};
                                         text-transform:uppercase; letter-spacing:.09em; text-align:left;">
-                                {{ __($wd) }}
+                                <span class="cal-weekday-full">{{ __($wd) }}</span><span class="cal-weekday-abbr">{{ __(substr($wd, 0, 1)) }}</span>
                             </div>
                         @endforeach
                     </div>
 
                     {{-- Day cells --}}
-                    <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; padding: 0 10px 14px;">
+                    <div class="cal-cells" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; padding: 0 10px 14px;">
                         @foreach ($days as $d)
                             @if (! $d)
-                                <div style="min-height:128px;"></div>
+                                <div class="cal-cell-empty" style="min-height:128px;"></div>
                             @else
                                 @php
                                     $iso = $d->toDateString();
@@ -168,7 +224,7 @@
                                         'day' => $iso,
                                     ]);
                                 @endphp
-                                <a href="{{ $cellHref }}"
+                                <a href="{{ $cellHref }}" class="cal-cell"
                                    style="min-height:128px; padding:10px; text-decoration:none; color: var(--ink);
                                           background: {{ $isSelected ? 'linear-gradient(160deg, rgba(217,119,87,0.22), rgba(217,119,87,0.08))' : $heatBg }};
                                           border: 1px solid {{ $isSelected ? 'var(--primary)' : 'var(--line)' }};
@@ -178,7 +234,7 @@
                                           position:relative;
                                           box-shadow: {{ $isSelected ? '0 8px 24px -10px oklch(67% 0.16 45 / 0.35), 0 1px 0 oklch(67% 0.16 45 / 0.06) inset' : 'var(--sh-1)' }};
                                           transition: transform 120ms, box-shadow 120ms;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
                                         @if ($isToday)
                                             <span style="font-family: var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.01em;
                                                          color: var(--primary-ink);
@@ -205,7 +261,7 @@
                                     </div>
 
                                     {{-- Booking chips --}}
-                                    <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-height:0;">
+                                    <div class="cal-cell-chips" style="display:flex; flex-direction:column; gap:3px; flex:1; min-height:0;">
                                         @foreach (array_slice($bks, 0, 3) as $b)
                                             @php
                                                 $ps = $paymentStatus($b);
@@ -239,7 +295,7 @@
                                         $cOut = count($events['checkouts'] ?? []);
                                     @endphp
                                     @if ($cIn > 0 || $cOut > 0)
-                                        <div style="display:flex; gap:6px; margin-top:auto; align-items:center;">
+                                        <div class="cal-cell-events" style="display:flex; gap:6px; margin-top:auto; align-items:center;">
                                             @if ($cIn > 0)
                                                 <span style="display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:700; color: var(--primary);">
                                                     <span style="width:6px; height:6px; border-radius:999px; background: var(--primary);"></span>
@@ -274,7 +330,7 @@
                         $selectedCarbon = \Carbon\Carbon::parse($selectedDay);
                         $occupiedRoomIds = collect($dayBookings)->pluck('room_id')->all();
                     @endphp
-                    <div class="card" style="padding:0; overflow:hidden; position:sticky; top:16px;">
+                    <div class="card cal-detail" style="padding:0; overflow:hidden; position:sticky; top:16px;">
                         {{-- Header --}}
                         <div style="padding: 16px 18px; border-bottom: .5px solid var(--line); background: var(--bg-sunk);
                                     display:flex; align-items:flex-start; justify-content:space-between;">

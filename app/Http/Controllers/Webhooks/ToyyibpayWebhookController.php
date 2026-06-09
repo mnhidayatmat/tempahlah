@@ -172,6 +172,12 @@ class ToyyibpayWebhookController extends Controller
             $wasPending = $booking->status === Booking::STATUS_PENDING;
             $booking->update([
                 'deposit_paid_at' => $booking->deposit_paid_at ?? now(),
+                // A FULL payment settles the balance outright (last-minute
+                // bookings paid in full to confirm) — stamp it so the balance
+                // reminder/auto-cancel never touches an already-paid booking.
+                'balance_paid_at' => $payment->type === Payment::TYPE_FULL
+                    ? ($booking->balance_paid_at ?? now())
+                    : $booking->balance_paid_at,
                 'status' => Booking::STATUS_CONFIRMED,
             ]);
             if ($wasPending) {

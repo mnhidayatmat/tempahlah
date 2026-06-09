@@ -84,11 +84,16 @@ class PublicBookingController extends Controller
                 ->with('booking_error', __('Sorry, these dates were just taken — please pick different dates.'));
         }
 
-        // 2. Toyyibpay deposit bill.
+        // 2. Toyyibpay bill. Last-minute bookings (made inside the tenant's
+        //    full-payment lead time) are billed for the FULL total — CreateBooking
+        //    has already set deposit_amount = total in that case — so we mark the
+        //    payment TYPE_FULL for accurate records + receipt wording. Otherwise
+        //    it's a TYPE_DEPOSIT (booking fee) with the balance due before check-in.
+        $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);
         try {
             $bill = $this->createBill->execute(
                 $booking,
-                Payment::TYPE_DEPOSIT,
+                $requiresFullPayment ? Payment::TYPE_FULL : Payment::TYPE_DEPOSIT,
                 (float) $booking->deposit_amount,
             );
         } catch (ToyyibpayException $e) {

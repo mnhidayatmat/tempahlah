@@ -48,6 +48,17 @@ class CreateBooking
 
             $total = round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2);
 
+            // Last-minute guard: a booking made INSIDE the tenant's
+            // full-payment lead time (default 7 days before check-in) must be
+            // paid IN FULL to confirm — there's no runway to send the
+            // "X days before check-in" balance reminder and collect the
+            // balance before the guest arrives. Applies only to the public /
+            // default pay-now path; a host entering a manual booking with an
+            // explicit deposit_amount/deposit_pct keeps full control.
+            $leadDays = $tenant->fullPaymentDaysBefore();
+            $daysToCheckIn = CarbonImmutable::now()->startOfDay()->diffInDays($checkIn->startOfDay(), false);
+            $requiresFullPayment = $daysToCheckIn < $leadDays;
+
             // Deposit / pay-now logic:
             // - When the caller passes a fixed `deposit_amount` (host
             //   creating a manual booking in the dashboard — the
@@ -55,7 +66,9 @@ class CreateBooking
             //   amount and the percentage is back-derived from it.
             // - When the caller passes `deposit_pct` explicitly, we compute
             //   a percentage-based deposit as before (legacy callers).
-            // - When NOT passed (public booking flow), the property's
+            // - When the booking is last-minute (see above), the WHOLE total
+            //   is the pay-now amount — full payment required for confirmation.
+            // - Otherwise (public booking flow with runway), the property's
             //   flat booking fee IS the pay-now amount — much friendlier
             //   for Malaysian homestay guests than "deposit (20%)".
             if (array_key_exists('deposit_amount', $data) && $data['deposit_amount'] !== null) {
@@ -64,6 +77,9 @@ class CreateBooking
             } elseif (array_key_exists('deposit_pct', $data) && $data['deposit_pct'] !== null) {
                 $depositPct = (float) $data['deposit_pct'];
                 $depositAmt = round($total * ($depositPct / 100), 2);
+            } elseif ($requiresFullPayment) {
+                $depositAmt = $total;
+                $depositPct = 100.0;
             } elseif ($bookingFee > 0) {
                 $depositAmt = $bookingFee;
                 $depositPct = $total > 0 ? round(($bookingFee / $total) * 100, 2) : 0;
@@ -125,6 +141,10 @@ class CreateBooking
                     // time so it stays stable on the invoice even if the tenant
                     // edits their policy later.
                     'refund_policy' => $tenant->refundPolicyText(),
+                    // Flag last-minute bookings that had to be paid in full to
+                    // confirm — lets the invoice/receipt copy say "full payment"
+                    // instead of "booking fee / deposit".
+                    'requires_full_payment' => $requiresFullPayment,
                 ],
             ]);
 

@@ -327,11 +327,37 @@ html[data-theme="dark"] input:-webkit-autofill {
 .dash-hero-actions { position: relative; z-index: 1; display: flex; gap: 8px; flex-shrink: 0; }
 .dash-hero-actions .btn { white-space: nowrap; }
 
+.dash-root { display: flex; flex-direction: column; gap: 24px; }
+
 .dash-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
+
+/* Stat card (refactored from inline styles so the mobile rail can restyle
+   cleanly without !important overrides). Desktop look is unchanged. */
+.dash-stat { padding: 22px; }
+.dash-stat-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 18px;
+}
+.dash-stat-icon {
+  width: 34px; height: 34px; border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.dash-stat-value {
+  font-size: 26px; font-weight: 700; letter-spacing: -.025em;
+  line-height: 1.05; color: var(--ink);
+}
+.dash-stat-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.dash-stat--primary .dash-stat-icon { background: var(--primary-tint); color: var(--primary); }
+.dash-stat--warn    .dash-stat-icon { background: var(--warn-tint);    color: var(--warn); }
+.dash-stat--ok      .dash-stat-icon { background: var(--ok-tint);      color: var(--ok); }
+.dash-stat--info    .dash-stat-icon { background: var(--info-tint);    color: var(--info); }
+.dash-stat--accent  .dash-stat-icon { background: var(--accent-tint);  color: var(--accent); }
+
+.dash-chart-svg { width: 100%; height: 240px; display: block; }
 
 .dash-main {
   display: grid;
@@ -346,39 +372,81 @@ html[data-theme="dark"] input:-webkit-autofill {
 }
 
 @media (max-width: 768px) {
-  /* Hero: stack vertically — avatar, text, buttons */
+  /* Hero: compact horizontal row (avatar left, text right) — shorter than
+     the old vertical stack, which is the point: less scroll. */
   .dash-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto 1fr;
+    align-items: center;
     gap: 14px;
-    padding: 20px 18px;
+    padding: 16px 18px;
     text-align: left;
   }
-  .dash-hero-avatar { width: fit-content; }
-  .dash-hero-title { font-size: 22px; }
-  .dash-hero-actions {
-    width: 100%;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .dash-hero-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
+  .dash-hero-title { font-size: 20px; }
+  .dash-hero-sub { font-size: 12px; margin-top: 4px; }
   .dash-hero-blob-b { left: -40px; }
 
   /* Main: chart + transactions stack into 1 col (transactions go below) */
   .dash-main { grid-template-columns: 1fr; }
 
-  /* Stat cards: keep 2 cols (fits 3-char RM values without truncation) */
+  /* Stat cards: keep 2 cols at tablet width (fits 3-char RM values) */
   .dash-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .dash-stats .card { padding: 16px !important; }
-  .dash-stats .card > div:nth-child(2) { font-size: 20px !important; }
+  .dash-stat { padding: 16px; }
+  .dash-stat-top { margin-bottom: 12px; }
+  .dash-stat-value { font-size: 20px; }
 
   /* Hero buttons (Profile Settings + Add homestay) hidden on mobile —
-     both are reachable via the bottom-nav menu / Properties tab, and
-     stacked full-width buttons added too much vertical bulk above
-     stat cards. */
+     both are reachable via the bottom-nav menu / Properties tab. */
   .dash-hero-actions { display: none; }
+}
+
+/* -----------------------------------------------------------------------------
+   PHONES (≤640px) — minimise vertical scroll on /dashboard.
+   Stat cards become a swipeable horizontal rail (5 stacked rows → 1 row),
+   the income chart shrinks, its blurb is dropped, the "Action queue" is
+   pulled above the chart, and section gaps tighten.
+----------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .dash-root { gap: 16px; }
+
+  /* Reorder: hero → stats → action queue → chart/txns → shelf.
+     (Root is a flex column, so `order` reflows without touching the DOM.) */
+  .dash-hero          { order: 0; }
+  .dash-stats         { order: 1; }
+  .dash-actions       { order: 2; }
+  .dash-main          { order: 3; }
+  .dash-shelf-section { order: 4; }
+
+  /* Stat cards → horizontal scroll-snap rail. One row, swipe for the rest;
+     the partially-visible next card signals there's more. */
+  .dash-stats {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .dash-stats::-webkit-scrollbar { display: none; }
+  .dash-stat {
+    flex: 0 0 auto;
+    width: 47%;
+    max-width: 200px;
+    scroll-snap-align: start;
+    padding: 14px;
+  }
+  .dash-stat-top { margin-bottom: 10px; }
+  .dash-stat-icon { width: 30px; height: 30px; }
+  .dash-stat-value { font-size: 19px; }
+  .dash-stat-sub { font-size: 10.5px; margin-top: 6px; }
+
+  /* Income chart: shorter, no descriptive blurb */
+  .dash-chart-card { padding: 16px !important; }
+  .dash-chart-svg { height: 150px; }
+  .dash-chart-desc { display: none; }
+
+  /* Transactions: tighter rows */
+  .dash-txn-card .dash-txn-row { padding: 12px 16px !important; }
 }
 
 /* -----------------------------------------------------------------------------
