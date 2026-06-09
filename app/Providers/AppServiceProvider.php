@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\WhatsApp\RecipientGuard;
 use App\Services\WhatsApp\Sidecar\SidecarClient;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,6 +24,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiters();
+
+        // Send already-authenticated visitors who hit a `guest` route (e.g. /login,
+        // /register) to their dashboard instead of the public homepage. Without this,
+        // a logged-in user clicking "Log masuk" gets bounced to `/` — which still shows
+        // the "Log masuk" button — so login looks broken even though they're signed in.
+        // SetTenantContext falls back to the user's first active tenant when the session
+        // has no current_tenant_public_id, and RequireTenant routes tenant-less users to
+        // onboarding, so this target is safe for every authenticated user.
+        RedirectIfAuthenticated::redirectUsing(fn () => route('tenant.dashboard'));
     }
 
     protected function configureRateLimiters(): void

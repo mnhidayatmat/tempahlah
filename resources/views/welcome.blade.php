@@ -718,11 +718,18 @@
                 <a href="{{ route('locale.switch', 'ms') }}" class="{{ $isMs ? 'is-active' : '' }}">MS</a>
                 <a href="{{ route('locale.switch', 'en') }}" class="{{ !$isMs ? 'is-active' : '' }}">EN</a>
             </div>
-            <a href="{{ route('login') }}" class="tm-btn tm-btn-ghost">{{ $isMs ? 'Log masuk' : 'Sign in' }}</a>
-            <a href="{{ route('register') }}" class="tm-btn tm-btn-primary">
-                {{ $isMs ? 'Mula percuma' : 'Start free' }}
-                <span class="tm-arrow">→</span>
-            </a>
+            @auth
+                <a href="{{ route('tenant.dashboard') }}" class="tm-btn tm-btn-primary">
+                    {{ $isMs ? 'Papan pemuka' : 'Dashboard' }}
+                    <span class="tm-arrow">→</span>
+                </a>
+            @else
+                <a href="{{ route('login') }}" class="tm-btn tm-btn-ghost">{{ $isMs ? 'Log masuk' : 'Sign in' }}</a>
+                <a href="{{ route('register') }}" class="tm-btn tm-btn-primary">
+                    {{ $isMs ? 'Mula percuma' : 'Start free' }}
+                    <span class="tm-arrow">→</span>
+                </a>
+            @endauth
         </div>
     </div>
 </header>
