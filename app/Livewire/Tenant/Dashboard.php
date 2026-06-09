@@ -84,6 +84,8 @@ class Dashboard extends Component
         }
         $reviewCount = (int) Review::query()->count();
 
+        [$expectedAmount, $expectedCount] = $this->expectedPayments();
+
         return [
             'revenue' => $revenue,
             'bookings' => $activeBookings,
@@ -91,7 +93,46 @@ class Dashboard extends Component
             'rooms' => $rooms,
             'rating' => round($reviewAvg, 1),
             'reviews' => $reviewCount,
+            'expected' => $expectedAmount,
+            'expected_count' => $expectedCount,
         ];
+    }
+
+    /**
+     * Future ("expected") payments — the host's accounts receivable. A booking
+     * counts here when the guest has paid the booking fee (deposit) but NOT the
+     * full payment, and the stay is still upcoming/in-progress. The outstanding
+     * balance per booking is `total_amount − deposit_amount` (the booking fee
+     * is the paid portion; the remainder is what's still owed). Tenant-scoped
+     * automatically via the BelongsToTenant global scope.
+     *
+     * @return array{0: float, 1: int} [total outstanding, booking count]
+     */
+    protected function expectedPayments(): array
+    {
+        $rows = Booking::query()
+            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
+            ->whereNull('balance_paid_at')
+            ->where(function ($q) {
+                // Booking fee paid: an explicit deposit timestamp, or a
+                // `confirmed` status (which in this system means the fee cleared).
+                $q->whereNotNull('deposit_paid_at')
+                    ->orWhere('status', Booking::STATUS_CONFIRMED);
+            })
+            ->where('check_out', '>=', now()->toDateString())
+            ->get(['total_amount', 'deposit_amount']);
+
+        $amount = 0.0;
+        $count = 0;
+        foreach ($rows as $row) {
+            $outstanding = (float) $row->total_amount - (float) $row->deposit_amount;
+            if ($outstanding > 0.0) {
+                $amount += $outstanding;
+                $count++;
+            }
+        }
+
+        return [round($amount, 2), $count];
     }
 
     protected function revenueSeries(Carbon $start, Carbon $end): array
