@@ -79,8 +79,6 @@
     <div class="dash-stats">
         @foreach ([
             ['label' => __('Total Earnings'),       'value' => 'RM '.number_format($stats['revenue'], 2), 'sub' => __('Net payout · last 30 days'), 'icon' => 'card',     'tone' => 'primary'],
-            ['label' => __('Active Bookings'),      'value' => $stats['bookings'].' '.__('guests'),       'sub' => __('Across :n rooms', ['n' => $stats['rooms']]), 'icon' => 'users', 'tone' => 'warn'],
-            ['label' => __('Property Portfolio'),   'value' => $stats['properties'] === 1 ? __('1 homestay') : trans(':n homestays', ['n' => $stats['properties']]), 'sub' => __(':n bookable rooms', ['n' => $stats['rooms']]), 'icon' => 'building', 'tone' => 'ok'],
             ['label' => __('Guest Review Index'),   'value' => $stats['rating'].' / 5.0',                 'sub' => __('Based on :n verified stays', ['n' => $stats['reviews']]), 'icon' => 'star', 'tone' => 'info'],
             ['label' => __('Expected Payments'),    'value' => 'RM '.number_format($stats['expected'], 2), 'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
         ] as $card)
@@ -161,7 +159,7 @@
             </div>
 
             @forelse ($transactions as $i => $t)
-                <div style="padding:14px 20px; {{ $i < $transactions->count() - 1 ? 'border-bottom:1px solid var(--line);' : '' }}">
+                <div class="dash-txn-row" style="padding:14px 20px; {{ $i < $transactions->count() - 1 ? 'border-bottom:1px solid var(--line);' : '' }}">
                     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
                         <div style="font-size:13.5px; font-weight:700;">{{ $t['guest'] }}</div>
                         <div class="mono" style="font-size:13.5px; font-weight:700; color: var(--primary);">
