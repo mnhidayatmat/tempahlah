@@ -29,7 +29,7 @@
     $lastPt = end($pts);
 @endphp
 
-<div wire:poll.60s style="display:flex; flex-direction:column; gap:24px;">
+<div wire:poll.60s class="dash-root">
 
     {{-- === PROFILE HEADER === --}}
     <div class="dash-hero">
@@ -84,31 +84,15 @@
             ['label' => __('Guest Review Index'),   'value' => $stats['rating'].' / 5.0',                 'sub' => __('Based on :n verified stays', ['n' => $stats['reviews']]), 'icon' => 'star', 'tone' => 'info'],
             ['label' => __('Expected Payments'),    'value' => 'RM '.number_format($stats['expected'], 2), 'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
         ] as $card)
-            @php
-                $tone = match($card['tone']) {
-                    'primary' => ['bg' => 'var(--primary-tint)', 'fg' => 'var(--primary)'],
-                    'warn'    => ['bg' => 'var(--warn-tint)',    'fg' => 'var(--warn)'],
-                    'ok'      => ['bg' => 'var(--ok-tint)',      'fg' => 'var(--ok)'],
-                    'info'    => ['bg' => 'var(--info-tint)',    'fg' => 'var(--info)'],
-                    'accent'  => ['bg' => 'var(--accent-tint)',  'fg' => 'var(--accent)'],
-                    default   => ['bg' => 'var(--primary-tint)', 'fg' => 'var(--primary)'],
-                };
-            @endphp
-            <div class="card" style="padding:22px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
-                    <div class="cm-eyebrow">{{ $card['label'] }}</div>
-                    <div style="width:34px; height:34px; border-radius: var(--r-md);
-                                background: {{ $tone['bg'] }}; color: {{ $tone['fg'] }};
-                                display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div class="card dash-stat dash-stat--{{ $card['tone'] }}">
+                <div class="dash-stat-top">
+                    <div class="cm-eyebrow dash-stat-label">{{ $card['label'] }}</div>
+                    <div class="dash-stat-icon">
                         <x-icon :name="$card['icon']" :size="16"/>
                     </div>
                 </div>
-                <div style="font-size:26px; font-weight:700; letter-spacing:-.025em; line-height:1.05; color: var(--ink);">
-                    {{ $card['value'] }}
-                </div>
-                <div style="font-size:11.5px; color: var(--ink-3); margin-top:10px;">
-                    {{ $card['sub'] }}
-                </div>
+                <div class="dash-stat-value">{{ $card['value'] }}</div>
+                <div class="dash-stat-sub">{{ $card['sub'] }}</div>
             </div>
         @endforeach
     </div>
@@ -127,12 +111,12 @@
                 .dash-chart-range button { flex:1 1 0; padding:8px 6px; font-size:12px; }
             }
         </style>
-        <div class="card" style="padding:24px;">
+        <div class="card dash-chart-card" style="padding:24px;">
             <div class="dash-chart-head">
                 <div>
                     <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Weekly Metrics Rhythm') }}</div>
                     <h3 style="margin:0; font-size:18px; font-weight:700; letter-spacing:-.02em;">{{ __('Booking Income Stream') }}</h3>
-                    <div style="font-size:12.5px; color: var(--ink-3); margin-top:4px;">
+                    <div class="dash-chart-desc" style="font-size:12.5px; color: var(--ink-3); margin-top:4px;">
                         {{ __('Track your net earnings split. Showing direct booking velocity.') }}
                     </div>
                 </div>
@@ -149,7 +133,7 @@
 
             {{-- SVG income chart --}}
             <div style="width:100%; overflow:hidden;">
-                <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="none" style="width:100%; height:240px; display:block;">
+                <svg class="dash-chart-svg" viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="dash-income-fill" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.18"/>
@@ -170,7 +154,7 @@
         </div>
 
         {{-- TRANSACTIONS LOG --}}
-        <div class="card" style="padding:0; overflow:hidden;">
+        <div class="card dash-txn-card" style="padding:0; overflow:hidden;">
             <div style="padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
                 <div class="cm-eyebrow" style="color: var(--ink-2);">{{ __('Checkout Transactions Log') }}</div>
                 <span class="pulse-dot" style="width:8px; height:8px; border-radius:999px; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-tint);"></span>
@@ -214,7 +198,7 @@
 
     {{-- === ACTION QUEUE === --}}
     @if (!empty($actions))
-        <div class="card" style="padding:18px 22px;">
+        <div class="card dash-actions" style="padding:18px 22px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
                 <div>
                     <div class="cm-eyebrow">{{ __('Action queue') }}</div>
@@ -243,7 +227,7 @@
     @endif
 
     {{-- === HOMESTAY SHELF === --}}
-    <div>
+    <div class="dash-shelf-section">
         <div style="margin-bottom:16px;">
             <div class="cm-eyebrow" style="margin-bottom:6px;">{{ __('Active Cohort') }}</div>
             <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;">

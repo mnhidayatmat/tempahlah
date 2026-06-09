@@ -100,32 +100,44 @@ class Dashboard extends Component
 
     /**
      * Future ("expected") payments — the host's accounts receivable. A booking
-     * counts here when the guest has paid the booking fee (deposit) but NOT the
-     * full payment, and the stay is still upcoming/in-progress. The outstanding
-     * balance per booking is `total_amount − deposit_amount` (the booking fee
-     * is the paid portion; the remainder is what's still owed). Tenant-scoped
-     * automatically via the BelongsToTenant global scope.
+     * counts here when its merged payment status is exactly "Paid Booking Fee":
+     * the guest has paid the booking fee but NOT the full payment. The filter
+     * below mirrors Booking::paymentStatusKey() === 'paid_booking_fee' (a
+     * `confirmed` booking, or a `pending` one with the deposit stamped, that
+     * isn't yet fully paid / checked-in / checked-out / cancelled), so this
+     * card's booking count always reconciles with the bookings list.
+     *
+     * The outstanding balance per booking is `total_amount − amountPaid`, where
+     * amountPaid is the GREATER of recorded succeeded payments and the booking
+     * fee snapshot. We deliberately do NOT use `deposit_amount` as the paid
+     * portion: the Wafa register import set `deposit_amount = total_amount` on
+     * historical rows, which would zero-out their (genuinely still-owed)
+     * balances. `booking_fee_amount` is the reliable "already collected" figure
+     * for a Paid-Booking-Fee booking. Tenant-scoped via the global scope.
      *
      * @return array{0: float, 1: int} [total outstanding, booking count]
      */
     protected function expectedPayments(): array
     {
         $rows = Booking::query()
-            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
             ->whereNull('balance_paid_at')
             ->where(function ($q) {
-                // Booking fee paid: an explicit deposit timestamp, or a
-                // `confirmed` status (which in this system means the fee cleared).
-                $q->whereNotNull('deposit_paid_at')
-                    ->orWhere('status', Booking::STATUS_CONFIRMED);
+                $q->where('status', Booking::STATUS_CONFIRMED)
+                    ->orWhere(function ($q2) {
+                        $q2->where('status', Booking::STATUS_PENDING)
+                            ->whereNotNull('deposit_paid_at');
+                    });
             })
-            ->where('check_out', '>=', now()->toDateString())
-            ->get(['total_amount', 'deposit_amount']);
+            ->withSum(['payments as paid_sum' => function ($q) {
+                $q->where('status', 'succeeded');
+            }], 'amount')
+            ->get(['id', 'total_amount', 'booking_fee_amount']);
 
         $amount = 0.0;
         $count = 0;
         foreach ($rows as $row) {
-            $outstanding = (float) $row->total_amount - (float) $row->deposit_amount;
+            $paid = max((float) $row->paid_sum, (float) $row->booking_fee_amount);
+            $outstanding = (float) $row->total_amount - $paid;
             if ($outstanding > 0.0) {
                 $amount += $outstanding;
                 $count++;
