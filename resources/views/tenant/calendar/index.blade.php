@@ -187,7 +187,7 @@
                         @endforeach
                     </div>
                     <div style="display:flex; gap:14px; font-size:11px; flex-wrap:wrap;">
-                        @foreach ([['Fully paid','var(--primary)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
+                        @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
                             <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-3);">
                                 <span style="width:8px; height:8px; border-radius:999px; background: {{ $clr }};"></span>{{ __($lbl) }}
                             </span>
@@ -201,7 +201,7 @@
                  centred strip on phones via the .cal-legend-mobile rule. --}}
             <div class="cal-legend-mobile card" style="display:none; padding:9px 12px; gap:16px;
                         align-items:center; justify-content:center; flex-wrap:wrap;">
-                @foreach ([['Fully paid','var(--primary)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
+                @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
                     <span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color: var(--ink-2);">
                         <span style="width:10px; height:10px; border-radius:999px; background: {{ $clr }}; flex-shrink:0;"></span>{{ __($lbl) }}
                     </span>
@@ -295,8 +295,8 @@
                                         @foreach (array_slice($bks, 0, 3) as $b)
                                             @php
                                                 $ps = $paymentStatus($b);
-                                                $col = $ps === 'paid' ? 'var(--primary)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--ink-4)');
-                                                $tint = $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)');
+                                                $col = $ps === 'paid' ? 'var(--ok)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--ink-4)');
+                                                $tint = $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)');
                                                 $guestName = $b->guest?->name ?? __('Guest');
                                                 $firstName = explode(' ', $guestName)[0];
                                             @endphp
@@ -423,7 +423,7 @@
                                     @php
                                         $bk = collect($dayBookings)->firstWhere('room_id', $r->id);
                                         $col = $bk
-                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--primary)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--ink-4)'))
+                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--ok)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--ink-4)'))
                                             : 'var(--ok)';
                                     @endphp
                                     <div style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
@@ -443,7 +443,7 @@
                                         @if ($bk)
                                             @php $ps = $paymentStatus($bk); @endphp
                                             <span class="pill" style="height:18px; font-size:10px;
-                                                                      background: {{ $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)') }};
+                                                                      background: {{ $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)') }};
                                                                       color: {{ $col }};">
                                                 {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
                                             </span>
