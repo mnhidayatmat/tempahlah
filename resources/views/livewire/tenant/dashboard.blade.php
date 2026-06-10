@@ -79,7 +79,6 @@
     <div class="dash-stats">
         @foreach ([
             ['label' => __('Total Earnings'),       'value' => 'RM '.number_format($stats['revenue'], 2), 'sub' => __('Net payout · last 30 days'), 'icon' => 'card',     'tone' => 'primary'],
-            ['label' => __('Guest Review Index'),   'value' => $stats['rating'].' / 5.0',                 'sub' => __('Based on :n verified stays', ['n' => $stats['reviews']]), 'icon' => 'star', 'tone' => 'info'],
             ['label' => __('Expected Payments'),    'value' => 'RM '.number_format($stats['expected'], 2), 'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
         ] as $card)
             <div class="card dash-stat dash-stat--{{ $card['tone'] }}">
