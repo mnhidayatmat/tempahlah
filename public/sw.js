@@ -1,4 +1,4 @@
-const CACHE = 'tempahlah-v2';
+const CACHE = 'tempahlah-v3';
 const ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -22,6 +22,19 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/livewire')) return;
   if (url.pathname.startsWith('/api')) return;
 
+  // Never store HTML page documents (they're per-user, auth'd, and change
+  // often) — always fetch fresh so a deploy is visible immediately. Only
+  // fall back to a cached copy when the network is unavailable.
+  const isPageDocument =
+    e.request.mode === 'navigate' ||
+    (e.request.headers.get('accept') || '').includes('text/html');
+
+  if (isPageDocument) {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+
+  // Static assets (CSS/JS/images/fonts): network-first, cache a copy.
   e.respondWith(
     fetch(e.request).then((res) => {
       const copy = res.clone();
