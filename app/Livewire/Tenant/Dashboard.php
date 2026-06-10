@@ -3,6 +3,9 @@
 namespace App\Livewire\Tenant;
 
 use App\Models\Booking;
+use App\Models\CleaningTask;
+use App\Models\LaundryTask;
+use App\Models\MaintenanceTicket;
 use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Review;
@@ -86,6 +89,16 @@ class Dashboard extends Component
 
         [$expectedAmount, $expectedCount] = $this->expectedPayments();
 
+        // Cumulative all-time earnings (reuse revenue() semantics with a far-past
+        // start) + this calendar month's earnings + this month's operating cost.
+        $now = Carbon::now();
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
+
+        $cumulative = (float) $svc->revenue(Carbon::create(2000, 1, 1)->startOfDay(), $now->copy()->endOfDay());
+        $monthRevenue = (float) $svc->revenue($monthStart, $monthEnd);
+        $monthCost = $this->monthlyOperatingCost($monthStart, $monthEnd);
+
         return [
             'revenue' => $revenue,
             'bookings' => $activeBookings,
@@ -95,7 +108,34 @@ class Dashboard extends Component
             'reviews' => $reviewCount,
             'expected' => $expectedAmount,
             'expected_count' => $expectedCount,
+            'cumulative' => $cumulative,
+            'month_revenue' => $monthRevenue,
+            'month_cost' => $monthCost,
         ];
+    }
+
+    /**
+     * This calendar month's operating cost: cleaning + laundry + maintenance
+     * task costs whose activity date falls in the month. Tenant-scoped via the
+     * BelongsToTenant global scope on each model. Cleaning is dated by its
+     * scheduled date, laundry by pickup, maintenance by when it was resolved
+     * (the point the host records the repair cost).
+     */
+    protected function monthlyOperatingCost(Carbon $monthStart, Carbon $monthEnd): float
+    {
+        $cleaning = (float) CleaningTask::query()
+            ->whereBetween('scheduled_at', [$monthStart, $monthEnd])
+            ->sum('cost');
+
+        $laundry = (float) LaundryTask::query()
+            ->whereBetween('pickup_at', [$monthStart, $monthEnd])
+            ->sum('cost');
+
+        $maintenance = (float) MaintenanceTicket::query()
+            ->whereBetween('resolved_at', [$monthStart, $monthEnd])
+            ->sum('cost');
+
+        return round($cleaning + $laundry + $maintenance, 2);
     }
 
     /**

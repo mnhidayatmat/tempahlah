@@ -129,7 +129,11 @@
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Scheduled at') }} *</label>
                             <input type="datetime-local" name="scheduled_at" class="input" required>
                         </div>
-                        <div style="grid-column: span 4;">
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
+                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="0.00">
+                        </div>
+                        <div style="grid-column: span 3;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
                             <input type="text" name="notes" class="input" maxlength="500" placeholder="{{ __('Optional handoff notes for the cleaner') }}">
                         </div>
@@ -301,7 +305,11 @@
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
                             <input type="datetime-local" name="expected_return_at" class="input">
                         </div>
-                        <div style="grid-column: span 2;">
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
+                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="0.00">
+                        </div>
+                        <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
                             <input type="text" name="notes" class="input" maxlength="500">
                         </div>
@@ -418,8 +426,12 @@
                                         <button type="submit" class="btn btn-sm">{{ __('Start') }}</button>
                                     </form>
                                 @elseif ($m->status === 'in_progress')
-                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
+                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}"
+                                          style="display:flex; gap:4px; align-items:center;">
                                         @csrf @method('PATCH')<input type="hidden" name="action" value="resolve">
+                                        <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01"
+                                               placeholder="{{ __('Cost RM') }}" title="{{ __('Repair cost (RM)') }}"
+                                               style="width:96px; padding:6px 8px; font-size:12px;">
                                         <button type="submit" class="btn btn-sm btn-primary">{{ __('Resolve') }}</button>
                                     </form>
                                 @endif

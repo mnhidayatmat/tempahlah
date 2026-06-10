@@ -26,11 +26,12 @@ class CleaningTask extends Model
     protected $fillable = [
         'tenant_id', 'property_id', 'room_id', 'booking_id',
         'assigned_to_user_id',
-        'type', 'status', 'scheduled_at', 'started_at', 'completed_at',
+        'type', 'status', 'cost', 'scheduled_at', 'started_at', 'completed_at',
         'photo_paths', 'notes', 'issues',
     ];
 
     protected $casts = [
+        'cost' => 'decimal:2',
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',

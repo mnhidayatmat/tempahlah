@@ -78,8 +78,10 @@
          (no inline grid-template that has to be CSS-overridden later). --}}
     <div class="dash-stats">
         @foreach ([
-            ['label' => __('Total Earnings'),       'value' => 'RM '.number_format($stats['revenue'], 2), 'sub' => __('Net payout · last 30 days'), 'icon' => 'card',     'tone' => 'primary'],
-            ['label' => __('Expected Payments'),    'value' => 'RM '.number_format($stats['expected'], 2), 'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
+            ['label' => __('Total Earnings'),    'value' => 'RM '.number_format($stats['cumulative'], 2),    'sub' => __('All-time confirmed earnings'), 'icon' => 'card',    'tone' => 'primary'],
+            ['label' => __('This Month'),        'value' => 'RM '.number_format($stats['month_revenue'], 2), 'sub' => now()->isoFormat('MMMM').' '.__('earnings'), 'icon' => 'chart', 'tone' => 'ok'],
+            ['label' => __('Expected Payments'), 'value' => 'RM '.number_format($stats['expected'], 2),      'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
+            ['label' => __('This Month Cost'),   'value' => 'RM '.number_format($stats['month_cost'], 2),    'sub' => __('Cleaning · laundry · upkeep'), 'icon' => 'receipt', 'tone' => 'warn'],
         ] as $card)
             <div class="card dash-stat dash-stat--{{ $card['tone'] }}">
                 <div class="dash-stat-top">

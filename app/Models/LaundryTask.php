@@ -20,12 +20,13 @@ class LaundryTask extends Model
     protected $fillable = [
         'tenant_id', 'property_id', 'booking_id',
         'assigned_to_user_id', 'vendor_name',
-        'status', 'pickup_at', 'picked_up_at',
+        'status', 'cost', 'pickup_at', 'picked_up_at',
         'expected_return_at', 'returned_at',
         'item_count', 'items', 'notes',
     ];
 
     protected $casts = [
+        'cost' => 'decimal:2',
         'pickup_at' => 'datetime',
         'picked_up_at' => 'datetime',
         'expected_return_at' => 'datetime',

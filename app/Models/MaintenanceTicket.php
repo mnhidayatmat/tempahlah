@@ -25,11 +25,12 @@ class MaintenanceTicket extends Model
     protected $fillable = [
         'tenant_id', 'property_id', 'room_id',
         'reported_by_user_id', 'assigned_to_user_id',
-        'title', 'description', 'priority', 'status',
+        'title', 'description', 'priority', 'status', 'cost',
         'photo_paths', 'resolved_at', 'resolution_notes',
     ];
 
     protected $casts = [
+        'cost' => 'decimal:2',
         'photo_paths' => 'array',
         'resolved_at' => 'datetime',
     ];

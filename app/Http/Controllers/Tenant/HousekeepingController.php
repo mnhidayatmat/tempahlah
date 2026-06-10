@@ -96,6 +96,7 @@ class HousekeepingController extends Controller
             'property_id' => 'required|exists:properties,id',
             'type' => 'required|in:full,light,deep,pool,post_event',
             'scheduled_at' => 'required|date',
+            'cost' => 'nullable|numeric|min:0|max:1000000',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -104,6 +105,7 @@ class HousekeepingController extends Controller
             'property_id' => $validated['property_id'],
             'type' => $validated['type'],
             'status' => CleaningTask::STATUS_PENDING,
+            'cost' => $validated['cost'] ?? null,
             'scheduled_at' => Carbon::parse($validated['scheduled_at']),
             'notes' => $validated['notes'] ?? null,
         ]);
@@ -124,6 +126,7 @@ class HousekeepingController extends Controller
             'pickup_at' => 'required|date',
             'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
             'item_count' => 'required|integer|min:1|max:9999',
+            'cost' => 'nullable|numeric|min:0|max:1000000',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -132,6 +135,7 @@ class HousekeepingController extends Controller
             'property_id' => $validated['property_id'],
             'vendor_name' => $validated['vendor_name'] ?? null,
             'status' => LaundryTask::STATUS_PENDING,
+            'cost' => $validated['cost'] ?? null,
             'pickup_at' => Carbon::parse($validated['pickup_at']),
             'expected_return_at' => isset($validated['expected_return_at'])
                 ? Carbon::parse($validated['expected_return_at'])
@@ -230,6 +234,8 @@ class HousekeepingController extends Controller
         abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
 
         $resolution = $request->input('resolution_notes');
+        $cost = $request->input('cost');
+        $cost = ($cost === null || $cost === '') ? null : (float) $cost;
 
         match ($action) {
             'start' => $ticket->update(['status' => MaintenanceTicket::STATUS_IN_PROGRESS]),
@@ -237,6 +243,7 @@ class HousekeepingController extends Controller
                 'status' => MaintenanceTicket::STATUS_RESOLVED,
                 'resolved_at' => now(),
                 'resolution_notes' => $resolution,
+                'cost' => $cost,
             ]),
             'close' => $ticket->update(['status' => MaintenanceTicket::STATUS_CLOSED]),
         };
