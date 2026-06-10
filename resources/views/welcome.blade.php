@@ -12,7 +12,7 @@
     <meta name="description" content="{{ $isMs ? 'SaaS homestay buatan Malaysia. Tempahan terus WhatsApp, AI auto-jawab, sifar komisen. Mula percuma.' : 'A Malaysian homestay SaaS. Direct WhatsApp bookings, AI auto-reply, zero commission. Start free.' }}">
 
     <link rel="icon" href="/icons/logo.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    @include('partials.pwa')
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

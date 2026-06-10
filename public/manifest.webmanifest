@@ -1,22 +1,62 @@
 {
+  "id": "/",
   "name": "Tempahlah",
   "short_name": "Tempahlah",
   "description": "Tempahlah — manage your homestay business in Malaysia",
-  "start_url": "/",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2596c6",
   "lang": "ms",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "travel"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "description": "View your booking calendar",
+      "url": "/dashboard/calendar"
+    },
+    {
+      "name": "Bookings",
+      "short_name": "Bookings",
+      "description": "Manage your bookings",
+      "url": "/dashboard/bookings"
+    },
+    {
+      "name": "New booking",
+      "short_name": "New",
+      "description": "Add a booking",
+      "url": "/dashboard/bookings/create"
     }
   ]
 }

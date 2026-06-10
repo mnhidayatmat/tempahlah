@@ -1,7 +1,11 @@
-const CACHE = 'tempahlah-v3';
+const CACHE = 'tempahlah-v4';
+const OFFLINE_URL = '/offline.html';
 const ASSETS = [
-  '/',
+  '/offline.html',
   '/manifest.webmanifest',
+  '/icons/logo.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -30,7 +34,9 @@ self.addEventListener('fetch', (e) => {
     (e.request.headers.get('accept') || '').includes('text/html');
 
   if (isPageDocument) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    // Network-only with an offline fallback: never serve a stale cached page,
+    // but show the offline page when there's no connection.
+    e.respondWith(fetch(e.request).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
 
