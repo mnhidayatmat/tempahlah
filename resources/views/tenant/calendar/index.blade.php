@@ -1,8 +1,13 @@
 <x-app-layout :title="__('Calendar')" :subtitle="__('Month view')" :breadcrumbs="[$property?->name ?? __('Calendar')]">
     @php
+        // Mirror the bookings-list payment vocabulary so the calendar and the
+        // list never disagree about the same booking: full payment in →
+        // 'paid'; booking fee in OR the booking is confirmed (in this system a
+        // confirmed booking means its booking fee has cleared) → 'deposit';
+        // otherwise nothing paid yet → 'unpaid' (pending).
         $paymentStatus = function ($b) {
             if ($b->balance_paid_at) return 'paid';
-            if ($b->deposit_paid_at) return 'deposit';
+            if ($b->deposit_paid_at || in_array($b->status, ['confirmed', 'checked_in', 'checked_out'], true)) return 'deposit';
             return 'unpaid';
         };
         $totalRoomsCount = $rooms->count() ?: 1;
@@ -182,7 +187,7 @@
                         @endforeach
                     </div>
                     <div style="display:flex; gap:14px; font-size:11px; flex-wrap:wrap;">
-                        @foreach ([['Paid','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--ink-4)']] as [$lbl, $clr])
+                        @foreach ([['Fully paid','var(--primary)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
                             <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-3);">
                                 <span style="width:8px; height:8px; border-radius:999px; background: {{ $clr }};"></span>{{ __($lbl) }}
                             </span>
@@ -196,7 +201,7 @@
                  centred strip on phones via the .cal-legend-mobile rule. --}}
             <div class="cal-legend-mobile card" style="display:none; padding:9px 12px; gap:16px;
                         align-items:center; justify-content:center; flex-wrap:wrap;">
-                @foreach ([['Paid','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--ink-4)']] as [$lbl, $clr])
+                @foreach ([['Fully paid','var(--primary)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
                     <span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color: var(--ink-2);">
                         <span style="width:10px; height:10px; border-radius:999px; background: {{ $clr }}; flex-shrink:0;"></span>{{ __($lbl) }}
                     </span>
@@ -440,7 +445,7 @@
                                             <span class="pill" style="height:18px; font-size:10px;
                                                                       background: {{ $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)') }};
                                                                       color: {{ $col }};">
-                                                {{ $ps === 'paid' ? __('Paid') : ($ps === 'deposit' ? __('Deposit') : __('Unpaid')) }}
+                                                {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
                                             </span>
                                         @endif
                                     </div>
