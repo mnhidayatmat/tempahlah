@@ -247,7 +247,7 @@ class Dashboard extends Component
                 'tone' => 'warn',
                 'title' => trans_choice(':count deposit due in 7 days|:count deposits due in 7 days', $depositsDue),
                 'cta' => __('View bookings'),
-                'route' => route('tenant.bookings.index'),
+                'route' => route('tenant.bookings.index', ['status' => 'deposit-due']),
             ];
         }
 

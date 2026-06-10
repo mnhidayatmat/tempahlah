@@ -34,7 +34,7 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $filter = $request->query('status', 'all');
-        $valid = ['all', 'upcoming', 'checked-in', 'past'];
+        $valid = ['all', 'upcoming', 'checked-in', 'past', 'deposit-due'];
         if (! in_array($filter, $valid, true)) {
             $filter = 'all';
         }
@@ -50,7 +50,20 @@ class BookingController extends Controller
                 ->where('status', Booking::STATUS_CHECKED_IN))
             ->when($filter === 'past', fn ($q) => $q
                 ->where('check_out', '<', $today))
-            ->orderByDesc('check_in')
+            // Mirrors the dashboard "Action queue" deposit-due item exactly:
+            // confirmed/pending bookings whose deposit is unpaid and whose
+            // check-in falls within the next 7 days. Clicking that item lands here.
+            ->when($filter === 'deposit-due', fn ($q) => $q
+                ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_PENDING])
+                ->whereNull('deposit_paid_at')
+                ->whereBetween('check_in', [now(), now()->addDays(7)]))
+            // Deposit-due: soonest check-in first (nearest deadline to chase).
+            // Everything else: most recent check-in first.
+            ->when(
+                $filter === 'deposit-due',
+                fn ($q) => $q->orderBy('check_in'),
+                fn ($q) => $q->orderByDesc('check_in'),
+            )
             ->paginate(20)
             ->withQueryString();
 

@@ -34,12 +34,21 @@
             </div>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <div class="bk-filters" style="display:flex; gap:2px; padding:3px; background: var(--bg-elev); border-radius:999px; border:.5px solid var(--line);">
-                    @foreach ([
-                        'all' => __('All'),
-                        'upcoming' => __('Upcoming'),
-                        'checked-in' => __('Checked-in'),
-                        'past' => __('Past'),
-                    ] as $key => $label)
+                    @php
+                        $filterPills = [
+                            'all' => __('All'),
+                            'upcoming' => __('Upcoming'),
+                            'checked-in' => __('Checked-in'),
+                            'past' => __('Past'),
+                        ];
+                        // "Deposit due (7d)" is a contextual filter reached from the
+                        // dashboard Action queue — only surface its pill when active,
+                        // so the standard bar stays uncluttered for normal browsing.
+                        if ($filter === 'deposit-due') {
+                            $filterPills = ['deposit-due' => __('Deposit due (7d)')] + $filterPills;
+                        }
+                    @endphp
+                    @foreach ($filterPills as $key => $label)
                         @php $active = $filter === $key; @endphp
                         <a href="{{ route('tenant.bookings.index', $key === 'all' ? [] : ['status' => $key]) }}"
                            class="btn btn-sm"
