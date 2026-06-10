@@ -5,14 +5,20 @@
     <style>
         .bk-desktop { display: block; }
         .bk-mobile  { display: none; }
+        .bk-fab     { display: none; }   /* floating new-booking button: mobile only */
         @media (max-width: 768px) {
             .bk-desktop { display: none; }
             .bk-mobile  { display: flex; flex-direction: column; gap: 10px; }
-            /* Header: stack the title above the controls; let pills wrap. */
-            .bk-head { flex-direction: column; align-items: stretch; gap: 12px; }
+            /* Minimal header on phones: drop the "Reservations / Bookings"
+               title and the inline New-booking button (now a floating action
+               button), leaving just the compact, swipeable filter strip. */
+            .bk-title { display: none; }
+            .bk-new   { display: none; }
+            .bk-head { flex-direction: column; align-items: stretch; gap: 0; }
+            .bk-head > div:last-child { gap: 0 !important; }
             .bk-filters { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .bk-filters::-webkit-scrollbar { display: none; }
-            .bk-new { justify-content: center; }
+            .bk-fab { display: inline-flex; }
         }
         /* Mobile booking card */
         .bk-card { display: block; padding: 14px; text-decoration: none; color: inherit; }
@@ -28,7 +34,7 @@
 
     <div style="display:flex; flex-direction:column; gap: 20px;">
         <div class="bk-head" style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; flex-wrap: wrap;">
-            <div>
+            <div class="bk-title">
                 <div class="kicker">{{ __('Reservations') }}</div>
                 <h2 class="display-2" style="margin: 4px 0 0;">{{ __('Bookings') }}</h2>
             </div>
@@ -164,4 +170,15 @@
             <div>{{ $bookings->links() }}</div>
         @endif
     </div>
+
+    {{-- Floating "New booking" action button — phones only (desktop keeps the
+         inline header button). Fixed bottom-right, clears the iOS home bar. --}}
+    <a href="{{ route('tenant.bookings.create') }}" class="bk-fab" aria-label="{{ __('New booking') }}"
+       style="position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
+              width: 56px; height: 56px; border-radius: 999px; z-index: 50;
+              align-items: center; justify-content: center; text-decoration: none;
+              background: var(--primary); color: var(--primary-ink);
+              box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--primary) 55%, transparent), 0 2px 6px rgba(0,0,0,.14);">
+        <x-icon name="plus" :size="22"/>
+    </a>
 </x-app-layout>
