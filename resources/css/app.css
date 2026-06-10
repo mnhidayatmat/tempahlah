@@ -401,10 +401,9 @@ html[data-theme="dark"] input:-webkit-autofill {
 
 /* -----------------------------------------------------------------------------
    PHONES (≤640px) — minimise vertical scroll on /dashboard, ZERO horizontal scroll.
-   Stat cards are compact single-column list rows (icon + label/sub left, value
-   right) so all three read at a glance with no swipe rail. The income chart
-   shrinks, its blurb is dropped, the "Action queue" is pulled above the chart,
-   and section gaps tighten.
+   Stat cards are a 2×2 grid of compact vertical cards (label + icon on top, big
+   value, sub below). The income chart shrinks, its blurb is dropped, the
+   "Action queue" is pulled above the chart, and section gaps tighten.
 ----------------------------------------------------------------------------- */
 @media (max-width: 640px) {
   .dash-root { gap: 14px; }
@@ -417,45 +416,25 @@ html[data-theme="dark"] input:-webkit-autofill {
   .dash-main          { order: 3; }
   .dash-shelf-section { order: 4; }
 
-  /* Stat cards → compact single-column list rows. No horizontal scroll;
-     each stat is a thin row (icon + label/sub on the left, value on the
-     right) so all three are visible at once with minimal vertical height. */
+  /* Stat cards → 2×2 grid of compact vertical cards. Four metrics fit in two
+     short rows; each card keeps the desktop label-top / value / sub layout at
+     a smaller scale, so nothing overflows sideways. */
   .dash-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .dash-stat {
     display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "top value"
-      "sub value";
-    align-items: center;
-    column-gap: 14px;
-    padding: 12px 15px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
-  .dash-stat-top {
-    grid-area: top;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 9px;
-    margin-bottom: 0;
-  }
-  .dash-stat-top .dash-stat-icon { order: -1; } /* icon first, then label */
+  .dash-stat { padding: 14px; min-width: 0; }
+  .dash-stat-top { margin-bottom: 12px; }
   .dash-stat-icon { width: 30px; height: 30px; }
+  .dash-stat-label { font-size: 9px; }
   .dash-stat-value {
-    grid-area: value;
-    font-size: 19px;
-    text-align: right;
+    font-size: 18px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .dash-stat-sub {
-    grid-area: sub;
-    font-size: 10.5px;
-    margin-top: 2px;
-    padding-left: 39px; /* align under the label, clearing the 30px icon + gap */
-  }
+  .dash-stat-sub { font-size: 10px; margin-top: 6px; line-height: 1.35; }
 
   /* Income chart: shorter, no descriptive blurb */
   .dash-chart-card { padding: 16px !important; }
