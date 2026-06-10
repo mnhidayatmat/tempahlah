@@ -42,12 +42,13 @@
             .cal-weekday-abbr { display: inline; }
             .cal-weekday { padding: 7px 0 !important; text-align: center !important; font-size: 10px !important; }
 
-            /* Day cells: short, dot-based occupancy */
+            /* Day cells: perfect squares, dot-based occupancy */
             .cal-cells { gap: 4px !important; padding: 0 6px 8px !important; }
-            .cal-cell-empty { min-height: 0 !important; }
+            .cal-cell-empty { min-height: 0 !important; aspect-ratio: 1 / 1 !important; }
             .cal-cell {
-                min-height: 46px !important; padding: 5px 5px 6px !important;
-                border-radius: 9px !important; gap: 3px !important;
+                aspect-ratio: 1 / 1 !important; min-height: 0 !important;
+                padding: 4px !important; overflow: hidden !important;
+                border-radius: 9px !important; gap: 2px !important;
             }
             .cal-cell-events { display: none !important; }  /* in/out shown on tap in detail panel */
 
@@ -173,7 +174,7 @@
                         @endforeach
                     </div>
                     <div style="display:flex; gap:14px; font-size:11px; flex-wrap:wrap;">
-                        @foreach ([['Confirmed','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--err)']] as [$lbl, $clr])
+                        @foreach ([['Paid','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--ink-4)']] as [$lbl, $clr])
                             <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-3);">
                                 <span style="width:8px; height:8px; border-radius:999px; background: {{ $clr }};"></span>{{ __($lbl) }}
                             </span>
@@ -188,7 +189,7 @@
                 {{-- Month grid --}}
                 <div class="card cal-grid-card" style="padding:0; overflow:hidden;">
                     {{-- Weekday header --}}
-                    <div class="cal-weekdays" style="display:grid; grid-template-columns: repeat(7, 1fr); padding: 4px 0; background:transparent;">
+                    <div class="cal-weekdays" style="display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 4px 0; background:transparent;">
                         @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $i => $wd)
                             <div class="cal-weekday" style="padding: 12px 14px; font-size:11px; font-weight:600;
                                         color: {{ ($i === 0 || $i === 6) ? 'var(--primary)' : 'var(--ink-3)' }};
@@ -199,7 +200,7 @@
                     </div>
 
                     {{-- Day cells --}}
-                    <div class="cal-cells" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; padding: 0 10px 14px;">
+                    <div class="cal-cells" style="display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:6px; padding: 0 10px 14px;">
                         @foreach ($days as $d)
                             @if (! $d)
                                 <div class="cal-cell-empty" style="min-height:128px;"></div>
@@ -215,8 +216,9 @@
                                     $occupied = count($bks);
                                     $totalRooms = $totalRoomsCount;
                                     $occRatio = min(1, $occupied / $totalRooms);
+                                    $heatPct = round((0.06 + $occRatio * 0.18) * 100);
                                     $heatBg = $occupied > 0
-                                        ? 'rgba(217, 119, 87, '.(0.06 + $occRatio * 0.18).')'
+                                        ? 'color-mix(in srgb, var(--primary) '.$heatPct.'%, transparent)'
                                         : ($isWknd ? 'var(--bg-sunk)' : 'var(--bg-elev)');
                                     $cellHref = route('tenant.calendar', [
                                         'property_id' => $propertyId,
@@ -226,13 +228,13 @@
                                 @endphp
                                 <a href="{{ $cellHref }}" class="cal-cell"
                                    style="min-height:128px; padding:10px; text-decoration:none; color: var(--ink);
-                                          background: {{ $isSelected ? 'linear-gradient(160deg, rgba(217,119,87,0.22), rgba(217,119,87,0.08))' : $heatBg }};
+                                          background: {{ $isSelected ? 'linear-gradient(160deg, color-mix(in srgb, var(--primary) 22%, transparent), color-mix(in srgb, var(--primary) 8%, transparent))' : $heatBg }};
                                           border: 1px solid {{ $isSelected ? 'var(--primary)' : 'var(--line)' }};
                                           border-radius:14px;
                                           opacity: {{ $isOtherMonth ? '0.4' : '1' }};
                                           display:flex; flex-direction:column; gap:6px;
                                           position:relative;
-                                          box-shadow: {{ $isSelected ? '0 8px 24px -10px oklch(67% 0.16 45 / 0.35), 0 1px 0 oklch(67% 0.16 45 / 0.06) inset' : 'var(--sh-1)' }};
+                                          box-shadow: {{ $isSelected ? '0 8px 24px -10px color-mix(in srgb, var(--primary) 35%, transparent), 0 1px 0 color-mix(in srgb, var(--primary) 8%, transparent) inset' : 'var(--sh-1)' }};
                                           transition: transform 120ms, box-shadow 120ms;">
                                     <div class="cal-cell-head" style="display:flex; justify-content:space-between; align-items:center;">
                                         @if ($isToday)
@@ -250,9 +252,9 @@
                                         @if ($occupied > 0)
                                             @php $full = $occupied === $totalRooms; @endphp
                                             <span style="font-size:10px; font-weight:700;
-                                                         color: {{ $full ? 'var(--err)' : 'var(--ink-3)' }};
+                                                         color: {{ $full ? 'var(--primary)' : 'var(--ink-3)' }};
                                                          font-family: var(--font-mono);
-                                                         background: {{ $full ? 'var(--err-tint)' : 'transparent' }};
+                                                         background: {{ $full ? 'var(--primary-tint)' : 'transparent' }};
                                                          padding: {{ $full ? '1px 6px' : '0' }};
                                                          border-radius:999px;">
                                                 {{ $full ? 'FULL' : $occupied.'/'.$totalRooms }}
@@ -265,8 +267,8 @@
                                         @foreach (array_slice($bks, 0, 3) as $b)
                                             @php
                                                 $ps = $paymentStatus($b);
-                                                $col = $ps === 'paid' ? 'var(--primary)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--err)');
-                                                $tint = $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)');
+                                                $col = $ps === 'paid' ? 'var(--primary)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--ink-4)');
+                                                $tint = $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)');
                                                 $guestName = $b->guest?->name ?? __('Guest');
                                                 $firstName = explode(' ', $guestName)[0];
                                             @endphp
@@ -354,7 +356,7 @@
                             </div>
                             <div>
                                 <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Free') }}</div>
-                                <div class="mono" style="font-size:17px; font-weight:700; color: {{ $free > 0 ? 'var(--ok)' : 'var(--err)' }};">{{ $free }}</div>
+                                <div class="mono" style="font-size:17px; font-weight:700; color: {{ $free > 0 ? 'var(--ok)' : 'var(--primary)' }};">{{ $free }}</div>
                             </div>
                             <div>
                                 <div class="cm-eyebrow" style="margin-bottom:2px;">{{ __('Revenue') }}</div>
@@ -393,7 +395,7 @@
                                     @php
                                         $bk = collect($dayBookings)->firstWhere('room_id', $r->id);
                                         $col = $bk
-                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--primary)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--err)'))
+                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--primary)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--ink-4)'))
                                             : 'var(--ok)';
                                     @endphp
                                     <div style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
@@ -413,7 +415,7 @@
                                         @if ($bk)
                                             @php $ps = $paymentStatus($bk); @endphp
                                             <span class="pill" style="height:18px; font-size:10px;
-                                                                      background: {{ $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)') }};
+                                                                      background: {{ $ps === 'paid' ? 'var(--primary-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)') }};
                                                                       color: {{ $col }};">
                                                 {{ $ps === 'paid' ? __('Paid') : ($ps === 'deposit' ? __('Deposit') : __('Unpaid')) }}
                                             </span>
