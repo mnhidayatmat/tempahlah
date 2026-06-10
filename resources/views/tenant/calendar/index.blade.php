@@ -187,7 +187,7 @@
                         @endforeach
                     </div>
                     <div style="display:flex; gap:14px; font-size:11px; flex-wrap:wrap;">
-                        @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
+                        @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--err)']] as [$lbl, $clr])
                             <span style="display:inline-flex; align-items:center; gap:5px; color: var(--ink-3);">
                                 <span style="width:8px; height:8px; border-radius:999px; background: {{ $clr }};"></span>{{ __($lbl) }}
                             </span>
@@ -201,7 +201,7 @@
                  centred strip on phones via the .cal-legend-mobile rule. --}}
             <div class="cal-legend-mobile card" style="display:none; padding:9px 12px; gap:16px;
                         align-items:center; justify-content:center; flex-wrap:wrap;">
-                @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--ink-4)']] as [$lbl, $clr])
+                @foreach ([['Fully paid','var(--ok)'], ['Booking fee paid','var(--warn)'], ['Pending','var(--err)']] as [$lbl, $clr])
                     <span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color: var(--ink-2);">
                         <span style="width:10px; height:10px; border-radius:999px; background: {{ $clr }}; flex-shrink:0;"></span>{{ __($lbl) }}
                     </span>
@@ -243,10 +243,18 @@
                                     $events = $eventsByDate[$iso] ?? ['checkins' => [], 'checkouts' => []];
                                     $occupied = count($bks);
                                     $totalRooms = $totalRoomsCount;
-                                    $occRatio = min(1, $occupied / $totalRooms);
-                                    $heatPct = round((0.06 + $occRatio * 0.18) * 100);
-                                    $heatBg = $occupied > 0
-                                        ? 'color-mix(in srgb, var(--primary) '.$heatPct.'%, transparent)'
+                                    // Cell tint follows PAYMENT STATUS (not a grey occupancy heat):
+                                    // green = every booking fully paid, yellow = booking fee paid,
+                                    // red = something still unpaid. Most-urgent status wins the cell.
+                                    $dayStatuses = array_map($paymentStatus, $bks);
+                                    $cellPs = $occupied === 0 ? null
+                                        : (in_array('unpaid', $dayStatuses, true) ? 'unpaid'
+                                            : (in_array('deposit', $dayStatuses, true) ? 'deposit' : 'paid'));
+                                    $cellColor = $cellPs === 'paid' ? 'var(--ok)'
+                                        : ($cellPs === 'deposit' ? 'var(--warn)'
+                                        : ($cellPs === 'unpaid' ? 'var(--err)' : null));
+                                    $heatBg = $cellColor
+                                        ? 'color-mix(in srgb, '.$cellColor.' 16%, transparent)'
                                         : ($isWknd ? 'var(--bg-sunk)' : 'var(--bg-elev)');
                                     $cellHref = route('tenant.calendar', [
                                         'property_id' => $propertyId,
@@ -257,7 +265,7 @@
                                 <a href="{{ $cellHref }}" class="cal-cell"
                                    style="min-height:128px; padding:10px; text-decoration:none; color: var(--ink);
                                           background: {{ $isSelected ? 'linear-gradient(160deg, color-mix(in srgb, var(--primary) 22%, transparent), color-mix(in srgb, var(--primary) 8%, transparent))' : $heatBg }};
-                                          border: 1px solid {{ $isSelected ? 'var(--primary)' : 'var(--line)' }};
+                                          border: 1px solid {{ $isSelected ? 'var(--primary)' : ($cellColor ? 'color-mix(in srgb, '.$cellColor.' 45%, var(--line))' : 'var(--line)') }};
                                           border-radius:14px;
                                           opacity: {{ $isOtherMonth ? '0.4' : '1' }};
                                           display:flex; flex-direction:column; gap:6px;
@@ -295,8 +303,8 @@
                                         @foreach (array_slice($bks, 0, 3) as $b)
                                             @php
                                                 $ps = $paymentStatus($b);
-                                                $col = $ps === 'paid' ? 'var(--ok)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--ink-4)');
-                                                $tint = $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)');
+                                                $col = $ps === 'paid' ? 'var(--ok)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--err)');
+                                                $tint = $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)');
                                                 $guestName = $b->guest?->name ?? __('Guest');
                                                 $firstName = explode(' ', $guestName)[0];
                                             @endphp
@@ -423,7 +431,7 @@
                                     @php
                                         $bk = collect($dayBookings)->firstWhere('room_id', $r->id);
                                         $col = $bk
-                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--ok)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--ink-4)'))
+                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--ok)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--err)'))
                                             : 'var(--ok)';
                                     @endphp
                                     <div style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
@@ -443,7 +451,7 @@
                                         @if ($bk)
                                             @php $ps = $paymentStatus($bk); @endphp
                                             <span class="pill" style="height:18px; font-size:10px;
-                                                                      background: {{ $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--bg-sunk)') }};
+                                                                      background: {{ $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)') }};
                                                                       color: {{ $col }};">
                                                 {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
                                             </span>
