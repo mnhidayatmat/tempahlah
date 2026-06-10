@@ -32,7 +32,11 @@
             }
             .cal-summary-meta > div:first-child > div .cm-eyebrow { font-size: 8.5px !important; }
             .cal-summary-meta > div:first-child > div .mono { font-size: 14px !important; }
-            .cal-summary-meta > div:last-child { display: none !important; }  /* legend */
+            .cal-summary-meta > div:last-child { display: none !important; }  /* legend (shown as standalone strip below) */
+
+            /* Standalone colour legend — the summary's inline legend is hidden
+               on phones, so surface a compact centred strip instead. */
+            .cal-legend-mobile { display: flex !important; }
 
             /* Detail panel stacks under the grid */
             .cal-main { grid-template-columns: 1fr !important; gap: 10px !important; }
@@ -185,6 +189,18 @@
                         @endforeach
                     </div>
                 </div>
+            </div>
+
+            {{-- Mobile colour legend — hidden on desktop (the summary card above
+                 already carries the inline legend there); shown as a compact
+                 centred strip on phones via the .cal-legend-mobile rule. --}}
+            <div class="cal-legend-mobile card" style="display:none; padding:9px 12px; gap:16px;
+                        align-items:center; justify-content:center; flex-wrap:wrap;">
+                @foreach ([['Paid','var(--primary)'], ['Deposit','var(--warn)'], ['Unpaid','var(--ink-4)']] as [$lbl, $clr])
+                    <span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color: var(--ink-2);">
+                        <span style="width:10px; height:10px; border-radius:999px; background: {{ $clr }}; flex-shrink:0;"></span>{{ __($lbl) }}
+                    </span>
+                @endforeach
             </div>
 
             {{-- Main: grid + (optional) detail panel --}}
