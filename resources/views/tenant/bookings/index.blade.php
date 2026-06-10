@@ -174,8 +174,8 @@
     {{-- Floating "New booking" action button — phones only (desktop keeps the
          inline header button). Fixed bottom-right, clears the iOS home bar. --}}
     <a href="{{ route('tenant.bookings.create') }}" class="bk-fab" aria-label="{{ __('New booking') }}"
-       style="position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
-              width: 56px; height: 56px; border-radius: 999px; z-index: 50;
+       style="position: fixed; right: 18px; bottom: calc(80px + env(safe-area-inset-bottom));
+              width: 56px; height: 56px; border-radius: 999px; z-index: 40;
               align-items: center; justify-content: center; text-decoration: none;
               background: var(--primary); color: var(--primary-ink);
               box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--primary) 55%, transparent), 0 2px 6px rgba(0,0,0,.14);">
