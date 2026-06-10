@@ -66,6 +66,15 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
 // -----------------------------------------------------------------------------
 Route::domain(config('app.tenant_domain'))->group(function () {
     Route::get('/', function () {
+        // Logged-in users skip the marketing landing and go straight to their
+        // dashboard. Tenant context / onboarding is resolved by the dashboard
+        // route's own middleware (SetTenantContext falls back to the user's
+        // first active membership; RequireTenant sends tenant-less users to
+        // onboarding), so this is safe for every authenticated user.
+        if (auth()->check()) {
+            return redirect()->route('tenant.dashboard');
+        }
+
         return view('welcome');
     })->name('home');
 
