@@ -51,6 +51,10 @@
                 border-radius: 9px !important; gap: 2px !important;
             }
             .cal-cell-events { display: none !important; }  /* in/out shown on tap in detail panel */
+            /* The "FULL" / "N/M" occupancy badge overflows the tiny square cells
+               and overlaps the day number — drop it on phones; the colour dot(s)
+               below already signal a booking, and full detail is one tap away. */
+            .cal-cell-occ { display: none !important; }
 
             /* Guest-name chips → wrapped row of colour-coded dots */
             .cal-cell-chips {
@@ -187,7 +191,10 @@
             <div class="cal-main" style="display:grid; grid-template-columns: {{ $selectedDay ? '1fr 340px' : '1fr' }}; gap:16px; align-items:flex-start; transition: grid-template-columns 200ms;">
 
                 {{-- Month grid --}}
-                <div class="card cal-grid-card" style="padding:0; overflow:hidden;">
+                <div class="card cal-grid-card" style="padding:0; overflow:hidden;"
+                     data-cal-swipe
+                     data-prev="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $prevCursor]) }}"
+                     data-next="{{ route('tenant.calendar', ['property_id' => $propertyId, 'cursor' => $nextCursor]) }}">
                     {{-- Weekday header --}}
                     <div class="cal-weekdays" style="display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 4px 0; background:transparent;">
                         @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $i => $wd)
@@ -251,12 +258,12 @@
                                         @endif
                                         @if ($occupied > 0)
                                             @php $full = $occupied === $totalRooms; @endphp
-                                            <span style="font-size:10px; font-weight:700;
+                                            <span class="cal-cell-occ" style="font-size:10px; font-weight:700;
                                                          color: {{ $full ? 'var(--primary)' : 'var(--ink-3)' }};
                                                          font-family: var(--font-mono);
                                                          background: {{ $full ? 'var(--primary-tint)' : 'transparent' }};
                                                          padding: {{ $full ? '1px 6px' : '0' }};
-                                                         border-radius:999px;">
+                                                         border-radius:999px; white-space:nowrap;">
                                                 {{ $full ? 'FULL' : $occupied.'/'.$totalRooms }}
                                             </span>
                                         @endif
@@ -437,4 +444,40 @@
             </div>
         @endif
     </div>
+
+    {{-- Swipe left/right on the month grid to page between months (touch devices).
+         Horizontal-dominant swipes only, so vertical scrolling is unaffected; a
+         detected swipe also suppresses the trailing synthetic click so it doesn't
+         accidentally open a day's detail panel. --}}
+    <script>
+        (function () {
+            var grid = document.querySelector('[data-cal-swipe]');
+            if (!grid) return;
+            var startX = 0, startY = 0, swiped = false;
+            var prev = grid.getAttribute('data-prev');
+            var next = grid.getAttribute('data-next');
+
+            grid.addEventListener('touchstart', function (e) {
+                var t = e.changedTouches[0];
+                startX = t.clientX; startY = t.clientY; swiped = false;
+            }, { passive: true });
+
+            grid.addEventListener('touchend', function (e) {
+                var t = e.changedTouches[0];
+                var dx = t.clientX - startX, dy = t.clientY - startY;
+                // Require a clear horizontal gesture (>60px and mostly sideways).
+                if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    swiped = true;
+                    var url = dx < 0 ? next : prev; // swipe left → next month
+                    if (url) window.location.href = url;
+                }
+            }, { passive: true });
+
+            // Swallow the click the browser may fire after a swipe so it doesn't
+            // also open the day cell the finger lifted on.
+            grid.addEventListener('click', function (e) {
+                if (swiped) { e.preventDefault(); e.stopPropagation(); swiped = false; }
+            }, true);
+        })();
+    </script>
 </x-app-layout>
