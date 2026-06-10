@@ -12,25 +12,30 @@
         $checkOutTime = optional($booking->property)->check_out_time ?? '11:00';
     @endphp
 
-    {{-- Page-scoped mobile layout (no shared CSS touched). Phones: action
-         buttons pack into a 2-up grid instead of an 8-row stack, and the
-         2fr/1fr detail grid collapses to a single readable column so nothing
-         overflows sideways. --}}
+    {{-- Page-scoped styling (no shared CSS touched). Every booking action lives
+         in one compact "Edit" dropdown menu instead of a crowded button row, and
+         on phones the 2fr/1fr detail grid collapses to a single readable column
+         so nothing overflows sideways. --}}
     <style>
-        .bk-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+        [x-cloak] { display:none !important; }
+        .bk-menu { box-shadow: 0 12px 32px -8px rgba(20,20,30,.20), 0 2px 6px rgba(20,20,30,.08); }
+        .bk-menu form { margin:0; }
+        .bk-menu-item {
+            display:flex; align-items:center; gap:10px; width:100%;
+            padding:9px 10px; border:0; background:transparent; border-radius:8px;
+            font-size:13px; color:var(--ink); text-align:left; cursor:pointer;
+            text-decoration:none; font-family:inherit; line-height:1.25;
+        }
+        .bk-menu-item:hover { background: var(--bg-sunk); }
+        .bk-menu-item[disabled] { opacity:.45; cursor:not-allowed; }
+        .bk-menu-item[disabled]:hover { background:transparent; }
+        .bk-menu-item--primary { color: var(--primary); font-weight:600; }
+        .bk-menu-item--danger  { color: var(--err); }
+        .bk-menu-sep { height:1px; background:var(--line); margin:5px 4px; }
+
         @media (max-width: 768px) {
             .bk-root { gap:14px !important; }
             .bk-head { align-items:flex-start; }
-
-            /* 6–8 actions in ~4 rows, each button fills its cell + is tappable. */
-            .bk-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-            .bk-actions > a.btn,
-            .bk-actions > form { width:100%; min-width:0; }
-            .bk-actions > a.btn,
-            .bk-actions form .btn {
-                width:100%; justify-content:center;
-                white-space:normal; line-height:1.2; text-align:center;
-            }
 
             /* Detail grid → single column (kills the cramped 2fr/1fr that
                squeezed the Total card and could overflow sideways). */
@@ -53,68 +58,86 @@
             @php
                 $waConnected = (bool) optional(optional($booking->tenant ?? null)->whatsappSession)->isConnected();
             @endphp
-            <div class="bk-actions" style="margin-top: 12px;">
-                    <a href="{{ route('tenant.bookings.edit', $booking->id) }}" class="btn btn-sm" title="{{ __('Edit booking details') }}" style="text-decoration:none;">
-                        {{ __('Edit') }}
+            @php
+                $canCancel = ! in_array($booking->status, [
+                    \App\Models\Booking::STATUS_CANCELLED,
+                    \App\Models\Booking::STATUS_NO_SHOW,
+                    \App\Models\Booking::STATUS_CHECKED_OUT,
+                ], true);
+                $canCheckOut = in_array($booking->status, [
+                    \App\Models\Booking::STATUS_CONFIRMED,
+                    \App\Models\Booking::STATUS_CHECKED_IN,
+                ], true);
+            @endphp
+
+            {{-- One compact "Edit" control opens a menu with every booking action.
+                 Replaces the old crowded row of 6–8 inline buttons. --}}
+            <div class="bk-actions" x-data="{ open: false }" style="position:relative; margin-top: 12px;">
+                <button type="button" class="btn btn-sm" @click="open = ! open"
+                        :aria-expanded="open ? 'true' : 'false'"
+                        style="display:inline-flex; align-items:center; gap:7px;">
+                    <x-icon name="cog" :size="13"/> {{ __('Edit') }}
+                    <x-icon name="arrow-down" :size="11"/>
+                </button>
+
+                <div x-show="open" x-cloak x-transition
+                     @click.outside="open = false"
+                     @keydown.escape.window="open = false"
+                     class="hauz-card bk-menu"
+                     style="position:absolute; left:0; top:calc(100% + 6px); z-index:60; width:240px; padding:6px;">
+
+                    {{-- Edit booking details (the full edit form) --}}
+                    <a href="{{ route('tenant.bookings.edit', $booking->id) }}" class="bk-menu-item">
+                        <x-icon name="cog" :size="14"/> <span>{{ __('Edit details') }}</span>
                     </a>
 
+                    {{-- Send via WhatsApp --}}
                     @if ($waConnected && $booking->guest?->phone)
-                        <form method="POST" action="{{ route('tenant.bookings.whatsapp', $booking->id) }}" style="display:inline;">
+                        <form method="POST" action="{{ route('tenant.bookings.whatsapp', $booking->id) }}">
                             @csrf
                             <input type="hidden" name="kind" value="{{ $isPaid ? 'checkin' : 'confirmation' }}">
-                            <button type="submit" class="btn btn-sm" title="{{ __('Send via WhatsApp') }}">
-                                {{ __('Send via WhatsApp') }}
+                            <button type="submit" class="bk-menu-item">
+                                <x-icon name="message" :size="14"/> <span>{{ __('Send via WhatsApp') }}</span>
                             </button>
                         </form>
                     @endif
 
                     @if (! $isPaid)
-                        <form method="POST" action="{{ route('tenant.bookings.pay-link', $booking->id) }}" style="display:inline;">
+                        {{-- Send reminder --}}
+                        <form method="POST" action="{{ route('tenant.bookings.send-reminder', $booking->id) }}">
                             @csrf
-                            <input type="hidden" name="type" value="{{ $booking->deposit_paid_at ? 'balance' : 'deposit' }}">
-                            <button type="submit" class="btn btn-sm" title="{{ __('Generate Toyyibpay link') }}">
-                                {{ $booking->deposit_paid_at ? __('Get balance link') : __('Get deposit link') }}
+                            <button type="submit" class="bk-menu-item"
+                                    {{ ($booking->guest?->email || $booking->guest?->phone) ? '' : 'disabled title="No email or phone on file"' }}>
+                                <x-icon name="bell" :size="14"/> <span>{{ __('Send reminder') }}</span>
                             </button>
                         </form>
-                        <form method="POST" action="{{ route('tenant.bookings.send-reminder', $booking->id) }}" style="display:inline;">
+                        {{-- Mark paid --}}
+                        <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}">
                             @csrf
-                            <button type="submit" class="btn btn-sm" {{ ($booking->guest?->email || $booking->guest?->phone) ? '' : 'disabled title="No email or phone on file"' }}>
-                                {{ __('Send reminder') }}
+                            <button type="submit" class="bk-menu-item bk-menu-item--primary">
+                                <x-icon name="check" :size="14"/> <span>{{ __('Mark paid') }}</span>
                             </button>
-                        </form>
-                        <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}" style="display:inline;">
-                            @csrf
-                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Mark paid') }}</button>
                         </form>
                     @endif
 
-                    @php
-                        $canCancel = ! in_array($booking->status, [
-                            \App\Models\Booking::STATUS_CANCELLED,
-                            \App\Models\Booking::STATUS_NO_SHOW,
-                            \App\Models\Booking::STATUS_CHECKED_OUT,
-                        ], true);
-                        $canCheckOut = in_array($booking->status, [
-                            \App\Models\Booking::STATUS_CONFIRMED,
-                            \App\Models\Booking::STATUS_CHECKED_IN,
-                        ], true);
-                    @endphp
+                    {{-- Check out guest --}}
                     @if ($canCheckOut)
                         <form method="POST"
                               action="{{ route('tenant.bookings.check-out', $booking->id) }}"
-                              style="display:inline;"
                               onsubmit="return confirm('{{ addslashes(__('Mark guest as checked out? This stamps the checkout time and prepares a refund for the deposit.')) }}');">
                             @csrf
-                            <button type="submit" class="btn btn-sm btn-primary"
+                            <button type="submit" class="bk-menu-item"
                                     title="{{ __('Stamp checkout time + auto-prepare deposit refund') }}">
-                                {{ __('Check out guest') }}
+                                <x-icon name="arrow-right" :size="14"/> <span>{{ __('Check out guest') }}</span>
                             </button>
                         </form>
                     @endif
+
                     @if ($canCancel)
+                        <div class="bk-menu-sep"></div>
+                        {{-- Cancel booking --}}
                         <form method="POST"
                               action="{{ route('tenant.bookings.cancel', $booking->id) }}"
-                              style="display:inline;"
                               onsubmit="
                                   var r = prompt('{{ addslashes(__('Cancel booking :ref? Optional: enter a reason (visible only to you).', ['ref' => $booking->reference])) }}', '');
                                   if (r === null) return false;
@@ -122,22 +145,19 @@
                               ">
                             @csrf
                             <input type="hidden" name="reason" value="">
-                            <button type="submit"
-                                    class="btn btn-sm"
-                                    style="color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, transparent);"
+                            <button type="submit" class="bk-menu-item bk-menu-item--danger"
                                     title="{{ __('Cancel this booking and free the dates') }}">
-                                {{ __('Cancel booking') }}
+                                <x-icon name="x" :size="14"/> <span>{{ __('Cancel booking') }}</span>
                             </button>
                         </form>
+                    @else
+                        <div class="bk-menu-sep"></div>
                     @endif
 
-                    {{-- Hard delete — for test/cleanup. Strong typed confirm
-                         so a misclick can't wipe a real booking. The server
-                         additionally refuses if any audit-grade rows exist
-                         (reviews / incident reports / disputes / blacklist). --}}
+                    {{-- Hard delete — strong typed confirm so a misclick can't wipe a
+                         real booking; the server also refuses if audit rows exist. --}}
                     <form method="POST"
                           action="{{ route('tenant.bookings.destroy', $booking->id) }}"
-                          style="display:inline;"
                           onsubmit="
                               var typed = prompt('{{ addslashes(__('PERMANENT DELETE — type the booking reference :ref to confirm. This wipes the booking, its payments, invoices and tasks. Use \'Cancel\' instead if it\'s a real booking.', ['ref' => $booking->reference])) }}', '');
                               if (typed !== '{{ $booking->reference }}') {
@@ -147,13 +167,12 @@
                           ">
                         @csrf
                         @method('DELETE')
-                        <button type="submit"
-                                class="btn btn-sm"
-                                style="background: var(--err); color:#fff; border-color: var(--err);"
+                        <button type="submit" class="bk-menu-item bk-menu-item--danger"
                                 title="{{ __('Permanently delete (cannot be undone)') }}">
-                            {{ __('Delete') }}
+                            <x-icon name="x" :size="14"/> <span>{{ __('Delete booking') }}</span>
                         </button>
                     </form>
+                </div>
             </div>
         </div>
 
