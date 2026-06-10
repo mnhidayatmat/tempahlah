@@ -12,20 +12,48 @@
         $checkOutTime = optional($booking->property)->check_out_time ?? '11:00';
     @endphp
 
-    <div style="display:flex; flex-direction:column; gap: 20px;">
+    {{-- Page-scoped mobile layout (no shared CSS touched). Phones: action
+         buttons pack into a 2-up grid instead of an 8-row stack, and the
+         2fr/1fr detail grid collapses to a single readable column so nothing
+         overflows sideways. --}}
+    <style>
+        .bk-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+        @media (max-width: 768px) {
+            .bk-root { gap:14px !important; }
+            .bk-head { align-items:flex-start; }
+
+            /* 6–8 actions in ~4 rows, each button fills its cell + is tappable. */
+            .bk-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+            .bk-actions > a.btn,
+            .bk-actions > form { width:100%; min-width:0; }
+            .bk-actions > a.btn,
+            .bk-actions form .btn {
+                width:100%; justify-content:center;
+                white-space:normal; line-height:1.2; text-align:center;
+            }
+
+            /* Detail grid → single column (kills the cramped 2fr/1fr that
+               squeezed the Total card and could overflow sideways). */
+            .bk-grid { grid-template-columns:1fr !important; gap:12px !important; }
+
+            .bk-paylink-row { flex-wrap:wrap; }
+        }
+    </style>
+
+    <div class="bk-root" style="display:flex; flex-direction:column; gap: 20px;">
         <div>
             <a href="{{ route('tenant.bookings.index') }}" style="font-size:12.5px; color: var(--ink-3); text-decoration:none;">← {{ __('Bookings') }}</a>
-            <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top: 6px; flex-wrap: wrap; gap: 12px;">
+            <div class="bk-head" style="display:flex; align-items:flex-end; justify-content:space-between; margin-top: 6px; flex-wrap: wrap; gap: 12px;">
                 <div>
                     <div class="kicker">{{ $booking->reference }}</div>
                     <h2 class="display-2" style="margin: 4px 0 0;">{{ $booking->guest?->name ?? __('Guest') }}</h2>
                 </div>
-                @php
-                    $waConnected = (bool) optional(optional($booking->tenant ?? null)->whatsappSession)->isConnected();
-                @endphp
-                <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
-                    <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
-
+                <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
+            </div>
+            @php
+                $waConnected = (bool) optional(optional($booking->tenant ?? null)->whatsappSession)->isConnected();
+            @endphp
+            <div class="bk-actions" style="margin-top: 12px;">
                     <a href="{{ route('tenant.bookings.edit', $booking->id) }}" class="btn btn-sm" title="{{ __('Edit booking details') }}" style="text-decoration:none;">
                         {{ __('Edit') }}
                     </a>
@@ -126,7 +154,6 @@
                             {{ __('Delete') }}
                         </button>
                     </form>
-                </div>
             </div>
         </div>
 
@@ -139,10 +166,10 @@
         @if (session('pay_link'))
             <div class="hauz-card" style="padding: 16px 18px; background: var(--bg-elev);" x-data="{ copied: false }">
                 <div class="kicker" style="margin-bottom: 8px;">{{ __('Toyyibpay link') }}{{ session('pay_link_reused') ? ' · '.__('reused existing') : '' }}</div>
-                <div style="display:flex; gap:8px; align-items:center;">
+                <div class="bk-paylink-row" style="display:flex; gap:8px; align-items:center;">
                     <input type="text" class="input" readonly
                            value="{{ session('pay_link') }}"
-                           style="flex:1; font-family: var(--mono, monospace); font-size: 12.5px;"
+                           style="flex:1; min-width:0; font-family: var(--mono, monospace); font-size: 12.5px;"
                            x-ref="link" @click="$refs.link.select()">
                     <button type="button" class="btn btn-sm"
                             @click="navigator.clipboard.writeText($refs.link.value); copied=true; setTimeout(()=>copied=false, 1500)">
@@ -157,7 +184,7 @@
             </div>
         @endif
 
-        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 18px;">
+        <div class="bk-grid" style="display:grid; grid-template-columns: 2fr 1fr; gap: 18px;">
             <div style="display:flex; flex-direction:column; gap: 14px;">
                 <div class="hauz-card" style="padding: 18px;">
                     <div class="kicker" style="margin-bottom: 10px;">{{ __('Stay') }}</div>
