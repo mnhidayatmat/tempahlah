@@ -41,16 +41,38 @@
             <form method="POST" action="{{ route('tenant.bookings.store') }}" style="display:flex; flex-direction:column; gap:14px;"
                   x-data="{
                       roomFees: {{ Js::from($roomFees) }},
+                      roomGuests: {{ Js::from($roomGuests) }},
                       bookingFee: '{{ old('deposit_amount') }}',
+                      adults: {{ old('adults') !== null ? (int) old('adults') : 'null' }},
+                      children: {{ (int) old('children', 0) }},
+                      maxGuests: 30,
+                      applyGuestDefaults(id) {
+                          // Follow the tenant's per-property guest setup: default
+                          // the adults count to 'Default guests' and cap inputs at
+                          // the room's 'Max guests' (sleeps capacity).
+                          const g = this.roomGuests[id];
+                          if (!g) return;
+                          this.maxGuests = g.max;
+                          this.adults = g.default;
+                          if (this.children > g.max) this.children = g.max;
+                      },
                       onRoomChange(id) {
                           // Pre-fill the booking fee from the property's fee unless
                           // the host has already typed a custom amount.
                           if (this.bookingFee === '' && this.roomFees[id] != null) {
                               this.bookingFee = this.roomFees[id];
                           }
+                          this.applyGuestDefaults(id);
                       },
                   }"
-                  x-init="if (bookingFee === '' && $refs.roomSelect && roomFees[$refs.roomSelect.value] != null) bookingFee = roomFees[$refs.roomSelect.value]">
+                  x-init="
+                      if (bookingFee === '' && $refs.roomSelect && roomFees[$refs.roomSelect.value] != null) bookingFee = roomFees[$refs.roomSelect.value];
+                      if ($refs.roomSelect && roomGuests[$refs.roomSelect.value]) {
+                          maxGuests = roomGuests[$refs.roomSelect.value].max;
+                          if (adults === null) adults = roomGuests[$refs.roomSelect.value].default;
+                      }
+                      if (adults === null) adults = 2;
+                  ">
                 @csrf
 
                 {{-- Stay --}}
@@ -80,11 +102,11 @@
 
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Adults') }}</div>
-                            <input type="number" name="adults" required min="1" max="30" value="{{ old('adults', 2) }}" class="input">
+                            <input type="number" name="adults" required min="1" :max="maxGuests" x-model.number="adults" class="input">
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Children') }}</div>
-                            <input type="number" name="children" min="0" max="30" value="{{ old('children', 0) }}" class="input">
+                            <input type="number" name="children" min="0" :max="maxGuests" x-model.number="children" class="input">
                         </label>
                     </div>
                 </div>

@@ -78,6 +78,12 @@ class PushBookingToGoogleCalendar implements ShouldQueue
             return;
         }
 
+        // Tenant can pause writes from Settings without disconnecting — keeps
+        // the calendar choice + tokens, just stops Tempahlah pushing events.
+        if (! $integration->gcalWriteEnabled()) {
+            return;
+        }
+
         $meta = $booking->meta ?? [];
         $hasEvent = ! empty($meta['google_event_id']);
         $isActive = ! in_array($booking->status, [

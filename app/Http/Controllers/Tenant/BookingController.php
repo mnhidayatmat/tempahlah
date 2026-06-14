@@ -76,7 +76,7 @@ class BookingController extends Controller
     public function create()
     {
         $rooms = Room::query()
-            ->with('property:id,name,booking_fee_amount')
+            ->with('property:id,name,booking_fee_amount,default_guests')
             ->where('status', '!=', 'archived')
             ->orderBy('property_id')
             ->orderBy('name')
@@ -88,9 +88,25 @@ class BookingController extends Controller
             $room->id => round((float) ($room->property?->booking_fee_amount ?? 0), 2),
         ]);
 
+        // room_id => { default, max } guest counts, so the form follows the
+        // tenant's per-property "Default guests" + "Max guests" setup instead
+        // of a hardcoded 2 adults / cap of 30.
+        $roomGuests = $rooms->mapWithKeys(function ($room) {
+            $sleeps = (int) $room->max_adults + (int) $room->max_children;
+            $max = max(1, $sleeps);
+            $configured = (int) ($room->property?->default_guests ?? 0);
+            $default = $configured > 0 ? $configured : max(1, (int) floor($sleeps / 2));
+
+            return [$room->id => [
+                'default' => min($default, $max),
+                'max' => $max,
+            ]];
+        });
+
         return view('tenant.bookings.create', [
             'rooms' => $rooms,
             'roomFees' => $roomFees,
+            'roomGuests' => $roomGuests,
             'today' => Carbon::today()->toDateString(),
             'tomorrow' => Carbon::tomorrow()->toDateString(),
         ]);
@@ -132,6 +148,10 @@ class BookingController extends Controller
                 ->withInput()
                 ->with('status', __('Could not create booking: :error', ['error' => $e->getMessage()]));
         }
+
+        // Sync to the tenant's connected Google Calendar. The job no-ops when
+        // GCal isn't connected, so this is safe for every manual booking.
+        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
 
         return redirect()
             ->route('tenant.bookings.show', $booking->id)
@@ -187,6 +207,11 @@ class BookingController extends Controller
         }
 
         $booking->update($updates);
+
+        // Reflect the status change on Google Calendar — the job creates,
+        // updates, or removes the event based on the new status (e.g.
+        // cancelled / no-show removes it). No-ops if GCal isn't connected.
+        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
 
         return back()->with('status', __('Booking :ref status set to :s.', [
             'ref' => $booking->reference,
@@ -333,6 +358,11 @@ class BookingController extends Controller
                 $guest->update($changes);
             }
         });
+
+        // Push the edit through to Google Calendar — the job patches the
+        // existing event (or creates/removes one to match the new status +
+        // dates). No-ops if GCal isn't connected.
+        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
 
         return redirect()
             ->route('tenant.bookings.show', $booking->id)

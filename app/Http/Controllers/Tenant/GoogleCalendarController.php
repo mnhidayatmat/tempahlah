@@ -93,4 +93,30 @@ class GoogleCalendarController extends Controller
                 'name' => $config['calendar_name'],
             ]));
     }
+
+    /**
+     * Toggle whether Tempahlah writes booking events into the tenant's
+     * connected calendar. Lets the tenant pause outbound sync without
+     * disconnecting — tokens + calendar choice are kept, only the
+     * write_enabled flag flips. The sync jobs honour this flag.
+     */
+    public function toggleWrite(Request $request): RedirectResponse
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403);
+
+        $integration = TenantIntegration::where('provider', 'google_calendar')->first();
+        abort_unless($integration && ! empty($integration->config['access_token']), 404);
+
+        $config = $integration->config;
+        $config['write_enabled'] = $request->boolean('write_enabled');
+        $integration->config = $config;
+        $integration->save();
+
+        return redirect()
+            ->route('tenant.integrations.show', 'google_calendar')
+            ->with('status', $config['write_enabled']
+                ? __('Bookings will now be written to your Google Calendar.')
+                : __('Paused — Tempahlah will no longer write bookings to your Google Calendar.'));
+    }
 }

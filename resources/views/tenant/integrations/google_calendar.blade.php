@@ -167,6 +167,30 @@
                     </div>
                 @endif
 
+                {{-- =========================================================
+                     WRITE TOGGLE — let the tenant choose if bookings should
+                     actually be written into this Google Calendar.
+                     ========================================================= --}}
+                @php $writeOn = $record->gcalWriteEnabled(); @endphp
+                <form method="POST" action="{{ route('tenant.integrations.google_calendar.toggle-write') }}"
+                      style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: .5px solid var(--line); border-radius: 10px; background: var(--bg-warm);">
+                    @csrf
+                    {{-- Submit the opposite of the current state --}}
+                    <input type="hidden" name="write_enabled" value="{{ $writeOn ? '0' : '1' }}">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500; font-size: 14px; color: var(--ink);">{{ __('Write bookings to this calendar') }}</div>
+                        <div style="font-size: 12.5px; color: var(--ink-3); margin-top: 2px;">
+                            {{ $writeOn
+                                ? __('Confirmed bookings are added as events on your Google Calendar.')
+                                : __('Paused — your bookings stay in Tempahlah and are not written to Google Calendar.') }}
+                        </div>
+                    </div>
+                    <button type="submit" role="switch" aria-checked="{{ $writeOn ? 'true' : 'false' }}" title="{{ $writeOn ? __('Turn off') : __('Turn on') }}"
+                            style="position: relative; width: 46px; height: 26px; border: none; border-radius: 999px; cursor: pointer; flex-shrink: 0; transition: background .15s ease; background: {{ $writeOn ? 'var(--primary, #2596c6)' : 'var(--line, #d8d8d8)' }};">
+                        <span style="position: absolute; top: 3px; left: {{ $writeOn ? '23px' : '3px' }}; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s ease;"></span>
+                    </button>
+                </form>
+
                 <div style="display: flex; gap: 8px; padding-top: 14px; border-top: .5px solid var(--line); flex-wrap: wrap;">
                     <a href="{{ route('tenant.integrations.show', ['provider' => 'google_calendar', 'edit' => 1]) }}" class="btn btn-sm">{{ __('Change calendar') }}</a>
                     <a href="{{ route('oauth.google.start') }}" class="btn btn-sm">{{ __('Reconnect') }}</a>

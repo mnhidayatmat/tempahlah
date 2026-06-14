@@ -28,4 +28,17 @@ class TenantIntegration extends Model
         'connected_at' => 'datetime',
         'last_used_at' => 'datetime',
     ];
+
+    /**
+     * Whether Tempahlah should write booking events INTO this calendar.
+     *
+     * Lets a tenant pause outbound writes without disconnecting (keeps the
+     * OAuth tokens + chosen calendar, just stops pushing events). Missing /
+     * null is treated as ON so already-connected tenants keep syncing — the
+     * flag only switches behaviour when explicitly set to false.
+     */
+    public function gcalWriteEnabled(): bool
+    {
+        return ($this->config['write_enabled'] ?? true) !== false;
+    }
 }

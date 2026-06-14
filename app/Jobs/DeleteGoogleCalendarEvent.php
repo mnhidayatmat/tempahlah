@@ -50,6 +50,12 @@ class DeleteGoogleCalendarEvent implements ShouldQueue
             return;
         }
 
+        // Honour the tenant's "write to calendar" toggle — when paused we
+        // don't touch their calendar at all, including deletions.
+        if (! $integration->gcalWriteEnabled()) {
+            return;
+        }
+
         try {
             $google->deleteEvent($integration, $this->eventId, $this->calendarId);
             $integration->update(['last_used_at' => now()]);
