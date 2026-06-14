@@ -53,8 +53,12 @@ class DispatchCheckoutReminders extends Command
 
                     $hoursBefore = $tenant->checkoutReminderHours();
 
-                    $checkOutAt = Carbon::parse($booking->check_out.' '
-                        .(string) ($booking->property?->check_out_time ?? '12:00:00'));
+                    // check_out is a `date` cast (a Carbon at 00:00) — format the
+                    // date part before appending the property's check-out time,
+                    // otherwise we'd build "2026-06-15 00:00:00 12:00:00".
+                    $checkOutDate = Carbon::parse($booking->check_out)->format('Y-m-d');
+                    $checkOutTime = substr((string) ($booking->property?->check_out_time ?? '12:00:00'), 0, 8);
+                    $checkOutAt = Carbon::parse($checkOutDate.' '.$checkOutTime);
 
                     $hoursToCheckOut = $now->diffInHours($checkOutAt, false);
 

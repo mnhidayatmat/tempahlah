@@ -79,7 +79,7 @@ class Tenant extends Model
      * Default checkout guidelines used when the tenant hasn't written their
      * own. Kept short + friendly; the host can fully override it in Settings.
      */
-    public const DEFAULT_CHECKOUT_MESSAGE = "A few things before you check out:\n• Please wash + stack any dishes used\n• Bag up the rubbish and leave it by the door\n• Switch off the aircond, fans and lights\n• Lock all doors and windows\n• Leave the keys where you found them\n\nThank you for staying with us!";
+    public const DEFAULT_CHECKOUT_MESSAGE = "A few things before you check out:\n• Please wash + stack any dishes used\n• Bag up the rubbish and leave it by the door\n• Switch off the aircond, fans and lights\n• Lock all doors and windows\n• Leave the keys where you found them";
 
     /** Balance reminder/due lead time (days before check-in). */
     public function fullPaymentDaysBefore(): int

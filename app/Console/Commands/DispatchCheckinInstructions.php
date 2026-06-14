@@ -50,8 +50,12 @@ class DispatchCheckinInstructions extends Command
                         $effective = (int) ($session->pref('checkin_hours_before') ?? $defaultHours);
                     }
 
-                    $checkInAt = Carbon::parse($booking->check_in.' '
-                        .(string) ($booking->property?->check_in_time ?? '15:00:00'));
+                    // check_in is a `date` cast (a Carbon at 00:00) — format the
+                    // date part before appending the property's check-in time,
+                    // otherwise we'd build "2026-06-15 00:00:00 15:00:00".
+                    $checkInDate = Carbon::parse($booking->check_in)->format('Y-m-d');
+                    $checkInTime = substr((string) ($booking->property?->check_in_time ?? '15:00:00'), 0, 8);
+                    $checkInAt = Carbon::parse($checkInDate.' '.$checkInTime);
 
                     $hoursToCheckIn = $now->diffInHours($checkInAt, false);
 
