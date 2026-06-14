@@ -24,6 +24,9 @@ class WhatsappSession extends Model
         'auto_confirmation'    => true,
         'auto_reminder'        => true,
         'auto_checkin'         => true,
+        // Pre-checkout reminder with the host's checkout guidelines. On by
+        // default; the per-tenant toggle + lead time live in Settings.
+        'auto_checkout'        => true,
         // Core direct-booking comms — invoice on booking creation, receipt
         // on successful payment. Default on; tenants can disable via the
         // WhatsApp integration page if they prefer manual sends.

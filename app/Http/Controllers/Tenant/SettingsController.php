@@ -60,6 +60,9 @@ class SettingsController extends Controller
             ])],
             'auto_cancel_unpaid_balance' => 'nullable|boolean',
             'refund_policy'            => 'nullable|string|max:2000',
+            'checkout_reminder_enabled' => 'nullable|boolean',
+            'checkout_reminder_hours'  => 'required|integer|min:1|max:72',
+            'checkout_reminder_message' => 'nullable|string|max:2000',
             'primary_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'accent_color'    => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
@@ -74,6 +77,7 @@ class SettingsController extends Controller
 
         $validated['sst_registered'] = $request->boolean('sst_registered');
         $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
+        $validated['checkout_reminder_enabled'] = $request->boolean('checkout_reminder_enabled');
         if (! $validated['sst_registered']) {
             $validated['sst_rate'] = 0;
         } elseif (empty($validated['sst_rate'])) {

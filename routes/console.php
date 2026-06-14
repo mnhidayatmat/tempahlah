@@ -16,6 +16,14 @@ Schedule::command('wa:dispatch-checkin-instructions')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Pre-checkout reminders — fires hourly, picks bookings whose checkout is
+// inside each tenant's "X hours before" window and sends the host's checkout
+// guidelines via WhatsApp. Per-tenant lead time is honoured inside the command.
+Schedule::command('wa:dispatch-checkout-reminders')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Payment lifecycle — chases + auto-cancels unpaid booking fees and balances
 // per each tenant's payment policy. Hourly so the hours-based fee window is
 // honoured; the balance reminder/cancel are date-based and fire once.

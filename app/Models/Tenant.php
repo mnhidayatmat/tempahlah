@@ -26,6 +26,7 @@ class Tenant extends Model
         'default_locale', 'suspended_at', 'suspended_reason',
         'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on',
         'auto_cancel_unpaid_balance', 'refund_policy',
+        'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
     ];
 
     public const THEME_DEFAULTS = [
@@ -64,7 +65,21 @@ class Tenant extends Model
         'full_payment_days_before' => 'integer',
         'fee_payment_hours' => 'integer',
         'auto_cancel_unpaid_balance' => 'boolean',
+        'checkout_reminder_enabled' => 'boolean',
+        'checkout_reminder_hours' => 'integer',
     ];
+
+    /** Platform defaults for the pre-checkout reminder. */
+    public const CHECKOUT_REMINDER_DEFAULTS = [
+        'enabled' => true,
+        'hours'   => 3,
+    ];
+
+    /**
+     * Default checkout guidelines used when the tenant hasn't written their
+     * own. Kept short + friendly; the host can fully override it in Settings.
+     */
+    public const DEFAULT_CHECKOUT_MESSAGE = "A few things before you check out:\n• Please wash + stack any dishes used\n• Bag up the rubbish and leave it by the door\n• Switch off the aircond, fans and lights\n• Lock all doors and windows\n• Leave the keys where you found them\n\nThank you for staying with us!";
 
     /** Balance reminder/due lead time (days before check-in). */
     public function fullPaymentDaysBefore(): int
@@ -101,6 +116,32 @@ class Tenant extends Model
         return $this->auto_cancel_unpaid_balance !== null
             ? (bool) $this->auto_cancel_unpaid_balance
             : self::PAYMENT_POLICY_DEFAULTS['auto_cancel_unpaid_balance'];
+    }
+
+    /** Whether the pre-checkout WhatsApp reminder is on for this tenant. */
+    public function checkoutReminderEnabled(): bool
+    {
+        return $this->checkout_reminder_enabled !== null
+            ? (bool) $this->checkout_reminder_enabled
+            : self::CHECKOUT_REMINDER_DEFAULTS['enabled'];
+    }
+
+    /** How many hours before checkout the reminder fires. */
+    public function checkoutReminderHours(): int
+    {
+        $hours = $this->checkout_reminder_hours !== null
+            ? (int) $this->checkout_reminder_hours
+            : self::CHECKOUT_REMINDER_DEFAULTS['hours'];
+
+        return max(1, $hours);
+    }
+
+    /** The checkout guidelines body — the tenant's own text, or the default. */
+    public function checkoutReminderMessage(): string
+    {
+        $custom = trim((string) ($this->checkout_reminder_message ?? ''));
+
+        return $custom !== '' ? $custom : __(self::DEFAULT_CHECKOUT_MESSAGE);
     }
 
     /**

@@ -131,6 +131,34 @@ class MessageTemplates
     }
 
     /**
+     * Pre-checkout reminder, fires N hours before checkout. Wraps the tenant's
+     * configured checkout guidelines with a greeting + the checkout time.
+     */
+    public static function checkout(Booking $booking): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $name = $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $checkOutTime = $booking->property?->check_out_time
+            ? substr((string) $booking->property->check_out_time, 0, 5)
+            : '12:00';
+        $guidelines = $booking->tenant?->checkoutReminderMessage() ?? '';
+
+        if ($locale === 'ms') {
+            return "Salam {$name}!\n\n"
+                 . "Peringatan: daftar keluar dari *{$property}* sebelum {$checkOutTime}.\n\n"
+                 . $guidelines."\n\n"
+                 . "Terima kasih kerana memilih {$business}!";
+        }
+
+        return "Hi {$name}!\n\n"
+             . "Reminder: checkout from *{$property}* is by {$checkOutTime}.\n\n"
+             . $guidelines."\n\n"
+             . "Thank you for staying with {$business}!";
+    }
+
+    /**
      * Invoice / pay-link message — sent right after a public booking is
      * created on the tenant subdomain. Carries the Toyyibpay deposit link.
      */

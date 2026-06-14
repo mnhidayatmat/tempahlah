@@ -241,6 +241,41 @@
                 </div>
             </div>
 
+            {{-- Check-out reminder --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Check-out reminder') }}</div>
+                <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
+                    {{ __('Automatically WhatsApp the guest your check-out guidelines a few hours before they leave (clean up, take out the rubbish, lock up, etc.). Sends only if your WhatsApp is connected.') }}
+                </p>
+
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                    <input type="hidden" name="checkout_reminder_enabled" value="0">
+                    <input type="checkbox" name="checkout_reminder_enabled" value="1" style="margin-top: 2px;"
+                           {{ old('checkout_reminder_enabled', $tenant->checkoutReminderEnabled()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Send a check-out reminder on WhatsApp') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('Turn off if you’d rather remind guests yourself.') }}
+                        </span>
+                    </span>
+                </label>
+
+                <div style="margin-top: 16px; max-width: 280px;">
+                    <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Hours before check-out') }}</label>
+                    <input class="input" type="number" name="checkout_reminder_hours" min="1" max="72" step="1"
+                           value="{{ old('checkout_reminder_hours', $tenant->checkoutReminderHours()) }}">
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('e.g. 3 = sent 3 hours before the property’s check-out time.') }}</div>
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Check-out guidelines message') }}</label>
+                    <textarea class="input" name="checkout_reminder_message" rows="6"
+                              style="height:auto; padding:10px 12px; resize:vertical;"
+                              placeholder="{{ __(\App\Models\Tenant::DEFAULT_CHECKOUT_MESSAGE) }}">{{ old('checkout_reminder_message', $tenant->checkout_reminder_message) }}</textarea>
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Leave blank to use the default guidelines shown above. A greeting and your check-out time are added automatically.') }}</div>
+                </div>
+            </div>
+
             {{-- Workspace defaults --}}
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>

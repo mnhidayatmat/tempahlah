@@ -81,6 +81,21 @@ class WhatsappMessenger
     }
 
     /**
+     * Pre-checkout reminder — fires N hours before checkout (per-tenant lead
+     * time) carrying the host's checkout guidelines (clean up, take out the
+     * rubbish, lock up, etc.). Gated by the `auto_checkout` session pref.
+     */
+    public static function dispatchCheckoutReminder(Booking $booking): ?WhatsappMessage
+    {
+        return self::autoDispatch(
+            $booking,
+            'auto_checkout',
+            WhatsappMessage::KIND_CHECKOUT,
+            fn () => MessageTemplates::checkout($booking),
+        );
+    }
+
+    /**
      * Pay-link invoice — sent right after a public booking is created on
      * the tenant subdomain. Gated by the `auto_invoice` session pref
      * (defaults to true since this is core booking-flow comms, not

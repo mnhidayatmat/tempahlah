@@ -20,6 +20,7 @@ class WhatsappMessage extends Model
     public const KIND_CONFIRMATION = 'confirmation';
     public const KIND_REMINDER     = 'reminder';
     public const KIND_CHECKIN      = 'checkin';
+    public const KIND_CHECKOUT     = 'checkout';
     public const KIND_INVOICE      = 'invoice';
     public const KIND_RECEIPT      = 'receipt';
     public const KIND_CANCELLATION = 'cancellation';
