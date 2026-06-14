@@ -73,7 +73,7 @@ class BookingController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $rooms = Room::query()
             ->with('property:id,name,booking_fee_amount,default_guests')
@@ -109,13 +109,44 @@ class BookingController extends Controller
         $firstRoomId = $rooms->first()?->id;
         $defaultGuests = $firstRoomId !== null ? ($roomGuests[$firstRoomId]['default'] ?? 1) : 1;
 
+        $today = Carbon::today();
+
+        // Pre-fill check-in from the calendar deep link (?check_in=YYYY-MM-DD).
+        // Never earlier than today (the field min). Check-out follows the night
+        // after check-in so the stay always begins on the date the host picked.
+        $prefillCheckIn = $today->toDateString();
+        if ($request->filled('check_in')) {
+            try {
+                $picked = Carbon::parse($request->query('check_in'))->startOfDay();
+                if ($picked->greaterThanOrEqualTo($today)) {
+                    $prefillCheckIn = $picked->toDateString();
+                }
+            } catch (\Exception $e) {
+                // ignore bad date — fall back to today
+            }
+        }
+        $prefillCheckOut = Carbon::parse($prefillCheckIn)->addDay()->toDateString();
+
+        // Pre-select the room when the deep link names a property/room, so the
+        // booking is scoped to the calendar the host clicked from.
+        $prefillRoomId = null;
+        if ($request->filled('room_id')) {
+            $prefillRoomId = $rooms->firstWhere('id', (int) $request->query('room_id'))?->id;
+        }
+        if ($prefillRoomId === null && $request->filled('property_id')) {
+            $prefillRoomId = $rooms->firstWhere('property_id', (int) $request->query('property_id'))?->id;
+        }
+
         return view('tenant.bookings.create', [
             'rooms' => $rooms,
             'roomFees' => $roomFees,
             'roomGuests' => $roomGuests,
             'defaultGuests' => $defaultGuests,
-            'today' => Carbon::today()->toDateString(),
+            'today' => $today->toDateString(),
             'tomorrow' => Carbon::tomorrow()->toDateString(),
+            'prefillCheckIn' => $prefillCheckIn,
+            'prefillCheckOut' => $prefillCheckOut,
+            'prefillRoomId' => $prefillRoomId,
         ]);
     }
 

@@ -64,6 +64,17 @@
                           }
                           this.applyGuestDefaults(id);
                       },
+                      syncCheckout() {
+                          // Keep check-out on or after the night following check-in,
+                          // so the stay always begins on the chosen check-in date.
+                          const ci = this.$refs.checkIn, co = this.$refs.checkOut;
+                          if (!ci || !co || !ci.value) return;
+                          const next = new Date(ci.value + 'T00:00:00');
+                          next.setDate(next.getDate() + 1);
+                          const min = next.toISOString().slice(0, 10);
+                          co.min = min;
+                          if (!co.value || co.value <= ci.value) co.value = min;
+                      },
                   }"
                   x-init="
                       if (bookingFee === '' && $refs.roomSelect && roomFees[$refs.roomSelect.value] != null) bookingFee = roomFees[$refs.roomSelect.value];
@@ -72,6 +83,7 @@
                           if (adults === null) adults = roomGuests[$refs.roomSelect.value].default;
                       }
                       if (adults === null) adults = {{ (int) $defaultGuests }};
+                      $nextTick(() => syncCheckout());
                   ">
                 @csrf
 
@@ -84,7 +96,7 @@
                             <select name="room_id" required class="input" x-ref="roomSelect" @change="onRoomChange($event.target.value)">
                                 <option value="">{{ __('— select a room —') }}</option>
                                 @foreach ($rooms as $room)
-                                    <option value="{{ $room->id }}" @selected(old('room_id') == $room->id)>
+                                    <option value="{{ $room->id }}" @selected(old('room_id', $prefillRoomId) == $room->id)>
                                         {{ $room->property?->name ?? '—' }} · {{ $room->name }} · RM {{ number_format((float) $room->base_price, 0) }}/{{ __('night') }} · {{ __('sleeps') }} {{ ($room->max_adults ?? 0) + ($room->max_children ?? 0) }}
                                     </option>
                                 @endforeach
@@ -93,11 +105,11 @@
 
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-in') }}</div>
-                            <input type="date" name="check_in" required min="{{ $today }}" value="{{ old('check_in', $today) }}" class="input">
+                            <input type="date" name="check_in" required min="{{ $today }}" value="{{ old('check_in', $prefillCheckIn) }}" class="input" x-ref="checkIn" @change="syncCheckout()">
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-out') }}</div>
-                            <input type="date" name="check_out" required min="{{ $tomorrow }}" value="{{ old('check_out', $tomorrow) }}" class="input">
+                            <input type="date" name="check_out" required min="{{ $tomorrow }}" value="{{ old('check_out', $prefillCheckOut) }}" class="input" x-ref="checkOut">
                         </label>
 
                         <label>
