@@ -2,12 +2,7 @@
 
 namespace App\Http\Controllers\Webhooks;
 
-use App\Actions\Invoicing\GenerateInvoice;
 use App\Http\Controllers\Controller;
-use App\Jobs\SendBookingConfirmation;
-use App\Jobs\SendBookingReceipt;
-use App\Models\Booking;
-use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
@@ -165,62 +160,9 @@ class ToyyibpayWebhookController extends Controller
 
     protected function onPaymentSucceeded(Payment $payment): void
     {
-        $booking = $payment->booking;
-        if (! $booking) return;
-
-        if (in_array($payment->type, [Payment::TYPE_DEPOSIT, Payment::TYPE_FULL], true)) {
-            $wasPending = $booking->status === Booking::STATUS_PENDING;
-            $booking->update([
-                'deposit_paid_at' => $booking->deposit_paid_at ?? now(),
-                // A FULL payment settles the balance outright (last-minute
-                // bookings paid in full to confirm) — stamp it so the balance
-                // reminder/auto-cancel never touches an already-paid booking.
-                'balance_paid_at' => $payment->type === Payment::TYPE_FULL
-                    ? ($booking->balance_paid_at ?? now())
-                    : $booking->balance_paid_at,
-                'status' => Booking::STATUS_CONFIRMED,
-            ]);
-            if ($wasPending) {
-                // 1. Warm confirmation message (existing flow).
-                SendBookingConfirmation::dispatch($booking->id);
-
-                // 2. Formal receipt: PDF + email + WhatsApp. Generated
-                //    server-to-server so it fires even if the customer
-                //    closed their browser before the return-page redirect.
-                //    Guarded by try/catch so any PDF/storage hiccup
-                //    doesn't 500 the webhook (Toyyibpay would retry).
-                try {
-                    $receipt = app(GenerateInvoice::class)->execute(
-                        $booking->fresh(['property', 'tenant', 'bookingGuests']),
-                        $payment,
-                        Invoice::TYPE_RECEIPT,
-                    );
-                    SendBookingReceipt::dispatch($booking->id, $receipt->id, $payment->id);
-                } catch (\Throwable $e) {
-                    report($e);
-                }
-
-                // 3. Sync to tenant's connected Google Calendar (if any).
-                //    No-ops silently when the tenant hasn't connected GCal.
-                \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
-            }
-        }
-
-        if ($payment->type === Payment::TYPE_BALANCE) {
-            $booking->update(['balance_paid_at' => now()]);
-
-            // Balance payments also get a receipt (different from the
-            // confirmation flow — the booking was already confirmed).
-            try {
-                $receipt = app(GenerateInvoice::class)->execute(
-                    $booking->fresh(['property', 'tenant', 'bookingGuests']),
-                    $payment,
-                    Invoice::TYPE_RECEIPT,
-                );
-                SendBookingReceipt::dispatch($booking->id, $receipt->id, $payment->id);
-            } catch (\Throwable $e) {
-                report($e);
-            }
-        }
+        // Canonical settlement lives in a shared action so the payment return
+        // page can run the exact same logic (server-side verify fallback) and
+        // a delayed/missing callback never strands a paid booking on "pending".
+        app(\App\Actions\Payments\SettlePaymentSuccess::class)->execute($payment);
     }
 }
