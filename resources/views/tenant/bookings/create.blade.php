@@ -71,7 +71,7 @@
                           maxGuests = roomGuests[$refs.roomSelect.value].max;
                           if (adults === null) adults = roomGuests[$refs.roomSelect.value].default;
                       }
-                      if (adults === null) adults = 2;
+                      if (adults === null) adults = {{ (int) $defaultGuests }};
                   ">
                 @csrf
 

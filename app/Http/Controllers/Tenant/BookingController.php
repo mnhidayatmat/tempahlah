@@ -103,10 +103,17 @@ class BookingController extends Controller
             ]];
         });
 
+        // Fallback default-guests for when no room is pre-selected yet — use
+        // the first room's configured default so the Adults field reflects the
+        // tenant's "Default guests" setting instead of a hardcoded 2.
+        $firstRoomId = $rooms->first()?->id;
+        $defaultGuests = $firstRoomId !== null ? ($roomGuests[$firstRoomId]['default'] ?? 1) : 1;
+
         return view('tenant.bookings.create', [
             'rooms' => $rooms,
             'roomFees' => $roomFees,
             'roomGuests' => $roomGuests,
+            'defaultGuests' => $defaultGuests,
             'today' => Carbon::today()->toDateString(),
             'tomorrow' => Carbon::tomorrow()->toDateString(),
         ]);
