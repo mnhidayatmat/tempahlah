@@ -29,13 +29,19 @@
             .cal-summary { padding: 10px 12px !important; gap: 10px !important; }
             .cal-summary-id { display: none !important; }
             .cal-summary-meta { width: 100%; }
+            /* 4 stats in one nowrap row overflow a phone — lay them out as a
+               2×2 grid so each cell has room and the labels don't spill. */
             .cal-summary-meta > div:first-child {
-                width: 100%; gap: 6px !important; flex-wrap: nowrap !important;
+                width: 100%; display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 6px !important;
             }
             .cal-summary-meta > div:first-child > div {
-                flex: 1 1 0; min-width: 0 !important; padding: 7px 9px !important;
+                min-width: 0 !important; padding: 7px 9px !important;
             }
-            .cal-summary-meta > div:first-child > div .cm-eyebrow { font-size: 8.5px !important; }
+            .cal-summary-meta > div:first-child > div .cm-eyebrow {
+                font-size: 8.5px !important; white-space: normal !important;
+            }
             .cal-summary-meta > div:first-child > div .mono { font-size: 14px !important; }
             .cal-summary-meta > div:last-child { display: none !important; }  /* legend (shown as standalone strip below) */
 
