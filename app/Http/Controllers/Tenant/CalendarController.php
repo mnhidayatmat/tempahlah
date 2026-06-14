@@ -125,6 +125,7 @@ class CalendarController extends Controller
             'occupancyPct' => $occupancyPct,
             'monthRevenue' => $revenue,
             'monthBookings' => $monthBookingsCount,
+            'monthNights' => $bookedNights,
         ]);
     }
 

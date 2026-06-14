@@ -154,6 +154,7 @@
                     ['label' => __('Occupancy').' · '.$cursor->format('M'), 'value' => $occupancyPct.'%'],
                     ['label' => __('Revenue'), 'value' => 'RM '.number_format($monthRevenue, 0)],
                     ['label' => __('Bookings'), 'value' => (string) $monthBookings],
+                    ['label' => __('Nights booked'), 'value' => (string) $monthNights],
                 ];
             @endphp
             <div class="card cal-summary" style="padding: 18px 20px; display:flex; gap:20px 28px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
