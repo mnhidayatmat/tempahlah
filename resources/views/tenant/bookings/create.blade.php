@@ -46,6 +46,7 @@
                       adults: {{ old('adults') !== null ? (int) old('adults') : 'null' }},
                       children: {{ (int) old('children', 0) }},
                       maxGuests: 30,
+                      paymentReceived: '{{ old('payment_received', 'none') }}',
                       applyGuestDefaults(id) {
                           // Follow the tenant's per-property guest setup: default
                           // the adults count to 'Default guests' and cap inputs at
@@ -195,6 +196,32 @@
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Special requests (optional)') }}</div>
                             <textarea name="special_requests" rows="3" maxlength="1000" class="input" style="height:auto; padding:10px 12px; resize:vertical;" placeholder="{{ __('Late check-in, dietary needs, baby cot…') }}">{{ old('special_requests') }}</textarea>
                         </label>
+                    </div>
+                </div>
+
+                {{-- Payment — record a manual (cash / bank-transfer) payment now,
+                     or leave as "Not paid yet" to collect later via reminder. --}}
+                <div class="hauz-card" style="padding:20px;">
+                    <div class="kicker" style="margin-bottom:4px;">{{ __('Payment') }}</div>
+                    <p style="color:var(--ink-3); font-size:12px; margin:0 0 12px;">
+                        {{ __('Did the guest already pay you directly (cash / bank transfer)? Record it now, or leave as “Not paid yet” to collect later.') }}
+                    </p>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+                        @foreach ([
+                            'none'        => [__('Not paid yet'), __('Collect later — you can send a reminder')],
+                            'booking_fee' => [__('Booking fee paid'), __('Confirms the booking')],
+                            'full'        => [__('Fully paid'), __('Settles the whole amount')],
+                        ] as $val => $opt)
+                            <label style="cursor:pointer; position:relative; display:block;">
+                                <input type="radio" name="payment_received" value="{{ $val }}" x-model="paymentReceived"
+                                       style="position:absolute; opacity:0; width:0; height:0;">
+                                <div style="border:1.5px solid var(--line); border-radius:var(--r-md); padding:12px; height:100%; transition:border-color .12s, background .12s;"
+                                     :style="paymentReceived === '{{ $val }}' ? 'border-color:var(--primary); background:var(--primary-tint);' : ''">
+                                    <div style="font-size:13px; font-weight:600;">{{ $opt[0] }}</div>
+                                    <div style="font-size:11px; color:var(--ink-3); margin-top:3px; line-height:1.35;">{{ $opt[1] }}</div>
+                                </div>
+                            </label>
+                        @endforeach
                     </div>
                 </div>
 

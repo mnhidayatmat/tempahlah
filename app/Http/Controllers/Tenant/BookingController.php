@@ -171,6 +171,10 @@ class BookingController extends Controller
             'deposit_amount' => 'required|numeric|min:0|max:1000000',
             'reminder_days' => 'nullable|integer|min:0|max:60',
             'special_requests' => 'nullable|string|max:1000',
+            // Manual payment shortcut — when the guest paid the host directly
+            // (cash / bank transfer) the host can record it right away instead
+            // of issuing a Toyyibpay link.
+            'payment_received' => ['nullable', Rule::in(['none', 'booking_fee', 'full'])],
         ]);
 
         // Confirm the room belongs to the current tenant (BelongsToTenant scope filters this).
@@ -178,6 +182,7 @@ class BookingController extends Controller
 
         $validated['is_foreigner'] = (bool) ($validated['is_foreigner'] ?? false);
         $validated['guest_country'] = $validated['guest_country'] ?? 'MY';
+        $paymentReceived = $validated['payment_received'] ?? 'none';
 
         try {
             $booking = $createBooking->execute($validated);
@@ -187,13 +192,93 @@ class BookingController extends Controller
                 ->with('status', __('Could not create booking: :error', ['error' => $e->getMessage()]));
         }
 
-        // Sync to the tenant's connected Google Calendar. The job no-ops when
-        // GCal isn't connected, so this is safe for every manual booking.
-        \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+        // Record an upfront manual payment if the host says the guest already
+        // paid. applyManualPayment() also fires the confirmation comms + syncs
+        // Google Calendar, so we only push GCal separately when nothing's paid.
+        if (in_array($paymentReceived, ['booking_fee', 'full'], true)) {
+            $amount = $this->applyManualPayment($booking, $paymentReceived);
+            $status = $paymentReceived === 'full'
+                ? __('Booking :ref created — marked fully paid (RM :amt).', ['ref' => $booking->reference, 'amt' => number_format($amount, 2)])
+                : __('Booking :ref created — booking fee marked paid (RM :amt).', ['ref' => $booking->reference, 'amt' => number_format($amount, 2)]);
+        } else {
+            // Sync to the tenant's connected Google Calendar. The job no-ops when
+            // GCal isn't connected, so this is safe for every manual booking.
+            \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+            $status = __('Booking :ref created.', ['ref' => $booking->reference]);
+        }
 
         return redirect()
             ->route('tenant.bookings.show', $booking->id)
-            ->with('status', __('Booking :ref created.', ['ref' => $booking->reference]));
+            ->with('status', $status);
+    }
+
+    /**
+     * Record a manual (cash / bank-transfer) payment against a booking and
+     * advance its payment status — the single source of truth used by both the
+     * create form's "Payment received" shortcut and the show page's
+     * "Mark booking fee paid" / "Mark fully paid" actions.
+     *
+     * $kind is 'booking_fee' (just the deposit / booking fee) or 'full' (the
+     * entire outstanding balance). Idempotent: only the not-yet-paid portion is
+     * recorded and a paid date is never re-stamped, so calling it twice is safe.
+     * Returns the RM amount recorded (may be 0 if already covered).
+     */
+    protected function applyManualPayment(Booking $booking, string $kind): float
+    {
+        $booking->loadMissing('payments');
+
+        $now = now();
+        $totalPaid = (float) $booking->payments->where('status', Payment::STATUS_SUCCEEDED)->sum('amount');
+
+        // Target = booking fee for a fee-only payment, the full total otherwise.
+        $target = $kind === 'booking_fee'
+            ? round((float) $booking->deposit_amount, 2)
+            : round((float) $booking->total_amount, 2);
+        $amount = round(max(0, $target - $totalPaid), 2);
+
+        $wasPending = $booking->status === Booking::STATUS_PENDING;
+
+        if ($amount > 0) {
+            $type = $kind === 'booking_fee'
+                ? Payment::TYPE_DEPOSIT
+                : ($booking->deposit_paid_at ? Payment::TYPE_BALANCE : Payment::TYPE_FULL);
+
+            Payment::create([
+                'tenant_id' => $booking->tenant_id,
+                'public_id' => Str::ulid(),
+                'booking_id' => $booking->id,
+                'type' => $type,
+                'method' => Payment::METHOD_MANUAL,
+                'gateway_provider' => null,
+                'currency' => $booking->currency ?? 'MYR',
+                'amount' => $amount,
+                'gateway_fee' => 0,
+                'platform_fee' => 0,
+                'net_to_tenant' => $amount,
+                'status' => Payment::STATUS_SUCCEEDED,
+                'paid_at' => $now,
+            ]);
+        }
+
+        // Booking fee paid → stamp deposit_paid_at + confirm. Full → also stamp
+        // balance_paid_at. Existing paid dates are preserved.
+        $update = ['deposit_paid_at' => $booking->deposit_paid_at ?? $now];
+        if ($kind === 'full') {
+            $update['balance_paid_at'] = $booking->balance_paid_at ?? $now;
+        }
+        if ($wasPending) {
+            $update['status'] = Booking::STATUS_CONFIRMED;
+        }
+        $booking->update($update);
+
+        // First time we've recognized this booking as confirmed → fire the
+        // confirmation comms (email + WhatsApp) + sync to Google Calendar.
+        if ($wasPending) {
+            SendBookingConfirmation::dispatch($booking->id);
+            \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+        }
+
+        return $amount;
     }
 
     /**
@@ -416,56 +501,37 @@ class BookingController extends Controller
         return view('tenant.bookings.show', compact('booking'));
     }
 
+    /**
+     * Mark a booking as manually paid — the host collected the money directly
+     * (cash / bank transfer). `kind=booking_fee` records just the booking fee
+     * and confirms the booking; `kind=full` (default) settles the whole
+     * outstanding balance. Both run through applyManualPayment().
+     */
     public function markPaid(Request $request, $id)
     {
         $booking = Booking::with('payments')->findOrFail($id);
 
-        $now = now();
-        $totalPaid = (float) $booking->payments->where('status', Payment::STATUS_SUCCEEDED)->sum('amount');
-        $remaining = max(0, (float) $booking->total_amount - $totalPaid);
+        $kind = $request->input('kind', 'full');
+        if (! in_array($kind, ['booking_fee', 'full'], true)) {
+            $kind = 'full';
+        }
 
-        if ($remaining <= 0) {
+        $totalPaid = (float) $booking->payments->where('status', Payment::STATUS_SUCCEEDED)->sum('amount');
+
+        if ($kind === 'booking_fee' && $booking->deposit_paid_at) {
+            return back()->with('status', __('Booking fee is already recorded as paid.'));
+        }
+        if ($kind === 'full' && $booking->balance_paid_at && ((float) $booking->total_amount - $totalPaid) <= 0) {
             return back()->with('status', __('Booking is already fully paid.'));
         }
 
-        $type = $booking->deposit_paid_at ? Payment::TYPE_BALANCE : Payment::TYPE_FULL;
+        $amount = $this->applyManualPayment($booking, $kind);
 
-        Payment::create([
-            'tenant_id' => $booking->tenant_id,
-            'public_id' => Str::ulid(),
-            'booking_id' => $booking->id,
-            'type' => $type,
-            'method' => Payment::METHOD_MANUAL,
-            'gateway_provider' => null,
-            'currency' => $booking->currency ?? 'MYR',
-            'amount' => $remaining,
-            'gateway_fee' => 0,
-            'platform_fee' => 0,
-            'net_to_tenant' => $remaining,
-            'status' => Payment::STATUS_SUCCEEDED,
-            'paid_at' => $now,
-        ]);
+        $status = $kind === 'booking_fee'
+            ? __('Booking fee marked as paid (RM :amount recorded).', ['amount' => number_format($amount, 2)])
+            : __('Booking marked as fully paid (RM :amount recorded).', ['amount' => number_format($amount, 2)]);
 
-        $update = ['balance_paid_at' => $now];
-        $wasPending = $booking->status === Booking::STATUS_PENDING;
-        if (! $booking->deposit_paid_at) {
-            $update['deposit_paid_at'] = $now;
-        }
-        if ($wasPending) {
-            $update['status'] = Booking::STATUS_CONFIRMED;
-        }
-        $booking->update($update);
-
-        // First time we've recognized this booking as confirmed → fire the
-        // confirmation comms (email + WhatsApp) + sync to Google Calendar.
-        if ($wasPending) {
-            SendBookingConfirmation::dispatch($booking->id);
-            \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
-        }
-
-        return back()->with('status', __('Booking marked as paid (RM :amount recorded).', [
-            'amount' => number_format($remaining, 2),
-        ]));
+        return back()->with('status', $status);
     }
 
     public function sendReminder(Request $request, $id)

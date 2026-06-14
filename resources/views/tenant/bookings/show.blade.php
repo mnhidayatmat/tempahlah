@@ -111,11 +111,24 @@
                                 <x-icon name="bell" :size="14"/> <span>{{ __('Send reminder') }}</span>
                             </button>
                         </form>
-                        {{-- Mark paid --}}
+
+                        {{-- Manual payment — the guest paid the host directly
+                             (cash / bank transfer). "Booking fee" confirms the
+                             booking; "fully paid" settles the whole balance. --}}
+                        @unless ($booking->deposit_paid_at)
+                            <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}">
+                                @csrf
+                                <input type="hidden" name="kind" value="booking_fee">
+                                <button type="submit" class="bk-menu-item">
+                                    <x-icon name="check" :size="14"/> <span>{{ __('Mark booking fee paid') }}</span>
+                                </button>
+                            </form>
+                        @endunless
                         <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}">
                             @csrf
+                            <input type="hidden" name="kind" value="full">
                             <button type="submit" class="bk-menu-item bk-menu-item--primary">
-                                <x-icon name="check" :size="14"/> <span>{{ __('Mark paid') }}</span>
+                                <x-icon name="check" :size="14"/> <span>{{ __('Mark fully paid') }}</span>
                             </button>
                         </form>
                     @endif
