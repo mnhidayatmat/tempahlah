@@ -56,7 +56,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
                 <div>
                     <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue & bookings') }}</div>
-                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · hover for exact figures') }}</div>
+                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · % above bars = occupancy · hover for exact figures') }}</div>
                 </div>
                 <div style="display:flex; gap:14px; font-size: 11.5px; color: var(--ink-3);">
                     <span><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Revenue (RM)') }}</span>
@@ -120,13 +120,14 @@
                     @endphp
                     <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $W - $padR }}" y2="{{ $gy }}"
                           stroke="var(--line)" stroke-width="1" @if ($t !== $ticks) stroke-dasharray="2 5" @endif />
-                    <text x="{{ $padL - 9 }}" y="{{ $gy + 3.5 }}" text-anchor="end" font-size="10.5"
+                    <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="9"
                           fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($rv) }}</text>
-                    <text x="{{ $W - $padR + 9 }}" y="{{ $gy + 3.5 }}" text-anchor="start" font-size="10.5"
+                    <text x="{{ $W - $padR + 8 }}" y="{{ $gy + 3 }}" text-anchor="start" font-size="9"
                           fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($cv, 0) }}</text>
                 @endfor
 
-                {{-- Grouped bars: revenue (left of centre) + bookings (right) --}}
+                {{-- Grouped bars: revenue (left of centre) + bookings (right),
+                     with the month's occupancy % printed above the pair. --}}
                 @foreach ($months as $i => $m)
                     @php
                         $cx = $xCenter($i);
@@ -136,21 +137,28 @@
                         $cntY = round($yCount($m['bookings']), 1);
                         $revH = max(0, round($baseline - $revY, 1));
                         $cntH = max(0, round($baseline - $cntY, 1));
+                        $occPct = number_format($m['occupancy'] * 100, 0);
+                        // Float the % just above the taller of the two bars, but
+                        // never let it ride off the top of the plot area.
+                        $occLabelY = round(max($padT + 9, min($revY, $cntY) - 6), 1);
                     @endphp
                     <rect x="{{ $revX }}" y="{{ $revY }}" width="{{ round($barW, 1) }}" height="{{ $revH }}"
                           rx="2" fill="var(--primary)" opacity="0.9">
-                        <title>{{ $m['label'] }} — RM {{ number_format($m['revenue'], 0) }} · {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }}</title>
+                        <title>{{ $m['label'] }} — RM {{ number_format($m['revenue'], 0) }} · {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · {{ $occPct }}% {{ __('occupancy') }}</title>
                     </rect>
                     <rect x="{{ $cntX }}" y="{{ $cntY }}" width="{{ round($barW, 1) }}" height="{{ $cntH }}"
                           rx="2" fill="var(--accent)" opacity="0.9">
-                        <title>{{ $m['label'] }} — {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · RM {{ number_format($m['revenue'], 0) }}</title>
+                        <title>{{ $m['label'] }} — {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · RM {{ number_format($m['revenue'], 0) }} · {{ $occPct }}% {{ __('occupancy') }}</title>
                     </rect>
+                    <text x="{{ round($cx, 1) }}" y="{{ $occLabelY }}" text-anchor="middle"
+                          font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                          font-family="ui-monospace, monospace">{{ $occPct }}%</text>
                 @endforeach
 
                 {{-- Month labels --}}
                 @foreach ($months as $i => $m)
-                    <text x="{{ round($xCenter($i), 1) }}" y="{{ $H - 14 }}" text-anchor="middle"
-                          font-size="10.5" fill="var(--ink-3)">{{ $m['label'] }}</text>
+                    <text x="{{ round($xCenter($i), 1) }}" y="{{ $H - 16 }}" text-anchor="middle"
+                          font-size="9" fill="var(--ink-3)">{{ $m['label'] }}</text>
                 @endforeach
             </svg>
         </div>
