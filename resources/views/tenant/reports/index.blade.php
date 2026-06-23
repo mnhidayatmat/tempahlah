@@ -48,32 +48,108 @@
             @endforeach
         </div>
 
-        {{-- Trend chart --}}
+        {{-- Trend chart: revenue (bars) + occupancy (line) as a dual-axis combo
+             chart. Left axis = RM, right axis = occupancy %, drawn as a real
+             connected SVG line with markers + gridlines so both series read
+             clearly. Hover any bar/dot for the exact figures. --}}
         <div class="hauz-card" style="padding: 22px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Monthly revenue') }}</div>
-                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('RM thousands · last 12 months') }}</div>
+                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue & occupancy') }}</div>
+                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · hover for exact figures') }}</div>
                 </div>
-                <div style="display:flex; gap:12px; font-size: 11.5px; color: var(--ink-3);">
-                    <span><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Revenue') }}</span>
-                    <span><span style="display:inline-block; width:10px; height:2px; background: var(--accent); margin-right: 5px; vertical-align: middle;"></span>{{ __('Occupancy %') }}</span>
+                <div style="display:flex; gap:14px; font-size: 11.5px; color: var(--ink-3);">
+                    <span><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Revenue (RM)') }}</span>
+                    <span><span style="display:inline-block; width:14px; height:2px; background: var(--accent); margin-right: 5px; vertical-align: middle;"></span>{{ __('Occupancy %') }}</span>
                 </div>
             </div>
-            <div style="display:grid; grid-template-columns: repeat({{ $monthly->count() }}, 1fr); gap: 8px; align-items: end; height: 180px;">
-                @foreach ($monthly as $m)
+
+            @php
+                $months = $monthly->values();
+                $n = max(1, $months->count());
+
+                // viewBox geometry — responsive (svg scales to container width).
+                $W = 760; $H = 280;
+                $padL = 52; $padR = 48; $padT = 16; $padB = 38;
+                $plotW = $W - $padL - $padR;
+                $plotH = $H - $padT - $padB;
+                $slot = $plotW / $n;
+                $barW = min(30, $slot * 0.5);
+
+                // "Nice" rounded max for the revenue axis (1/2/2.5/5/10 × 10ⁿ)
+                // so the gridline labels land on clean numbers.
+                $niceCeil = function (float $v): float {
+                    if ($v <= 0) return 1.0;
+                    $exp = floor(log10($v));
+                    $base = pow(10, $exp);
+                    $frac = $v / $base;
+                    $nf = $frac <= 1 ? 1 : ($frac <= 2 ? 2 : ($frac <= 2.5 ? 2.5 : ($frac <= 5 ? 5 : 10)));
+                    return $nf * $base;
+                };
+                $revMax = max(1.0, $niceCeil((float) $months->max('revenue')));
+                $ticks = 4;
+
+                $xCenter = fn ($i) => $padL + $slot * ($i + 0.5);
+                $yRev = fn ($v) => $padT + $plotH * (1 - ($v / $revMax));
+                $yOcc = fn ($frac) => $padT + $plotH * (1 - max(0, min(1, (float) $frac)));
+
+                $occPoints = $months
+                    ->map(fn ($m, $i) => round($xCenter($i), 1).','.round($yOcc($m['occupancy']), 1))
+                    ->implode(' ');
+
+                $fmtK = fn ($v) => $v >= 1000
+                    ? rtrim(rtrim(number_format($v / 1000, 1), '0'), '.').'k'
+                    : number_format($v, 0);
+            @endphp
+
+            <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="xMidYMid meet"
+                 style="width:100%; height:auto; display:block; overflow:visible;"
+                 role="img" aria-label="{{ __('Monthly revenue and occupancy') }}">
+
+                {{-- Gridlines + dual-axis tick labels (RM left, % right) --}}
+                @for ($t = 0; $t <= $ticks; $t++)
                     @php
-                        $h = ($m['revenue'] / $maxRevenue) * 100;
-                        $occH = $m['occupancy'] * 100;
+                        $gy = round($padT + $plotH * ($t / $ticks), 1);
+                        $rv = $revMax * (1 - $t / $ticks);
+                        $ov = 100 * (1 - $t / $ticks);
                     @endphp
-                    <div style="display:flex; flex-direction:column; align-items:center; gap: 6px; height: 100%; justify-content:flex-end; position: relative;">
-                        <div style="position: absolute; top: {{ 100 - $occH }}%; left: 0; right: 0; height: 2px; background: var(--accent); opacity: .7;"></div>
-                        <div class="mono" style="font-size: 9.5px; color: var(--ink-3);">{{ number_format($m['revenue'] / 1000, 0) }}k</div>
-                        <div style="width: 100%; max-width: 28px; height: {{ $h }}%; background: var(--primary); border-radius: 3px 3px 0 0; min-height: 4px;"></div>
-                        <div style="font-size: 10px; color: var(--ink-3);">{{ $m['label'] }}</div>
-                    </div>
+                    <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $W - $padR }}" y2="{{ $gy }}"
+                          stroke="var(--line)" stroke-width="1" @if ($t !== $ticks) stroke-dasharray="2 5" @endif />
+                    <text x="{{ $padL - 9 }}" y="{{ $gy + 3.5 }}" text-anchor="end" font-size="10.5"
+                          fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($rv) }}</text>
+                    <text x="{{ $W - $padR + 9 }}" y="{{ $gy + 3.5 }}" text-anchor="start" font-size="10.5"
+                          fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($ov, 0) }}%</text>
+                @endfor
+
+                {{-- Revenue bars --}}
+                @foreach ($months as $i => $m)
+                    @php
+                        $bx = round($xCenter($i) - $barW / 2, 1);
+                        $by = round($yRev($m['revenue']), 1);
+                        $bh = max(0, round(($padT + $plotH) - $by, 1));
+                    @endphp
+                    <rect x="{{ $bx }}" y="{{ $by }}" width="{{ round($barW, 1) }}" height="{{ $bh }}"
+                          rx="2.5" fill="var(--primary)" opacity="0.9">
+                        <title>{{ $m['label'] }} — RM {{ number_format($m['revenue'], 0) }} · {{ number_format($m['occupancy'] * 100, 1) }}% {{ __('occupancy') }}</title>
+                    </rect>
                 @endforeach
-            </div>
+
+                {{-- Occupancy line + markers --}}
+                <polyline points="{{ $occPoints }}" fill="none" stroke="var(--accent)"
+                          stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                @foreach ($months as $i => $m)
+                    <circle cx="{{ round($xCenter($i), 1) }}" cy="{{ round($yOcc($m['occupancy']), 1) }}"
+                            r="3.2" fill="var(--bg-elev)" stroke="var(--accent)" stroke-width="2">
+                        <title>{{ $m['label'] }} — {{ number_format($m['occupancy'] * 100, 1) }}% {{ __('occupancy') }}</title>
+                    </circle>
+                @endforeach
+
+                {{-- Month labels --}}
+                @foreach ($months as $i => $m)
+                    <text x="{{ round($xCenter($i), 1) }}" y="{{ $H - 14 }}" text-anchor="middle"
+                          font-size="10.5" fill="var(--ink-3)">{{ $m['label'] }}</text>
+                @endforeach
+            </svg>
         </div>
 
         {{-- Two-up: property + source --}}
