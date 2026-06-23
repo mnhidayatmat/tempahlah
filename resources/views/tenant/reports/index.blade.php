@@ -126,8 +126,9 @@
                           fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($cv, 0) }}</text>
                 @endfor
 
-                {{-- Grouped bars: revenue (left of centre) + bookings (right),
-                     with the month's occupancy % printed above the pair. --}}
+                {{-- Grouped bars: revenue (left of centre) + bookings (right).
+                     Revenue value is printed above its bar, the month's
+                     occupancy % above the bookings bar. --}}
                 @foreach ($months as $i => $m)
                     @php
                         $cx = $xCenter($i);
@@ -138,9 +139,10 @@
                         $revH = max(0, round($baseline - $revY, 1));
                         $cntH = max(0, round($baseline - $cntY, 1));
                         $occPct = number_format($m['occupancy'] * 100, 0);
-                        // Centre the % horizontally over the bookings bar and
-                        // float it just above that bar's top — never riding off
-                        // the top of the plot area.
+                        // Centre each value over its own bar, floated just above
+                        // the bar's top — never riding off the top of the plot.
+                        $revLabelX = round($revX + $barW / 2, 1);
+                        $revLabelY = round(max($padT + 8, $revY - 6), 1);
                         $occLabelX = round($cntX + $barW / 2, 1);
                         $occLabelY = round(max($padT + 8, $cntY - 6), 1);
                     @endphp
@@ -152,6 +154,11 @@
                           rx="2" fill="var(--accent)" opacity="0.9">
                         <title>{{ $m['label'] }} — {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · RM {{ number_format($m['revenue'], 0) }} · {{ $occPct }}% {{ __('occupancy') }}</title>
                     </rect>
+                    @if ($m['revenue'] > 0)
+                        <text x="{{ $revLabelX }}" y="{{ $revLabelY }}" text-anchor="middle"
+                              font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                              font-family="ui-monospace, monospace">{{ $fmtK($m['revenue']) }}</text>
+                    @endif
                     <text x="{{ $occLabelX }}" y="{{ $occLabelY }}" text-anchor="middle"
                           font-size="8.5" font-weight="600" fill="var(--ink-2)"
                           font-family="ui-monospace, monospace">{{ $occPct }}%</text>
