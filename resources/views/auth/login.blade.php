@@ -822,7 +822,7 @@
                     </div>
 
                     <label class="remember">
-                        <input name="remember" type="checkbox" value="1">
+                        <input name="remember" type="checkbox" value="1" checked>
                         <span class="remember-box">
                             <svg class="remember-check" viewBox="0 0 12 12"><polyline points="2.5,6.5 5,9 9.5,3.5"/></svg>
                         </span>
