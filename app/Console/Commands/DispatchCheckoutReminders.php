@@ -24,9 +24,18 @@ class DispatchCheckoutReminders extends Command
 
     protected $description = 'Queue pre-checkout reminders (WhatsApp) for bookings ending soon.';
 
+    /**
+     * The app runs in UTC (config/app.php), but property check-out times and the
+     * host's sense of "now" are Malaysian local time (UTC+8). All lead-time math
+     * MUST happen in this zone, otherwise "3 hours before check-out" lands 8
+     * hours adrift — which previously fired reminders ~5pm, after the guest had
+     * already checked out.
+     */
+    private const TZ = 'Asia/Kuala_Lumpur';
+
     public function handle(): int
     {
-        $now = Carbon::now();
+        $now = Carbon::now(self::TZ);
         $dry = (bool) $this->option('dry-run');
 
         // Cap the candidate window to the largest possible lead time so we
@@ -58,12 +67,18 @@ class DispatchCheckoutReminders extends Command
                     // otherwise we'd build "2026-06-15 00:00:00 12:00:00".
                     $checkOutDate = Carbon::parse($booking->check_out)->format('Y-m-d');
                     $checkOutTime = substr((string) ($booking->property?->check_out_time ?? '12:00:00'), 0, 8);
-                    $checkOutAt = Carbon::parse($checkOutDate.' '.$checkOutTime);
+                    $checkOutAt = Carbon::parse($checkOutDate.' '.$checkOutTime, self::TZ);
 
-                    $hoursToCheckOut = $now->diffInHours($checkOutAt, false);
+                    // Never remind once check-out has already passed.
+                    if ($checkOutAt->lessThanOrEqualTo($now)) {
+                        continue;
+                    }
 
-                    // Fire when we're inside [hoursBefore-1, hoursBefore) of
-                    // checkout. Skip if checkout has already passed.
+                    // Whole hours from now until check-out (positive — checkout
+                    // is guaranteed to be in the future by the guard above).
+                    $hoursToCheckOut = abs($now->diffInHours($checkOutAt, false));
+
+                    // Fire only when we're inside [hoursBefore-1, hoursBefore].
                     if ($hoursToCheckOut > $hoursBefore || $hoursToCheckOut < ($hoursBefore - 1)) {
                         continue;
                     }

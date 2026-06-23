@@ -23,9 +23,16 @@ class DispatchCheckinInstructions extends Command
 
     protected $description = 'Queue check-in instructions (email + WhatsApp) for bookings starting soon.';
 
+    /**
+     * The app runs in UTC (config/app.php) but property check-in times and the
+     * host's sense of "now" are Malaysian local time (UTC+8). Do the lead-time
+     * math in this zone so "N hours before check-in" isn't 8 hours adrift.
+     */
+    private const TZ = 'Asia/Kuala_Lumpur';
+
     public function handle(): int
     {
-        $now = Carbon::now();
+        $now = Carbon::now(self::TZ);
         $defaultHours = (int) $this->option('hours');
         $dry = (bool) $this->option('dry-run');
 
@@ -55,11 +62,18 @@ class DispatchCheckinInstructions extends Command
                     // otherwise we'd build "2026-06-15 00:00:00 15:00:00".
                     $checkInDate = Carbon::parse($booking->check_in)->format('Y-m-d');
                     $checkInTime = substr((string) ($booking->property?->check_in_time ?? '15:00:00'), 0, 8);
-                    $checkInAt = Carbon::parse($checkInDate.' '.$checkInTime);
+                    $checkInAt = Carbon::parse($checkInDate.' '.$checkInTime, self::TZ);
 
-                    $hoursToCheckIn = $now->diffInHours($checkInAt, false);
+                    // Never send check-in instructions once check-in has passed.
+                    if ($checkInAt->lessThanOrEqualTo($now)) {
+                        continue;
+                    }
 
-                    // Fire when we're inside [hoursBefore-1, hoursBefore) of check-in.
+                    // Whole hours from now until check-in (positive — guaranteed
+                    // to be in the future by the guard above).
+                    $hoursToCheckIn = abs($now->diffInHours($checkInAt, false));
+
+                    // Fire only when we're inside [hoursBefore-1, hoursBefore].
                     if ($hoursToCheckIn > $effective || $hoursToCheckIn < ($effective - 1)) {
                         continue;
                     }
