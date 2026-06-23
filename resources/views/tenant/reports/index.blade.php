@@ -138,9 +138,11 @@
                         $revH = max(0, round($baseline - $revY, 1));
                         $cntH = max(0, round($baseline - $cntY, 1));
                         $occPct = number_format($m['occupancy'] * 100, 0);
-                        // Float the % just above the taller of the two bars, but
-                        // never let it ride off the top of the plot area.
-                        $occLabelY = round(max($padT + 9, min($revY, $cntY) - 6), 1);
+                        // Centre the % horizontally over the bookings bar and
+                        // float it just above that bar's top — never riding off
+                        // the top of the plot area.
+                        $occLabelX = round($cntX + $barW / 2, 1);
+                        $occLabelY = round(max($padT + 8, $cntY - 6), 1);
                     @endphp
                     <rect x="{{ $revX }}" y="{{ $revY }}" width="{{ round($barW, 1) }}" height="{{ $revH }}"
                           rx="2" fill="var(--primary)" opacity="0.9">
@@ -150,7 +152,7 @@
                           rx="2" fill="var(--accent)" opacity="0.9">
                         <title>{{ $m['label'] }} — {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · RM {{ number_format($m['revenue'], 0) }} · {{ $occPct }}% {{ __('occupancy') }}</title>
                     </rect>
-                    <text x="{{ round($cx, 1) }}" y="{{ $occLabelY }}" text-anchor="middle"
+                    <text x="{{ $occLabelX }}" y="{{ $occLabelY }}" text-anchor="middle"
                           font-size="8.5" font-weight="600" fill="var(--ink-2)"
                           font-family="ui-monospace, monospace">{{ $occPct }}%</text>
                 @endforeach
