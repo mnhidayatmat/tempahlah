@@ -16,6 +16,21 @@
     $previewHtml = preg_replace('/_(.+?)_/s', '<em>$1</em>', $previewHtml);
     $sentLabel = now()->format('g:i A');
 @endphp
+@once
+    <style>
+        /* WhatsApp chat preview — light defaults + dark-theme palette
+           (data-theme="dark" matches WhatsApp's own dark colours). */
+        .wa-pane   { background:#efeae2; background-image:radial-gradient(rgba(0,0,0,.045) .5px, transparent .5px); background-size:14px 14px; }
+        .wa-bubble { background:#d9fdd3; box-shadow:0 1px 1.5px rgba(0,0,0,.08); }
+        .wa-text   { color:#111b21; }
+        .wa-meta   { color:#667781; }
+        .wa-tick   { color:#53bdeb; }
+        html[data-theme="dark"] .wa-pane   { background:#0b141a; background-image:radial-gradient(rgba(255,255,255,.035) .5px, transparent .5px); }
+        html[data-theme="dark"] .wa-bubble { background:#005c4b; box-shadow:0 1px 1.5px rgba(0,0,0,.35); }
+        html[data-theme="dark"] .wa-text   { color:#e9edef; }
+        html[data-theme="dark"] .wa-meta   { color:#8696a0; }
+    </style>
+@endonce
 <div class="hauz-card" style="padding: 0; overflow: hidden;">
     {{-- Header --}}
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 18px; border-bottom:.5px solid var(--line);">
@@ -38,13 +53,13 @@
 
     <div x-data="{ copied: false }">
         {{-- WhatsApp-style chat preview --}}
-        <div style="padding:18px; background:#efeae2; background-image:radial-gradient(var(--bg-sunk) 0.5px, transparent 0.5px); background-size:14px 14px;">
+        <div class="wa-pane" style="padding:18px;">
             <div style="max-width:430px; margin-left:auto;">
-                <div style="position:relative; background:#d9fdd3; border-radius:12px; border-top-right-radius:4px; padding:8px 11px 7px; box-shadow:0 1px 1.5px rgba(0,0,0,.08);">
-                    <div style="font-size:13px; line-height:1.5; color:#111b21; white-space:pre-wrap; word-break:break-word; max-height:360px; overflow-y:auto;">{!! $previewHtml !!}</div>
-                    <div style="text-align:right; font-size:10px; color:#667781; margin-top:3px; user-select:none;">
+                <div class="wa-bubble" style="position:relative; border-radius:12px; border-top-right-radius:4px; padding:8px 11px 7px;">
+                    <div class="wa-text" style="font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; max-height:360px; overflow-y:auto;">{!! $previewHtml !!}</div>
+                    <div class="wa-meta" style="text-align:right; font-size:10px; margin-top:3px; user-select:none;">
                         {{ $sentLabel }}
-                        <span style="color:#53bdeb; letter-spacing:-2px; margin-left:2px;">✓✓</span>
+                        <span class="wa-tick" style="letter-spacing:-2px; margin-left:2px;">✓✓</span>
                     </div>
                 </div>
             </div>
