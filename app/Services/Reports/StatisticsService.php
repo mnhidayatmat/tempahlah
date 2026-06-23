@@ -56,4 +56,18 @@ class StatisticsService
             ->whereBetween('check_in', [$start, $end])
             ->sum('total_amount');
     }
+
+    /**
+     * Number of revenue-bearing bookings in the range — same booking set the
+     * revenue figure is summed over (confirmed / checked-in / checked-out,
+     * keyed by check-in date) so the two series always reconcile.
+     */
+    public function bookingCount(CarbonInterface $start, CarbonInterface $end, ?int $propertyId = null): int
+    {
+        return Booking::query()
+            ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN, Booking::STATUS_CHECKED_OUT])
+            ->when($propertyId, fn ($q) => $q->where('property_id', $propertyId))
+            ->whereBetween('check_in', [$start, $end])
+            ->count();
+    }
 }

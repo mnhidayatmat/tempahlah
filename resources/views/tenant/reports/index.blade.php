@@ -48,19 +48,19 @@
             @endforeach
         </div>
 
-        {{-- Trend chart: revenue (bars) + occupancy (line) as a dual-axis combo
-             chart. Left axis = RM, right axis = occupancy %, drawn as a real
-             connected SVG line with markers + gridlines so both series read
-             clearly. Hover any bar/dot for the exact figures. --}}
+        {{-- Trend chart: revenue + number of bookings as grouped bars on a
+             dual axis. Left axis = RM (revenue), right axis = booking count.
+             Two bars per month sit side by side so the months line up and
+             both series stay easy to compare. Hover any bar for exact figures. --}}
         <div class="hauz-card" style="padding: 22px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue & occupancy') }}</div>
+                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue & bookings') }}</div>
                     <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · hover for exact figures') }}</div>
                 </div>
                 <div style="display:flex; gap:14px; font-size: 11.5px; color: var(--ink-3);">
                     <span><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Revenue (RM)') }}</span>
-                    <span><span style="display:inline-block; width:14px; height:2px; background: var(--accent); margin-right: 5px; vertical-align: middle;"></span>{{ __('Occupancy %') }}</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background: var(--accent); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Bookings') }}</span>
                 </div>
             </div>
 
@@ -70,14 +70,18 @@
 
                 // viewBox geometry — responsive (svg scales to container width).
                 $W = 760; $H = 280;
-                $padL = 52; $padR = 48; $padT = 16; $padB = 38;
+                $padL = 52; $padR = 44; $padT = 16; $padB = 38;
                 $plotW = $W - $padL - $padR;
                 $plotH = $H - $padT - $padB;
                 $slot = $plotW / $n;
-                $barW = min(30, $slot * 0.5);
+                $ticks = 4;
 
-                // "Nice" rounded max for the revenue axis (1/2/2.5/5/10 × 10ⁿ)
-                // so the gridline labels land on clean numbers.
+                // Two bars per month (revenue + bookings), centred in the slot.
+                $pairGap = 3;
+                $barW = max(4, min(18, ($slot * 0.62 - $pairGap) / 2));
+
+                // "Nice" rounded max for the RM axis (1/2/2.5/5/10 × 10ⁿ) so the
+                // gridline labels land on clean numbers.
                 $niceCeil = function (float $v): float {
                     if ($v <= 0) return 1.0;
                     $exp = floor(log10($v));
@@ -87,15 +91,16 @@
                     return $nf * $base;
                 };
                 $revMax = max(1.0, $niceCeil((float) $months->max('revenue')));
-                $ticks = 4;
+
+                // Booking-count axis rounds up to a multiple of $ticks so every
+                // right-hand tick label is a whole number.
+                $maxBookings = (int) $months->max('bookings');
+                $countMax = max($ticks, (int) (ceil($maxBookings / $ticks) * $ticks));
 
                 $xCenter = fn ($i) => $padL + $slot * ($i + 0.5);
                 $yRev = fn ($v) => $padT + $plotH * (1 - ($v / $revMax));
-                $yOcc = fn ($frac) => $padT + $plotH * (1 - max(0, min(1, (float) $frac)));
-
-                $occPoints = $months
-                    ->map(fn ($m, $i) => round($xCenter($i), 1).','.round($yOcc($m['occupancy']), 1))
-                    ->implode(' ');
+                $yCount = fn ($c) => $padT + $plotH * (1 - ($c / $countMax));
+                $baseline = $padT + $plotH;
 
                 $fmtK = fn ($v) => $v >= 1000
                     ? rtrim(rtrim(number_format($v / 1000, 1), '0'), '.').'k'
@@ -104,44 +109,42 @@
 
             <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="xMidYMid meet"
                  style="width:100%; height:auto; display:block; overflow:visible;"
-                 role="img" aria-label="{{ __('Monthly revenue and occupancy') }}">
+                 role="img" aria-label="{{ __('Monthly revenue and number of bookings') }}">
 
-                {{-- Gridlines + dual-axis tick labels (RM left, % right) --}}
+                {{-- Gridlines + dual-axis tick labels (RM left, bookings right) --}}
                 @for ($t = 0; $t <= $ticks; $t++)
                     @php
                         $gy = round($padT + $plotH * ($t / $ticks), 1);
                         $rv = $revMax * (1 - $t / $ticks);
-                        $ov = 100 * (1 - $t / $ticks);
+                        $cv = $countMax * (1 - $t / $ticks);
                     @endphp
                     <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $W - $padR }}" y2="{{ $gy }}"
                           stroke="var(--line)" stroke-width="1" @if ($t !== $ticks) stroke-dasharray="2 5" @endif />
                     <text x="{{ $padL - 9 }}" y="{{ $gy + 3.5 }}" text-anchor="end" font-size="10.5"
                           fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($rv) }}</text>
                     <text x="{{ $W - $padR + 9 }}" y="{{ $gy + 3.5 }}" text-anchor="start" font-size="10.5"
-                          fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($ov, 0) }}%</text>
+                          fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($cv, 0) }}</text>
                 @endfor
 
-                {{-- Revenue bars --}}
+                {{-- Grouped bars: revenue (left of centre) + bookings (right) --}}
                 @foreach ($months as $i => $m)
                     @php
-                        $bx = round($xCenter($i) - $barW / 2, 1);
-                        $by = round($yRev($m['revenue']), 1);
-                        $bh = max(0, round(($padT + $plotH) - $by, 1));
+                        $cx = $xCenter($i);
+                        $revX = round($cx - $pairGap / 2 - $barW, 1);
+                        $cntX = round($cx + $pairGap / 2, 1);
+                        $revY = round($yRev($m['revenue']), 1);
+                        $cntY = round($yCount($m['bookings']), 1);
+                        $revH = max(0, round($baseline - $revY, 1));
+                        $cntH = max(0, round($baseline - $cntY, 1));
                     @endphp
-                    <rect x="{{ $bx }}" y="{{ $by }}" width="{{ round($barW, 1) }}" height="{{ $bh }}"
-                          rx="2.5" fill="var(--primary)" opacity="0.9">
-                        <title>{{ $m['label'] }} — RM {{ number_format($m['revenue'], 0) }} · {{ number_format($m['occupancy'] * 100, 1) }}% {{ __('occupancy') }}</title>
+                    <rect x="{{ $revX }}" y="{{ $revY }}" width="{{ round($barW, 1) }}" height="{{ $revH }}"
+                          rx="2" fill="var(--primary)" opacity="0.9">
+                        <title>{{ $m['label'] }} — RM {{ number_format($m['revenue'], 0) }} · {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }}</title>
                     </rect>
-                @endforeach
-
-                {{-- Occupancy line + markers --}}
-                <polyline points="{{ $occPoints }}" fill="none" stroke="var(--accent)"
-                          stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-                @foreach ($months as $i => $m)
-                    <circle cx="{{ round($xCenter($i), 1) }}" cy="{{ round($yOcc($m['occupancy']), 1) }}"
-                            r="3.2" fill="var(--bg-elev)" stroke="var(--accent)" stroke-width="2">
-                        <title>{{ $m['label'] }} — {{ number_format($m['occupancy'] * 100, 1) }}% {{ __('occupancy') }}</title>
-                    </circle>
+                    <rect x="{{ $cntX }}" y="{{ $cntY }}" width="{{ round($barW, 1) }}" height="{{ $cntH }}"
+                          rx="2" fill="var(--accent)" opacity="0.9">
+                        <title>{{ $m['label'] }} — {{ $m['bookings'] }} {{ trans_choice('{1} booking|[2,*] bookings', $m['bookings']) }} · RM {{ number_format($m['revenue'], 0) }}</title>
+                    </rect>
                 @endforeach
 
                 {{-- Month labels --}}

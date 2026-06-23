@@ -44,6 +44,7 @@ class ReportController extends Controller
                 'label' => $monthStart->format("M'y"),
                 'revenue' => $this->stats->revenue($monthStart, $monthEnd),
                 'occupancy' => $this->stats->occupancy($monthStart, $monthEnd) / 100,
+                'bookings' => $this->stats->bookingCount($monthStart, $monthEnd),
             ];
         });
 
