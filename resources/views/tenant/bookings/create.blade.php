@@ -95,9 +95,11 @@
                         <label style="grid-column: 1 / 3;">
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Room') }}</div>
                             <select name="room_id" required class="input" x-ref="roomSelect" @change="onRoomChange($event.target.value)">
-                                <option value="">{{ __('— select a room —') }}</option>
+                                @if ($rooms->count() !== 1)
+                                    <option value="">{{ __('— select a room —') }}</option>
+                                @endif
                                 @foreach ($rooms as $room)
-                                    <option value="{{ $room->id }}" @selected(old('room_id', $prefillRoomId) == $room->id)>
+                                    <option value="{{ $room->id }}" @selected(old('room_id', $prefillRoomId) == $room->id || $rooms->count() === 1)>
                                         {{ $room->property?->name ?? '—' }} · {{ $room->name }} · RM {{ number_format((float) $room->base_price, 0) }}/{{ __('night') }} · {{ __('sleeps') }} {{ ($room->max_adults ?? 0) + ($room->max_children ?? 0) }}
                                     </option>
                                 @endforeach

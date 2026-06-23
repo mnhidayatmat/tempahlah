@@ -99,17 +99,37 @@
                     @endforeach
                 </div>
 
+                {{-- Copy-paste WhatsApp cleaning schedule --}}
+                <x-housekeeping.schedule-card
+                    tab="cleaning"
+                    :title="__('Cleaning schedule for WhatsApp')"
+                    :subtitle="__('Copy & paste into your cleaner group')"
+                    :schedule-date="$scheduleDate"
+                    :text="$cleaningSchedule"
+                    refName="clsched"/>
+
                 {{-- Inline new-cleaning-task form --}}
                 <details class="hauz-card" style="padding: 0; overflow: hidden;">
                     <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
                         <x-icon name="plus" :size="13"/> {{ __('Schedule a new cleaning task') }}
                     </summary>
-                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.store') }}" style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.store') }}"
+                          x-data="{
+                              times: {{ $propertyTimes->toJson() }},
+                              date: '{{ $scheduleDate->format('Y-m-d') }}',
+                              pid: '{{ $properties->count() === 1 ? $properties->first()->id : '' }}',
+                              addHours(hhmm, h){ let [H,M] = (hhmm||'12:00').split(':').map(Number); H=((H+h)%24+24)%24; return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0'); },
+                              apply(){ const t = this.times[this.pid] || { check_out: '12:00' }; this.$refs.sched.value = this.date + 'T' + this.addHours(t.check_out, 1); }
+                          }"
+                          x-init="$nextTick(() => apply())"
+                          style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         @csrf
                         <div style="grid-column: span 2;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
-                            <select name="property_id" class="input" required>
-                                <option value="">—</option>
+                            <select name="property_id" class="input" required x-model="pid" @change="apply()">
+                                @if ($properties->count() !== 1)
+                                    <option value="">—</option>
+                                @endif
                                 @foreach ($properties as $p)
                                     <option value="{{ $p->id }}">{{ $p->name }}</option>
                                 @endforeach
@@ -127,7 +147,8 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Scheduled at') }} *</label>
-                            <input type="datetime-local" name="scheduled_at" class="input" required>
+                            <input type="datetime-local" name="scheduled_at" class="input" required x-ref="sched">
+                            <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">{{ __('Auto-set to ~1h after check-out') }}</div>
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
@@ -275,17 +296,36 @@
                     @endforeach
                 </div>
 
+                {{-- Copy-paste WhatsApp laundry schedule --}}
+                <x-housekeeping.schedule-card
+                    tab="laundry"
+                    :title="__('Laundry schedule for WhatsApp')"
+                    :subtitle="__('Copy & paste into your laundry / dobi group')"
+                    :schedule-date="$scheduleDate"
+                    :text="$laundrySchedule"
+                    refName="ldsched"/>
+
                 {{-- Inline log-laundry-batch form --}}
                 <details class="hauz-card" style="padding: 0; overflow: hidden;">
                     <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
                         <x-icon name="plus" :size="13"/> {{ __('Log a new laundry batch') }}
                     </summary>
-                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.store') }}" style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.store') }}"
+                          x-data="{
+                              times: {{ $propertyTimes->toJson() }},
+                              date: '{{ $scheduleDate->format('Y-m-d') }}',
+                              pid: '{{ $properties->count() === 1 ? $properties->first()->id : '' }}',
+                              addHours(hhmm, h){ let [H,M] = (hhmm||'12:00').split(':').map(Number); H=((H+h)%24+24)%24; return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0'); },
+                              nextDay(d){ const dt = new Date(d+'T00:00'); dt.setDate(dt.getDate()+1); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); },
+                              apply(){ const t = this.times[this.pid] || { check_out: '12:00' }; this.$refs.pickup.value = this.date + 'T' + this.addHours(t.check_out, 2); this.$refs.ret.value = this.nextDay(this.date) + 'T' + t.check_out; }
+                          }"
+                          x-init="$nextTick(() => apply())"
+                          style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         @csrf
                         <div style="grid-column: span 2;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
-                            <select name="property_id" class="input" required>
-                                <option value="">—</option>
+                            <select name="property_id" class="input" required x-model="pid" @change="apply()">
+                                @if ($properties->count() !== 1)<option value="">—</option>@endif
                                 @foreach ($properties as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
                             </select>
                         </div>
@@ -299,11 +339,12 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>
-                            <input type="datetime-local" name="pickup_at" class="input" required>
+                            <input type="datetime-local" name="pickup_at" class="input" required x-ref="pickup">
+                            <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">{{ __('Auto-set to ~2h after check-out') }}</div>
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
-                            <input type="datetime-local" name="expected_return_at" class="input">
+                            <input type="datetime-local" name="expected_return_at" class="input" x-ref="ret">
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>

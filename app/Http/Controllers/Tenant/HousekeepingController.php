@@ -19,6 +19,16 @@ class HousekeepingController extends Controller
         $today = Carbon::today();
         $weekEnd = $today->copy()->addDays(7);
 
+        // Date the copy-paste WhatsApp schedule is built for (defaults today;
+        // host can pick tomorrow the night before to brief the cleaner group).
+        try {
+            $scheduleDate = $request->filled('schedule_date')
+                ? Carbon::parse($request->query('schedule_date'))->startOfDay()
+                : $today->copy();
+        } catch (\Throwable) {
+            $scheduleDate = $today->copy();
+        }
+
         $todayTasks = CleaningTask::query()
             ->with(['property:id,name', 'room:id,name', 'assignee:id,name', 'booking:id,reference,guest_id', 'booking.guest:id,name'])
             ->whereDate('scheduled_at', $today)
@@ -71,7 +81,36 @@ class HousekeepingController extends Controller
             'resolved_30d' => MaintenanceTicket::where('status', 'resolved')->where('resolved_at', '>=', $today->copy()->subDays(30))->count(),
         ];
 
-        $properties = Property::query()->orderBy('name')->get(['id', 'name']);
+        $properties = Property::query()->orderBy('name')->get(['id', 'name', 'check_in_time', 'check_out_time']);
+
+        // Per-property check-in/out wall-clock times (HH:MM) — drives the
+        // auto-default scheduled times in the create forms (client-side).
+        $propertyTimes = $properties->mapWithKeys(fn ($p) => [$p->id => [
+            'check_out' => substr((string) ($p->check_out_time ?: '12:00'), 0, 5),
+            'check_in' => substr((string) ($p->check_in_time ?: '15:00'), 0, 5),
+        ]]);
+
+        // Build the two copy-paste schedules for the chosen date.
+        $tenant = app(TenantContext::class)->current();
+        $isBM = app()->getLocale() === 'ms';
+        $businessName = $tenant?->business_name;
+
+        $cleaningForSchedule = $scheduleDate->isSameDay($today)
+            ? $todayTasks
+            : CleaningTask::query()
+                ->with(['property:id,name', 'room:id,name'])
+                ->whereDate('scheduled_at', $scheduleDate)
+                ->orderBy('scheduled_at')
+                ->get();
+
+        $laundryForSchedule = LaundryTask::query()
+            ->with('property:id,name')
+            ->whereDate('pickup_at', $scheduleDate)
+            ->orderBy('pickup_at')
+            ->get();
+
+        $cleaningSchedule = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName);
+        $laundrySchedule = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName);
 
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
@@ -84,7 +123,123 @@ class HousekeepingController extends Controller
             'maintenance' => $maintenance,
             'maintenanceStats' => $maintenanceStats,
             'properties' => $properties,
+            'propertyTimes' => $propertyTimes,
+            'scheduleDate' => $scheduleDate,
+            'cleaningSchedule' => $cleaningSchedule,
+            'laundrySchedule' => $laundrySchedule,
         ]);
+    }
+
+    /**
+     * Cleaning type → human label (BM/EN) for the WhatsApp schedule.
+     */
+    private function cleaningTypeLabel(string $type, bool $isBM): string
+    {
+        $map = $isBM ? [
+            'full' => 'Pembersihan penuh',
+            'light' => 'Pembersihan ringkas',
+            'deep' => 'Pencucian mendalam',
+            'pool' => 'Kolam / luar',
+            'post_event' => 'Selepas majlis',
+        ] : [
+            'full' => 'Full turnover',
+            'light' => 'Light refresh',
+            'deep' => 'Deep clean',
+            'pool' => 'Pool / outdoor',
+            'post_event' => 'Post-event',
+        ];
+
+        return $map[$type] ?? ucfirst(str_replace('_', ' ', $type));
+    }
+
+    /**
+     * Plain-text cleaning schedule for a given date, formatted to copy-paste
+     * straight into a WhatsApp cleaner group (emoji + WhatsApp *bold* markup).
+     */
+    private function buildCleaningSchedule($tasks, Carbon $date, bool $isBM, ?string $businessName): string
+    {
+        $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+
+        $lines = [];
+        $lines[] = '🧹 '.($isBM ? '*Jadual Pembersihan*' : '*Cleaning Schedule*');
+        if ($businessName) {
+            $lines[] = $businessName;
+        }
+        $lines[] = '📅 '.$dateLabel;
+        $lines[] = '';
+
+        if ($tasks->isEmpty()) {
+            $lines[] = $isBM ? '_Tiada tugasan pembersihan._' : '_No cleaning tasks._';
+        } else {
+            $i = 1;
+            foreach ($tasks as $t) {
+                $time = $t->scheduled_at ? $t->scheduled_at->format('g:i A') : '—';
+                $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
+                $lines[] = '   ⏰ '.$time;
+                $lines[] = '   🧹 '.$this->cleaningTypeLabel((string) $t->type, $isBM);
+                if ($t->room) {
+                    $lines[] = '   🛏️ '.$t->room->name;
+                }
+                if ($t->notes) {
+                    $lines[] = '   📝 '.$t->notes;
+                }
+                $lines[] = '';
+                $i++;
+            }
+            $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$tasks->count().($isBM ? ' tugasan' : ' task(s)');
+        }
+
+        $lines[] = $isBM ? 'Terima kasih! 🙏' : 'Thank you! 🙏';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Plain-text laundry pickup schedule for a given date — copy-paste into the
+     * laundry vendor / dobi WhatsApp group.
+     */
+    private function buildLaundrySchedule($tasks, Carbon $date, bool $isBM, ?string $businessName): string
+    {
+        $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+
+        $lines = [];
+        $lines[] = '🧺 '.($isBM ? '*Jadual Dobi (Cucian)*' : '*Laundry Schedule*');
+        if ($businessName) {
+            $lines[] = $businessName;
+        }
+        $lines[] = '📅 '.$dateLabel;
+        $lines[] = '';
+
+        if ($tasks->isEmpty()) {
+            $lines[] = $isBM ? '_Tiada cucian untuk diambil._' : '_No laundry pickups._';
+        } else {
+            $i = 1;
+            $totalItems = 0;
+            foreach ($tasks as $t) {
+                $time = $t->pickup_at ? $t->pickup_at->format('g:i A') : '—';
+                $totalItems += (int) $t->item_count;
+                $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
+                $lines[] = '   ⏰ '.($isBM ? 'Ambil: ' : 'Pickup: ').$time;
+                $lines[] = '   📦 '.((int) $t->item_count).($isBM ? ' helai/item' : ' items');
+                if ($t->expected_return_at) {
+                    $retLabel = $t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
+                    $lines[] = '   🔄 '.($isBM ? 'Jangka pulang: ' : 'Return: ').$retLabel;
+                }
+                if ($t->vendor_name) {
+                    $lines[] = '   🏪 '.$t->vendor_name;
+                }
+                if ($t->notes) {
+                    $lines[] = '   📝 '.$t->notes;
+                }
+                $lines[] = '';
+                $i++;
+            }
+            $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$totalItems.($isBM ? ' item dalam ' : ' items across ').$tasks->count().($isBM ? ' batch' : ' batch(es)');
+        }
+
+        $lines[] = $isBM ? 'Terima kasih! 🙏' : 'Thank you! 🙏';
+
+        return implode("\n", $lines);
     }
 
     public function storeCleaning(Request $request)
