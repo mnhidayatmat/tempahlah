@@ -102,6 +102,7 @@
                 {{-- Copy-paste WhatsApp cleaning schedule --}}
                 <x-housekeeping.schedule-card
                     tab="cleaning"
+                    emoji="🧹"
                     :title="__('Cleaning schedule for WhatsApp')"
                     :subtitle="__('Copy & paste into your cleaner group')"
                     :schedule-date="$scheduleDate"
@@ -299,6 +300,7 @@
                 {{-- Copy-paste WhatsApp laundry schedule --}}
                 <x-housekeeping.schedule-card
                     tab="laundry"
+                    emoji="🧺"
                     :title="__('Laundry schedule for WhatsApp')"
                     :subtitle="__('Copy & paste into your laundry / dobi group')"
                     :schedule-date="$scheduleDate"
