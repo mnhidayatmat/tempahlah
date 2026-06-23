@@ -14,9 +14,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    {{-- Tenant subdomain doesn't load Livewire, so Alpine is pulled standalone from CDN. --}}
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {{-- Tenant subdomain doesn't load Livewire, so Alpine is bundled + served
+         from our own origin (resources/js/public-alpine.js) — NOT a third-party
+         CDN. A CDN failure used to leave the calendar + stats blank. --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/public-alpine.js'])
     <style id="tenant-theme">:root { {!! $tenant->themeCssVariables() !!} }</style>
     <meta name="theme-color" content="{{ $tenant->themePrimary() }}">
     {{-- iOS / Android PWA: when added to home screen, run as a standalone
