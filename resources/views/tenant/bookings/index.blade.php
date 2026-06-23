@@ -106,9 +106,9 @@
                                 <tr style="border-top: .5px solid var(--line);">
                                     <td style="padding: 12px 14px;">
                                         <a href="{{ route('tenant.bookings.show', $b->id) }}" style="display:flex; align-items:center; gap:10px; text-decoration:none; color: inherit;">
-                                            <x-avatar :name="$b->guest?->name ?? 'Guest'" :size="28"/>
+                                            <x-avatar :name="$b->guestName() ?? 'Guest'" :size="28"/>
                                             <div>
-                                                <div style="font-weight:500;">{{ $b->guest?->name ?? __('Guest') }}</div>
+                                                <div style="font-weight:500;">{{ $b->guestName() ?? __('Guest') }}</div>
                                                 <div style="font-size: 11px; color: var(--ink-3);">{{ $b->reference }}</div>
                                             </div>
                                         </a>
@@ -137,9 +137,9 @@
                     <a href="{{ route('tenant.bookings.show', $b->id) }}" class="hauz-card bk-card">
                         <div class="bk-card-top">
                             <div class="bk-card-guest">
-                                <x-avatar :name="$b->guest?->name ?? 'Guest'" :size="34"/>
+                                <x-avatar :name="$b->guestName() ?? 'Guest'" :size="34"/>
                                 <div style="min-width:0;">
-                                    <div class="bk-card-guest-name">{{ $b->guest?->name ?? __('Guest') }}</div>
+                                    <div class="bk-card-guest-name">{{ $b->guestName() ?? __('Guest') }}</div>
                                     <div style="font-size: 11px; color: var(--ink-3);" class="mono">{{ $b->reference }}</div>
                                 </div>
                             </div>

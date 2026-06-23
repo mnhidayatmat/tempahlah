@@ -259,6 +259,62 @@ class Booking extends Model
         return $this->hasMany(BookingGuest::class);
     }
 
+    /**
+     * The lead BookingGuest row — the contact captured on the booking form.
+     * Always present (CreateBooking writes it for every booking), so it's the
+     * reliable source of the guest's display details even when no platform
+     * User account is linked (e.g. a name-only manual booking with no email
+     * or phone, where guest_id ends up null).
+     */
+    public function leadGuest(): HasOne
+    {
+        return $this->hasOne(BookingGuest::class)->orderByDesc('is_lead')->orderBy('id');
+    }
+
+    /**
+     * Resolve the lead BookingGuest without firing redundant queries — prefer
+     * an already-loaded `leadGuest`/`bookingGuests` relation, only query as a
+     * last resort.
+     */
+    protected function resolveLeadGuest(): ?BookingGuest
+    {
+        if ($this->relationLoaded('leadGuest')) {
+            return $this->leadGuest;
+        }
+
+        if ($this->relationLoaded('bookingGuests')) {
+            return $this->bookingGuests->firstWhere('is_lead', true) ?? $this->bookingGuests->first();
+        }
+
+        return $this->leadGuest()->first();
+    }
+
+    /**
+     * Display name for the guest — prefer the linked User, fall back to the
+     * lead BookingGuest's full_name (so bookings entered with just a name and
+     * no email/phone still show the customer's name, not "Guest").
+     */
+    public function guestName(): ?string
+    {
+        return filled($this->guest?->name)
+            ? $this->guest->name
+            : $this->resolveLeadGuest()?->full_name;
+    }
+
+    public function guestEmail(): ?string
+    {
+        return filled($this->guest?->email)
+            ? $this->guest->email
+            : $this->resolveLeadGuest()?->email;
+    }
+
+    public function guestPhone(): ?string
+    {
+        return filled($this->guest?->phone)
+            ? $this->guest->phone
+            : $this->resolveLeadGuest()?->phone;
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);

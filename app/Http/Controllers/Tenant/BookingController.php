@@ -42,7 +42,7 @@ class BookingController extends Controller
         $today = Carbon::today();
 
         $bookings = Booking::query()
-            ->with(['guest:id,name,email,phone', 'property:id,name,city'])
+            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city'])
             ->when($filter === 'upcoming', fn ($q) => $q
                 ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED])
                 ->where('check_in', '>=', $today))
@@ -495,7 +495,7 @@ class BookingController extends Controller
     public function show($id)
     {
         $booking = Booking::query()
-            ->with(['guest:id,name,email,phone', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name'])
+            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name'])
             ->findOrFail($id);
 
         return view('tenant.bookings.show', compact('booking'));

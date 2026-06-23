@@ -51,7 +51,7 @@
             <div class="bk-head" style="display:flex; align-items:flex-end; justify-content:space-between; margin-top: 6px; flex-wrap: wrap; gap: 12px;">
                 <div>
                     <div class="kicker">{{ $booking->reference }}</div>
-                    <h2 class="display-2" style="margin: 4px 0 0;">{{ $booking->guest?->name ?? __('Guest') }}</h2>
+                    <h2 class="display-2" style="margin: 4px 0 0;">{{ $booking->guestName() ?? __('Guest') }}</h2>
                 </div>
                 <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
             </div>
@@ -307,10 +307,10 @@
 
                 <div class="hauz-card" style="padding: 16px;">
                     <div class="kicker" style="margin-bottom: 8px;">{{ __('Contact') }}</div>
-                    <div style="font-size: 13px;">{{ $booking->guest?->name ?? '—' }}</div>
-                    <div style="font-size: 12px; color: var(--ink-3); margin-bottom: 4px;">{{ $booking->guest?->email ?? '—' }}</div>
-                    @if ($booking->guest?->phone)
-                        <a href="https://wa.me/{{ preg_replace('/\D/', '', $booking->guest->phone) }}"
+                    <div style="font-size: 13px;">{{ $booking->guestName() ?? '—' }}</div>
+                    <div style="font-size: 12px; color: var(--ink-3); margin-bottom: 4px;">{{ $booking->guestEmail() ?? '—' }}</div>
+                    @if ($booking->guestPhone())
+                        <a href="https://wa.me/{{ preg_replace('/\D/', '', $booking->guestPhone()) }}"
                            target="_blank" rel="noopener"
                            class="btn btn-sm" style="margin-top: 6px;">
                             WhatsApp →
