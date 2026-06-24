@@ -16,7 +16,7 @@
     <div class="hauz-card" style="padding: 18px;">
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">{{ $addLabel ?? __('Add') }}</div>
         <form method="POST" action="{{ route($storeRoute) }}"
-              style="display:grid; grid-template-columns: 2fr 1.4fr 1.8fr auto; gap: 12px; align-items:end;">
+              style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items:end;">
             @csrf
             <div>
                 <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Name') }} *</label>
@@ -31,6 +31,18 @@
                 <input type="email" name="email" class="input" maxlength="160" value="{{ old('email') }}" placeholder="name@example.com">
             </div>
             <div>
+                <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Bank') }}</label>
+                <input type="text" name="bank_name" class="input" maxlength="120" value="{{ old('bank_name') }}" placeholder="{{ __('e.g. Maybank') }}">
+            </div>
+            <div>
+                <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Account no.') }}</label>
+                <input type="text" name="bank_account_no" class="input" maxlength="60" value="{{ old('bank_account_no') }}" placeholder="1234 5678 9012" autocomplete="off">
+            </div>
+            <div>
+                <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Account holder') }}</label>
+                <input type="text" name="bank_account_holder" class="input" maxlength="120" value="{{ old('bank_account_holder') }}" placeholder="{{ __('if different from name') }}">
+            </div>
+            <div style="grid-column: 1 / -1; text-align: right;">
                 <button type="submit" class="btn btn-primary">{{ __('Add') }}</button>
             </div>
         </form>
@@ -58,6 +70,11 @@
                             @if ($p->email)<span>✉️ {{ $p->email }}</span>@endif
                             @if ($countAttr)<span style="color: var(--ink-3);">{{ $p->{$countAttr} }} {{ $countNoun }}</span>@endif
                         </div>
+                        @if ($p->bank_account_no)
+                            <div style="font-size: 12px; color: var(--ink-2); margin-top: 4px;">
+                                🏦 {{ $p->bank_name ? $p->bank_name.' · ' : '' }}<span class="mono">{{ $p->bank_account_no }}</span>{{ $p->bank_account_holder ? ' · '.$p->bank_account_holder : '' }}
+                            </div>
+                        @endif
                     </div>
                     <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                 </div>
@@ -65,7 +82,7 @@
                 {{-- Edit form --}}
                 <div x-show="editing" x-cloak style="padding: 14px 18px; display:flex; flex-direction:column; gap: 12px;">
                     <form method="POST" action="{{ route($updateRoute, $p->id) }}"
-                          style="display:grid; grid-template-columns: 2fr 1.4fr 1.8fr auto; gap: 12px; align-items:end;">
+                          style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items:end;">
                         @csrf @method('PATCH')
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Name') }} *</label>
@@ -79,12 +96,24 @@
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Email') }}</label>
                             <input type="email" name="email" class="input" maxlength="160" value="{{ $p->email }}">
                         </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Bank') }}</label>
+                            <input type="text" name="bank_name" class="input" maxlength="120" value="{{ $p->bank_name }}" placeholder="{{ __('e.g. Maybank') }}">
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Account no.') }}</label>
+                            <input type="text" name="bank_account_no" class="input" maxlength="60" value="{{ $p->bank_account_no }}" autocomplete="off">
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Account holder') }}</label>
+                            <input type="text" name="bank_account_holder" class="input" maxlength="120" value="{{ $p->bank_account_holder }}">
+                        </div>
                         <div style="display:flex; align-items:center; gap: 10px;">
                             <label style="display:flex; align-items:center; gap: 6px; font-size: 12.5px; white-space: nowrap;">
                                 <input type="checkbox" name="is_active" value="1" @checked($p->is_active)> {{ __('Active') }}
                             </label>
                         </div>
-                        <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
+                        <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap: 8px;">
                             <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
                             <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
                         </div>

@@ -18,6 +18,9 @@ class CleanerController extends Controller
             'name' => 'required|string|max:120',
             'phone' => 'nullable|string|max:40',
             'email' => 'nullable|email|max:160',
+            'bank_name' => 'nullable|string|max:120',
+            'bank_account_no' => 'nullable|string|max:60',
+            'bank_account_holder' => 'nullable|string|max:120',
         ]);
 
         Cleaner::create([
@@ -25,7 +28,10 @@ class CleanerController extends Controller
             'name' => $validated['name'],
             'phone' => $validated['phone'] ?? null,
             'email' => $validated['email'] ?? null,
-            'is_active' => true,
+            'bank_name' => $validated['bank_name'] ?? null,
+            'bank_account_no' => $validated['bank_account_no'] ?? null,
+            'bank_account_holder' => $validated['bank_account_holder'] ?? null,
+            'is_active' =>true,
         ]);
 
         return redirect()
@@ -41,6 +47,9 @@ class CleanerController extends Controller
             'name' => 'required|string|max:120',
             'phone' => 'nullable|string|max:40',
             'email' => 'nullable|email|max:160',
+            'bank_name' => 'nullable|string|max:120',
+            'bank_account_no' => 'nullable|string|max:60',
+            'bank_account_holder' => 'nullable|string|max:120',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -48,7 +57,10 @@ class CleanerController extends Controller
             'name' => $validated['name'],
             'phone' => $validated['phone'] ?? null,
             'email' => $validated['email'] ?? null,
-            'is_active' => (bool) ($validated['is_active'] ?? false),
+            'bank_name' => $validated['bank_name'] ?? null,
+            'bank_account_no' => $validated['bank_account_no'] ?? null,
+            'bank_account_holder' => $validated['bank_account_holder'] ?? null,
+            'is_active' =>(bool) ($validated['is_active'] ?? false),
         ]);
 
         return redirect()

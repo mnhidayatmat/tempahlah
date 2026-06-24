@@ -18,9 +18,11 @@ class MaintenancePerson extends Model
 
     protected $fillable = [
         'tenant_id', 'name', 'phone', 'email', 'is_active',
+        'bank_name', 'bank_account_no', 'bank_account_holder',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'bank_account_no' => 'encrypted',
     ];
 }
