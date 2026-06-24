@@ -13,6 +13,9 @@ class MaintenancePerson extends Model
     use HasFactory;
     use SoftDeletes;
 
+    // Laravel would pluralise the model to "maintenance_people"; pin the table.
+    protected $table = 'maintenance_persons';
+
     protected $fillable = [
         'tenant_id', 'name', 'phone', 'email', 'is_active',
     ];
