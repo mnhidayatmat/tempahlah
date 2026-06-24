@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cleaner;
 use App\Models\CleaningTask;
 use App\Models\LaundryTask;
 use App\Models\MaintenanceTicket;
@@ -30,13 +31,13 @@ class HousekeepingController extends Controller
         }
 
         $todayTasks = CleaningTask::query()
-            ->with(['property:id,name', 'room:id,name', 'assignee:id,name', 'booking:id,reference,guest_id', 'booking.guest:id,name'])
+            ->with(['property:id,name', 'room:id,name', 'assignee:id,name', 'cleaner:id,name,phone', 'booking:id,reference,guest_id', 'booking.guest:id,name'])
             ->whereDate('scheduled_at', $today)
             ->orderBy('scheduled_at')
             ->get();
 
         $upcoming = CleaningTask::query()
-            ->with(['property:id,name', 'room:id,name', 'assignee:id,name'])
+            ->with(['property:id,name', 'room:id,name', 'assignee:id,name', 'cleaner:id,name,phone', 'booking:id,reference,guest_id', 'booking.guest:id,name'])
             ->whereDate('scheduled_at', '>', $today)
             ->whereDate('scheduled_at', '<=', $weekEnd)
             ->orderBy('scheduled_at')
@@ -83,6 +84,9 @@ class HousekeepingController extends Controller
 
         $properties = Property::query()->orderBy('name')->get(['id', 'name', 'check_in_time', 'check_out_time']);
 
+        // Active cleaners for the "assign cleaner" dropdowns.
+        $cleaners = Cleaner::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']);
+
         // Per-property check-in/out wall-clock times (HH:MM) — drives the
         // auto-default scheduled times in the create forms (client-side).
         $propertyTimes = $properties->mapWithKeys(fn ($p) => [$p->id => [
@@ -119,6 +123,7 @@ class HousekeepingController extends Controller
             'maintenance' => $maintenance,
             'maintenanceStats' => $maintenanceStats,
             'properties' => $properties,
+            'cleaners' => $cleaners,
             'propertyTimes' => $propertyTimes,
             'scheduleDate' => $scheduleDate,
             'cleaningCopy' => $cleaningCopy,
@@ -201,6 +206,9 @@ class HousekeepingController extends Controller
         if ($t->room) {
             $lines[] = '🛏️ '.$t->room->name;
         }
+        if ($t->cleaner) {
+            $lines[] = '👤 '.$t->cleaner->name.($t->cleaner->phone ? ' ('.$t->cleaner->phone.')' : '');
+        }
         if ($t->notes) {
             $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
         }
@@ -243,6 +251,7 @@ class HousekeepingController extends Controller
             'property_id' => 'required|exists:properties,id',
             'type' => 'required|in:full,light,deep,pool,post_event',
             'scheduled_at' => 'required|date',
+            'cleaner_id' => 'nullable|exists:cleaners,id',
             'cost' => 'nullable|numeric|min:0|max:1000000',
             'notes' => 'nullable|string|max:2000',
         ]);
@@ -252,6 +261,7 @@ class HousekeepingController extends Controller
             'property_id' => $validated['property_id'],
             'type' => $validated['type'],
             'status' => CleaningTask::STATUS_PENDING,
+            'cleaner_id' => $validated['cleaner_id'] ?? null,
             'cost' => $validated['cost'] ?? null,
             'scheduled_at' => Carbon::parse($validated['scheduled_at']),
             'notes' => $validated['notes'] ?? null,
@@ -311,6 +321,7 @@ class HousekeepingController extends Controller
                 'type' => 'required|in:full,light,deep,pool,post_event',
                 'status' => 'required|in:pending,in_progress,completed,skipped',
                 'scheduled_at' => 'required|date',
+                'cleaner_id' => 'nullable|exists:cleaners,id',
                 'cost' => 'nullable|numeric|min:0|max:1000000',
                 'notes' => 'nullable|string|max:2000',
             ]);
@@ -319,6 +330,7 @@ class HousekeepingController extends Controller
                 'property_id' => $validated['property_id'],
                 'type' => $validated['type'],
                 'scheduled_at' => Carbon::parse($validated['scheduled_at']),
+                'cleaner_id' => $validated['cleaner_id'] ?? null,
                 'cost' => $validated['cost'] ?? null,
                 'notes' => $validated['notes'] ?? null,
             ]);

@@ -25,7 +25,7 @@ class CleaningTask extends Model
 
     protected $fillable = [
         'tenant_id', 'property_id', 'room_id', 'booking_id',
-        'assigned_to_user_id',
+        'assigned_to_user_id', 'cleaner_id',
         'type', 'status', 'cost', 'scheduled_at', 'started_at', 'completed_at',
         'photo_paths', 'notes', 'issues',
     ];
@@ -57,5 +57,10 @@ class CleaningTask extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_user_id');
+    }
+
+    public function cleaner(): BelongsTo
+    {
+        return $this->belongsTo(Cleaner::class);
     }
 }

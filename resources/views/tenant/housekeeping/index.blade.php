@@ -142,10 +142,24 @@
                             <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">{{ __('Auto-set to ~1h after check-out') }}</div>
                         </div>
                         <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cleaner') }}</label>
+                            <select name="cleaner_id" class="input">
+                                <option value="">{{ __('— Unassigned —') }}</option>
+                                @foreach ($cleaners as $cl)
+                                    <option value="{{ $cl->id }}">{{ $cl->name }}</option>
+                                @endforeach
+                            </select>
+                            @if ($cleaners->isEmpty())
+                                <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">
+                                    <a href="{{ route('tenant.cleaners.index') }}" style="color: var(--primary);">{{ __('Register a cleaner') }}</a>
+                                </div>
+                            @endif
+                        </div>
+                        <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
                             <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="0.00">
                         </div>
-                        <div style="grid-column: span 3;">
+                        <div style="grid-column: span 2;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
                             <textarea name="notes" class="input" maxlength="2000" rows="2"
                                       placeholder="{{ __('Optional handoff notes — press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
@@ -166,129 +180,7 @@
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Live status from cleaner mobile app') }}</div>
                     <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
                         @forelse ($todayTasks as $t)
-                            @php
-                                $ui = $cleaningStatusUI[$t->status] ?? $cleaningStatusUI['pending'];
-                                $hasIssues = !empty($t->issues);
-                                $borderColor = $hasIssues ? 'var(--err)' : ($t->type === 'deep' ? 'var(--accent)' : 'var(--ink-3)');
-                            @endphp
-                            <div class="hauz-card" x-data="{ editing: false }" style="padding: 16px; border-left: 3px solid {{ $borderColor }};">
-                                {{-- Display row --}}
-                                <div x-show="!editing" style="display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center;">
-                                    <div style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; color: var(--ink-2);">
-                                        <x-icon :name="$t->type === 'deep' ? 'sparkle' : 'bed'" :size="20"/>
-                                    </div>
-                                    <div style="min-width: 0;">
-                                        <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
-                                            <span style="font-weight: 600; font-size: 14px;">{{ $t->property?->name ?? '—' }}</span>
-                                            <span class="mono" style="font-size: 11px; color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span>
-                                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
-                                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
-                                            </span>
-                                        </div>
-                                        <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap;">
-                                            <span>{{ ucfirst((string) $t->type) }} {{ __('clean') }}</span>
-                                            <span class="mono">{{ $t->scheduled_at->format('H:i') }}</span>
-                                            @if ($t->room)
-                                                <span>{{ $t->room->name }}</span>
-                                            @endif
-                                            @if ($t->booking)
-                                                <span style="color: var(--ink-3);">
-                                                    <x-icon name="arrow-right" :size="11" style="vertical-align: middle; margin-right: 2px;"/>
-                                                    {{ $t->booking->guest?->name ?? __('Guest') }} {{ __('arrives after') }}
-                                                </span>
-                                            @endif
-                                        </div>
-                                        @if ($t->notes)
-                                            <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic; white-space: pre-line;">"{{ $t->notes }}"</div>
-                                        @endif
-                                    </div>
-                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
-                                        @if ($t->assignee)
-                                            <div style="display:flex; align-items:center; gap: 8px;">
-                                                <x-avatar :name="$t->assignee->name" :size="26"/>
-                                                <div style="font-size: 12;">
-                                                    <div style="font-weight: 500;">{{ explode(' ', $t->assignee->name)[0] }}</div>
-                                                </div>
-                                            </div>
-                                        @else
-                                            <span style="font-size: 11px; color: var(--ink-3);">{{ __('Unassigned') }}</span>
-                                        @endif
-                                        <div style="display:flex; gap: 4px;">
-                                            @if ($t->status === 'pending')
-                                                <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
-                                                    @csrf @method('PATCH')<input type="hidden" name="action" value="start">
-                                                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Start') }}</button>
-                                                </form>
-                                            @elseif ($t->status === 'in_progress')
-                                                <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
-                                                    @csrf @method('PATCH')<input type="hidden" name="action" value="complete">
-                                                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
-                                                </form>
-                                            @endif
-                                            <x-housekeeping.copy-button :text="$cleaningCopy[$t->id] ?? ''"/>
-                                            <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Edit form --}}
-                                <div x-show="editing" x-cloak style="display:flex; flex-direction:column; gap: 12px;">
-                                    <div style="font-weight: 600; font-size: 13px;">{{ __('Edit cleaning task') }} · <span class="mono" style="color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span></div>
-                                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                                        @csrf @method('PATCH')
-                                        <input type="hidden" name="action" value="edit">
-                                        <div style="grid-column: span 2;">
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
-                                            <select name="property_id" class="input" required>
-                                                @foreach ($properties as $p)
-                                                    <option value="{{ $p->id }}" @selected($t->property_id == $p->id)>{{ $p->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Type') }} *</label>
-                                            <select name="type" class="input" required>
-                                                @foreach (['full' => __('Full turnover'), 'light' => __('Light refresh'), 'deep' => __('Deep clean'), 'pool' => __('Pool / outdoor'), 'post_event' => __('Post-event')] as $val => $lbl)
-                                                    <option value="{{ $val }}" @selected($t->type === $val)>{{ $lbl }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
-                                            <select name="status" class="input" required>
-                                                @foreach (['pending' => __('Scheduled'), 'in_progress' => __('In progress'), 'completed' => __('Done'), 'skipped' => __('Skipped')] as $val => $lbl)
-                                                    <option value="{{ $val }}" @selected($t->status === $val)>{{ $lbl }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Scheduled at') }} *</label>
-                                            <input type="datetime-local" name="scheduled_at" class="input" required value="{{ $t->scheduled_at?->format('Y-m-d\TH:i') }}">
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
-                                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $t->cost }}" placeholder="0.00">
-                                        </div>
-                                        <div style="grid-column: span 2;">
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                                            <textarea name="notes" class="input" maxlength="2000" rows="2"
-                                                      placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
-                                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
-                                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
-                                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
-                                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $t->notes }}</textarea>
-                                        </div>
-                                        <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
-                                            <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
-                                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
-                                        </div>
-                                    </form>
-                                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.destroy', $t->id) }}" onsubmit="return confirm('{{ __('Delete this cleaning task?') }}')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm" style="color: var(--err);">{{ __('Delete task') }}</button>
-                                    </form>
-                                </div>
-                            </div>
+                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''"/>
                         @empty
                             <div class="hauz-card" style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
                                 {{ __('No cleaning tasks scheduled today.') }}
@@ -300,40 +192,11 @@
                 {{-- Upcoming --}}
                 @if ($upcoming->isNotEmpty())
                     <div>
-                        <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming · next 7 days') }}</div>
-                        <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                <thead>
-                                    <tr style="background: var(--bg-sunk);">
-                                        @foreach ([__('Date'), __('Property'), __('Type'), __('Time'), __('Assignee'), __('Booking'), ''] as $h)
-                                            <th style="text-align: left; padding: 10px 14px; font-weight: 500; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">{{ $h }}</th>
-                                        @endforeach
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($upcoming as $t)
-                                        <tr style="border-top: .5px solid var(--line);">
-                                            <td style="padding: 12px 14px;" class="mono">{{ $t->scheduled_at->format('M j') }}</td>
-                                            <td style="padding: 12px 14px; font-weight: 500;">{{ $t->property?->name ?? '—' }}</td>
-                                            <td style="padding: 12px 14px; color: var(--ink-2);">{{ ucfirst((string) $t->type) }}</td>
-                                            <td style="padding: 12px 14px; color: var(--ink-2);" class="mono">{{ $t->scheduled_at->format('H:i') }}</td>
-                                            <td style="padding: 12px 14px;">
-                                                @if ($t->assignee)
-                                                    <span style="font-size: 12.5px;">{{ $t->assignee->name }}</span>
-                                                @else
-                                                    <span style="color: var(--ink-3);">{{ __('Unassigned') }}</span>
-                                                @endif
-                                            </td>
-                                            <td style="padding: 12px 14px; font-size: 12; color: var(--ink-3);">
-                                                {{ $t->booking?->reference ?? '—' }}
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: right; white-space: nowrap;">
-                                                <x-housekeeping.copy-button :text="$cleaningCopy[$t->id] ?? ''"/>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
+                        <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
+                            @foreach ($upcoming as $t)
+                                <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''"/>
+                            @endforeach
                         </div>
                     </div>
                 @endif

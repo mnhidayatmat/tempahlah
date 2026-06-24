@@ -8,6 +8,7 @@ use App\Http\Controllers\Public\PublicBookingController;
 use App\Http\Controllers\Public\TenantHomeController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\CalendarController;
+use App\Http\Controllers\Tenant\CleanerController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\HousekeepingController;
@@ -201,6 +202,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');
         Route::delete('/housekeeping/laundry/{id}',    [HousekeepingController::class, 'destroyLaundry'])->name('housekeeping.laundry.destroy');
         Route::patch('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'updateMaintenance'])->name('housekeeping.maintenance.update');
+        Route::get('/cleaners',             [CleanerController::class, 'index'])->name('cleaners.index');
+        Route::post('/cleaners',            [CleanerController::class, 'store'])->name('cleaners.store');
+        Route::patch('/cleaners/{id}',      [CleanerController::class, 'update'])->name('cleaners.update');
+        Route::delete('/cleaners/{id}',     [CleanerController::class, 'destroy'])->name('cleaners.destroy');
         Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
         Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
         Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
