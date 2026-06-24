@@ -172,7 +172,8 @@ class HousekeepingController extends Controller
      */
     private function formatScheduleNotes(string $notes, bool $isBM, bool $withEmoji = true): array
     {
-        $label = $withEmoji ? '📝' : ($isBM ? 'Nota:' : 'Notes:');
+        $textLabel = $isBM ? 'Nota:' : 'Notes:';
+        $label = $withEmoji ? '📝 '.$textLabel : $textLabel;
         $notes = trim($notes);
 
         if ($notes === '') {
