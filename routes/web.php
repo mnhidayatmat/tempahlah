@@ -197,7 +197,9 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/housekeeping/cleaning',          [HousekeepingController::class, 'storeCleaning'])->name('housekeeping.cleaning.store');
         Route::post('/housekeeping/laundry',           [HousekeepingController::class, 'storeLaundry'])->name('housekeeping.laundry.store');
         Route::patch('/housekeeping/cleaning/{id}',    [HousekeepingController::class, 'updateCleaning'])->name('housekeeping.cleaning.update');
+        Route::delete('/housekeeping/cleaning/{id}',   [HousekeepingController::class, 'destroyCleaning'])->name('housekeeping.cleaning.destroy');
         Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');
+        Route::delete('/housekeeping/laundry/{id}',    [HousekeepingController::class, 'destroyLaundry'])->name('housekeeping.laundry.destroy');
         Route::patch('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'updateMaintenance'])->name('housekeeping.maintenance.update');
         Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
         Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');

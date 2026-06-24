@@ -176,59 +176,116 @@
                                 $hasIssues = !empty($t->issues);
                                 $borderColor = $hasIssues ? 'var(--err)' : ($t->type === 'deep' ? 'var(--accent)' : 'var(--ink-3)');
                             @endphp
-                            <div class="hauz-card" style="padding: 16px; display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center; border-left: 3px solid {{ $borderColor }};">
-                                <div style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; color: var(--ink-2);">
-                                    <x-icon :name="$t->type === 'deep' ? 'sparkle' : 'bed'" :size="20"/>
-                                </div>
-                                <div style="min-width: 0;">
-                                    <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
-                                        <span style="font-weight: 600; font-size: 14px;">{{ $t->property?->name ?? '—' }}</span>
-                                        <span class="mono" style="font-size: 11px; color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span>
-                                        <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
-                                            <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
-                                        </span>
+                            <div class="hauz-card" x-data="{ editing: false }" style="padding: 16px; border-left: 3px solid {{ $borderColor }};">
+                                {{-- Display row --}}
+                                <div x-show="!editing" style="display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center;">
+                                    <div style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; color: var(--ink-2);">
+                                        <x-icon :name="$t->type === 'deep' ? 'sparkle' : 'bed'" :size="20"/>
                                     </div>
-                                    <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap;">
-                                        <span>{{ ucfirst((string) $t->type) }} {{ __('clean') }}</span>
-                                        <span class="mono">{{ $t->scheduled_at->format('H:i') }}</span>
-                                        @if ($t->room)
-                                            <span>{{ $t->room->name }}</span>
-                                        @endif
-                                        @if ($t->booking)
-                                            <span style="color: var(--ink-3);">
-                                                <x-icon name="arrow-right" :size="11" style="vertical-align: middle; margin-right: 2px;"/>
-                                                {{ $t->booking->guest?->name ?? __('Guest') }} {{ __('arrives after') }}
+                                    <div style="min-width: 0;">
+                                        <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+                                            <span style="font-weight: 600; font-size: 14px;">{{ $t->property?->name ?? '—' }}</span>
+                                            <span class="mono" style="font-size: 11px; color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span>
+                                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                                             </span>
-                                        @endif
-                                    </div>
-                                    @if ($t->notes)
-                                        <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic;">"{{ $t->notes }}"</div>
-                                    @endif
-                                </div>
-                                <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
-                                    @if ($t->assignee)
-                                        <div style="display:flex; align-items:center; gap: 8px;">
-                                            <x-avatar :name="$t->assignee->name" :size="26"/>
-                                            <div style="font-size: 12;">
-                                                <div style="font-weight: 500;">{{ explode(' ', $t->assignee->name)[0] }}</div>
-                                            </div>
                                         </div>
-                                    @else
-                                        <span style="font-size: 11px; color: var(--ink-3);">{{ __('Unassigned') }}</span>
-                                    @endif
-                                    <div style="display:flex; gap: 4px;">
-                                        @if ($t->status === 'pending')
-                                            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
-                                                @csrf @method('PATCH')<input type="hidden" name="action" value="start">
-                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Start') }}</button>
-                                            </form>
-                                        @elseif ($t->status === 'in_progress')
-                                            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
-                                                @csrf @method('PATCH')<input type="hidden" name="action" value="complete">
-                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
-                                            </form>
+                                        <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap;">
+                                            <span>{{ ucfirst((string) $t->type) }} {{ __('clean') }}</span>
+                                            <span class="mono">{{ $t->scheduled_at->format('H:i') }}</span>
+                                            @if ($t->room)
+                                                <span>{{ $t->room->name }}</span>
+                                            @endif
+                                            @if ($t->booking)
+                                                <span style="color: var(--ink-3);">
+                                                    <x-icon name="arrow-right" :size="11" style="vertical-align: middle; margin-right: 2px;"/>
+                                                    {{ $t->booking->guest?->name ?? __('Guest') }} {{ __('arrives after') }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        @if ($t->notes)
+                                            <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic;">"{{ $t->notes }}"</div>
                                         @endif
                                     </div>
+                                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
+                                        @if ($t->assignee)
+                                            <div style="display:flex; align-items:center; gap: 8px;">
+                                                <x-avatar :name="$t->assignee->name" :size="26"/>
+                                                <div style="font-size: 12;">
+                                                    <div style="font-weight: 500;">{{ explode(' ', $t->assignee->name)[0] }}</div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <span style="font-size: 11px; color: var(--ink-3);">{{ __('Unassigned') }}</span>
+                                        @endif
+                                        <div style="display:flex; gap: 4px;">
+                                            @if ($t->status === 'pending')
+                                                <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
+                                                    @csrf @method('PATCH')<input type="hidden" name="action" value="start">
+                                                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Start') }}</button>
+                                                </form>
+                                            @elseif ($t->status === 'in_progress')
+                                                <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}">
+                                                    @csrf @method('PATCH')<input type="hidden" name="action" value="complete">
+                                                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
+                                                </form>
+                                            @endif
+                                            <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Edit form --}}
+                                <div x-show="editing" x-cloak style="display:flex; flex-direction:column; gap: 12px;">
+                                    <div style="font-weight: 600; font-size: 13px;">{{ __('Edit cleaning task') }} · <span class="mono" style="color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span></div>
+                                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="action" value="edit">
+                                        <div style="grid-column: span 2;">
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                                            <select name="property_id" class="input" required>
+                                                @foreach ($properties as $p)
+                                                    <option value="{{ $p->id }}" @selected($t->property_id == $p->id)>{{ $p->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Type') }} *</label>
+                                            <select name="type" class="input" required>
+                                                @foreach (['full' => __('Full turnover'), 'light' => __('Light refresh'), 'deep' => __('Deep clean'), 'pool' => __('Pool / outdoor'), 'post_event' => __('Post-event')] as $val => $lbl)
+                                                    <option value="{{ $val }}" @selected($t->type === $val)>{{ $lbl }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
+                                            <select name="status" class="input" required>
+                                                @foreach (['pending' => __('Scheduled'), 'in_progress' => __('In progress'), 'completed' => __('Done'), 'skipped' => __('Skipped')] as $val => $lbl)
+                                                    <option value="{{ $val }}" @selected($t->status === $val)>{{ $lbl }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Scheduled at') }} *</label>
+                                            <input type="datetime-local" name="scheduled_at" class="input" required value="{{ $t->scheduled_at?->format('Y-m-d\TH:i') }}">
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
+                                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $t->cost }}" placeholder="0.00">
+                                        </div>
+                                        <div style="grid-column: span 2;">
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
+                                            <input type="text" name="notes" class="input" maxlength="500" value="{{ $t->notes }}">
+                                        </div>
+                                        <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
+                                            <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
+                                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
+                                        </div>
+                                    </form>
+                                    <form method="POST" action="{{ route('tenant.housekeeping.cleaning.destroy', $t->id) }}" onsubmit="return confirm('{{ __('Delete this cleaning task?') }}')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-sm" style="color: var(--err);">{{ __('Delete task') }}</button>
+                                    </form>
                                 </div>
                             </div>
                         @empty
@@ -372,46 +429,107 @@
                     <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
                         @forelse ($laundry as $i => $l)
                             @php $ui = $laundryStatusUI[$l->status] ?? $laundryStatusUI['pending']; @endphp
-                            <div style="padding: 14px 18px; {{ $i === 0 ? '' : 'border-top: .5px solid var(--line);' }} display:grid; grid-template-columns: 1fr 2fr 1.4fr 1fr auto; gap: 16px; align-items:center;">
-                                <div>
-                                    <div style="font-size: 13px; font-weight: 500;">{{ $l->property?->name ?? '—' }}</div>
-                                    <div class="mono" style="font-size: 11px; color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
+                            <div x-data="{ editing: false }" style="{{ $i === 0 ? '' : 'border-top: .5px solid var(--line);' }}">
+                                {{-- Display row --}}
+                                <div x-show="!editing" style="padding: 14px 18px; display:grid; grid-template-columns: 1fr 2fr 1.4fr 1fr auto; gap: 16px; align-items:center;">
+                                    <div>
+                                        <div style="font-size: 13px; font-weight: 500;">{{ $l->property?->name ?? '—' }}</div>
+                                        <div class="mono" style="font-size: 11px; color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
+                                    </div>
+                                    <div style="min-width: 0;">
+                                        <div style="font-size: 12.5px; color: var(--ink-2);">{{ $l->item_count }} {{ __('items') }}</div>
+                                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor_name ?? __('Self-service') }}</div>
+                                    </div>
+                                    <div>
+                                        <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                            <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 12;">
+                                        @if ($l->picked_up_at)
+                                            <div style="color: var(--ink-2);">{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
+                                        @endif
+                                        @if ($l->expected_return_at)
+                                            <div style="color: {{ $l->returned_at ? 'var(--ok)' : 'var(--ink-3)' }};">
+                                                {{ $l->returned_at ? __('Returned') : __('Expected') }}: <span class="mono">{{ ($l->returned_at ?? $l->expected_return_at)->format('M j') }}</span>
+                                            </div>
+                                        @endif
+                                        @if (! $l->picked_up_at)
+                                            <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
+                                        @endif
+                                    </div>
+                                    <div style="display:flex; gap: 4px; align-items:center;">
+                                        @if ($l->status === 'pending')
+                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                                @csrf @method('PATCH')<input type="hidden" name="action" value="pickup">
+                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark picked up') }}</button>
+                                            </form>
+                                        @elseif ($l->status === 'picked_up')
+                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                                @csrf @method('PATCH')<input type="hidden" name="action" value="return">
+                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
+                                            </form>
+                                        @endif
+                                        <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
+                                    </div>
                                 </div>
-                                <div style="min-width: 0;">
-                                    <div style="font-size: 12.5px; color: var(--ink-2);">{{ $l->item_count }} {{ __('items') }}</div>
-                                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor_name ?? __('Self-service') }}</div>
-                                </div>
-                                <div>
-                                    <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
-                                        <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
-                                    </span>
-                                </div>
-                                <div style="font-size: 12;">
-                                    @if ($l->picked_up_at)
-                                        <div style="color: var(--ink-2);">{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
-                                    @endif
-                                    @if ($l->expected_return_at)
-                                        <div style="color: {{ $l->returned_at ? 'var(--ok)' : 'var(--ink-3)' }};">
-                                            {{ $l->returned_at ? __('Returned') : __('Expected') }}: <span class="mono">{{ ($l->returned_at ?? $l->expected_return_at)->format('M j') }}</span>
+
+                                {{-- Edit form --}}
+                                <div x-show="editing" x-cloak style="padding: 14px 18px; display:flex; flex-direction:column; gap: 12px;">
+                                    <div style="font-weight: 600; font-size: 13px;">{{ __('Edit laundry batch') }} · <span class="mono" style="color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</span></div>
+                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="action" value="edit">
+                                        <div style="grid-column: span 2;">
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                                            <select name="property_id" class="input" required>
+                                                @foreach ($properties as $p)
+                                                    <option value="{{ $p->id }}" @selected($l->property_id == $p->id)>{{ $p->name }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
-                                    @endif
-                                    @if (! $l->picked_up_at)
-                                        <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
-                                    @endif
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
+                                            <select name="status" class="input" required>
+                                                @foreach (['pending' => __('Pending pickup'), 'picked_up' => __('In wash'), 'returned' => __('Returned'), 'cancelled' => __('Cancelled')] as $val => $lbl)
+                                                    <option value="{{ $val }}" @selected($l->status === $val)>{{ $lbl }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Item count') }} *</label>
+                                            <input type="number" name="item_count" class="input" min="1" max="9999" required value="{{ $l->item_count }}">
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
+                                            <input type="text" name="vendor_name" class="input" maxlength="120" value="{{ $l->vendor_name }}" placeholder="{{ __('e.g. Dobi Mesra') }}">
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>
+                                            <input type="datetime-local" name="pickup_at" class="input" required value="{{ $l->pickup_at?->format('Y-m-d\TH:i') }}">
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
+                                            <input type="datetime-local" name="expected_return_at" class="input" value="{{ $l->expected_return_at?->format('Y-m-d\TH:i') }}">
+                                        </div>
+                                        <div>
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
+                                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $l->cost }}" placeholder="0.00">
+                                        </div>
+                                        <div style="grid-column: span 3;">
+                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
+                                            <input type="text" name="notes" class="input" maxlength="500" value="{{ $l->notes }}">
+                                        </div>
+                                        <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
+                                            <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
+                                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
+                                        </div>
+                                    </form>
+                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.destroy', $l->id) }}" onsubmit="return confirm('{{ __('Delete this laundry batch?') }}')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-sm" style="color: var(--err);">{{ __('Delete batch') }}</button>
+                                    </form>
                                 </div>
-                                @if ($l->status === 'pending')
-                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
-                                        @csrf @method('PATCH')<input type="hidden" name="action" value="pickup">
-                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark picked up') }}</button>
-                                    </form>
-                                @elseif ($l->status === 'picked_up')
-                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
-                                        @csrf @method('PATCH')<input type="hidden" name="action" value="return">
-                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
-                                    </form>
-                                @else
-                                    <span style="font-size: 11px; color: var(--ink-3);">{{ __('Done') }}</span>
-                                @endif
                             </div>
                         @empty
                             <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">

@@ -309,8 +309,32 @@ class HousekeepingController extends Controller
         $task = CleaningTask::findOrFail($id);
 
         $action = $request->input('action');
-        $valid = ['start', 'complete', 'skip'];
+        $valid = ['start', 'complete', 'skip', 'edit'];
         abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        // Full edit — host adjusts the task details + freely sets the status.
+        if ($action === 'edit') {
+            $validated = $request->validate([
+                'property_id' => 'required|exists:properties,id',
+                'type' => 'required|in:full,light,deep,pool,post_event',
+                'status' => 'required|in:pending,in_progress,completed,skipped',
+                'scheduled_at' => 'required|date',
+                'cost' => 'nullable|numeric|min:0|max:1000000',
+                'notes' => 'nullable|string|max:500',
+            ]);
+
+            $task->fill([
+                'property_id' => $validated['property_id'],
+                'type' => $validated['type'],
+                'scheduled_at' => Carbon::parse($validated['scheduled_at']),
+                'cost' => $validated['cost'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+            $this->applyCleaningStatus($task, $validated['status']);
+            $task->save();
+
+            return back()->with('status', __('Cleaning task updated.'));
+        }
 
         match ($action) {
             'start' => $task->update([
@@ -330,13 +354,71 @@ class HousekeepingController extends Controller
         return back()->with('status', __('Cleaning task updated.'));
     }
 
+    /**
+     * Set a cleaning task's status directly, stamping/clearing the matching
+     * lifecycle timestamps so a free-form status edit stays consistent.
+     */
+    private function applyCleaningStatus(CleaningTask $task, string $status): void
+    {
+        $task->status = $status;
+
+        if ($status === CleaningTask::STATUS_IN_PROGRESS) {
+            $task->started_at = $task->started_at ?? now();
+            $task->completed_at = null;
+        } elseif ($status === CleaningTask::STATUS_COMPLETED) {
+            $task->started_at = $task->started_at ?? now();
+            $task->completed_at = $task->completed_at ?? now();
+        } elseif ($status === CleaningTask::STATUS_PENDING) {
+            $task->started_at = null;
+            $task->completed_at = null;
+        }
+        // skipped: leave timestamps as-is
+    }
+
+    public function destroyCleaning(int $id)
+    {
+        CleaningTask::findOrFail($id)->delete();
+
+        return back()->with('status', __('Cleaning task deleted.'));
+    }
+
     public function updateLaundry(Request $request, int $id)
     {
         $task = LaundryTask::findOrFail($id);
 
         $action = $request->input('action');
-        $valid = ['pickup', 'return'];
+        $valid = ['pickup', 'return', 'edit'];
         abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        // Full edit — host adjusts the batch details + freely sets the status.
+        if ($action === 'edit') {
+            $validated = $request->validate([
+                'property_id' => 'required|exists:properties,id',
+                'vendor_name' => 'nullable|string|max:120',
+                'status' => 'required|in:pending,picked_up,returned,cancelled',
+                'pickup_at' => 'required|date',
+                'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
+                'item_count' => 'required|integer|min:1|max:9999',
+                'cost' => 'nullable|numeric|min:0|max:1000000',
+                'notes' => 'nullable|string|max:500',
+            ]);
+
+            $task->fill([
+                'property_id' => $validated['property_id'],
+                'vendor_name' => $validated['vendor_name'] ?? null,
+                'pickup_at' => Carbon::parse($validated['pickup_at']),
+                'expected_return_at' => isset($validated['expected_return_at'])
+                    ? Carbon::parse($validated['expected_return_at'])
+                    : null,
+                'item_count' => $validated['item_count'],
+                'cost' => $validated['cost'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+            $this->applyLaundryStatus($task, $validated['status']);
+            $task->save();
+
+            return back()->with('status', __('Laundry batch updated.'));
+        }
 
         match ($action) {
             'pickup' => $task->update([
@@ -350,6 +432,34 @@ class HousekeepingController extends Controller
         };
 
         return back()->with('status', __('Laundry batch updated.'));
+    }
+
+    /**
+     * Set a laundry batch's status directly, stamping/clearing the matching
+     * lifecycle timestamps so a free-form status edit stays consistent.
+     */
+    private function applyLaundryStatus(LaundryTask $task, string $status): void
+    {
+        $task->status = $status;
+
+        if ($status === LaundryTask::STATUS_PICKED_UP) {
+            $task->picked_up_at = $task->picked_up_at ?? now();
+            $task->returned_at = null;
+        } elseif ($status === LaundryTask::STATUS_RETURNED) {
+            $task->picked_up_at = $task->picked_up_at ?? now();
+            $task->returned_at = $task->returned_at ?? now();
+        } elseif ($status === LaundryTask::STATUS_PENDING) {
+            $task->picked_up_at = null;
+            $task->returned_at = null;
+        }
+        // cancelled: leave timestamps as-is
+    }
+
+    public function destroyLaundry(int $id)
+    {
+        LaundryTask::findOrFail($id)->delete();
+
+        return back()->with('status', __('Laundry batch deleted.'));
     }
 
     public function printRunSheet()
