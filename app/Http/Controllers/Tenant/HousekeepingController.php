@@ -181,7 +181,8 @@ class HousekeepingController extends Controller
                     $lines[] = '   🛏️ '.$t->room->name;
                 }
                 if ($t->notes) {
-                    $lines[] = '   📝 '.$t->notes;
+                    // Indent continuation lines so multi-line notes stay aligned.
+                    $lines[] = '   📝 '.str_replace("\n", "\n      ", $t->notes);
                 }
                 $lines[] = '';
                 $i++;
@@ -229,7 +230,8 @@ class HousekeepingController extends Controller
                     $lines[] = '   🏪 '.$t->vendor_name;
                 }
                 if ($t->notes) {
-                    $lines[] = '   📝 '.$t->notes;
+                    // Indent continuation lines so multi-line notes stay aligned.
+                    $lines[] = '   📝 '.str_replace("\n", "\n      ", $t->notes);
                 }
                 $lines[] = '';
                 $i++;
@@ -252,7 +254,7 @@ class HousekeepingController extends Controller
             'type' => 'required|in:full,light,deep,pool,post_event',
             'scheduled_at' => 'required|date',
             'cost' => 'nullable|numeric|min:0|max:1000000',
-            'notes' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:2000',
         ]);
 
         CleaningTask::create([
@@ -282,7 +284,7 @@ class HousekeepingController extends Controller
             'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
             'item_count' => 'required|integer|min:1|max:9999',
             'cost' => 'nullable|numeric|min:0|max:1000000',
-            'notes' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:2000',
         ]);
 
         LaundryTask::create([
@@ -320,7 +322,7 @@ class HousekeepingController extends Controller
                 'status' => 'required|in:pending,in_progress,completed,skipped',
                 'scheduled_at' => 'required|date',
                 'cost' => 'nullable|numeric|min:0|max:1000000',
-                'notes' => 'nullable|string|max:500',
+                'notes' => 'nullable|string|max:2000',
             ]);
 
             $task->fill([
@@ -400,7 +402,7 @@ class HousekeepingController extends Controller
                 'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
                 'item_count' => 'required|integer|min:1|max:9999',
                 'cost' => 'nullable|numeric|min:0|max:1000000',
-                'notes' => 'nullable|string|max:500',
+                'notes' => 'nullable|string|max:2000',
             ]);
 
             $task->fill([

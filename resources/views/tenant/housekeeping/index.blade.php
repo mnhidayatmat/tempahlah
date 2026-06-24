@@ -157,7 +157,12 @@
                         </div>
                         <div style="grid-column: span 3;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                            <input type="text" name="notes" class="input" maxlength="500" placeholder="{{ __('Optional handoff notes for the cleaner') }}">
+                            <textarea name="notes" class="input" maxlength="2000" rows="2"
+                                      placeholder="{{ __('Optional handoff notes — press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
+                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;"></textarea>
                         </div>
                         <div style="grid-column: span 4; text-align: right;">
                             <button type="submit" class="btn btn-primary btn-sm">{{ __('Schedule task') }}</button>
@@ -204,7 +209,7 @@
                                             @endif
                                         </div>
                                         @if ($t->notes)
-                                            <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic;">"{{ $t->notes }}"</div>
+                                            <div style="font-size: 11.5px; color: {{ $hasIssues ? 'var(--err)' : 'var(--ink-3)' }}; margin-top: 6px; font-style: italic; white-space: pre-line;">"{{ $t->notes }}"</div>
                                         @endif
                                     </div>
                                     <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
@@ -275,7 +280,12 @@
                                         </div>
                                         <div style="grid-column: span 2;">
                                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                                            <input type="text" name="notes" class="input" maxlength="500" value="{{ $t->notes }}">
+                                            <textarea name="notes" class="input" maxlength="2000" rows="2"
+                                                      placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
+                                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $t->notes }}</textarea>
                                         </div>
                                         <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
                                             <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
@@ -411,7 +421,12 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                            <input type="text" name="notes" class="input" maxlength="500">
+                            <textarea name="notes" class="input" maxlength="2000" rows="2"
+                                      placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
+                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;"></textarea>
                         </div>
                         <div style="grid-column: span 4; text-align: right;">
                             <button type="submit" class="btn btn-primary btn-sm">{{ __('Log batch') }}</button>
@@ -518,7 +533,12 @@
                                         </div>
                                         <div style="grid-column: span 3;">
                                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                                            <input type="text" name="notes" class="input" maxlength="500" value="{{ $l->notes }}">
+                                            <textarea name="notes" class="input" maxlength="2000" rows="2"
+                                                      placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
+                                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $l->notes }}</textarea>
                                         </div>
                                         <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
                                             <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
