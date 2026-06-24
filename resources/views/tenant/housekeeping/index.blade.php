@@ -99,17 +99,6 @@
                     @endforeach
                 </div>
 
-                {{-- Copy-paste WhatsApp cleaning schedule --}}
-                <x-housekeeping.schedule-card
-                    tab="cleaning"
-                    emoji="🧹"
-                    :title="__('Cleaning schedule for WhatsApp')"
-                    :subtitle="__('Copy & paste into your cleaner group')"
-                    :schedule-date="$scheduleDate"
-                    :text="$cleaningSchedule"
-                    :share-text="$cleaningShare"
-                    refName="clsched"/>
-
                 {{-- Inline new-cleaning-task form --}}
                 <details class="hauz-card" style="padding: 0; overflow: hidden;">
                     <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
@@ -236,6 +225,7 @@
                                                     <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
                                                 </form>
                                             @endif
+                                            <x-housekeeping.copy-button :text="$cleaningCopy[$t->id] ?? ''"/>
                                             <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                                         </div>
                                     </div>
@@ -309,24 +299,13 @@
 
                 {{-- Upcoming --}}
                 @if ($upcoming->isNotEmpty())
-                    {{-- Copy-paste WhatsApp brief for the whole upcoming week --}}
-                    <x-housekeeping.schedule-card
-                        tab="cleaning"
-                        emoji="🗓️"
-                        :title="__('Next 7 days for WhatsApp')"
-                        :subtitle="__('Copy & paste the whole upcoming week')"
-                        :show-date-picker="false"
-                        :text="$upcomingSchedule"
-                        :share-text="$upcomingShare"
-                        refName="upsched"/>
-
                     <div>
                         <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming · next 7 days') }}</div>
                         <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                 <thead>
                                     <tr style="background: var(--bg-sunk);">
-                                        @foreach ([__('Date'), __('Property'), __('Type'), __('Time'), __('Assignee'), __('Booking')] as $h)
+                                        @foreach ([__('Date'), __('Property'), __('Type'), __('Time'), __('Assignee'), __('Booking'), ''] as $h)
                                             <th style="text-align: left; padding: 10px 14px; font-weight: 500; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">{{ $h }}</th>
                                         @endforeach
                                     </tr>
@@ -347,6 +326,9 @@
                                             </td>
                                             <td style="padding: 12px 14px; font-size: 12; color: var(--ink-3);">
                                                 {{ $t->booking?->reference ?? '—' }}
+                                            </td>
+                                            <td style="padding: 12px 14px; text-align: right; white-space: nowrap;">
+                                                <x-housekeeping.copy-button :text="$cleaningCopy[$t->id] ?? ''"/>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -375,17 +357,6 @@
                         </div>
                     @endforeach
                 </div>
-
-                {{-- Copy-paste WhatsApp laundry schedule --}}
-                <x-housekeeping.schedule-card
-                    tab="laundry"
-                    emoji="🧺"
-                    :title="__('Laundry schedule for WhatsApp')"
-                    :subtitle="__('Copy & paste into your laundry / dobi group')"
-                    :schedule-date="$scheduleDate"
-                    :text="$laundrySchedule"
-                    :share-text="$laundryShare"
-                    refName="ldsched"/>
 
                 {{-- Inline log-laundry-batch form --}}
                 <details class="hauz-card" style="padding: 0; overflow: hidden;">
@@ -498,6 +469,7 @@
                                                 <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
                                             </form>
                                         @endif
+                                        <x-housekeeping.copy-button :text="$laundryCopy[$l->id] ?? ''"/>
                                         <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                                     </div>
                                 </div>

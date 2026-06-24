@@ -36,7 +36,7 @@ class HousekeepingController extends Controller
             ->get();
 
         $upcoming = CleaningTask::query()
-            ->with(['property:id,name', 'assignee:id,name'])
+            ->with(['property:id,name', 'room:id,name', 'assignee:id,name'])
             ->whereDate('scheduled_at', '>', $today)
             ->whereDate('scheduled_at', '<=', $weekEnd)
             ->orderBy('scheduled_at')
@@ -90,36 +90,23 @@ class HousekeepingController extends Controller
             'check_in' => substr((string) ($p->check_in_time ?: '15:00'), 0, 5),
         ]]);
 
-        // Build the two copy-paste schedules for the chosen date.
-        $tenant = app(TenantContext::class)->current();
         $isBM = app()->getLocale() === 'ms';
-        $businessName = $tenant?->business_name;
 
-        $cleaningForSchedule = $scheduleDate->isSameDay($today)
-            ? $todayTasks
-            : CleaningTask::query()
-                ->with(['property:id,name', 'room:id,name'])
-                ->whereDate('scheduled_at', $scheduleDate)
-                ->orderBy('scheduled_at')
-                ->get();
+        // Per-task copy-paste text (emoji-rich) — one "Copy text" button per
+        // created schedule, keyed by task id. Copy keeps emoji (clipboard is
+        // safe, unlike the old WhatsApp share-link handoff).
+        $cleaningCopy = [];
+        foreach ($todayTasks as $t) {
+            $cleaningCopy[$t->id] = $this->cleaningTaskText($t, $isBM);
+        }
+        foreach ($upcoming as $t) {
+            $cleaningCopy[$t->id] = $this->cleaningTaskText($t, $isBM);
+        }
 
-        $laundryForSchedule = LaundryTask::query()
-            ->with('property:id,name')
-            ->whereDate('pickup_at', $scheduleDate)
-            ->orderBy('pickup_at')
-            ->get();
-
-        // Emoji-rich version drives the on-screen preview + the Copy button;
-        // the plain (emoji-free) version is what the "Share on WhatsApp" link
-        // sends, because the mobile browser → WhatsApp app handoff mangles emoji.
-        $cleaningSchedule = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName, true);
-        $cleaningShare = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName, false);
-        $laundrySchedule = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, true);
-        $laundryShare = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, false);
-
-        // Copyable multi-day brief for the next 7 days (grouped by date).
-        $upcomingSchedule = $this->buildUpcomingCleaningSchedule($upcoming, $isBM, $businessName, true);
-        $upcomingShare = $this->buildUpcomingCleaningSchedule($upcoming, $isBM, $businessName, false);
+        $laundryCopy = [];
+        foreach ($laundry as $t) {
+            $laundryCopy[$t->id] = $this->laundryTaskText($t, $isBM);
+        }
 
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
@@ -134,12 +121,8 @@ class HousekeepingController extends Controller
             'properties' => $properties,
             'propertyTimes' => $propertyTimes,
             'scheduleDate' => $scheduleDate,
-            'cleaningSchedule' => $cleaningSchedule,
-            'cleaningShare' => $cleaningShare,
-            'laundrySchedule' => $laundrySchedule,
-            'laundryShare' => $laundryShare,
-            'upcomingSchedule' => $upcomingSchedule,
-            'upcomingShare' => $upcomingShare,
+            'cleaningCopy' => $cleaningCopy,
+            'laundryCopy' => $laundryCopy,
         ]);
     }
 
@@ -203,134 +186,50 @@ class HousekeepingController extends Controller
     }
 
     /**
-     * Plain-text cleaning schedule for a given date, formatted to copy-paste
-     * straight into a WhatsApp cleaner group (WhatsApp *bold* markup).
-     *
-     * $withEmoji = true  → emoji-rich (on-screen preview + Copy button).
-     * $withEmoji = false → emoji-free with text labels for the "Share on WhatsApp"
-     *   link, since the mobile browser → WhatsApp app handoff mangles emoji into "�".
+     * Emoji-rich copy-paste text for a single cleaning task — drives the
+     * per-task "Copy text" button (clipboard keeps emoji fine).
      */
-    private function buildCleaningSchedule($tasks, Carbon $date, bool $isBM, ?string $businessName, bool $withEmoji = true): string
+    private function cleaningTaskText(CleaningTask $t, bool $isBM): string
     {
-        $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
-
         $lines = [];
-        $lines[] = ($withEmoji ? '🧹 ' : '').($isBM ? '*Jadual Pembersihan*' : '*Cleaning Schedule*');
-        if ($businessName) {
-            $lines[] = $businessName;
+        $lines[] = '🧹 *'.($t->property?->name ?? '—').'*';
+        if ($t->scheduled_at) {
+            $lines[] = '📅 '.$t->scheduled_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+            $lines[] = '⏰ '.$t->scheduled_at->format('g:i A');
         }
-        $lines[] = $withEmoji ? '📅 '.$dateLabel : ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
-        $lines[] = '';
-
-        if ($tasks->isEmpty()) {
-            $lines[] = $isBM ? '_Tiada tugasan pembersihan._' : '_No cleaning tasks._';
-        } else {
-            $i = 1;
-            foreach ($tasks as $t) {
-                $time = $t->scheduled_at ? $t->scheduled_at->format('g:i A') : '—';
-                $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
-                $lines[] = '   '.($withEmoji ? '⏰ ' : ($isBM ? 'Masa: ' : 'Time: ')).$time;
-                $lines[] = '   '.($withEmoji ? '🧹 ' : ($isBM ? 'Jenis: ' : 'Type: ')).$this->cleaningTypeLabel((string) $t->type, $isBM);
-                if ($t->room) {
-                    $lines[] = '   '.($withEmoji ? '🛏️ ' : ($isBM ? 'Bilik: ' : 'Room: ')).$t->room->name;
-                }
-                if ($t->notes) {
-                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, $withEmoji));
-                }
-                $lines[] = '';
-                $i++;
-            }
-            $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$tasks->count().($isBM ? ' tugasan' : ' task(s)');
+        $lines[] = '🧽 '.$this->cleaningTypeLabel((string) $t->type, $isBM);
+        if ($t->room) {
+            $lines[] = '🛏️ '.$t->room->name;
         }
-
-        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
+        if ($t->notes) {
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
+        }
 
         return implode("\n", $lines);
     }
 
     /**
-     * Copyable cleaning brief for the next 7 days, grouped by date — lets the
-     * host copy/share the whole upcoming list at once (the per-day card only
-     * builds one date). $withEmoji works the same as buildCleaningSchedule().
+     * Emoji-rich copy-paste text for a single laundry batch — drives the
+     * per-batch "Copy text" button.
      */
-    private function buildUpcomingCleaningSchedule($tasks, bool $isBM, ?string $businessName, bool $withEmoji = true): string
+    private function laundryTaskText(LaundryTask $t, bool $isBM): string
     {
         $lines = [];
-        $lines[] = ($withEmoji ? '🧹 ' : '').($isBM ? '*Jadual Pembersihan — 7 Hari Akan Datang*' : '*Cleaning Schedule — Next 7 Days*');
-        if ($businessName) {
-            $lines[] = $businessName;
+        $lines[] = '🧺 *'.($t->property?->name ?? '—').'*';
+        if ($t->pickup_at) {
+            $lines[] = '📅 '.$t->pickup_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+            $lines[] = '⏰ '.($isBM ? 'Ambil: ' : 'Pickup: ').$t->pickup_at->format('g:i A');
         }
-        $lines[] = '';
-
-        if ($tasks->isEmpty()) {
-            $lines[] = $isBM ? '_Tiada tugasan akan datang._' : '_No upcoming tasks._';
-        } else {
-            $grouped = $tasks->groupBy(fn ($t) => $t->scheduled_at?->format('Y-m-d'));
-            foreach ($grouped as $day => $dayTasks) {
-                $dateLabel = Carbon::parse($day)->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
-                $lines[] = ($withEmoji ? '📅 ' : '').'*'.$dateLabel.'*';
-                $i = 1;
-                foreach ($dayTasks as $t) {
-                    $time = $t->scheduled_at ? $t->scheduled_at->format('g:i A') : '—';
-                    $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
-                    $lines[] = '   '.($withEmoji ? '⏰ ' : ($isBM ? 'Masa: ' : 'Time: ')).$time;
-                    $lines[] = '   '.($withEmoji ? '🧹 ' : ($isBM ? 'Jenis: ' : 'Type: ')).$this->cleaningTypeLabel((string) $t->type, $isBM);
-                    $i++;
-                }
-                $lines[] = '';
-            }
+        $lines[] = '📦 '.((int) $t->item_count).($isBM ? ' helai/item' : ' items');
+        if ($t->expected_return_at) {
+            $lines[] = '🔄 '.($isBM ? 'Jangka pulang: ' : 'Return: ').$t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
         }
-
-        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
-
-        return implode("\n", $lines);
-    }
-
-    /**
-     * Plain-text laundry pickup schedule for a given date — copy-paste into the
-     * laundry vendor / dobi WhatsApp group. $withEmoji works the same as
-     * buildCleaningSchedule().
-     */
-    private function buildLaundrySchedule($tasks, Carbon $date, bool $isBM, ?string $businessName, bool $withEmoji = true): string
-    {
-        $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
-
-        $lines = [];
-        $lines[] = ($withEmoji ? '🧺 ' : '').($isBM ? '*Jadual Dobi (Cucian)*' : '*Laundry Schedule*');
-        if ($businessName) {
-            $lines[] = $businessName;
+        if ($t->vendor_name) {
+            $lines[] = '🏪 '.$t->vendor_name;
         }
-        $lines[] = $withEmoji ? '📅 '.$dateLabel : ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
-        $lines[] = '';
-
-        if ($tasks->isEmpty()) {
-            $lines[] = $isBM ? '_Tiada cucian untuk diambil._' : '_No laundry pickups._';
-        } else {
-            $i = 1;
-            $totalItems = 0;
-            foreach ($tasks as $t) {
-                $time = $t->pickup_at ? $t->pickup_at->format('g:i A') : '—';
-                $totalItems += (int) $t->item_count;
-                $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
-                $lines[] = '   '.($withEmoji ? '⏰ '.($isBM ? 'Ambil: ' : 'Pickup: ') : ($isBM ? 'Ambil: ' : 'Pickup: ')).$time;
-                $lines[] = '   '.($withEmoji ? '📦 ' : ($isBM ? 'Item: ' : 'Items: ')).((int) $t->item_count).($isBM ? ' helai/item' : ' items');
-                if ($t->expected_return_at) {
-                    $retLabel = $t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
-                    $lines[] = '   '.($withEmoji ? '🔄 ' : '').($isBM ? 'Jangka pulang: ' : 'Return: ').$retLabel;
-                }
-                if ($t->vendor_name) {
-                    $lines[] = '   '.($withEmoji ? '🏪 ' : ($isBM ? 'Vendor: ' : 'Vendor: ')).$t->vendor_name;
-                }
-                if ($t->notes) {
-                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, $withEmoji));
-                }
-                $lines[] = '';
-                $i++;
-            }
-            $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$totalItems.($isBM ? ' item dalam ' : ' items across ').$tasks->count().($isBM ? ' batch' : ' batch(es)');
+        if ($t->notes) {
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
         }
-
-        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
 
         return implode("\n", $lines);
     }
