@@ -153,6 +153,42 @@ class HousekeepingController extends Controller
     }
 
     /**
+     * Format a task's notes for the WhatsApp schedule. A single-line note stays
+     * inline ("Nota: text"); a multi-point note puts the label on its own line
+     * and each point on its own indented line below it, e.g.
+     *
+     *   Nota:
+     *   1. ...
+     *   2. ...
+     *
+     * @return array<int, string>
+     */
+    private function formatScheduleNotes(string $notes, bool $isBM): array
+    {
+        $label = $isBM ? 'Nota:' : 'Notes:';
+        $notes = trim($notes);
+
+        if ($notes === '') {
+            return [];
+        }
+
+        if (! str_contains($notes, "\n")) {
+            return ['   '.$label.' '.$notes];
+        }
+
+        $out = ['   '.$label];
+        foreach (preg_split('/\r\n|\r|\n/', $notes) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue; // drop blank lines for a tidy point list
+            }
+            $out[] = '   '.$line;
+        }
+
+        return $out;
+    }
+
+    /**
      * Plain-text cleaning schedule for a given date, formatted to copy-paste
      * straight into a WhatsApp cleaner group (WhatsApp *bold* markup).
      *
@@ -185,8 +221,7 @@ class HousekeepingController extends Controller
                     $lines[] = '   '.($isBM ? 'Bilik: ' : 'Room: ').$t->room->name;
                 }
                 if ($t->notes) {
-                    // Indent continuation lines so multi-line notes stay aligned.
-                    $lines[] = '   '.($isBM ? 'Nota: ' : 'Notes: ').str_replace("\n", "\n   ", $t->notes);
+                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
                 }
                 $lines[] = '';
                 $i++;
@@ -235,8 +270,7 @@ class HousekeepingController extends Controller
                     $lines[] = '   '.($isBM ? 'Vendor: ' : 'Vendor: ').$t->vendor_name;
                 }
                 if ($t->notes) {
-                    // Indent continuation lines so multi-line notes stay aligned.
-                    $lines[] = '   '.($isBM ? 'Nota: ' : 'Notes: ').str_replace("\n", "\n   ", $t->notes);
+                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
                 }
                 $lines[] = '';
                 $i++;
