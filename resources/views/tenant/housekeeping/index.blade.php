@@ -309,6 +309,17 @@
 
                 {{-- Upcoming --}}
                 @if ($upcoming->isNotEmpty())
+                    {{-- Copy-paste WhatsApp brief for the whole upcoming week --}}
+                    <x-housekeeping.schedule-card
+                        tab="cleaning"
+                        emoji="🗓️"
+                        :title="__('Next 7 days for WhatsApp')"
+                        :subtitle="__('Copy & paste the whole upcoming week')"
+                        :show-date-picker="false"
+                        :text="$upcomingSchedule"
+                        :share-text="$upcomingShare"
+                        refName="upsched"/>
+
                     <div>
                         <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming · next 7 days') }}</div>
                         <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">

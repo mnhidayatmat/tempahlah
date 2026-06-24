@@ -117,6 +117,10 @@ class HousekeepingController extends Controller
         $laundrySchedule = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, true);
         $laundryShare = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, false);
 
+        // Copyable multi-day brief for the next 7 days (grouped by date).
+        $upcomingSchedule = $this->buildUpcomingCleaningSchedule($upcoming, $isBM, $businessName, true);
+        $upcomingShare = $this->buildUpcomingCleaningSchedule($upcoming, $isBM, $businessName, false);
+
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
             'today' => $today,
@@ -134,6 +138,8 @@ class HousekeepingController extends Controller
             'cleaningShare' => $cleaningShare,
             'laundrySchedule' => $laundrySchedule,
             'laundryShare' => $laundryShare,
+            'upcomingSchedule' => $upcomingSchedule,
+            'upcomingShare' => $upcomingShare,
         ]);
     }
 
@@ -235,6 +241,44 @@ class HousekeepingController extends Controller
                 $i++;
             }
             $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$tasks->count().($isBM ? ' tugasan' : ' task(s)');
+        }
+
+        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Copyable cleaning brief for the next 7 days, grouped by date — lets the
+     * host copy/share the whole upcoming list at once (the per-day card only
+     * builds one date). $withEmoji works the same as buildCleaningSchedule().
+     */
+    private function buildUpcomingCleaningSchedule($tasks, bool $isBM, ?string $businessName, bool $withEmoji = true): string
+    {
+        $lines = [];
+        $lines[] = ($withEmoji ? '🧹 ' : '').($isBM ? '*Jadual Pembersihan — 7 Hari Akan Datang*' : '*Cleaning Schedule — Next 7 Days*');
+        if ($businessName) {
+            $lines[] = $businessName;
+        }
+        $lines[] = '';
+
+        if ($tasks->isEmpty()) {
+            $lines[] = $isBM ? '_Tiada tugasan akan datang._' : '_No upcoming tasks._';
+        } else {
+            $grouped = $tasks->groupBy(fn ($t) => $t->scheduled_at?->format('Y-m-d'));
+            foreach ($grouped as $day => $dayTasks) {
+                $dateLabel = Carbon::parse($day)->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+                $lines[] = ($withEmoji ? '📅 ' : '').'*'.$dateLabel.'*';
+                $i = 1;
+                foreach ($dayTasks as $t) {
+                    $time = $t->scheduled_at ? $t->scheduled_at->format('g:i A') : '—';
+                    $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
+                    $lines[] = '   '.($withEmoji ? '⏰ ' : ($isBM ? 'Masa: ' : 'Time: ')).$time;
+                    $lines[] = '   '.($withEmoji ? '🧹 ' : ($isBM ? 'Jenis: ' : 'Type: ')).$this->cleaningTypeLabel((string) $t->type, $isBM);
+                    $i++;
+                }
+                $lines[] = '';
+            }
         }
 
         $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');

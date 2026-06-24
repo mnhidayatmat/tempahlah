@@ -3,7 +3,8 @@
     'title',
     'subtitle' => null,
     'emoji' => '📋',
-    'scheduleDate',
+    'scheduleDate' => null,
+    'showDatePicker' => true,
     'text',
     'shareText' => null,
     'refName' => 'sched',
@@ -50,12 +51,14 @@
                 @endif
             </div>
         </div>
-        <form method="GET" action="{{ route('tenant.housekeeping.index') }}" style="display:flex; gap:6px; align-items:center;">
-            <input type="hidden" name="tab" value="{{ $tab }}">
-            <x-icon name="calendar" :size="14" style="color:var(--ink-3);"/>
-            <input type="date" name="schedule_date" value="{{ $scheduleDate->format('Y-m-d') }}" class="input"
-                   style="width:auto; padding:6px 10px; font-size:12px;" onchange="this.form.submit()">
-        </form>
+        @if ($showDatePicker && $scheduleDate)
+            <form method="GET" action="{{ route('tenant.housekeeping.index') }}" style="display:flex; gap:6px; align-items:center;">
+                <input type="hidden" name="tab" value="{{ $tab }}">
+                <x-icon name="calendar" :size="14" style="color:var(--ink-3);"/>
+                <input type="date" name="schedule_date" value="{{ $scheduleDate->format('Y-m-d') }}" class="input"
+                       style="width:auto; padding:6px 10px; font-size:12px;" onchange="this.form.submit()">
+            </form>
+        @endif
     </div>
 
     <div x-data="{ copied: false }">
