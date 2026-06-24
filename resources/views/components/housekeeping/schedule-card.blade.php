@@ -78,8 +78,12 @@
                 <span x-show="copied" style="display:inline-flex; color:var(--ok);"><x-icon name="check" :size="14"/></span>
                 <span x-text="copied ? @js(__('Copied!')) : @js(__('Copy text'))"></span>
             </button>
+            {{-- Build the share URL client-side from the exact textarea value the
+                 Copy button uses, so the emoji bytes match the working copy path
+                 (encodeURIComponent always emits UTF-8 percent-encoding). --}}
             <a href="https://wa.me/?text={{ rawurlencode($text) }}" target="_blank" rel="noopener"
                class="btn btn-sm"
+               @click.prevent="window.open('https://wa.me/?text=' + encodeURIComponent($refs.{{ $refName }}.value), '_blank', 'noopener')"
                style="display:inline-flex; align-items:center; gap:6px; background:#25d366; border-color:#25d366; color:#fff;">
                 <x-icon name="message" :size="14"/> {{ __('Share on WhatsApp') }}
             </a>
