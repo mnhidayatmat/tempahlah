@@ -107,6 +107,7 @@
                     :subtitle="__('Copy & paste into your cleaner group')"
                     :schedule-date="$scheduleDate"
                     :text="$cleaningSchedule"
+                    :share-text="$cleaningShare"
                     refName="clsched"/>
 
                 {{-- Inline new-cleaning-task form --}}
@@ -372,6 +373,7 @@
                     :subtitle="__('Copy & paste into your laundry / dobi group')"
                     :schedule-date="$scheduleDate"
                     :text="$laundrySchedule"
+                    :share-text="$laundryShare"
                     refName="ldsched"/>
 
                 {{-- Inline log-laundry-batch form --}}

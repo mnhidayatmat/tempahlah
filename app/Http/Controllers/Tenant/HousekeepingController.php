@@ -109,8 +109,13 @@ class HousekeepingController extends Controller
             ->orderBy('pickup_at')
             ->get();
 
-        $cleaningSchedule = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName);
-        $laundrySchedule = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName);
+        // Emoji-rich version drives the on-screen preview + the Copy button;
+        // the plain (emoji-free) version is what the "Share on WhatsApp" link
+        // sends, because the mobile browser → WhatsApp app handoff mangles emoji.
+        $cleaningSchedule = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName, true);
+        $cleaningShare = $this->buildCleaningSchedule($cleaningForSchedule, $scheduleDate, $isBM, $businessName, false);
+        $laundrySchedule = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, true);
+        $laundryShare = $this->buildLaundrySchedule($laundryForSchedule, $scheduleDate, $isBM, $businessName, false);
 
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
@@ -126,7 +131,9 @@ class HousekeepingController extends Controller
             'propertyTimes' => $propertyTimes,
             'scheduleDate' => $scheduleDate,
             'cleaningSchedule' => $cleaningSchedule,
+            'cleaningShare' => $cleaningShare,
             'laundrySchedule' => $laundrySchedule,
+            'laundryShare' => $laundryShare,
         ]);
     }
 
@@ -163,9 +170,9 @@ class HousekeepingController extends Controller
      *
      * @return array<int, string>
      */
-    private function formatScheduleNotes(string $notes, bool $isBM): array
+    private function formatScheduleNotes(string $notes, bool $isBM, bool $withEmoji = true): array
     {
-        $label = $isBM ? 'Nota:' : 'Notes:';
+        $label = $withEmoji ? '📝' : ($isBM ? 'Nota:' : 'Notes:');
         $notes = trim($notes);
 
         if ($notes === '') {
@@ -192,20 +199,20 @@ class HousekeepingController extends Controller
      * Plain-text cleaning schedule for a given date, formatted to copy-paste
      * straight into a WhatsApp cleaner group (WhatsApp *bold* markup).
      *
-     * Deliberately emoji-free: the mobile browser → WhatsApp app handoff can
-     * mangle multi-byte emoji into "�", so we use plain text labels that always
-     * survive. The on-screen card still shows an emoji header chip.
+     * $withEmoji = true  → emoji-rich (on-screen preview + Copy button).
+     * $withEmoji = false → emoji-free with text labels for the "Share on WhatsApp"
+     *   link, since the mobile browser → WhatsApp app handoff mangles emoji into "�".
      */
-    private function buildCleaningSchedule($tasks, Carbon $date, bool $isBM, ?string $businessName): string
+    private function buildCleaningSchedule($tasks, Carbon $date, bool $isBM, ?string $businessName, bool $withEmoji = true): string
     {
         $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
 
         $lines = [];
-        $lines[] = $isBM ? '*Jadual Pembersihan*' : '*Cleaning Schedule*';
+        $lines[] = ($withEmoji ? '🧹 ' : '').($isBM ? '*Jadual Pembersihan*' : '*Cleaning Schedule*');
         if ($businessName) {
             $lines[] = $businessName;
         }
-        $lines[] = ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
+        $lines[] = $withEmoji ? '📅 '.$dateLabel : ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
         $lines[] = '';
 
         if ($tasks->isEmpty()) {
@@ -215,13 +222,13 @@ class HousekeepingController extends Controller
             foreach ($tasks as $t) {
                 $time = $t->scheduled_at ? $t->scheduled_at->format('g:i A') : '—';
                 $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
-                $lines[] = '   '.($isBM ? 'Masa: ' : 'Time: ').$time;
-                $lines[] = '   '.($isBM ? 'Jenis: ' : 'Type: ').$this->cleaningTypeLabel((string) $t->type, $isBM);
+                $lines[] = '   '.($withEmoji ? '⏰ ' : ($isBM ? 'Masa: ' : 'Time: ')).$time;
+                $lines[] = '   '.($withEmoji ? '🧹 ' : ($isBM ? 'Jenis: ' : 'Type: ')).$this->cleaningTypeLabel((string) $t->type, $isBM);
                 if ($t->room) {
-                    $lines[] = '   '.($isBM ? 'Bilik: ' : 'Room: ').$t->room->name;
+                    $lines[] = '   '.($withEmoji ? '🛏️ ' : ($isBM ? 'Bilik: ' : 'Room: ')).$t->room->name;
                 }
                 if ($t->notes) {
-                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
+                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, $withEmoji));
                 }
                 $lines[] = '';
                 $i++;
@@ -229,26 +236,26 @@ class HousekeepingController extends Controller
             $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$tasks->count().($isBM ? ' tugasan' : ' task(s)');
         }
 
-        $lines[] = $isBM ? 'Terima kasih!' : 'Thank you!';
+        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
 
         return implode("\n", $lines);
     }
 
     /**
      * Plain-text laundry pickup schedule for a given date — copy-paste into the
-     * laundry vendor / dobi WhatsApp group. Emoji-free for the same reason as
-     * buildCleaningSchedule() (WhatsApp app handoff mangles emoji).
+     * laundry vendor / dobi WhatsApp group. $withEmoji works the same as
+     * buildCleaningSchedule().
      */
-    private function buildLaundrySchedule($tasks, Carbon $date, bool $isBM, ?string $businessName): string
+    private function buildLaundrySchedule($tasks, Carbon $date, bool $isBM, ?string $businessName, bool $withEmoji = true): string
     {
         $dateLabel = $date->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
 
         $lines = [];
-        $lines[] = $isBM ? '*Jadual Dobi (Cucian)*' : '*Laundry Schedule*';
+        $lines[] = ($withEmoji ? '🧺 ' : '').($isBM ? '*Jadual Dobi (Cucian)*' : '*Laundry Schedule*');
         if ($businessName) {
             $lines[] = $businessName;
         }
-        $lines[] = ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
+        $lines[] = $withEmoji ? '📅 '.$dateLabel : ($isBM ? 'Tarikh: ' : 'Date: ').$dateLabel;
         $lines[] = '';
 
         if ($tasks->isEmpty()) {
@@ -260,17 +267,17 @@ class HousekeepingController extends Controller
                 $time = $t->pickup_at ? $t->pickup_at->format('g:i A') : '—';
                 $totalItems += (int) $t->item_count;
                 $lines[] = $i.'. *'.($t->property?->name ?? '—').'*';
-                $lines[] = '   '.($isBM ? 'Ambil: ' : 'Pickup: ').$time;
-                $lines[] = '   '.($isBM ? 'Item: ' : 'Items: ').((int) $t->item_count).($isBM ? ' helai/item' : ' items');
+                $lines[] = '   '.($withEmoji ? '⏰ '.($isBM ? 'Ambil: ' : 'Pickup: ') : ($isBM ? 'Ambil: ' : 'Pickup: ')).$time;
+                $lines[] = '   '.($withEmoji ? '📦 ' : ($isBM ? 'Item: ' : 'Items: ')).((int) $t->item_count).($isBM ? ' helai/item' : ' items');
                 if ($t->expected_return_at) {
                     $retLabel = $t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
-                    $lines[] = '   '.($isBM ? 'Jangka pulang: ' : 'Return: ').$retLabel;
+                    $lines[] = '   '.($withEmoji ? '🔄 ' : '').($isBM ? 'Jangka pulang: ' : 'Return: ').$retLabel;
                 }
                 if ($t->vendor_name) {
-                    $lines[] = '   '.($isBM ? 'Vendor: ' : 'Vendor: ').$t->vendor_name;
+                    $lines[] = '   '.($withEmoji ? '🏪 ' : ($isBM ? 'Vendor: ' : 'Vendor: ')).$t->vendor_name;
                 }
                 if ($t->notes) {
-                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
+                    $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, $withEmoji));
                 }
                 $lines[] = '';
                 $i++;
@@ -278,7 +285,7 @@ class HousekeepingController extends Controller
             $lines[] = ($isBM ? 'Jumlah: ' : 'Total: ').$totalItems.($isBM ? ' item dalam ' : ' items across ').$tasks->count().($isBM ? ' batch' : ' batch(es)');
         }
 
-        $lines[] = $isBM ? 'Terima kasih!' : 'Thank you!';
+        $lines[] = ($isBM ? 'Terima kasih!' : 'Thank you!').($withEmoji ? ' 🙏' : '');
 
         return implode("\n", $lines);
     }
