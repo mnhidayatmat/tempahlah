@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cleaner;
 use App\Models\CleaningTask;
 use App\Models\LaundryTask;
+use App\Models\LaundryVendor;
 use App\Models\MaintenanceTicket;
 use App\Models\Property;
 use App\Support\Tenancy\TenantContext;
@@ -56,7 +57,7 @@ class HousekeepingController extends Controller
         ];
 
         $laundry = LaundryTask::query()
-            ->with(['property:id,name'])
+            ->with(['property:id,name', 'vendor:id,name,phone'])
             ->where('pickup_at', '>=', $today->copy()->subDays(14))
             ->orderByDesc('pickup_at')
             ->get();
@@ -84,8 +85,9 @@ class HousekeepingController extends Controller
 
         $properties = Property::query()->orderBy('name')->get(['id', 'name', 'check_in_time', 'check_out_time']);
 
-        // Active cleaners for the "assign cleaner" dropdowns.
+        // Active cleaners + laundry vendors for the "assign" dropdowns.
         $cleaners = Cleaner::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']);
+        $laundryVendors = LaundryVendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']);
 
         // Per-property check-in/out wall-clock times (HH:MM) — drives the
         // auto-default scheduled times in the create forms (client-side).
@@ -124,6 +126,7 @@ class HousekeepingController extends Controller
             'maintenanceStats' => $maintenanceStats,
             'properties' => $properties,
             'cleaners' => $cleaners,
+            'laundryVendors' => $laundryVendors,
             'propertyTimes' => $propertyTimes,
             'scheduleDate' => $scheduleDate,
             'cleaningCopy' => $cleaningCopy,
@@ -232,8 +235,9 @@ class HousekeepingController extends Controller
         if ($t->expected_return_at) {
             $lines[] = '🔄 '.($isBM ? 'Jangka pulang: ' : 'Return: ').$t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
         }
-        if ($t->vendor_name) {
-            $lines[] = '🏪 '.$t->vendor_name;
+        $vendor = $t->vendor?->name ?? $t->vendor_name;
+        if ($vendor) {
+            $lines[] = '🏪 '.$vendor.($t->vendor?->phone ? ' ('.$t->vendor->phone.')' : '');
         }
         if ($t->notes) {
             $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
@@ -279,7 +283,7 @@ class HousekeepingController extends Controller
 
         $validated = $request->validate([
             'property_id' => 'required|exists:properties,id',
-            'vendor_name' => 'nullable|string|max:120',
+            'vendor_id' => 'nullable|exists:laundry_vendors,id',
             'pickup_at' => 'required|date',
             'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
             'item_count' => 'required|integer|min:1|max:9999',
@@ -290,7 +294,7 @@ class HousekeepingController extends Controller
         LaundryTask::create([
             'tenant_id' => $tenant->id,
             'property_id' => $validated['property_id'],
-            'vendor_name' => $validated['vendor_name'] ?? null,
+            'vendor_id' => $validated['vendor_id'] ?? null,
             'status' => LaundryTask::STATUS_PENDING,
             'cost' => $validated['cost'] ?? null,
             'pickup_at' => Carbon::parse($validated['pickup_at']),
@@ -398,7 +402,7 @@ class HousekeepingController extends Controller
         if ($action === 'edit') {
             $validated = $request->validate([
                 'property_id' => 'required|exists:properties,id',
-                'vendor_name' => 'nullable|string|max:120',
+                'vendor_id' => 'nullable|exists:laundry_vendors,id',
                 'status' => 'required|in:pending,picked_up,returned,cancelled',
                 'pickup_at' => 'required|date',
                 'expected_return_at' => 'nullable|date|after_or_equal:pickup_at',
@@ -409,7 +413,7 @@ class HousekeepingController extends Controller
 
             $task->fill([
                 'property_id' => $validated['property_id'],
-                'vendor_name' => $validated['vendor_name'] ?? null,
+                'vendor_id' => $validated['vendor_id'] ?? null,
                 'pickup_at' => Carbon::parse($validated['pickup_at']),
                 'expected_return_at' => isset($validated['expected_return_at'])
                     ? Carbon::parse($validated['expected_return_at'])

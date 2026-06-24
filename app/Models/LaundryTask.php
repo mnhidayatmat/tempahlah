@@ -19,7 +19,7 @@ class LaundryTask extends Model
 
     protected $fillable = [
         'tenant_id', 'property_id', 'booking_id',
-        'assigned_to_user_id', 'vendor_name',
+        'assigned_to_user_id', 'vendor_name', 'vendor_id',
         'status', 'cost', 'pickup_at', 'picked_up_at',
         'expected_return_at', 'returned_at',
         'item_count', 'items', 'notes',
@@ -47,5 +47,10 @@ class LaundryTask extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_user_id');
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(LaundryVendor::class, 'vendor_id');
     }
 }

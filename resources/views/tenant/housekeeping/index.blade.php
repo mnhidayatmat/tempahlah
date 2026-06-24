@@ -247,7 +247,17 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
-                            <input type="text" name="vendor_name" class="input" maxlength="120" placeholder="{{ __('e.g. Dobi Mesra') }}">
+                            <select name="vendor_id" class="input">
+                                <option value="">{{ __('— Unassigned —') }}</option>
+                                @foreach ($laundryVendors as $v)
+                                    <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                @endforeach
+                            </select>
+                            @if ($laundryVendors->isEmpty())
+                                <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">
+                                    <a href="{{ route('tenant.laundry-vendors.index') }}" style="color: var(--primary);">{{ __('Register a vendor') }}</a>
+                                </div>
+                            @endif
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Item count') }} *</label>
@@ -300,7 +310,7 @@
                                     </div>
                                     <div style="min-width: 0;">
                                         <div style="font-size: 12.5px; color: var(--ink-2);">{{ $l->item_count }} {{ __('items') }}</div>
-                                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor_name ?? __('Self-service') }}</div>
+                                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor?->name ?? $l->vendor_name ?? __('Self-service') }}</div>
                                     </div>
                                     <div>
                                         <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
@@ -365,7 +375,12 @@
                                         </div>
                                         <div>
                                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
-                                            <input type="text" name="vendor_name" class="input" maxlength="120" value="{{ $l->vendor_name }}" placeholder="{{ __('e.g. Dobi Mesra') }}">
+                                            <select name="vendor_id" class="input">
+                                                <option value="">{{ __('— Unassigned —') }}</option>
+                                                @foreach ($laundryVendors as $v)
+                                                    <option value="{{ $v->id }}" @selected($l->vendor_id == $v->id)>{{ $v->name }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div>
                                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>

@@ -13,6 +13,7 @@ use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\HousekeepingController;
 use App\Http\Controllers\Tenant\IntegrationController;
+use App\Http\Controllers\Tenant\LaundryVendorController;
 use App\Http\Controllers\Tenant\PaymentController;
 use App\Http\Controllers\Tenant\PropertyController;
 use App\Http\Controllers\Tenant\PropertyPhotoController;
@@ -206,6 +207,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/cleaners',            [CleanerController::class, 'store'])->name('cleaners.store');
         Route::patch('/cleaners/{id}',      [CleanerController::class, 'update'])->name('cleaners.update');
         Route::delete('/cleaners/{id}',     [CleanerController::class, 'destroy'])->name('cleaners.destroy');
+        Route::get('/laundry-vendors',      [LaundryVendorController::class, 'index'])->name('laundry-vendors.index');
+        Route::post('/laundry-vendors',     [LaundryVendorController::class, 'store'])->name('laundry-vendors.store');
+        Route::patch('/laundry-vendors/{id}', [LaundryVendorController::class, 'update'])->name('laundry-vendors.update');
+        Route::delete('/laundry-vendors/{id}', [LaundryVendorController::class, 'destroy'])->name('laundry-vendors.destroy');
         Route::get('/payments',             [PaymentController::class, 'index'])->name('payments.index');
         Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
         Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
