@@ -9,18 +9,6 @@ use Illuminate\Http\Request;
 
 class LaundryVendorController extends Controller
 {
-    public function index()
-    {
-        $vendors = LaundryVendor::withCount('laundryTasks')
-            ->orderByDesc('is_active')
-            ->orderBy('name')
-            ->get();
-
-        return view('tenant.laundry-vendors.index', [
-            'vendors' => $vendors,
-        ]);
-    }
-
     public function store(Request $request)
     {
         $tenant = app(TenantContext::class)->current();
@@ -41,7 +29,7 @@ class LaundryVendorController extends Controller
         ]);
 
         return redirect()
-            ->route('tenant.laundry-vendors.index')
+            ->route('tenant.directory.index', ['tab' => 'vendors'])
             ->with('status', __('Vendor added.'));
     }
 
@@ -64,7 +52,7 @@ class LaundryVendorController extends Controller
         ]);
 
         return redirect()
-            ->route('tenant.laundry-vendors.index')
+            ->route('tenant.directory.index', ['tab' => 'vendors'])
             ->with('status', __('Vendor updated.'));
     }
 
@@ -73,7 +61,7 @@ class LaundryVendorController extends Controller
         LaundryVendor::findOrFail($id)->delete();
 
         return redirect()
-            ->route('tenant.laundry-vendors.index')
+            ->route('tenant.directory.index', ['tab' => 'vendors'])
             ->with('status', __('Vendor removed.'));
     }
 }

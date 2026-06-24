@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cleaner;
+use App\Models\MaintenancePerson;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 
-class CleanerController extends Controller
+class MaintenancePersonController extends Controller
 {
     public function store(Request $request)
     {
@@ -20,7 +20,7 @@ class CleanerController extends Controller
             'email' => 'nullable|email|max:160',
         ]);
 
-        Cleaner::create([
+        MaintenancePerson::create([
             'tenant_id' => $tenant->id,
             'name' => $validated['name'],
             'phone' => $validated['phone'] ?? null,
@@ -29,13 +29,13 @@ class CleanerController extends Controller
         ]);
 
         return redirect()
-            ->route('tenant.directory.index', ['tab' => 'cleaners'])
-            ->with('status', __('Cleaner added.'));
+            ->route('tenant.directory.index', ['tab' => 'maintenance'])
+            ->with('status', __('Maintenance person added.'));
     }
 
     public function update(Request $request, int $id)
     {
-        $cleaner = Cleaner::findOrFail($id);
+        $person = MaintenancePerson::findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:120',
@@ -44,7 +44,7 @@ class CleanerController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $cleaner->update([
+        $person->update([
             'name' => $validated['name'],
             'phone' => $validated['phone'] ?? null,
             'email' => $validated['email'] ?? null,
@@ -52,16 +52,16 @@ class CleanerController extends Controller
         ]);
 
         return redirect()
-            ->route('tenant.directory.index', ['tab' => 'cleaners'])
-            ->with('status', __('Cleaner updated.'));
+            ->route('tenant.directory.index', ['tab' => 'maintenance'])
+            ->with('status', __('Maintenance person updated.'));
     }
 
     public function destroy(int $id)
     {
-        Cleaner::findOrFail($id)->delete();
+        MaintenancePerson::findOrFail($id)->delete();
 
         return redirect()
-            ->route('tenant.directory.index', ['tab' => 'cleaners'])
-            ->with('status', __('Cleaner removed.'));
+            ->route('tenant.directory.index', ['tab' => 'maintenance'])
+            ->with('status', __('Maintenance person removed.'));
     }
 }

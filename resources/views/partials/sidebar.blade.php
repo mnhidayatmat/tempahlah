@@ -12,8 +12,7 @@
             ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index',      'badge' => $pendingBookings ?: null, 'tour' => 'bookings'],
             ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index',        'tour' => 'guests'],
             ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index',  'badge' => $openCleaning ?: null, 'tour' => 'housekeeping'],
-            ['key' => 'tenant.cleaners.*',      'label' => __('Cleaners'),    'icon' => 'users',    'route' => 'tenant.cleaners.index'],
-            ['key' => 'tenant.laundry-vendors.*', 'label' => __('Laundry vendors'), 'icon' => 'users', 'route' => 'tenant.laundry-vendors.index'],
+            ['key' => 'tenant.directory.*',     'label' => __('Directory'),   'icon' => 'users',    'route' => 'tenant.directory.index'],
         ]],
         ['title' => __('Manage'), 'items' => [
             ['key' => 'tenant.properties.*',    'label' => __('Properties'),  'icon' => 'building', 'route' => 'tenant.properties.index',    'tour' => 'properties'],

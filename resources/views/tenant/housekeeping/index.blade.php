@@ -151,7 +151,7 @@
                             </select>
                             @if ($cleaners->isEmpty())
                                 <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">
-                                    <a href="{{ route('tenant.cleaners.index') }}" style="color: var(--primary);">{{ __('Register a cleaner') }}</a>
+                                    <a href="{{ route('tenant.directory.index', ['tab' => 'cleaners']) }}" style="color: var(--primary);">{{ __('Register a cleaner') }}</a>
                                 </div>
                             @endif
                         </div>
@@ -255,7 +255,7 @@
                             </select>
                             @if ($laundryVendors->isEmpty())
                                 <div style="font-size: 10.5px; color: var(--ink-3); margin-top: 3px;">
-                                    <a href="{{ route('tenant.laundry-vendors.index') }}" style="color: var(--primary);">{{ __('Register a vendor') }}</a>
+                                    <a href="{{ route('tenant.directory.index', ['tab' => 'vendors']) }}" style="color: var(--primary);">{{ __('Register a vendor') }}</a>
                                 </div>
                             @endif
                         </div>
