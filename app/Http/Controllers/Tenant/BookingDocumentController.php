@@ -56,7 +56,7 @@ class BookingDocumentController extends Controller
 
         $document = $this->getOrCreateDocument($booking, $doc, $payment);
 
-        return $this->streamPdf($document, $booking);
+        return $this->streamPdf($document, $booking, $payment);
     }
 
     /**
@@ -95,6 +95,10 @@ class BookingDocumentController extends Controller
         }
 
         $document = $this->getOrCreateDocument($booking, $doc, $payment);
+
+        // Refresh the stored PDF from the current template/branding so the
+        // attachment (email) + signed URL (WhatsApp) carry the latest design.
+        $this->renderPdf($document, $booking, $payment);
 
         if ($doc === Invoice::TYPE_INVOICE) {
             $payUrl = $this->invoicePayUrl($booking);
@@ -161,26 +165,48 @@ class BookingDocumentController extends Controller
         );
     }
 
-    protected function streamPdf(Invoice $document, Booking $booking)
+    /**
+     * Render the document's PDF from the CURRENT template + tenant branding and
+     * refresh the stored file, then return the binary. Always re-rendering (vs.
+     * serving the stored file) means a template/branding change shows up
+     * immediately on "View PDF" and on the next email/WhatsApp send — the
+     * invoice number + line-item data stay as-issued (snapshotted on the
+     * record), only the design/branding refreshes.
+     */
+    protected function renderPdf(Invoice $document, Booking $booking, ?Payment $payment = null): string
     {
-        $disk = Storage::disk(config('filesystems.default'));
-
-        if ($document->pdf_path && $disk->exists($document->pdf_path)) {
-            return response($disk->get($document->pdf_path), 200, [
-                'Content-Type'        => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$document->invoice_number.'.pdf"',
-            ]);
-        }
-
-        // Fallback: render fresh from the record (e.g. stored file missing).
         $pdf = Pdf::loadView('pdf.invoice', [
             'invoice'  => $document,
             'tenant'   => $booking->tenant,
             'template' => $document->template,
             'booking'  => $booking,
+            'payment'  => $payment ?? $document->payment ?? $this->latestPaidPayment($booking),
         ]);
 
-        return $pdf->stream($document->invoice_number.'.pdf');
+        $binary = $pdf->output();
+
+        // Overwrite the stored file so email attachments + the WhatsApp signed
+        // URL carry the same fresh render. Non-fatal if storage hiccups.
+        try {
+            $path = $document->pdf_path
+                ?: "tenants/{$document->tenant_id}/invoices/{$document->invoice_number}.pdf";
+            Storage::disk(config('filesystems.default'))->put($path, $binary);
+            if ($document->pdf_path !== $path) {
+                $document->forceFill(['pdf_path' => $path])->save();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $binary;
+    }
+
+    protected function streamPdf(Invoice $document, Booking $booking, ?Payment $payment = null)
+    {
+        return response($this->renderPdf($document, $booking, $payment), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$document->invoice_number.'.pdf"',
+        ]);
     }
 
     /**
