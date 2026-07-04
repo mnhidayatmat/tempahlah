@@ -1,4 +1,56 @@
 <x-app-layout :title="__('New booking')">
+    @php($isBM = app()->getLocale() === 'ms')
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .avail-cal-nav {
+            width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
+            background: var(--bg-elev); color: var(--ink-2); cursor: pointer; font-size: 16px;
+            line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .avail-cal-nav:hover { background: var(--bg-sunk); }
+        .avail-cal-nav:disabled { opacity: .4; cursor: not-allowed; }
+        .avail-cal-week, .avail-cal-grid {
+            display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
+        }
+        .avail-cal-wd {
+            text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+            color: var(--ink-3); text-transform: uppercase; padding-bottom: 4px;
+        }
+        .avail-cal-cell {
+            aspect-ratio: 1 / 1; border: 1px solid var(--line); border-radius: 8px;
+            background: var(--bg-elev); color: var(--ink); font-size: 13px; font-weight: 500;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            padding: 0; transition: background .1s, border-color .1s;
+        }
+        .avail-cal-cell:hover:not(:disabled) { background: var(--primary-tint); border-color: var(--primary); }
+        .avail-cal-cell.is-empty { border: none; background: transparent; cursor: default; }
+        .avail-cal-cell.is-past { color: var(--ink-4); background: transparent; border-color: transparent; cursor: not-allowed; }
+        .avail-cal-cell.is-booked {
+            background: var(--err-tint); color: var(--err); border-color: var(--err-tint);
+            text-decoration: line-through; cursor: not-allowed;
+        }
+        .avail-cal-cell.is-range { background: var(--primary-tint); border-color: var(--primary-tint); }
+        .avail-cal-cell.is-in, .avail-cal-cell.is-out {
+            background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700;
+        }
+        .avail-cal-cell.is-today { box-shadow: inset 0 0 0 2px var(--primary); }
+        .avail-cal-legend {
+            display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px;
+            font-size: 11px; color: var(--ink-3);
+        }
+        .avail-cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .avail-cal-legend .dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+        .avail-cal-legend .dot-free { background: var(--bg-elev); border: 1px solid var(--line); }
+        .avail-cal-legend .dot-booked { background: var(--err-tint); border: 1px solid var(--err); }
+        .avail-cal-legend .dot-sel { background: var(--primary); }
+        .avail-cal-warn {
+            margin-top: 10px; padding: 9px 12px; border-radius: var(--r-md);
+            background: var(--err-tint); color: var(--err); border: 1px solid var(--err);
+            font-size: 12px; font-weight: 500;
+        }
+    </style>
+
     <div style="max-width: 880px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
 
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
@@ -42,11 +94,21 @@
                   x-data="{
                       roomFees: {{ Js::from($roomFees) }},
                       roomGuests: {{ Js::from($roomGuests) }},
+                      bookedByRoom: {{ Js::from($roomBookedDates) }},
+                      selectedRoom: '{{ old('room_id', $prefillRoomId ?? ($rooms->count() === 1 ? $rooms->first()->id : null)) }}',
+                      checkIn: '{{ old('check_in', $prefillCheckIn) }}',
+                      checkOut: '{{ old('check_out', $prefillCheckOut) }}',
+                      today: '{{ $today }}',
+                      tomorrow: '{{ $tomorrow }}',
+                      picking: 'in',
+                      calY: 2000,
+                      calM: 0,
                       bookingFee: '{{ old('deposit_amount') }}',
                       adults: {{ old('adults') !== null ? (int) old('adults') : 'null' }},
                       children: {{ (int) old('children', 0) }},
                       maxGuests: 30,
                       paymentReceived: '{{ old('payment_received', 'none') }}',
+                      weekdays: {{ Js::from($isBM ? ['Ahd','Isn','Sel','Rab','Kha','Jum','Sab'] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']) }},
                       applyGuestDefaults(id) {
                           // Follow the tenant's per-property guest setup: default
                           // the adults count to 'Default guests' and cap inputs at
@@ -58,33 +120,88 @@
                           if (this.children > g.max) this.children = g.max;
                       },
                       onRoomChange(id) {
+                          this.selectedRoom = id;
                           // Pre-fill the booking fee from the property's fee unless
                           // the host has already typed a custom amount.
                           if (this.bookingFee === '' && this.roomFees[id] != null) {
                               this.bookingFee = this.roomFees[id];
                           }
                           this.applyGuestDefaults(id);
+                          this.revalidateRange();
                       },
-                      syncCheckout() {
-                          // Keep check-out on or after the night following check-in,
-                          // so the stay always begins on the chosen check-in date.
-                          const ci = this.$refs.checkIn, co = this.$refs.checkOut;
-                          if (!ci || !co || !ci.value) return;
-                          const next = new Date(ci.value + 'T00:00:00');
-                          next.setDate(next.getDate() + 1);
-                          const min = next.toISOString().slice(0, 10);
-                          co.min = min;
-                          if (!co.value || co.value <= ci.value) co.value = min;
+                      /* ---- Availability helpers (occupied nights = [check_in, check_out)) ---- */
+                      pad(n) { return String(n).padStart(2, '0'); },
+                      ymd(y, m, d) { return y + '-' + this.pad(m + 1) + '-' + this.pad(d); },
+                      bookedSet() { return this.bookedByRoom[this.selectedRoom] || []; },
+                      isBooked(d) { return this.bookedSet().includes(d); },
+                      isPast(d) { return d < this.today; },
+                      isCheckIn(d) { return d === this.checkIn; },
+                      isCheckOut(d) { return d === this.checkOut; },
+                      inRange(d) { return this.checkIn && this.checkOut && d > this.checkIn && d < this.checkOut; },
+                      rangeWouldConflict(a, b) {
+                          for (const x of this.bookedSet()) { if (x >= a && x < b) return true; }
+                          return false;
+                      },
+                      rangeConflict() {
+                          if (!this.checkIn || !this.checkOut) return false;
+                          if (this.checkOut <= this.checkIn) return false;
+                          return this.rangeWouldConflict(this.checkIn, this.checkOut);
+                      },
+                      revalidateRange() {
+                          // On room change / typing, drop a range that no longer fits
+                          // the selected room's availability so the host re-picks.
+                          if (this.checkIn && this.isBooked(this.checkIn)) { this.checkIn = ''; this.checkOut = ''; this.picking = 'in'; return; }
+                          if (this.rangeConflict()) { this.checkOut = ''; this.picking = 'out'; }
+                      },
+                      pickDay(d) {
+                          if (!d || this.isPast(d) || this.isBooked(d)) return;
+                          if (this.picking === 'out' && d > this.checkIn && !this.rangeWouldConflict(this.checkIn, d)) {
+                              this.checkOut = d; this.picking = 'in'; return;
+                          }
+                          // Otherwise start a fresh range from this day.
+                          this.checkIn = d; this.checkOut = ''; this.picking = 'out';
+                      },
+                      minCheckOut() {
+                          if (!this.checkIn) return this.tomorrow;
+                          const dt = new Date(this.checkIn + 'T00:00:00');
+                          dt.setDate(dt.getDate() + 1);
+                          return this.ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+                      },
+                      afterCheckInChange() {
+                          if (this.checkOut && this.checkOut <= this.checkIn) this.checkOut = '';
+                          this.picking = this.checkOut ? 'in' : 'out';
+                          this.focusMonth(this.checkIn);
+                      },
+                      focusMonth(d) {
+                          const base = d || this.today;
+                          const dt = new Date(base + 'T00:00:00');
+                          this.calY = dt.getFullYear(); this.calM = dt.getMonth();
+                      },
+                      prevMonth() { if (this.calM === 0) { this.calM = 11; this.calY--; } else { this.calM--; } },
+                      nextMonth() { if (this.calM === 11) { this.calM = 0; this.calY++; } else { this.calM++; } },
+                      atMinMonth() { return this.ymd(this.calY, this.calM, 1) <= this.today.slice(0, 8) + '01'; },
+                      monthLabel() {
+                          return new Date(this.calY, this.calM, 1)
+                              .toLocaleDateString('{{ $isBM ? 'ms-MY' : 'en-MY' }}', { month: 'long', year: 'numeric' });
+                      },
+                      monthDays() {
+                          const first = new Date(this.calY, this.calM, 1);
+                          const startDow = first.getDay();
+                          const count = new Date(this.calY, this.calM + 1, 0).getDate();
+                          const cells = [];
+                          for (let i = 0; i < startDow; i++) cells.push(null);
+                          for (let d = 1; d <= count; d++) cells.push(this.ymd(this.calY, this.calM, d));
+                          return cells;
                       },
                   }"
                   x-init="
-                      if (bookingFee === '' && $refs.roomSelect && roomFees[$refs.roomSelect.value] != null) bookingFee = roomFees[$refs.roomSelect.value];
-                      if ($refs.roomSelect && roomGuests[$refs.roomSelect.value]) {
-                          maxGuests = roomGuests[$refs.roomSelect.value].max;
-                          if (adults === null) adults = roomGuests[$refs.roomSelect.value].default;
+                      if (bookingFee === '' && selectedRoom && roomFees[selectedRoom] != null) bookingFee = roomFees[selectedRoom];
+                      if (selectedRoom && roomGuests[selectedRoom]) {
+                          maxGuests = roomGuests[selectedRoom].max;
+                          if (adults === null) adults = roomGuests[selectedRoom].default;
                       }
                       if (adults === null) adults = {{ (int) $defaultGuests }};
-                      $nextTick(() => syncCheckout());
+                      focusMonth(checkIn);
                   ">
                 @csrf
 
@@ -94,7 +211,7 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                         <label style="grid-column: 1 / 3;">
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Room') }}</div>
-                            <select name="room_id" required class="input" x-ref="roomSelect" @change="onRoomChange($event.target.value)">
+                            <select name="room_id" required class="input" x-model="selectedRoom" @change="onRoomChange($event.target.value)">
                                 @if ($rooms->count() !== 1)
                                     <option value="">{{ __('— select a room —') }}</option>
                                 @endif
@@ -108,13 +225,70 @@
 
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-in') }}</div>
-                            <input type="date" name="check_in" required min="{{ $today }}" value="{{ old('check_in', $prefillCheckIn) }}" class="input" x-ref="checkIn" @change="syncCheckout()">
+                            <input type="date" name="check_in" required min="{{ $today }}" class="input" x-model="checkIn" @change="afterCheckInChange()">
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-out') }}</div>
-                            <input type="date" name="check_out" required min="{{ $tomorrow }}" value="{{ old('check_out', $prefillCheckOut) }}" class="input" x-ref="checkOut">
+                            <input type="date" name="check_out" required :min="minCheckOut()" class="input" x-model="checkOut">
                         </label>
+                    </div>
 
+                    {{-- Availability calendar — greys out nights already booked for
+                         the selected room so the host can't double-book. --}}
+                    <div class="avail-cal" style="margin-top:14px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <div style="font-size:12px; color:var(--ink-2); font-weight:600;" x-text="monthLabel()"></div>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="avail-cal-nav" @click="prevMonth()" :disabled="atMinMonth()" aria-label="{{ __('Previous month') }}">‹</button>
+                                <button type="button" class="avail-cal-nav" @click="nextMonth()" aria-label="{{ __('Next month') }}">›</button>
+                            </div>
+                        </div>
+
+                        <div style="font-size:12px; color:var(--ink-3); margin-bottom:8px;">
+                            <template x-if="!selectedRoom">
+                                <span>{{ __('Select a room to see its availability.') }}</span>
+                            </template>
+                            <template x-if="selectedRoom">
+                                <span x-text="picking === 'in' ? '{{ __('Tap a date to set check-in.') }}' : '{{ __('Now tap the check-out date.') }}'"></span>
+                            </template>
+                        </div>
+
+                        <div class="avail-cal-week">
+                            <template x-for="wd in weekdays" :key="wd">
+                                <div class="avail-cal-wd" x-text="wd"></div>
+                            </template>
+                        </div>
+                        <div class="avail-cal-grid">
+                            <template x-for="(d, i) in monthDays()" :key="i">
+                                <button type="button"
+                                        class="avail-cal-cell"
+                                        :class="{
+                                            'is-empty': !d,
+                                            'is-past': d && isPast(d),
+                                            'is-booked': d && isBooked(d) && !isCheckOut(d),
+                                            'is-range': d && inRange(d),
+                                            'is-in': d && isCheckIn(d),
+                                            'is-out': d && isCheckOut(d),
+                                            'is-today': d && d === today,
+                                        }"
+                                        :disabled="!d || isPast(d) || isBooked(d)"
+                                        @click="pickDay(d)"
+                                        x-text="d ? Number(d.slice(8)) : ''"></button>
+                            </template>
+                        </div>
+
+                        <div class="avail-cal-legend">
+                            <span><i class="dot dot-free"></i>{{ __('Available') }}</span>
+                            <span><i class="dot dot-booked"></i>{{ __('Booked') }}</span>
+                            <span><i class="dot dot-sel"></i>{{ __('Your dates') }}</span>
+                        </div>
+
+                        <div x-show="rangeConflict()" x-cloak class="avail-cal-warn">
+                            {{ __('These dates overlap an existing booking for this room. Pick different dates.') }}
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px;">
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Adults') }}</div>
                             <input type="number" name="adults" required min="1" :max="maxGuests" x-model.number="adults" class="input">
@@ -140,7 +314,8 @@
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('WhatsApp / phone') }}</div>
-                            <input type="tel" name="guest_phone" maxlength="30" value="{{ old('guest_phone') }}" class="input" placeholder="+60 12-345 6789">
+                            <input type="tel" name="guest_phone" maxlength="30" value="{{ old('guest_phone') }}" class="input" inputmode="tel" placeholder="0127964501">
+                            <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">{{ __('Just type the number, e.g. 0127964501 — no need for +6.') }}</div>
                         </label>
                         <label>
                             <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Country') }}</div>
@@ -217,19 +392,23 @@
                             <label style="cursor:pointer; position:relative; display:block;">
                                 <input type="radio" name="payment_received" value="{{ $val }}" x-model="paymentReceived"
                                        style="position:absolute; opacity:0; width:0; height:0;">
-                                <div style="border:1.5px solid var(--line); border-radius:var(--r-md); padding:12px; height:100%; transition:border-color .12s, background .12s;"
+                                <div style="border:1.5px solid var(--line); border-radius:var(--r-md); padding:16px 18px; height:100%; transition:border-color .12s, background .12s;"
                                      :style="paymentReceived === '{{ $val }}' ? 'border-color:var(--primary); background:var(--primary-tint);' : ''">
                                     <div style="font-size:13px; font-weight:600;">{{ $opt[0] }}</div>
-                                    <div style="font-size:11px; color:var(--ink-3); margin-top:3px; line-height:1.35;">{{ $opt[1] }}</div>
+                                    <div style="font-size:11px; color:var(--ink-3); margin-top:4px; line-height:1.4;">{{ $opt[1] }}</div>
                                 </div>
                             </label>
                         @endforeach
                     </div>
                 </div>
 
-                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px;">
+                    <span x-show="rangeConflict()" x-cloak style="font-size:12px; color:var(--err); font-weight:500;">
+                        {{ __('Dates overlap an existing booking.') }}
+                    </span>
                     <a href="{{ route('tenant.bookings.index') }}" class="btn" style="text-decoration:none;">{{ __('Cancel') }}</a>
-                    <button type="submit" class="btn btn-primary">{{ __('Create booking') }}</button>
+                    <button type="submit" class="btn btn-primary" :disabled="rangeConflict()"
+                            :style="rangeConflict() ? 'opacity:.5; cursor:not-allowed;' : ''">{{ __('Create booking') }}</button>
                 </div>
             </form>
         @endif

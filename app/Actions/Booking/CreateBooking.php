@@ -9,6 +9,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Services\Booking\AvailabilityService;
 use App\Services\Pricing\PricingEngine;
+use App\Services\WhatsApp\PhoneNumber;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,14 @@ class CreateBooking
 
     public function execute(array $data): Booking
     {
+        // Accept guest phones typed the easy Malaysian way ("0127964501") and
+        // store them in E.164 ("+60127964501") so every downstream use — the
+        // WhatsApp sender and the wa.me links — works without the host having
+        // to prefix +60 by hand. Unparseable input is left as-is.
+        if (! empty($data['guest_phone'])) {
+            $data['guest_phone'] = PhoneNumber::normalize($data['guest_phone']) ?? $data['guest_phone'];
+        }
+
         $room = Room::withoutGlobalScopes()->findOrFail($data['room_id']);
         $checkIn = CarbonImmutable::parse($data['check_in']);
         $checkOut = CarbonImmutable::parse($data['check_out']);

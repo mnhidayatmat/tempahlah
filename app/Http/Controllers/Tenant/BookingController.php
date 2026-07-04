@@ -111,6 +111,60 @@ class BookingController extends Controller
 
         $today = Carbon::today();
 
+        // Occupied nights per room, so the booking form's availability calendar
+        // can grey out dates that are already taken and stop the host from
+        // double-booking. A booking check_in→check_out occupies the nights
+        // [check_in, check_out) — the check_out morning itself is free again
+        // (back-to-back arrivals allowed), matching AvailabilityService.
+        $roomIds = $rooms->pluck('id');
+        $roomBookedDates = [];
+
+        Booking::query()
+            ->whereIn('room_id', $roomIds)
+            ->whereIn('status', [
+                Booking::STATUS_PENDING,
+                Booking::STATUS_CONFIRMED,
+                Booking::STATUS_CHECKED_IN,
+            ])
+            ->where('check_out', '>=', $today->toDateString())
+            ->get(['room_id', 'check_in', 'check_out'])
+            ->each(function ($b) use (&$roomBookedDates) {
+                $end = Carbon::parse($b->check_out)->startOfDay();
+                for ($d = Carbon::parse($b->check_in)->startOfDay(); $d->lt($end); $d->addDay()) {
+                    $roomBookedDates[$b->room_id][] = $d->toDateString();
+                }
+            });
+
+        // Host-created calendar blocks (maintenance, owner stay, etc.) also make
+        // a room unavailable. A null room_id blocks the whole property.
+        $propertyIds = $rooms->pluck('property_id')->unique();
+        $roomsByProperty = $rooms->groupBy('property_id');
+
+        \App\Models\CalendarBlock::query()
+            ->where('ends_on', '>=', $today->toDateString())
+            ->where(function ($q) use ($roomIds, $propertyIds) {
+                $q->whereIn('room_id', $roomIds)
+                    ->orWhere(fn ($q2) => $q2->whereNull('room_id')->whereIn('property_id', $propertyIds));
+            })
+            ->get(['room_id', 'property_id', 'starts_on', 'ends_on'])
+            ->each(function ($block) use (&$roomBookedDates, $roomsByProperty) {
+                // A room-specific block hits that room; a property-wide block
+                // (null room_id) blocks every room in the property.
+                $targets = $block->room_id
+                    ? [$block->room_id]
+                    : ($roomsByProperty[$block->property_id] ?? collect())->pluck('id')->all();
+
+                $end = Carbon::parse($block->ends_on)->startOfDay();
+                for ($d = Carbon::parse($block->starts_on)->startOfDay(); $d->lt($end); $d->addDay()) {
+                    foreach ($targets as $rid) {
+                        $roomBookedDates[$rid][] = $d->toDateString();
+                    }
+                }
+            });
+
+        // De-duplicate + reindex each room's night list.
+        $roomBookedDates = array_map(fn ($dates) => array_values(array_unique($dates)), $roomBookedDates);
+
         // Pre-fill check-in from the calendar deep link (?check_in=YYYY-MM-DD).
         // Never earlier than today (the field min). Check-out follows the night
         // after check-in so the stay always begins on the date the host picked.
@@ -141,6 +195,7 @@ class BookingController extends Controller
             'rooms' => $rooms,
             'roomFees' => $roomFees,
             'roomGuests' => $roomGuests,
+            'roomBookedDates' => $roomBookedDates,
             'defaultGuests' => $defaultGuests,
             'today' => $today->toDateString(),
             'tomorrow' => Carbon::tomorrow()->toDateString(),
@@ -398,6 +453,13 @@ class BookingController extends Controller
             'deposit_amount' => 'nullable|numeric|min:0|max:1000000',
             'special_requests' => 'nullable|string|max:1000',
         ]);
+
+        // Accept locally-typed Malaysian phones ("0127964501") and store them
+        // in E.164 so wa.me links + the WhatsApp sender work without a manual
+        // +60 prefix. Unparseable input is kept verbatim.
+        if (! empty($validated['guest_phone'])) {
+            $validated['guest_phone'] = \App\Services\WhatsApp\PhoneNumber::normalize($validated['guest_phone']) ?? $validated['guest_phone'];
+        }
 
         // Room must belong to the current tenant (BelongsToTenant scope filters this).
         $room = Room::find($validated['room_id']);

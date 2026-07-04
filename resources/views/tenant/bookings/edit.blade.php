@@ -91,7 +91,8 @@
                     </label>
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('WhatsApp / phone') }}</div>
-                        <input type="tel" name="guest_phone" maxlength="30" value="{{ $gPhone }}" class="input" placeholder="+60 12-345 6789">
+                        <input type="tel" name="guest_phone" maxlength="30" value="{{ $gPhone }}" class="input" inputmode="tel" placeholder="0127964501">
+                        <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">{{ __('Just type the number, e.g. 0127964501 — no need for +6.') }}</div>
                     </label>
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Country') }}</div>
