@@ -282,10 +282,20 @@
     <table class="meta">
         <tr>
             <td style="width: 58%;">
+                @php
+                    // Prefer the invoice's snapshot; fall back to the booking's
+                    // live guest contact so email/phone still print for bookings
+                    // whose snapshot was taken before contact details were added.
+                    $billName  = $invoice->billed_to['name'] ?? $booking->guestName() ?? '—';
+                    $billEmail = $invoice->billed_to['email'] ?? null;
+                    if (empty($billEmail) && method_exists($booking, 'guestEmail')) { $billEmail = $booking->guestEmail(); }
+                    $billPhone = $invoice->billed_to['phone'] ?? null;
+                    if (empty($billPhone) && method_exists($booking, 'guestPhone')) { $billPhone = $booking->guestPhone(); }
+                @endphp
                 <div class="label">{{ $L['bill_to'] }}</div>
-                <div class="billname">{{ $invoice->billed_to['name'] ?? '—' }}</div>
-                @if (! empty($invoice->billed_to['email']))<div class="billline">{{ $invoice->billed_to['email'] }}</div>@endif
-                @if (! empty($invoice->billed_to['phone']))<div class="billline">{{ $invoice->billed_to['phone'] }}</div>@endif
+                <div class="billname">{{ $billName }}</div>
+                @if (! empty($billEmail))<div class="billline">{{ $billEmail }}</div>@endif
+                @if (! empty($billPhone))<div class="billline">{{ $billPhone }}</div>@endif
             </td>
             <td style="width: 42%;">
                 <table class="metaright" style="width:100%;">
