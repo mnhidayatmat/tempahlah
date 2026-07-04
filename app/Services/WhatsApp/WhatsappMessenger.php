@@ -129,6 +129,36 @@ class WhatsappMessenger
     }
 
     /**
+     * Manual invoice send — the host explicitly clicked "WhatsApp" on the
+     * booking's invoice. Bypasses the `auto_invoice` auto-send preference (the
+     * host is asking for it) but still honours the connected-session, resolvable
+     * -phone and guest-opt-out guards.
+     */
+    public static function sendInvoiceManual(Booking $booking, string $payUrl, Invoice $invoice): ?WhatsappMessage
+    {
+        return self::manualDispatch(
+            $booking,
+            WhatsappMessage::KIND_INVOICE,
+            fn () => MessageTemplates::invoice($booking, $payUrl),
+            self::pdfMedia($invoice),
+        );
+    }
+
+    /**
+     * Manual receipt send — host explicitly shares the receipt (e.g. a fully-
+     * paid booking). Bypasses the `auto_receipt` pref but keeps the same guards.
+     */
+    public static function sendReceiptManual(Booking $booking, Invoice $receipt, Payment $payment): ?WhatsappMessage
+    {
+        return self::manualDispatch(
+            $booking,
+            WhatsappMessage::KIND_RECEIPT,
+            fn () => MessageTemplates::receipt($booking, $receipt, $payment),
+            self::pdfMedia($receipt),
+        );
+    }
+
+    /**
      * Cancellation notice — sent when a booking is cancelled (auto-cancel for
      * unpaid fee/balance, or a host-initiated cancel). Gated by the
      * `auto_cancellation` session pref (default true).
@@ -206,6 +236,31 @@ class WhatsappMessenger
             MessageTemplates::test($name),
             WhatsappMessage::KIND_TEST,
         );
+    }
+
+    /**
+     * Like autoDispatch() but without the auto-send preference gate — for
+     * host-initiated (manual) sends. Still requires a connected session, a
+     * resolvable guest phone, and respects the guest's opt-out.
+     */
+    protected static function manualDispatch(
+        Booking $booking,
+        string $kind,
+        \Closure $bodyFactory,
+        ?array $media = null,
+    ): ?WhatsappMessage {
+        $tenant = $booking->tenant;
+        if (! $tenant) return null;
+
+        $session = self::sessionFor($tenant);
+        if (! $session?->isConnected()) return null;
+
+        $phone = self::resolveGuestPhone($booking);
+        if (! $phone) return null;
+
+        if (self::guestOptedOut($booking->guest, $tenant)) return null;
+
+        return self::queue($tenant, $booking, $phone, $bodyFactory(), $kind, $media);
     }
 
     protected static function autoDispatch(

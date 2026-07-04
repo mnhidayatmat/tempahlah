@@ -33,6 +33,38 @@
         .bk-menu-item--danger  { color: var(--err); }
         .bk-menu-sep { height:1px; background:var(--line); margin:5px 4px; }
 
+        /* Invoice & receipt documents */
+        .bk-doc {
+            display:flex; align-items:center; justify-content:space-between; gap:14px;
+            padding:14px 0; border-top:.5px solid var(--line); flex-wrap:wrap;
+        }
+        .bk-doc:first-of-type { border-top:0; }
+        .bk-doc-info { display:flex; align-items:center; gap:12px; min-width:0; }
+        .bk-doc-icon {
+            width:38px; height:38px; border-radius:10px; flex-shrink:0;
+            display:inline-flex; align-items:center; justify-content:center;
+            background:var(--primary-tint); color:var(--primary);
+        }
+        .bk-doc-icon.is-muted { background:var(--bg-sunk); color:var(--ink-3); }
+        .bk-doc-title { font-weight:600; font-size:14px; }
+        .bk-doc-sub { font-size:12px; color:var(--ink-3); margin-top:1px; }
+        .bk-doc-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .bk-doc-actions form { margin:0; }
+        .bk-doc-btn {
+            display:inline-flex; align-items:center; gap:6px;
+            padding:6px 11px; border-radius:8px; border:1px solid var(--line);
+            background:var(--bg-elev); color:var(--ink); font-size:12.5px;
+            font-family:inherit; cursor:pointer; text-decoration:none; line-height:1.2;
+        }
+        .bk-doc-btn:hover:not([disabled]) { background:var(--bg-sunk); }
+        .bk-doc-btn--wa:hover:not([disabled]) { border-color:var(--ok); color:var(--ok); }
+        .bk-doc-btn[disabled] { opacity:.4; cursor:not-allowed; }
+
+        @media (max-width: 768px) {
+            .bk-doc { align-items:flex-start; }
+            .bk-doc-actions { width:100%; }
+            .bk-doc-btn { flex:1; justify-content:center; }
+        }
         @media (max-width: 768px) {
             .bk-root { gap:14px !important; }
             .bk-head { align-items:flex-start; }
@@ -194,6 +226,75 @@
                 {{ session('status') }}
             </div>
         @endif
+
+        @if (session('error'))
+            <div class="hauz-card" style="padding: 12px 16px; border-color: var(--err); background: var(--err-tint); color: var(--err); font-size: 13px;">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        {{-- Invoice & receipt — generate the PDF, then email or WhatsApp it to
+             the guest. Receipt actions unlock once any payment has succeeded
+             (deposit OR full), so a fully-paid booking can always share it. --}}
+        @php
+            $hasPayment = $booking->payments->where('status', 'succeeded')->isNotEmpty();
+            $hasEmail   = (bool) $booking->guestEmail();
+            $hasPhone   = (bool) $booking->guestPhone();
+            $canWa      = $waConnected && $hasPhone;
+            $docs = [
+                ['type' => 'invoice', 'title' => __('Invoice'), 'sub' => __('The bill for this booking'), 'ready' => true],
+                ['type' => 'receipt', 'title' => __('Receipt'), 'sub' => $hasPayment ? __('Proof of payment') : __('Available after payment'), 'ready' => $hasPayment],
+            ];
+        @endphp
+        <div class="hauz-card" style="padding: 18px;">
+            <div class="kicker" style="margin-bottom: 6px;">{{ __('Invoice & receipt') }}</div>
+            <div style="font-size:12.5px; color:var(--ink-3); margin-bottom: 6px;">
+                {{ __('Generate the PDF and send it to the guest by email or WhatsApp.') }}
+            </div>
+            @foreach ($docs as $d)
+                <div class="bk-doc">
+                    <div class="bk-doc-info">
+                        <div class="bk-doc-icon {{ $d['ready'] ? '' : 'is-muted' }}">
+                            <x-icon name="receipt" :size="18"/>
+                        </div>
+                        <div style="min-width:0;">
+                            <div class="bk-doc-title">{{ $d['title'] }}</div>
+                            <div class="bk-doc-sub">{{ $d['sub'] }}</div>
+                        </div>
+                    </div>
+                    <div class="bk-doc-actions">
+                        @if ($d['ready'])
+                            <a class="bk-doc-btn" target="_blank" rel="noopener"
+                               href="{{ route('tenant.bookings.documents.show', [$booking->id, $d['type']]) }}">
+                                <x-icon name="link" :size="13"/> {{ __('View PDF') }}
+                            </a>
+                            <form method="POST" action="{{ route('tenant.bookings.documents.send', $booking->id) }}">
+                                @csrf
+                                <input type="hidden" name="doc" value="{{ $d['type'] }}">
+                                <input type="hidden" name="channel" value="email">
+                                <button type="submit" class="bk-doc-btn"
+                                        {{ $hasEmail ? '' : 'disabled' }}
+                                        title="{{ $hasEmail ? __('Email to :addr', ['addr' => $booking->guestEmail()]) : __('No guest email on file') }}">
+                                    <x-icon name="mail" :size="13"/> {{ __('Email') }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('tenant.bookings.documents.send', $booking->id) }}">
+                                @csrf
+                                <input type="hidden" name="doc" value="{{ $d['type'] }}">
+                                <input type="hidden" name="channel" value="whatsapp">
+                                <button type="submit" class="bk-doc-btn bk-doc-btn--wa"
+                                        {{ $canWa ? '' : 'disabled' }}
+                                        title="{{ $canWa ? __('Send via WhatsApp') : (! $waConnected ? __('Connect WhatsApp under Integrations') : __('No guest phone on file')) }}">
+                                    <x-icon name="message" :size="13"/> {{ __('WhatsApp') }}
+                                </button>
+                            </form>
+                        @else
+                            <span style="font-size:12px; color:var(--ink-3);">{{ __('Available after payment') }}</span>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
 
         @if (session('pay_link'))
             <div class="hauz-card" style="padding: 16px 18px; background: var(--bg-elev);" x-data="{ copied: false }">

@@ -7,6 +7,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Public\PublicBookingController;
 use App\Http\Controllers\Public\TenantHomeController;
 use App\Http\Controllers\Tenant\BookingController;
+use App\Http\Controllers\Tenant\BookingDocumentController;
 use App\Http\Controllers\Tenant\CalendarController;
 use App\Http\Controllers\Tenant\CleanerController;
 use App\Http\Controllers\Tenant\DashboardController;
@@ -186,6 +187,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/bookings/{id}/send-reminder', [BookingController::class, 'sendReminder'])->name('bookings.send-reminder');
         Route::post('/bookings/{id}/whatsapp',      [BookingController::class, 'sendWhatsapp'])->name('bookings.whatsapp');
         Route::post('/bookings/{id}/pay-link',      [BookingController::class, 'payLink'])->name('bookings.pay-link');
+
+        // Invoice + receipt documents: view the PDF, or email / WhatsApp it to the guest.
+        Route::get('/bookings/{id}/documents/{doc}', [BookingDocumentController::class, 'show'])->name('bookings.documents.show')->whereNumber('id')->where('doc', 'invoice|receipt');
+        Route::post('/bookings/{id}/documents/send', [BookingDocumentController::class, 'send'])->name('bookings.documents.send')->whereNumber('id');
         Route::post('/bookings/{id}/cancel',        [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('/bookings/{id}/check-out',     [BookingController::class, 'checkOut'])->name('bookings.check-out')->whereNumber('id');
         Route::delete('/bookings/{id}',             [BookingController::class, 'destroy'])->name('bookings.destroy')->whereNumber('id');

@@ -214,6 +214,7 @@ class MessageTemplates
         $co = Carbon::parse($booking->check_out)->translatedFormat('D, j M Y');
         $nights = (int) Carbon::parse($booking->check_in)->diffInDays(Carbon::parse($booking->check_out));
         $paid = self::rm($payment->amount);
+        $method = self::paymentMethodLabel($payment, $locale);
         $checkInTime = $booking->property?->check_in_time
             ? substr((string) $booking->property->check_in_time, 0, 5)
             : '15:00';
@@ -224,9 +225,9 @@ class MessageTemplates
                  . "🧾 Resit: {$receipt->invoice_number}\n"
                  . "📍 {$property}\n"
                  . "📅 {$ci} → {$co} ({$nights} malam)\n"
-                 . "💳 Dibayar: {$paid} melalui Toyyibpay\n"
+                 . "💳 Dibayar: {$paid}{$method}\n"
                  . "🔖 Tempahan: {$booking->reference}\n\n"
-                 . "Resit PDF juga dihantar ke emel anda. Jumpa lagi pada {$ci} (daftar masuk selepas {$checkInTime}). Selamat datang ke *{$business}*!";
+                 . "Resit PDF juga dilampirkan. Jumpa lagi pada {$ci} (daftar masuk selepas {$checkInTime}). Selamat datang ke *{$business}*!";
         }
 
         return "Hi {$name}!\n\n"
@@ -234,9 +235,9 @@ class MessageTemplates
              . "🧾 Receipt: {$receipt->invoice_number}\n"
              . "📍 {$property}\n"
              . "📅 {$ci} → {$co} ({$nights} night" . ($nights > 1 ? 's' : '') . ")\n"
-             . "💳 Paid: {$paid} via Toyyibpay\n"
+             . "💳 Paid: {$paid}{$method}\n"
              . "🔖 Booking: {$booking->reference}\n\n"
-             . "The receipt PDF has also been emailed to you. See you on {$ci} (check-in from {$checkInTime}). Welcome to *{$business}*!";
+             . "The receipt PDF is attached. See you on {$ci} (check-in from {$checkInTime}). Welcome to *{$business}*!";
     }
 
     /**
@@ -289,5 +290,20 @@ class MessageTemplates
     protected static function rm(float|int|null $amount): string
     {
         return 'RM '.number_format((float) ($amount ?? 0), 2);
+    }
+
+    /**
+     * A " via X" suffix for the receipt's paid line, based on how the payment
+     * was actually made (gateway vs the host recording a cash / bank transfer).
+     * Returns '' for unknown methods so the line just reads "Paid: RM x".
+     */
+    protected static function paymentMethodLabel(Payment $payment, string $locale): string
+    {
+        return match ($payment->method) {
+            Payment::METHOD_TOYYIBPAY => ($locale === 'ms' ? ' melalui Toyyibpay' : ' via Toyyibpay'),
+            Payment::METHOD_BILLPLZ   => ($locale === 'ms' ? ' melalui Billplz' : ' via Billplz'),
+            Payment::METHOD_MANUAL    => ($locale === 'ms' ? ' (tunai / pindahan bank)' : ' (cash / bank transfer)'),
+            default                   => '',
+        };
     }
 }
