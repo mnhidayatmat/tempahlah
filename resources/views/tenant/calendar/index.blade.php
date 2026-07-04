@@ -442,51 +442,66 @@
                         <div style="padding: 14px 18px;">
                             <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px;">
                                 <div class="cm-eyebrow">{{ __('Room status') }}</div>
-                                <div style="font-size:10.5px; color: var(--ink-3);">{{ __('Tap a booking to edit') }}</div>
+                                <div style="font-size:10.5px; color: var(--ink-3);">{{ __('View or send documents') }}</div>
                             </div>
-                            <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="display:flex; flex-direction:column; gap:10px;">
                                 @foreach ($rooms as $r)
                                     @php
                                         $bk = collect($dayBookings)->firstWhere('room_id', $r->id);
+                                        $ps = $bk ? $paymentStatus($bk) : null;
                                         $col = $bk
-                                            ? ($paymentStatus($bk) === 'paid' ? 'var(--ok)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--err)'))
+                                            ? ($ps === 'paid' ? 'var(--ok)' : ($ps === 'deposit' ? 'var(--warn)' : 'var(--err)'))
                                             : 'var(--ok)';
-                                        $rowHref = $bk
-                                            ? route('tenant.bookings.edit', $bk->id)
-                                            : route('tenant.bookings.create', ['property_id' => $propertyId, 'check_in' => $selectedDay, 'room_id' => $r->id]);
                                     @endphp
-                                    <a href="{{ $rowHref }}" class="cal-room-row"
-                                       style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
-                                                border: .5px solid var(--line);
-                                                border-left: 3px solid {{ $col }};
-                                                display:flex; align-items:center; gap:10px;
-                                                text-decoration:none; color: var(--ink);">
-                                        <div style="flex:1; min-width:0;">
-                                            <div style="font-size:12.5px; font-weight:600;">{{ $r->name }}</div>
-                                            @if ($bk)
-                                                <div style="font-size:11px; color: var(--ink-3); margin-top:1px;">
-                                                    {{ $bk->guest?->name ?? __('Guest') }} · {{ $bk->nights }}n · RM {{ number_format($bk->total_amount, 0) }}
+                                    @if ($bk)
+                                        {{-- Booked room → mini booking card with guest, payment,
+                                             quick links to the full booking, and invoice/receipt actions. --}}
+                                        <div style="background: var(--bg-sunk); border-radius:10px; border: .5px solid var(--line); border-left: 3px solid {{ $col }}; padding: 12px 14px;">
+                                            <div style="display:flex; align-items:flex-start; gap:10px;">
+                                                <div style="flex:1; min-width:0;">
+                                                    <div style="font-size:13px; font-weight:600;">{{ $bk->guestName() ?? __('Guest') }}</div>
+                                                    <div style="font-size:11px; color: var(--ink-3); margin-top:1px;">
+                                                        {{ $r->name }} · {{ $bk->nights }}n · RM {{ number_format($bk->total_amount, 0) }}
+                                                    </div>
                                                 </div>
-                                            @else
-                                                <div style="font-size:11px; color: var(--ok); margin-top:1px; font-weight:500;">{{ __('Available') }}</div>
-                                            @endif
+                                                <span class="pill" style="height:18px; font-size:10px;
+                                                                          background: {{ $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)') }};
+                                                                          color: {{ $col }};">
+                                                    {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
+                                                </span>
+                                            </div>
+
+                                            {{-- Quick links to the full booking --}}
+                                            <div style="display:flex; gap:8px; margin-top:10px;">
+                                                <a href="{{ route('tenant.bookings.show', $bk->id) }}" class="btn btn-sm" style="flex:1; justify-content:center; text-decoration:none;">
+                                                    {{ __('View booking') }} →
+                                                </a>
+                                                <a href="{{ route('tenant.bookings.edit', $bk->id) }}" class="btn btn-sm" style="text-decoration:none;" title="{{ __('Edit booking') }}">
+                                                    <x-icon name="pencil" :size="13"/>
+                                                </a>
+                                            </div>
+
+                                            {{-- Invoice & receipt (shared component) --}}
+                                            <div style="margin-top:4px;">
+                                                <x-booking.documents :booking="$bk" :compact="true"/>
+                                            </div>
                                         </div>
-                                        @if ($bk)
-                                            @php $ps = $paymentStatus($bk); @endphp
-                                            <span class="pill" style="height:18px; font-size:10px;
-                                                                      background: {{ $ps === 'paid' ? 'var(--ok-tint)' : ($ps === 'deposit' ? 'var(--warn-tint)' : 'var(--err-tint)') }};
-                                                                      color: {{ $col }};">
-                                                {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
-                                            </span>
-                                            <span class="cal-room-edit" style="display:inline-flex; align-items:center; color: var(--ink-3); flex-shrink:0;" title="{{ __('Edit booking') }}">
-                                                <x-icon name="pencil" :size="13"/>
-                                            </span>
-                                        @else
+                                    @else
+                                        {{-- Free room → start a new booking pre-filled with this room + date. --}}
+                                        <a href="{{ route('tenant.bookings.create', ['property_id' => $propertyId, 'check_in' => $selectedDay, 'room_id' => $r->id]) }}" class="cal-room-row"
+                                           style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
+                                                    border: .5px solid var(--line); border-left: 3px solid {{ $col }};
+                                                    display:flex; align-items:center; gap:10px;
+                                                    text-decoration:none; color: var(--ink);">
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="font-size:12.5px; font-weight:600;">{{ $r->name }}</div>
+                                                <div style="font-size:11px; color: var(--ok); margin-top:1px; font-weight:500;">{{ __('Available') }}</div>
+                                            </div>
                                             <span class="cal-room-edit" style="display:inline-flex; align-items:center; gap:3px; color: var(--ink-3); font-size:10.5px; font-weight:600; flex-shrink:0;">
                                                 <x-icon name="plus" :size="12"/> {{ __('Add') }}
                                             </span>
-                                        @endif
-                                    </a>
+                                        </a>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>

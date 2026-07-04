@@ -40,7 +40,7 @@ class CalendarController extends Controller
             $rooms = $property?->rooms ?? collect();
 
             $bookings = Booking::query()
-                ->with(['guest:id,name', 'room:id,name,base_price'])
+                ->with(['guest:id,name,email,phone', 'leadGuest', 'room:id,name,base_price', 'payments', 'tenant.whatsappSession'])
                 ->where('property_id', $propertyId)
                 ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN, Booking::STATUS_CHECKED_OUT])
                 ->where('check_out', '>', $monthStart->toDateString())
