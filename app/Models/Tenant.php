@@ -27,6 +27,7 @@ class Tenant extends Model
         'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on',
         'auto_cancel_unpaid_balance', 'refund_policy',
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
+        'auto_housekeeping',
     ];
 
     public const THEME_DEFAULTS = [
@@ -67,7 +68,11 @@ class Tenant extends Model
         'auto_cancel_unpaid_balance' => 'boolean',
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
+        'auto_housekeeping' => 'boolean',
     ];
+
+    /** Platform default for the auto-housekeeping SOP master toggle. */
+    public const AUTO_HOUSEKEEPING_DEFAULT = true;
 
     /** Platform defaults for the pre-checkout reminder. */
     public const CHECKOUT_REMINDER_DEFAULTS = [
@@ -116,6 +121,19 @@ class Tenant extends Model
         return $this->auto_cancel_unpaid_balance !== null
             ? (bool) $this->auto_cancel_unpaid_balance
             : self::PAYMENT_POLICY_DEFAULTS['auto_cancel_unpaid_balance'];
+    }
+
+    /**
+     * Whether housekeeping (cleaning + laundry) is auto-scheduled from bookings.
+     * ON by default — a confirmed booking auto-creates a post-checkout turnover
+     * (crew size + duration by turnaround) and a pre-arrival dusting when the
+     * house has sat idle. Host can switch it off in Settings to schedule by hand.
+     */
+    public function autoHousekeepingEnabled(): bool
+    {
+        return $this->auto_housekeeping !== null
+            ? (bool) $this->auto_housekeeping
+            : self::AUTO_HOUSEKEEPING_DEFAULT;
     }
 
     /** Whether the pre-checkout WhatsApp reminder is on for this tenant. */

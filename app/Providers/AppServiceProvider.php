@@ -54,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('webhook-toyyibpay', fn (Request $r) => Limit::perMinute(100)->by($r->ip()));
 
+        RateLimiter::for('webhook-billplz', fn (Request $r) => Limit::perMinute(100)->by($r->ip()));
+
         RateLimiter::for('password-reset', fn (Request $r) => Limit::perHour(3)->by($r->input('email', $r->ip())));
     }
 }

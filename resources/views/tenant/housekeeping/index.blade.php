@@ -134,6 +134,7 @@
                                 <option value="deep">{{ __('Deep clean') }}</option>
                                 <option value="pool">{{ __('Pool / outdoor') }}</option>
                                 <option value="post_event">{{ __('Post-event') }}</option>
+                                <option value="pre_arrival">{{ __('Pre-arrival dusting') }}</option>
                             </select>
                         </div>
                         <div>
@@ -154,6 +155,14 @@
                                     <a href="{{ route('tenant.directory.index', ['tab' => 'cleaners']) }}" style="color: var(--primary);">{{ __('Register a cleaner') }}</a>
                                 </div>
                             @endif
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cleaners needed') }}</label>
+                            <input type="number" name="cleaners_required" class="input" min="1" max="20" step="1" value="1">
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Duration (hours)') }}</label>
+                            <input type="number" name="duration_hours" class="input" min="0.5" max="24" step="0.5" placeholder="e.g. 2">
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>

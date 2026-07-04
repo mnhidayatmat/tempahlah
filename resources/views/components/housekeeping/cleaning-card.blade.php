@@ -15,6 +15,16 @@
     $ui = $statusUI[$t->status] ?? $statusUI['pending'];
     $hasIssues = ! empty($t->issues);
     $borderColor = $hasIssues ? 'var(--err)' : ($t->type === 'deep' ? 'var(--accent)' : 'var(--ink-3)');
+    $typeLabels = [
+        'full' => __('Full turnover'),
+        'light' => __('Light refresh'),
+        'deep' => __('Deep clean'),
+        'pool' => __('Pool / outdoor'),
+        'post_event' => __('Post-event'),
+        'pre_arrival' => __('Pre-arrival dusting'),
+    ];
+    $typeLabel = $typeLabels[$t->type] ?? ucfirst(str_replace('_', ' ', (string) $t->type));
+    $durationHours = $t->duration_minutes ? rtrim(rtrim(number_format($t->duration_minutes / 60, 1), '0'), '.') : null;
 @endphp
 <div class="hauz-card" x-data="{ editing: false }" style="padding: 16px; border-left: 3px solid {{ $borderColor }};">
     {{-- Display row --}}
@@ -30,9 +40,19 @@
                     <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                 </span>
             </div>
-            <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap;">
-                <span>{{ ucfirst((string) $t->type) }} {{ __('clean') }}</span>
+            <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap; align-items: center;">
+                <span>{{ $typeLabel }}</span>
                 <span class="mono">{{ $t->scheduled_at?->format('M j · H:i') }}</span>
+                @if ($t->cleaners_required || $durationHours)
+                    <span class="pill" style="background: var(--bg-sunk); color: var(--ink-2); height: 18px; font-size: 10.5px; gap: 5px;">
+                        @if ($t->cleaners_required)👥 {{ (int) $t->cleaners_required }}@endif
+                        @if ($t->cleaners_required && $durationHours)·@endif
+                        @if ($durationHours)⏱ {{ $durationHours }}h@endif
+                    </span>
+                @endif
+                @if ($t->auto_generated)
+                    <span class="pill" style="background: var(--primary-tint); color: var(--primary); height: 18px; font-size: 10.5px;">{{ __('Auto') }}</span>
+                @endif
                 @if ($t->room)
                     <span>{{ $t->room->name }}</span>
                 @endif
@@ -96,7 +116,7 @@
             <div>
                 <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Type') }} *</label>
                 <select name="type" class="input" required>
-                    @foreach (['full' => __('Full turnover'), 'light' => __('Light refresh'), 'deep' => __('Deep clean'), 'pool' => __('Pool / outdoor'), 'post_event' => __('Post-event')] as $val => $lbl)
+                    @foreach ($typeLabels as $val => $lbl)
                         <option value="{{ $val }}" @selected($t->type === $val)>{{ $lbl }}</option>
                     @endforeach
                 </select>
@@ -121,6 +141,14 @@
                         <option value="{{ $cl->id }}" @selected($t->cleaner_id == $cl->id)>{{ $cl->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div>
+                <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cleaners needed') }}</label>
+                <input type="number" name="cleaners_required" class="input" min="1" max="20" step="1" value="{{ $t->cleaners_required ?? 1 }}">
+            </div>
+            <div>
+                <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Duration (hours)') }}</label>
+                <input type="number" name="duration_hours" class="input" min="0.5" max="24" step="0.5" value="{{ $durationHours }}" placeholder="e.g. 2">
             </div>
             <div>
                 <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>

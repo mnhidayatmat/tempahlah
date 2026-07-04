@@ -187,6 +187,46 @@ class IntegrationController extends Controller
                   ]));
     }
 
+    /**
+     * "Test connection" for Billplz. Creates + deletes a RM 1.00 bill against
+     * the tenant's stored credentials and reports back without persisting a
+     * Payment row.
+     */
+    public function testBillplz()
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403);
+
+        try {
+            $client = \App\Services\Payments\Billplz\BillplzClient::forTenant($tenant->id);
+        } catch (\App\Services\Payments\Billplz\BillplzException $e) {
+            return redirect()
+                ->route('tenant.integrations.show', 'billplz')
+                ->with('status', __('Save your credentials first, then click Test connection.'));
+        }
+
+        $result = $client->testConnection();
+
+        \App\Services\Payments\Billplz\BillplzLog::recordApiCall(
+            $tenant->id, null, 'testConnection',
+            ['sandbox' => $client->sandbox],
+            ['bill_id' => $result['bill_id'], 'raw_body' => $result['raw_body']],
+            $result['http_status'], $result['ok'],
+            $result['ok'] ? null : Str::limit($result['raw_body'], 200),
+        );
+
+        return redirect()
+            ->route('tenant.integrations.show', 'billplz')
+            ->with('status', $result['ok']
+                ? __('✓ Billplz is working. Test bill: :code (:env)', [
+                    'code' => $result['bill_id'],
+                    'env'  => $client->sandbox ? 'sandbox' : 'production',
+                  ])
+                : __('✗ Billplz rejected the credentials: :err', [
+                    'err' => Str::limit($result['raw_body'], 200),
+                  ]));
+    }
+
     public function disconnect(string $provider)
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
@@ -262,11 +302,16 @@ class IntegrationController extends Controller
                 ],
             ],
             'billplz' => [
-                'name' => 'Billplz (v2)',
-                'description' => 'Recurring subscription billing.',
+                'name' => 'Billplz',
+                'description' => 'Accept FPX and cards via Billplz. Tenant uses their own Billplz account — payouts land directly in their bank. After saving, click Test connection to verify the credentials.',
                 'pro' => true,
-                'soon' => true,
-                'fields' => [],
+                'fields' => [
+                    'api_key'         => ['label' => 'API secret key', 'type' => 'password', 'placeholder' => 'From Billplz → Settings → Keys & Integration'],
+                    'collection_id'   => ['label' => 'Collection ID',  'type' => 'text',     'placeholder' => 'From Billplz → Billing → your collection'],
+                    'x_signature_key' => ['label' => 'X Signature key', 'type' => 'password', 'placeholder' => 'From Billplz → Settings → Keys & Integration', 'help' => 'Used to verify payment callbacks. Strongly recommended — without it callbacks fall back to a slower server-side check.'],
+                    'is_sandbox'      => ['label' => 'Use sandbox (billplz-sandbox.com)', 'type' => 'checkbox'],
+                    'is_primary'      => ['label' => 'Use Billplz as my main gateway', 'type' => 'checkbox', 'help' => 'Only matters if you also have Toyyibpay connected — tick this to bill new bookings through Billplz instead.'],
+                ],
             ],
         ];
 
@@ -281,6 +326,13 @@ class IntegrationController extends Controller
                 'category_code' => 'required|string|max:32',
                 'is_sandbox' => 'sometimes|boolean',
                 'payment_channel' => 'sometimes|in:0,1,2',
+            ],
+            'billplz' => [
+                'api_key' => 'required|string|max:200',
+                'collection_id' => 'required|string|max:64',
+                'x_signature_key' => 'nullable|string|max:200',
+                'is_sandbox' => 'sometimes|boolean',
+                'is_primary' => 'sometimes|boolean',
             ],
             // google_calendar uses OAuth (no form) — no validation rules.
             'whatsapp' => [

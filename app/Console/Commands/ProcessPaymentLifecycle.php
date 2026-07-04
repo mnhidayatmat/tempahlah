@@ -3,13 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Actions\Booking\CancelBooking;
-use App\Actions\Payments\CreateToyyibpayBill;
+use App\Actions\Payments\CreateGatewayBill;
 use App\Jobs\SendBookingInvoice;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\Payments\Toyyibpay\ToyyibpayException;
+use App\Services\Payments\PaymentGatewayException;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +37,7 @@ class ProcessPaymentLifecycle extends Command
 
     protected $description = 'Chase + auto-cancel unpaid booking fees and balances per each tenant\'s payment policy';
 
-    public function handle(CreateToyyibpayBill $createBill, CancelBooking $cancelBooking): int
+    public function handle(CreateGatewayBill $createBill, CancelBooking $cancelBooking): int
     {
         $now = Carbon::now();
         $today = $now->copy()->startOfDay();
@@ -125,7 +125,7 @@ class ProcessPaymentLifecycle extends Command
      * C. Remind confirmed bookings with an outstanding balance once they
      * reach the tenant's "X days before check-in" mark.
      */
-    protected function remindUnpaidBalances(Carbon $today, CreateToyyibpayBill $createBill): int
+    protected function remindUnpaidBalances(Carbon $today, CreateGatewayBill $createBill): int
     {
         $count = 0;
 
@@ -245,11 +245,11 @@ class ProcessPaymentLifecycle extends Command
     }
 
     /**
-     * Mint (or reuse) a Toyyibpay balance bill so the reminder carries a
-     * one-tap pay link. Falls back to the signed guest-portal URL when the
-     * tenant hasn't connected Toyyibpay or the API call fails.
+     * Mint (or reuse) a balance bill on the tenant's active gateway so the
+     * reminder carries a one-tap pay link. Falls back to the signed guest-portal
+     * URL when the tenant hasn't connected a gateway or the API call fails.
      */
-    protected function mintBalancePayUrl(Booking $booking, CreateToyyibpayBill $createBill): ?string
+    protected function mintBalancePayUrl(Booking $booking, CreateGatewayBill $createBill): ?string
     {
         $balance = $booking->balanceDue();
         if ($balance <= 0) {
@@ -259,8 +259,8 @@ class ProcessPaymentLifecycle extends Command
         try {
             $result = $createBill->execute($booking, Payment::TYPE_BALANCE, $balance);
             return $result['payment_url'];
-        } catch (ToyyibpayException $e) {
-            // Tenant hasn't set up Toyyibpay (or creds rotated) — fall back to
+        } catch (PaymentGatewayException $e) {
+            // Tenant hasn't set up a gateway (or creds rotated) — fall back to
             // the guest portal where they can see the booking + contact host.
             return $booking->guestPortalUrl();
         } catch (\Throwable $e) {

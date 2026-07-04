@@ -145,12 +145,14 @@ class HousekeepingController extends Controller
             'deep' => 'Pencucian mendalam',
             'pool' => 'Kolam / luar',
             'post_event' => 'Selepas majlis',
+            'pre_arrival' => 'Pra-pembersihan (habuk)',
         ] : [
             'full' => 'Full turnover',
             'light' => 'Light refresh',
             'deep' => 'Deep clean',
             'pool' => 'Pool / outdoor',
             'post_event' => 'Post-event',
+            'pre_arrival' => 'Pre-arrival dusting',
         ];
 
         return $map[$type] ?? ucfirst(str_replace('_', ' ', $type));
@@ -206,6 +208,17 @@ class HousekeepingController extends Controller
             $lines[] = '⏰ '.$t->scheduled_at->format('g:i A');
         }
         $lines[] = '🧽 '.$this->cleaningTypeLabel((string) $t->type, $isBM);
+        // Crew size + how long the job should take (auto-scheduled turnovers).
+        $crew = [];
+        if ($t->cleaners_required) {
+            $crew[] = '👥 '.((int) $t->cleaners_required).' '.($isBM ? 'pencuci' : ($t->cleaners_required > 1 ? 'cleaners' : 'cleaner'));
+        }
+        if ($t->duration_minutes) {
+            $crew[] = '⏱️ ~'.rtrim(rtrim(number_format($t->duration_minutes / 60, 1), '0'), '.').($isBM ? ' jam' : 'h');
+        }
+        if ($crew) {
+            $lines[] = implode('  ', $crew);
+        }
         if ($t->room) {
             $lines[] = '🛏️ '.$t->room->name;
         }
@@ -253,9 +266,11 @@ class HousekeepingController extends Controller
 
         $validated = $request->validate([
             'property_id' => 'required|exists:properties,id',
-            'type' => 'required|in:full,light,deep,pool,post_event',
+            'type' => 'required|in:full,light,deep,pool,post_event,pre_arrival',
             'scheduled_at' => 'required|date',
             'cleaner_id' => 'nullable|exists:cleaners,id',
+            'cleaners_required' => 'nullable|integer|min:1|max:20',
+            'duration_hours' => 'nullable|numeric|min:0.5|max:24',
             'cost' => 'nullable|numeric|min:0|max:1000000',
             'notes' => 'nullable|string|max:2000',
         ]);
@@ -266,6 +281,8 @@ class HousekeepingController extends Controller
             'type' => $validated['type'],
             'status' => CleaningTask::STATUS_PENDING,
             'cleaner_id' => $validated['cleaner_id'] ?? null,
+            'cleaners_required' => $validated['cleaners_required'] ?? 1,
+            'duration_minutes' => isset($validated['duration_hours']) ? (int) round($validated['duration_hours'] * 60) : null,
             'cost' => $validated['cost'] ?? null,
             'scheduled_at' => Carbon::parse($validated['scheduled_at']),
             'notes' => $validated['notes'] ?? null,
@@ -322,10 +339,12 @@ class HousekeepingController extends Controller
         if ($action === 'edit') {
             $validated = $request->validate([
                 'property_id' => 'required|exists:properties,id',
-                'type' => 'required|in:full,light,deep,pool,post_event',
+                'type' => 'required|in:full,light,deep,pool,post_event,pre_arrival',
                 'status' => 'required|in:pending,in_progress,completed,skipped',
                 'scheduled_at' => 'required|date',
                 'cleaner_id' => 'nullable|exists:cleaners,id',
+                'cleaners_required' => 'nullable|integer|min:1|max:20',
+                'duration_hours' => 'nullable|numeric|min:0.5|max:24',
                 'cost' => 'nullable|numeric|min:0|max:1000000',
                 'notes' => 'nullable|string|max:2000',
             ]);
@@ -335,8 +354,14 @@ class HousekeepingController extends Controller
                 'type' => $validated['type'],
                 'scheduled_at' => Carbon::parse($validated['scheduled_at']),
                 'cleaner_id' => $validated['cleaner_id'] ?? null,
+                'cleaners_required' => $validated['cleaners_required'] ?? $task->cleaners_required ?? 1,
+                'duration_minutes' => isset($validated['duration_hours'])
+                    ? (int) round($validated['duration_hours'] * 60)
+                    : $task->duration_minutes,
                 'cost' => $validated['cost'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                // A host edit takes ownership — stop the SOP from re-adjusting it.
+                'auto_generated' => false,
             ]);
             $this->applyCleaningStatus($task, $validated['status']);
             $task->save();

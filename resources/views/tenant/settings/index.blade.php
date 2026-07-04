@@ -276,6 +276,35 @@
                 </div>
             </div>
 
+            {{-- Housekeeping automation --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Housekeeping automation') }}</div>
+                <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
+                    {{ __('Automatically schedule cleaning + laundry from your bookings, following a typical homestay routine — no manual setup per booking.') }}
+                </p>
+
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                    <input type="hidden" name="auto_housekeeping" value="0">
+                    <input type="checkbox" name="auto_housekeeping" value="1" style="margin-top: 2px;"
+                           {{ old('auto_housekeeping', $tenant->autoHousekeepingEnabled()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Auto-schedule cleaning & laundry from bookings') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('Turn off to schedule every housekeeping task by hand instead.') }}
+                        </span>
+                    </span>
+                </label>
+
+                <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 11.5px; color: var(--ink-2); line-height: 1.6;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">{{ __('When a booking is confirmed, the system will:') }}</div>
+                    <div>🧹 {{ __('Schedule a full clean 30 min after check-out.') }}</div>
+                    <div>👥 {{ __('Request 2 cleaners (~2h) when the next guest arrives within 2 days — otherwise 1 cleaner (~4h).') }}</div>
+                    <div>🧺 {{ __('Send the linen batch for laundry after check-out.') }}</div>
+                    <div>🪶 {{ __('Add a pre-arrival dusting (~2h) when the house has sat empty 3+ days before check-in.') }}</div>
+                    <div style="color: var(--ink-3); margin-top: 6px;">{{ __('You can still edit or reassign any task in Housekeeping.') }}</div>
+                </div>
+            </div>
+
             {{-- Workspace defaults --}}
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>

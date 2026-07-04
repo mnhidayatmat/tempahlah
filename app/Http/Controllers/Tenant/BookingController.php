@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Actions\Booking\CreateBooking;
-use App\Actions\Payments\CreateToyyibpayBill;
+use App\Actions\Payments\CreateGatewayBill;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
 use App\Jobs\SendPaymentReminder;
@@ -22,7 +22,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Models\WhatsappMessage;
 use Illuminate\Support\Facades\DB;
-use App\Services\Payments\Toyyibpay\ToyyibpayException;
+use App\Services\Payments\PaymentGatewayException;
 use App\Services\WhatsApp\WhatsappMessenger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -327,10 +327,17 @@ class BookingController extends Controller
         $booking->update($update);
 
         // First time we've recognized this booking as confirmed → fire the
-        // confirmation comms (email + WhatsApp) + sync to Google Calendar.
+        // confirmation comms (email + WhatsApp) + sync to Google Calendar +
+        // auto-schedule housekeeping (turnover + laundry + pre-arrival dusting).
         if ($wasPending) {
             SendBookingConfirmation::dispatch($booking->id);
             \App\Jobs\PushBookingToGoogleCalendar::dispatch($booking->id);
+            try {
+                app(\App\Actions\Operations\GenerateOperationalTasksForBooking::class)
+                    ->execute($booking->fresh(['property']));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $amount;
@@ -611,13 +618,14 @@ class BookingController extends Controller
     }
 
     /**
-     * Generate a Toyyibpay payment link for this booking. Returns the URL
-     * via flash so the tenant can copy + share it (or send via WA/email).
+     * Generate a payment link for this booking via the tenant's active gateway
+     * (Toyyibpay or Billplz). Returns the URL via flash so the tenant can copy +
+     * share it (or send via WA/email).
      *
      * Reuses an existing processing bill if one already exists rather than
      * double-billing the guest.
      */
-    public function payLink(Request $request, CreateToyyibpayBill $action, $id)
+    public function payLink(Request $request, CreateGatewayBill $action, $id)
     {
         $booking = Booking::with(['property', 'guest', 'bookingGuests', 'tenant', 'payments'])->findOrFail($id);
 
@@ -639,8 +647,8 @@ class BookingController extends Controller
 
         try {
             $result = $action->execute($booking, $type, $amount);
-        } catch (ToyyibpayException $e) {
-            return back()->with('status', __('Toyyibpay error: :err', ['err' => Str::limit($e->getMessage(), 200)]));
+        } catch (PaymentGatewayException $e) {
+            return back()->with('status', __('Payment gateway error: :err', ['err' => Str::limit($e->getMessage(), 200)]));
         } catch (\Throwable $e) {
             report($e);
             return back()->with('status', __('Could not create payment link. See logs for details.'));

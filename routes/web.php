@@ -231,6 +231,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');
         Route::delete('/integrations/{provider}',         [IntegrationController::class, 'disconnect'])->name('integrations.disconnect');
         Route::post('/integrations/toyyibpay/test',       [IntegrationController::class, 'testToyyibpay'])->name('integrations.toyyibpay.test');
+        Route::post('/integrations/billplz/test',          [IntegrationController::class, 'testBillplz'])->name('integrations.billplz.test');
         Route::post('/integrations/google_calendar/select-calendar', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'selectCalendar'])->name('integrations.google_calendar.select');
         Route::post('/integrations/google_calendar/toggle-write', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'toggleWrite'])->name('integrations.google_calendar.toggle-write');
     });

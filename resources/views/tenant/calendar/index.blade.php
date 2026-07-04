@@ -20,6 +20,12 @@
     <style>
         .cal-weekday-abbr { display: none; }   /* desktop shows full weekday names */
 
+        /* Day-detail room rows are clickable — booked rows open the booking's
+           edit form, free rows start a pre-filled new booking. Signal it. */
+        .cal-room-row { transition: border-color 120ms, background 120ms, box-shadow 120ms; cursor: pointer; }
+        .cal-room-row:hover { border-color: var(--primary) !important; background: var(--bg-elev) !important; box-shadow: var(--sh-1); }
+        .cal-room-row:hover .cal-room-edit { color: var(--primary); }
+
         @media (max-width: 640px) {
             .cal-root { gap: 10px !important; }
             .cal-toolbar { gap: 6px !important; }
@@ -430,9 +436,14 @@
                             </div>
                         @endif
 
-                        {{-- Per-room status --}}
+                        {{-- Per-room status — each row is clickable: a booked room
+                             opens that booking's edit form, a free room starts a
+                             new booking pre-filled with this room + date. --}}
                         <div style="padding: 14px 18px;">
-                            <div class="cm-eyebrow" style="margin-bottom:10px;">{{ __('Room status') }}</div>
+                            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px;">
+                                <div class="cm-eyebrow">{{ __('Room status') }}</div>
+                                <div style="font-size:10.5px; color: var(--ink-3);">{{ __('Tap a booking to edit') }}</div>
+                            </div>
                             <div style="display:flex; flex-direction:column; gap:8px;">
                                 @foreach ($rooms as $r)
                                     @php
@@ -440,11 +451,16 @@
                                         $col = $bk
                                             ? ($paymentStatus($bk) === 'paid' ? 'var(--ok)' : ($paymentStatus($bk) === 'deposit' ? 'var(--warn)' : 'var(--err)'))
                                             : 'var(--ok)';
+                                        $rowHref = $bk
+                                            ? route('tenant.bookings.edit', $bk->id)
+                                            : route('tenant.bookings.create', ['property_id' => $propertyId, 'check_in' => $selectedDay, 'room_id' => $r->id]);
                                     @endphp
-                                    <div style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
+                                    <a href="{{ $rowHref }}" class="cal-room-row"
+                                       style="padding: 10px 12px; background: var(--bg-sunk); border-radius:8px;
                                                 border: .5px solid var(--line);
                                                 border-left: 3px solid {{ $col }};
-                                                display:flex; align-items:center; gap:10px;">
+                                                display:flex; align-items:center; gap:10px;
+                                                text-decoration:none; color: var(--ink);">
                                         <div style="flex:1; min-width:0;">
                                             <div style="font-size:12.5px; font-weight:600;">{{ $r->name }}</div>
                                             @if ($bk)
@@ -462,8 +478,15 @@
                                                                       color: {{ $col }};">
                                                 {{ $ps === 'paid' ? __('Fully paid') : ($ps === 'deposit' ? __('Booking fee paid') : __('Pending')) }}
                                             </span>
+                                            <span class="cal-room-edit" style="display:inline-flex; align-items:center; color: var(--ink-3); flex-shrink:0;" title="{{ __('Edit booking') }}">
+                                                <x-icon name="pencil" :size="13"/>
+                                            </span>
+                                        @else
+                                            <span class="cal-room-edit" style="display:inline-flex; align-items:center; gap:3px; color: var(--ink-3); font-size:10.5px; font-weight:600; flex-shrink:0;">
+                                                <x-icon name="plus" :size="12"/> {{ __('Add') }}
+                                            </span>
                                         @endif
-                                    </div>
+                                    </a>
                                 @endforeach
                             </div>
                         </div>

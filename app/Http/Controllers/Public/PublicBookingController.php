@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Actions\Booking\CreateBooking;
 use App\Actions\Invoicing\GenerateInvoice;
-use App\Actions\Payments\CreateToyyibpayBill;
+use App\Actions\Payments\CreateGatewayBill;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\StoreBookingRequest;
 use App\Jobs\SendBookingInvoice;
@@ -12,8 +12,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Tenant;
-use App\Models\TenantIntegration;
-use App\Services\Payments\Toyyibpay\ToyyibpayException;
+use App\Services\Payments\PaymentGatewayException;
 use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,7 +37,7 @@ class PublicBookingController extends Controller
 {
     public function __construct(
         protected CreateBooking $createBooking,
-        protected CreateToyyibpayBill $createBill,
+        protected CreateGatewayBill $createBill,
         protected GenerateInvoice $generateInvoice,
     ) {}
 
@@ -48,10 +47,11 @@ class PublicBookingController extends Controller
         $tenant = $request->attributes->get('subdomain_tenant');
         $data = $request->validated();
 
-        // Graceful fallback when the tenant hasn't connected Toyyibpay: hand
-        // the customer off to a WhatsApp deeplink with the enquiry prefilled,
-        // so the page still works out-of-the-box for non-paid tenants.
-        if (! $this->toyyibpayConfigured($tenant->id)) {
+        // Graceful fallback when the tenant hasn't connected any payment
+        // gateway (Toyyibpay or Billplz): hand the customer off to a WhatsApp
+        // deeplink with the enquiry prefilled, so the page still works
+        // out-of-the-box for non-paid tenants.
+        if (! $this->createBill->gatewayConfigured($tenant->id)) {
             return redirect()->away($this->whatsappFallbackUrl($tenant, $data));
         }
 
@@ -84,11 +84,13 @@ class PublicBookingController extends Controller
                 ->with('booking_error', __('Sorry, these dates were just taken — please pick different dates.'));
         }
 
-        // 2. Toyyibpay bill. Last-minute bookings (made inside the tenant's
-        //    full-payment lead time) are billed for the FULL total — CreateBooking
-        //    has already set deposit_amount = total in that case — so we mark the
-        //    payment TYPE_FULL for accurate records + receipt wording. Otherwise
-        //    it's a TYPE_DEPOSIT (booking fee) with the balance due before check-in.
+        // 2. Payment gateway bill (Toyyibpay or Billplz — whichever the tenant
+        //    has active). Last-minute bookings (made inside the tenant's
+        //    full-payment lead time) are billed for the FULL total —
+        //    CreateBooking has already set deposit_amount = total in that case —
+        //    so we mark the payment TYPE_FULL for accurate records + receipt
+        //    wording. Otherwise it's a TYPE_DEPOSIT (booking fee) with the
+        //    balance due before check-in.
         $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);
         try {
             $bill = $this->createBill->execute(
@@ -96,11 +98,11 @@ class PublicBookingController extends Controller
                 $requiresFullPayment ? Payment::TYPE_FULL : Payment::TYPE_DEPOSIT,
                 (float) $booking->deposit_amount,
             );
-        } catch (ToyyibpayException $e) {
-            // Should be rare since we pre-checked toyyibpayConfigured(),
-            // but creds could be rotated / wrong / disabled between the
-            // check and the call.
-            Log::warning('Public booking: Toyyibpay bill creation failed', [
+        } catch (PaymentGatewayException $e) {
+            // Should be rare since we pre-checked gatewayConfigured(), but
+            // creds could be rotated / wrong / disabled between the check and
+            // the call.
+            Log::warning('Public booking: payment gateway bill creation failed', [
                 'tenant_id'  => $tenant->id,
                 'booking_id' => $booking->id,
                 'error'      => $e->getMessage(),
@@ -243,15 +245,5 @@ class PublicBookingController extends Controller
              . ". Could you confirm availability and payment details?";
 
         return 'https://wa.me/'.$phone.'?text='.rawurlencode($msg);
-    }
-
-    protected function toyyibpayConfigured(int $tenantId): bool
-    {
-        return TenantIntegration::query()
-            ->withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->where('provider', TenantIntegration::PROVIDER_TOYYIBPAY)
-            ->where('enabled', true)
-            ->exists();
     }
 }

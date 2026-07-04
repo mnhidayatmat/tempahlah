@@ -75,6 +75,11 @@ class SettlePaymentSuccess
                     // 3. Sync to the tenant's connected Google Calendar (no-op
                     //    when GCal isn't connected).
                     PushBookingToGoogleCalendar::dispatch($booking->id);
+
+                    // 4. Auto-schedule housekeeping (turnover + laundry +
+                    //    pre-arrival dusting) per the tenant's SOP. Guarded so a
+                    //    scheduling hiccup can't break the settlement.
+                    $this->generateOperationalTasks($booking);
                 }
             }
 
@@ -88,6 +93,16 @@ class SettlePaymentSuccess
                 }
             }
         });
+    }
+
+    protected function generateOperationalTasks(Booking $booking): void
+    {
+        try {
+            app(\App\Actions\Operations\GenerateOperationalTasksForBooking::class)
+                ->execute($booking->fresh(['property']));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     protected function dispatchReceipt(Booking $booking, Payment $payment): void

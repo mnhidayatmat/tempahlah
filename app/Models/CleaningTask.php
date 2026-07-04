@@ -17,6 +17,8 @@ class CleaningTask extends Model
     public const TYPE_DEEP = 'deep';
     public const TYPE_POOL = 'pool';
     public const TYPE_POST_EVENT = 'post_event';
+    // Pre-arrival dusting ("habuk") for a house that has sat idle a while.
+    public const TYPE_PRE_ARRIVAL = 'pre_arrival';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_IN_PROGRESS = 'in_progress';
@@ -26,18 +28,40 @@ class CleaningTask extends Model
     protected $fillable = [
         'tenant_id', 'property_id', 'room_id', 'booking_id',
         'assigned_to_user_id', 'cleaner_id',
-        'type', 'status', 'cost', 'scheduled_at', 'started_at', 'completed_at',
+        'type', 'status', 'cleaners_required', 'duration_minutes', 'auto_generated',
+        'cost', 'scheduled_at', 'started_at', 'completed_at',
         'photo_paths', 'notes', 'issues',
     ];
 
     protected $casts = [
         'cost' => 'decimal:2',
+        'cleaners_required' => 'integer',
+        'duration_minutes' => 'integer',
+        'auto_generated' => 'boolean',
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'photo_paths' => 'array',
         'issues' => 'array',
     ];
+
+    /** All schedulable cleaning types (used for validation + form dropdowns). */
+    public const TYPES = [
+        self::TYPE_FULL,
+        self::TYPE_LIGHT,
+        self::TYPE_DEEP,
+        self::TYPE_POOL,
+        self::TYPE_POST_EVENT,
+        self::TYPE_PRE_ARRIVAL,
+    ];
+
+    /** Duration as whole/half hours for display, or null when not set. */
+    public function durationHours(): ?float
+    {
+        return $this->duration_minutes !== null
+            ? round($this->duration_minutes / 60, 1)
+            : null;
+    }
 
     public function property(): BelongsTo
     {
