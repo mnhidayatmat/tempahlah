@@ -11,6 +11,44 @@
     'removeConfirm' => null,
     'removeLabel' => null,
 ])
+@once
+    <style>
+        .dir-total-pill {
+            background: var(--bg-sunk); color: var(--ink-2); font-weight: 600;
+            font-size: 11px; padding: 2px 9px; border-radius: 999px;
+        }
+        .dir-item + .dir-item { border-top: .5px solid var(--line); }
+        .dir-row {
+            padding: 15px 18px; display:grid; grid-template-columns: 1fr auto;
+            gap: 16px; align-items:center; transition: background .12s;
+        }
+        .dir-row:hover { background: var(--bg-sunk); }
+        .dir-count {
+            font-size: 11px; color: var(--ink-3); background: var(--bg-sunk);
+            padding: 1px 8px; border-radius: 999px; white-space: nowrap;
+        }
+        .dir-meta {
+            font-size: 12.5px; color: var(--ink-2); display:flex; gap: 16px;
+            flex-wrap: wrap; margin-top: 4px;
+        }
+        .dir-meta span { display:inline-flex; align-items:center; gap: 5px; }
+        .dir-meta svg, .dir-bank svg { color: var(--ink-3); flex-shrink: 0; }
+        .dir-bank {
+            font-size: 12px; color: var(--ink-2); margin-top: 5px;
+            display:inline-flex; align-items:center; gap: 5px;
+        }
+        .dir-actions { display:flex; align-items:center; gap: 4px; }
+        .dir-iconbtn {
+            width: 34px; height: 34px; border-radius: 9px; border: none;
+            background: transparent; color: var(--ink-3); cursor: pointer;
+            display:inline-flex; align-items:center; justify-content:center;
+            transition: background .12s, color .12s;
+        }
+        .dir-iconbtn:hover { background: var(--primary-tint); color: var(--primary); }
+        .dir-iconbtn-danger:hover { background: var(--err-tint); color: var(--err); }
+        [x-cloak] { display: none !important; }
+    </style>
+@endonce
 <div style="display:flex; flex-direction:column; gap: 16px;">
     {{-- Register form --}}
     <div class="hauz-card" style="padding: 18px;">
@@ -49,38 +87,52 @@
     </div>
 
     {{-- List --}}
-    <div class="hauz-card" style="padding: 0; overflow: hidden;">
-        <div style="padding: 14px 18px; border-bottom: .5px solid var(--line); font-weight: 600; font-size: 14px;">
-            {{ __('Total') }}: {{ $people->count() }}
+    <div class="hauz-card dir-list" style="padding: 0; overflow: hidden;">
+        <div style="padding: 13px 18px; border-bottom: .5px solid var(--line); font-weight: 600; font-size: 13px; color: var(--ink-2); display:flex; align-items:center; justify-content:space-between;">
+            <span>{{ __('Total') }}</span>
+            <span class="dir-total-pill">{{ $people->count() }}</span>
         </div>
         @forelse ($people as $p)
-            <div x-data="{ editing: false }" style="border-top: .5px solid var(--line);">
+            <div x-data="{ editing: false }" class="dir-item">
                 {{-- Display row --}}
-                <div x-show="!editing" style="padding: 14px 18px; display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center;">
-                    <x-avatar :name="$p->name" :size="36"/>
+                <div x-show="!editing" class="dir-row">
                     <div style="min-width: 0;">
                         <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
-                            <span style="font-weight: 600; font-size: 14px;">{{ $p->name }}</span>
+                            <span style="font-weight: 600; font-size: 14.5px; color: var(--ink);">{{ $p->name }}</span>
                             @unless ($p->is_active)
                                 <span class="pill" style="background: var(--bg-sunk); color: var(--ink-3); height: 18px; font-size: 10.5px;">{{ __('Inactive') }}</span>
                             @endunless
+                            @if ($countAttr)
+                                <span class="dir-count">{{ $p->{$countAttr} }} {{ $countNoun }}</span>
+                            @endif
                         </div>
-                        <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap; margin-top: 2px;">
-                            @if ($p->phone)<span>📞 {{ $p->phone }}</span>@endif
-                            @if ($p->email)<span>✉️ {{ $p->email }}</span>@endif
-                            @if ($countAttr)<span style="color: var(--ink-3);">{{ $p->{$countAttr} }} {{ $countNoun }}</span>@endif
+                        <div class="dir-meta">
+                            @if ($p->phone)<span><x-icon name="phone" :size="13"/> {{ $p->phone }}</span>@endif
+                            @if ($p->email)<span><x-icon name="mail" :size="13"/> {{ $p->email }}</span>@endif
+                            @if (! $p->phone && ! $p->email)<span style="color: var(--ink-3);">{{ __('No contact details') }}</span>@endif
                         </div>
                         @if ($p->bank_account_no)
-                            <div style="font-size: 12px; color: var(--ink-2); margin-top: 4px;">
-                                🏦 {{ $p->bank_name ? $p->bank_name.' · ' : '' }}<span class="mono">{{ $p->bank_account_no }}</span>{{ $p->bank_account_holder ? ' · '.$p->bank_account_holder : '' }}
+                            <div class="dir-bank">
+                                <x-icon name="card" :size="13"/>
+                                <span>{{ $p->bank_name ? $p->bank_name.' · ' : '' }}<span class="mono">{{ $p->bank_account_no }}</span>{{ $p->bank_account_holder ? ' · '.$p->bank_account_holder : '' }}</span>
                             </div>
                         @endif
                     </div>
-                    <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
+                    <div class="dir-actions">
+                        <button type="button" class="dir-iconbtn" @click="editing = true" aria-label="{{ __('Edit') }}" title="{{ __('Edit') }}">
+                            <x-icon name="pencil" :size="16"/>
+                        </button>
+                        <form method="POST" action="{{ route($destroyRoute, $p->id) }}" onsubmit="return confirm('{{ $removeConfirm ?? __('Remove this entry?') }}')" style="display:inline-flex;">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="dir-iconbtn dir-iconbtn-danger" title="{{ $removeLabel ?? __('Remove') }}">
+                                <x-icon name="trash" :size="16"/>
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
                 {{-- Edit form --}}
-                <div x-show="editing" x-cloak style="padding: 14px 18px; display:flex; flex-direction:column; gap: 12px;">
+                <div x-show="editing" x-cloak style="padding: 16px 18px; background: var(--bg-sunk); display:flex; flex-direction:column; gap: 12px;">
                     <form method="POST" action="{{ route($updateRoute, $p->id) }}"
                           style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items:end;">
                         @csrf @method('PATCH')
@@ -117,10 +169,6 @@
                             <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
                             <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
                         </div>
-                    </form>
-                    <form method="POST" action="{{ route($destroyRoute, $p->id) }}" onsubmit="return confirm('{{ $removeConfirm ?? __('Remove this entry?') }}')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="btn btn-sm" style="color: var(--err);">{{ $removeLabel ?? __('Remove') }}</button>
                     </form>
                 </div>
             </div>
