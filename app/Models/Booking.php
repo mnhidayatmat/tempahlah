@@ -303,9 +303,35 @@ class Booking extends Model
 
     public function guestEmail(): ?string
     {
-        return filled($this->guest?->email)
+        $email = filled($this->guest?->email)
             ? $this->guest->email
             : $this->resolveLeadGuest()?->email;
+
+        // Ignore auto-minted placeholder addresses (a guest User row must have
+        // a non-null unique email even when the customer gave none) — treat
+        // those as "no email" so we never show/send a fake address.
+        return self::isRealEmail($email) ? $email : null;
+    }
+
+    /**
+     * Whether an address is a real, customer-provided email — not one of the
+     * placeholders the system mints so a guest User can exist:
+     *   - "guest+xxxx@example.invalid" (manual bookings without an email)
+     *   - "name@guest.<host>" (register imports)
+     */
+    public static function isRealEmail(?string $email): bool
+    {
+        if (! filled($email) || ! str_contains($email, '@')) {
+            return false;
+        }
+        $email = strtolower(trim($email));
+        $domain = substr(strrchr($email, '@'), 1);
+
+        if (str_ends_with($email, '.invalid')) return false;
+        if (str_starts_with($domain, 'guest.')) return false;
+        if (in_array($domain, ['example.com', 'example.invalid', 'example.org', 'example.net'], true)) return false;
+
+        return true;
     }
 
     public function guestPhone(): ?string

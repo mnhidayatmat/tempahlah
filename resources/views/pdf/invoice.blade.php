@@ -286,9 +286,15 @@
                     // Prefer the invoice's snapshot; fall back to the booking's
                     // live guest contact so email/phone still print for bookings
                     // whose snapshot was taken before contact details were added.
+                    // Placeholder emails (system-minted) are treated as absent —
+                    // if the customer gave no email/phone, the line stays empty.
                     $billName  = $invoice->billed_to['name'] ?? $booking->guestName() ?? '—';
+
                     $billEmail = $invoice->billed_to['email'] ?? null;
-                    if (empty($billEmail) && method_exists($booking, 'guestEmail')) { $billEmail = $booking->guestEmail(); }
+                    if (! \App\Models\Booking::isRealEmail($billEmail)) {
+                        $billEmail = method_exists($booking, 'guestEmail') ? $booking->guestEmail() : null;
+                    }
+
                     $billPhone = $invoice->billed_to['phone'] ?? null;
                     if (empty($billPhone) && method_exists($booking, 'guestPhone')) { $billPhone = $booking->guestPhone(); }
                 @endphp
