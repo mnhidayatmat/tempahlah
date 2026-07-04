@@ -34,7 +34,7 @@
         .bk-menu-sep { height:1px; background:var(--line); margin:5px 4px; }
 
         /* Invoice & receipt document styles live in the shared
-           <x-booking.documents> component (rendered here + in the calendar). */
+           booking.documents component (rendered here + in the calendar). */
 
         @media (max-width: 768px) {
             .bk-root { gap:14px !important; }
