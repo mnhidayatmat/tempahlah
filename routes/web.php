@@ -228,6 +228,8 @@ Route::domain(config('app.tenant_domain'))->group(function () {
 
         Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
+        Route::post('/settings/branding',   [SettingsController::class, 'updateBranding'])->name('settings.branding');
+        Route::get('/settings/invoice-preview', [SettingsController::class, 'invoicePreview'])->name('settings.invoice-preview');
 
         Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
         Route::post('/subscription/change', [SubscriptionController::class, 'change'])->name('subscription.change');

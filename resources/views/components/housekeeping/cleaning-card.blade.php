@@ -25,6 +25,10 @@
     ];
     $typeLabel = $typeLabels[$t->type] ?? ucfirst(str_replace('_', ' ', (string) $t->type));
     $durationHours = $t->duration_minutes ? rtrim(rtrim(number_format($t->duration_minutes / 60, 1), '0'), '.') : null;
+    $crewBits = [];
+    if ($t->cleaners_required) { $crewBits[] = '👥 '.(int) $t->cleaners_required; }
+    if ($durationHours) { $crewBits[] = '⏱ '.$durationHours.'h'; }
+    $crewLabel = implode(' · ', $crewBits);
 @endphp
 <div class="hauz-card" x-data="{ editing: false }" style="padding: 16px; border-left: 3px solid {{ $borderColor }};">
     {{-- Display row --}}
@@ -43,12 +47,8 @@
             <div style="font-size: 12.5px; color: var(--ink-2); display:flex; gap: 14px; flex-wrap: wrap; align-items: center;">
                 <span>{{ $typeLabel }}</span>
                 <span class="mono">{{ $t->scheduled_at?->format('M j · H:i') }}</span>
-                @if ($t->cleaners_required || $durationHours)
-                    <span class="pill" style="background: var(--bg-sunk); color: var(--ink-2); height: 18px; font-size: 10.5px; gap: 5px;">
-                        @if ($t->cleaners_required)👥 {{ (int) $t->cleaners_required }}@endif
-                        @if ($t->cleaners_required && $durationHours)·@endif
-                        @if ($durationHours)⏱ {{ $durationHours }}h@endif
-                    </span>
+                @if ($crewLabel !== '')
+                    <span class="pill" style="background: var(--bg-sunk); color: var(--ink-2); height: 18px; font-size: 10.5px;">{{ $crewLabel }}</span>
                 @endif
                 @if ($t->auto_generated)
                     <span class="pill" style="background: var(--primary-tint); color: var(--primary); height: 18px; font-size: 10.5px;">{{ __('Auto') }}</span>

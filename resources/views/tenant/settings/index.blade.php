@@ -241,6 +241,34 @@
                 </div>
             </div>
 
+            {{-- Manual payment (bank transfer / cash) --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Manual payment (bank transfer / cash)') }}</div>
+                <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
+                    {{ __('Let guests choose to pay you directly instead of the online gateway. They still get an invoice; you mark the booking fee / full payment as paid in the booking, which sends them a receipt.') }}
+                </p>
+
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                    <input type="hidden" name="manual_payment_enabled" value="0">
+                    <input type="checkbox" name="manual_payment_enabled" value="1" style="margin-top: 2px;"
+                           {{ old('manual_payment_enabled', $tenant->manualPaymentEnabled()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Offer "pay manually" on my booking page') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('When on, the public booking form shows a bank-transfer / cash option alongside the online gateway. Works even if you haven\'t connected a payment gateway yet.') }}
+                        </span>
+                    </span>
+                </label>
+
+                <div style="margin-top: 16px;">
+                    <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Payment instructions shown to guests') }}</label>
+                    <textarea class="input" name="manual_payment_instructions" rows="4" maxlength="2000"
+                              style="height:auto; padding:10px 12px; resize:vertical;"
+                              placeholder="{{ __("e.g.\nMaybank 5123 4567 8901 (Wafa Homestay Sdn Bhd)\nDuitNow: 012-345 6789\nWhatsApp the transfer receipt to confirm.") }}">{{ old('manual_payment_instructions', $tenant->manual_payment_instructions) }}</textarea>
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Printed on the guest\'s invoice and shown on the booking-received page. If left blank, guests are told to contact you to arrange payment.') }}</div>
+                </div>
+            </div>
+
             {{-- Check-out reminder --}}
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Check-out reminder') }}</div>
@@ -536,6 +564,131 @@
             <div style="display:flex; justify-content: flex-end; gap: 8px;">
                 <button type="reset" class="btn">{{ __('Discard') }}</button>
                 <button type="submit" class="btn btn-primary">{{ __('Save changes') }}</button>
+            </div>
+        </form>
+
+        {{-- ─── Invoice & document branding ────────────────────────────
+             Separate multipart form: the logo, tagline, address, terms and
+             bank/QR details that print on every invoice + receipt. --}}
+        @php
+            $bDisk   = config('filesystems.default');
+            $logoUrl = $tenant->logo_path ? \Storage::disk($bDisk)->url($tenant->logo_path) : null;
+            $qrUrl   = $tenant->bank_qr_path ? \Storage::disk($bDisk)->url($tenant->bank_qr_path) : null;
+        @endphp
+        <form method="POST" action="{{ route('tenant.settings.branding') }}" enctype="multipart/form-data"
+              style="display:flex; flex-direction:column; gap: 18px; margin-top: 18px;">
+            @csrf
+            <div class="hauz-card" style="padding: 22px;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom: 6px; flex-wrap: wrap;">
+                    <div>
+                        <div class="kicker">{{ __('Invoice & documents') }}</div>
+                        <div style="margin-top: 4px; font-size: 13px; color: var(--ink-2); max-width: 560px;">
+                            {{ __('Your logo, tagline and bank details appear on every invoice and receipt you send to guests.') }}
+                        </div>
+                    </div>
+                    <a href="{{ route('tenant.settings.invoice-preview') }}" target="_blank" rel="noopener" class="btn btn-sm">
+                        {{ __('Preview sample') }} ↗
+                    </a>
+                </div>
+
+                {{-- Logo + tagline --}}
+                <div style="display:grid; grid-template-columns: 150px 1fr; gap: 20px; align-items:start; margin-top: 18px;"
+                     x-data="{ logoPreview: '{{ $logoUrl }}', remove: false }">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 8px;">{{ __('Logo') }}</label>
+                        <div style="width: 150px; height: 150px; border-radius: var(--r-md); border: 1.5px dashed var(--line-2); background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
+                            <template x-if="logoPreview && !remove">
+                                <img :src="logoPreview" alt="logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            </template>
+                            <template x-if="!logoPreview || remove">
+                                <span style="font-size: 11px; color: var(--ink-3); text-align:center; padding: 8px;">{{ __('No logo yet') }}</span>
+                            </template>
+                        </div>
+                        <label class="btn btn-sm" style="margin-top: 8px; width: 100%; text-align:center; cursor:pointer;">
+                            {{ __('Choose image') }}
+                            <input type="file" name="logo" accept="image/*" style="display:none;"
+                                   @change="const f=$event.target.files[0]; if(f){ logoPreview=URL.createObjectURL(f); remove=false; }">
+                        </label>
+                        @if ($logoUrl)
+                            <label style="display:flex; align-items:center; gap: 6px; font-size: 11.5px; color: var(--ink-3); margin-top: 8px; cursor:pointer;">
+                                <input type="checkbox" name="remove_logo" value="1" x-model="remove"> {{ __('Remove current logo') }}
+                            </label>
+                        @endif
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap: 14px;">
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Tagline') }}</label>
+                            <input class="input" type="text" name="invoice_tagline" maxlength="160"
+                                   value="{{ old('invoice_tagline', $tenant->invoice_tagline) }}"
+                                   placeholder="{{ __('e.g. Luas, Selesa, & Tenang') }}">
+                            <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Shown in italics under your business name.') }}</div>
+                        </div>
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Business address') }}</label>
+                            <input class="input" type="text" name="business_address" maxlength="255"
+                                   value="{{ old('business_address', $tenant->business_address) }}"
+                                   placeholder="{{ __('e.g. No. 1, Lorong Benar, 86000 Kluang, Johor') }}">
+                            <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Printed in the document header. Leave blank to use the property address.') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Payment details --}}
+                <div class="kicker" style="font-size: 9.5px; margin: 22px 0 10px;">{{ __('Payment details (footer)') }}</div>
+                <div style="display:grid; grid-template-columns: 150px 1fr; gap: 20px; align-items:start;"
+                     x-data="{ qrPreview: '{{ $qrUrl }}', removeQr: false }">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 8px;">{{ __('Payment QR') }}</label>
+                        <div style="width: 150px; height: 150px; border-radius: var(--r-md); border: 1.5px dashed var(--line-2); background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <template x-if="qrPreview && !removeQr">
+                                <img :src="qrPreview" alt="QR" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            </template>
+                            <template x-if="!qrPreview || removeQr">
+                                <span style="font-size: 11px; color: var(--ink-3); text-align:center; padding: 8px;">{{ __('e.g. DuitNow / bank QR') }}</span>
+                            </template>
+                        </div>
+                        <label class="btn btn-sm" style="margin-top: 8px; width: 100%; text-align:center; cursor:pointer;">
+                            {{ __('Choose QR image') }}
+                            <input type="file" name="bank_qr" accept="image/*" style="display:none;"
+                                   @change="const f=$event.target.files[0]; if(f){ qrPreview=URL.createObjectURL(f); removeQr=false; }">
+                        </label>
+                        @if ($qrUrl)
+                            <label style="display:flex; align-items:center; gap: 6px; font-size: 11.5px; color: var(--ink-3); margin-top: 8px; cursor:pointer;">
+                                <input type="checkbox" name="remove_qr" value="1" x-model="removeQr"> {{ __('Remove QR') }}
+                            </label>
+                        @endif
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content:start;">
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bank name') }}</label>
+                            <input class="input" type="text" name="bank_name" maxlength="120"
+                                   value="{{ old('bank_name', $tenant->bank_name) }}" placeholder="{{ __('e.g. Bank Islam') }}">
+                        </div>
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Account holder') }}</label>
+                            <input class="input" type="text" name="bank_account_holder" maxlength="120"
+                                   value="{{ old('bank_account_holder', $tenant->bank_account_holder) }}" placeholder="{{ __('Name on the account') }}">
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Account number') }}</label>
+                            <input class="input mono" type="text" name="bank_account_number" maxlength="60"
+                                   value="{{ old('bank_account_number', $tenant->bank_account_number) }}" placeholder="e.g. 8830 0021 2739 32" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Terms --}}
+                <div style="margin-top: 22px;">
+                    <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Terms printed on documents') }}</label>
+                    <textarea class="input" name="invoice_terms" rows="3" maxlength="2000"
+                              style="height:auto; resize:vertical;"
+                              placeholder="{{ \App\Models\Tenant::DEFAULT_INVOICE_TERMS }}">{{ old('invoice_terms', $tenant->invoice_terms) }}</textarea>
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Leave blank to use the default terms.') }}</div>
+                </div>
+
+                <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">{{ __('Save invoice branding') }}</button>
+                </div>
             </div>
         </form>
     </div>

@@ -94,6 +94,7 @@ class GenerateInvoice
             'tenant' => $tenant,
             'template' => $template,
             'booking' => $booking,
+            'payment' => $payment,
         ]);
 
         $path = "tenants/{$tenant->id}/invoices/{$invoice->invoice_number}.pdf";

@@ -25,12 +25,15 @@ class BookingInvoiceMail extends Mailable
         public Booking $booking,
         public Invoice $invoice,
         public string $payUrl,
+        public bool $manual = false,
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: __('Pay deposit: :ref', ['ref' => $this->booking->reference]),
+            subject: $this->manual
+                ? __('Invoice: :ref', ['ref' => $this->booking->reference])
+                : __('Pay deposit: :ref', ['ref' => $this->booking->reference]),
         );
     }
 
@@ -42,6 +45,8 @@ class BookingInvoiceMail extends Mailable
                 'booking' => $this->booking,
                 'invoice' => $this->invoice,
                 'payUrl'  => $this->payUrl,
+                'manual'  => $this->manual,
+                'manualInstructions' => $this->booking->tenant?->manualPaymentInstructions(),
             ],
         );
     }

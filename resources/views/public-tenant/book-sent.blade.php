@@ -27,8 +27,8 @@
                     : 'We\'ve sent the invoice to your email and WhatsApp. Tap the button below to pay the deposit and confirm your booking.' }}
             @else
                 {{ $isBM
-                    ? 'Tempahan anda telah direkodkan. Tuan rumah akan menghubungi anda melalui WhatsApp.'
-                    : 'Your booking has been recorded. The host will reach out via WhatsApp shortly.' }}
+                    ? 'Kami telah menghantar invois ke emel dan WhatsApp anda. Sila buat bayaran mengikut arahan di bawah untuk mengesahkan tempahan.'
+                    : 'We\'ve sent the invoice to your email and WhatsApp. Please complete payment using the instructions below to confirm your booking.' }}
             @endif
         </p>
 
@@ -73,9 +73,29 @@
                     : 'You\'ll be redirected to Toyyibpay. FPX, credit/debit cards & DuitNow QR accepted.' }}
             </p>
         @else
-            <a href="{{ route('tenant-public.home', ['tenant_slug' => $tenant->slug]) }}" class="bs-cta">
-                {{ $isBM ? 'Kembali ke laman utama' : 'Back to home' }}
-            </a>
+            {{-- Manual payment: show the host's bank-transfer instructions
+                 (or a generic "contact the host" note when none are set). --}}
+            <div class="bs-manual">
+                <div class="bs-manual-head">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    {{ $isBM ? 'Cara bayaran' : 'How to pay' }}
+                </div>
+                <div class="bs-manual-body">@if(!empty($manualInstructions)){{ $manualInstructions }}@else{{ $isBM
+                    ? 'Sila hubungi tuan rumah untuk mengaturkan bayaran. Sebut rujukan tempahan anda semasa membayar.'
+                    : 'Please contact the host to arrange your payment. Quote your booking reference when you pay.' }}@endif</div>
+                <div class="bs-manual-ref">{{ $isBM ? 'Rujukan' : 'Reference' }}: <strong>{{ $booking->reference }}</strong></div>
+            </div>
+            @if($contactPhone ?? preg_replace('/\D/', '', $tenant->business_phone ?? ''))
+                @php $waPhone = preg_replace('/\D/', '', $tenant->business_phone ?? ''); @endphp
+                <a href="https://wa.me/{{ $waPhone }}?text={{ rawurlencode(($isBM ? 'Salam! Saya sudah tempah. Rujukan: ' : 'Hi! I\'ve booked. Reference: ').$booking->reference) }}" target="_blank" rel="noopener" class="bs-cta">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2z"/></svg>
+                    {{ $isBM ? 'Hantar resit bayaran' : 'Send payment proof' }}
+                </a>
+            @else
+                <a href="{{ route('tenant-public.home', ['tenant_slug' => $tenant->slug]) }}" class="bs-cta">
+                    {{ $isBM ? 'Kembali ke laman utama' : 'Back to home' }}
+                </a>
+            @endif
         @endif
 
         <div class="bs-channels">
@@ -179,6 +199,32 @@
             font-size: 12px;
             color: var(--ink-3);
             margin: 10px 0 18px;
+        }
+        .bs-manual {
+            background: var(--bg-sunk);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+        .bs-manual-head {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--primary-deep);
+            margin-bottom: 8px;
+        }
+        .bs-manual-body {
+            font-size: 13.5px;
+            line-height: 1.5;
+            color: var(--ink);
+            white-space: pre-line;
+        }
+        .bs-manual-ref {
+            margin-top: 10px; padding-top: 10px;
+            border-top: 1px dashed var(--line);
+            font-size: 12.5px; color: var(--ink-2);
+            font-family: var(--font-mono);
         }
         .bs-channels {
             display: flex; gap: 8px;

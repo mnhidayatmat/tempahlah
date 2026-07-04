@@ -189,6 +189,7 @@
           isBM: @js($isBM),
           properties: @js($propertiesPayload),
           toyyibpayConfigured: @js($toyyibpayConfigured),
+          manualEnabled: @js($manualPaymentEnabled),
           depositPct: 20,
       })">
 
@@ -471,16 +472,17 @@
             </div>
         </div>
 
-        @if($toyyibpayConfigured)
-            {{-- Pay-deposit CTA: opens the reservation form. --}}
+        @php $canBook = $toyyibpayConfigured || $manualPaymentEnabled; @endphp
+        @if($canBook)
+            {{-- Reserve CTA: opens the reservation form. --}}
             <button type="button" class="wf-reserve" @click="openBookForm = true; $nextTick(() => { const el = document.getElementById('wf-book-name'); if (el) el.focus(); })">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>{{ $isBM ? 'Tempah & bayar sekarang' : 'Reserve & pay now' }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
+                <span>{{ $toyyibpayConfigured ? ($isBM ? 'Tempah & bayar sekarang' : 'Reserve & pay now') : ($isBM ? 'Tempah sekarang' : 'Reserve now') }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
             <div class="wf-reserve-hint">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>{{ $isBM ? 'Bayar selamat melalui Toyyibpay · FPX, kad, DuitNow' : 'Secure payment via Toyyibpay · FPX, cards, DuitNow' }}</span>
+                <span>@if($toyyibpayConfigured && $manualPaymentEnabled){{ $isBM ? 'Bayar dalam talian atau pindahan bank · anda pilih' : 'Pay online or by bank transfer · your choice' }}@elseif($toyyibpayConfigured){{ $isBM ? 'Bayar selamat melalui Toyyibpay · FPX, kad, DuitNow' : 'Secure payment via Toyyibpay · FPX, cards, DuitNow' }}@else{{ $isBM ? 'Pindahan bank / tunai · invois dihantar terus' : 'Bank transfer / cash · invoice sent instantly' }}@endif</span>
             </div>
         @elseif($contactPhone)
             {{-- Fallback: tenant hasn't connected Toyyibpay yet. Keep the
@@ -497,7 +499,7 @@
         @endif
     </section>
 
-    @if($toyyibpayConfigured)
+    @if($canBook ?? ($toyyibpayConfigured || $manualPaymentEnabled))
     {{-- ───── BOOK FORM MODAL ─────────────────────────────────────── --}}
     <div class="wf-book-overlay" x-show="openBookForm" x-cloak x-transition.opacity @click.self="openBookForm = false" @keydown.escape.window="openBookForm = false">
         <div class="wf-book-card" @click.stop x-transition>
@@ -543,6 +545,30 @@
                 <input type="hidden" name="check_out" :value="checkout">
                 <input type="hidden" name="adults" :value="guests">
                 <input type="hidden" name="children" value="0">
+                <input type="hidden" name="payment_method" :value="payMethod">
+
+                @if($toyyibpayConfigured && $manualPaymentEnabled)
+                    {{-- Payment method choice: online gateway vs pay manually.
+                         Only shown when BOTH are available; otherwise payMethod
+                         is pinned to whichever one works. --}}
+                    <div class="wf-paymethod">
+                        <span class="wf-book-label" style="margin-bottom:2px;">{{ $isBM ? 'Cara bayaran' : 'Payment method' }}</span>
+                        <button type="button" class="wf-paymethod-opt" :class="{ 'is-active': payMethod === 'gateway' }" @click="payMethod = 'gateway'">
+                            <span class="wf-paymethod-radio"></span>
+                            <span class="wf-paymethod-txt">
+                                <span class="wf-paymethod-title">{{ $isBM ? 'Bayar dalam talian' : 'Pay online now' }}</span>
+                                <span class="wf-paymethod-sub">{{ $isBM ? 'FPX, kad, DuitNow — pengesahan segera' : 'FPX, cards, DuitNow — instant confirmation' }}</span>
+                            </span>
+                        </button>
+                        <button type="button" class="wf-paymethod-opt" :class="{ 'is-active': payMethod === 'manual' }" @click="payMethod = 'manual'">
+                            <span class="wf-paymethod-radio"></span>
+                            <span class="wf-paymethod-txt">
+                                <span class="wf-paymethod-title">{{ $isBM ? 'Bayar secara manual' : 'Pay manually' }}</span>
+                                <span class="wf-paymethod-sub">{{ $isBM ? 'Pindahan bank / tunai — tuan rumah sahkan' : 'Bank transfer / cash — host confirms' }}</span>
+                            </span>
+                        </button>
+                    </div>
+                @endif
 
                 <label class="wf-book-field">
                     <span class="wf-book-label">{{ $isBM ? 'Nama penuh' : 'Full name' }}</span>
@@ -573,13 +599,17 @@
                 </div>
 
                 <button type="submit" class="wf-book-submit" @click="bookSubmitting = true">
-                    <span x-show="!bookSubmitting">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
+                    <span x-show="!bookSubmitting && payMethod === 'gateway'">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
+                    <span x-show="!bookSubmitting && payMethod === 'manual'" x-cloak>{{ $isBM ? 'Sahkan tempahan' : 'Confirm booking' }}</span>
                     <span x-show="bookSubmitting" x-cloak>{{ $isBM ? 'Memproses…' : 'Processing…' }}</span>
                 </button>
                 <p class="wf-book-fine">
-                    {{ $isBM
+                    <span x-show="payMethod === 'gateway'">{{ $isBM
                         ? 'Anda akan dialihkan ke Toyyibpay untuk membayar yuran tempahan. Resit & pengesahan dihantar ke emel + WhatsApp.'
-                        : 'You\'ll be redirected to Toyyibpay to pay the booking fee. Receipt + confirmation are sent to your email + WhatsApp.' }}
+                        : 'You\'ll be redirected to Toyyibpay to pay the booking fee. Receipt + confirmation are sent to your email + WhatsApp.' }}</span>
+                    <span x-show="payMethod === 'manual'" x-cloak>{{ $isBM
+                        ? 'Invois dengan arahan bayaran dihantar ke emel + WhatsApp. Tuan rumah akan sahkan setelah bayaran diterima.'
+                        : 'An invoice with payment instructions is sent to your email + WhatsApp. The host confirms once payment is received.' }}</span>
                 </p>
             </form>
         </div>
@@ -1946,6 +1976,39 @@
         border-radius: 8px;
         font-size: 12.5px;
     }
+    .wf-paymethod { display: flex; flex-direction: column; gap: 8px; }
+    .wf-paymethod-opt {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 11px 13px;
+        border: 1.5px solid var(--line);
+        border-radius: 12px;
+        background: var(--bg-elev);
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        transition: border-color 0.12s, background 0.12s;
+    }
+    .wf-paymethod-opt.is-active {
+        border-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 7%, transparent);
+    }
+    .wf-paymethod-radio {
+        flex-shrink: 0; margin-top: 2px;
+        width: 16px; height: 16px; border-radius: 999px;
+        border: 2px solid var(--line-2);
+        transition: border-color 0.12s;
+        position: relative;
+    }
+    .wf-paymethod-opt.is-active .wf-paymethod-radio {
+        border-color: var(--primary);
+    }
+    .wf-paymethod-opt.is-active .wf-paymethod-radio::after {
+        content: ''; position: absolute; inset: 2px;
+        border-radius: 999px; background: var(--primary);
+    }
+    .wf-paymethod-txt { display: flex; flex-direction: column; gap: 1px; }
+    .wf-paymethod-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .wf-paymethod-sub { font-size: 11px; color: var(--ink-3); line-height: 1.35; }
     .wf-book-submit {
         margin-top: 4px;
         background: linear-gradient(180deg, var(--primary) 0%, var(--primary-deep) 100%);
@@ -2010,6 +2073,10 @@
                resets to that property's own default. */
             guests: opts.properties?.[0]?.default_guests || 2,
             toyyibpayConfigured: opts.toyyibpayConfigured,
+            manualEnabled: !!opts.manualEnabled,
+            /* Chosen payment method in the book form: 'gateway' or 'manual'.
+               Default to the online gateway when it's available, else manual. */
+            payMethod: opts.toyyibpayConfigured ? 'gateway' : 'manual',
             depositPct: opts.depositPct || 20,
             openBookForm: false,
             bookSubmitting: false,

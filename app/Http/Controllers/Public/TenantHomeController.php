@@ -174,6 +174,8 @@ class TenantHomeController extends Controller
             'contactPhone'        => $contactPhone,
             'bookedByProperty'    => $bookedByProperty,
             'toyyibpayConfigured' => $toyyibpayConfigured,
+            'manualPaymentEnabled'=> $tenant->manualPaymentEnabled(),
+            'manualInstructions'  => $tenant->manualPaymentInstructions(),
             'ownerCanAccess'      => $ownerCanAccess,
             'apexUrl'             => rtrim((string) config('app.url'), '/'),
         ]);

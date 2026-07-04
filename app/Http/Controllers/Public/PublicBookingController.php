@@ -47,11 +47,24 @@ class PublicBookingController extends Controller
         $tenant = $request->attributes->get('subdomain_tenant');
         $data = $request->validated();
 
-        // Graceful fallback when the tenant hasn't connected any payment
-        // gateway (Toyyibpay or Billplz): hand the customer off to a WhatsApp
-        // deeplink with the enquiry prefilled, so the page still works
-        // out-of-the-box for non-paid tenants.
-        if (! $this->createBill->gatewayConfigured($tenant->id)) {
+        // Resolve the effective payment method. The guest picks gateway or
+        // manual on the form, but we validate against what's actually
+        // available: fall back gateway→manual (or vice-versa) if the chosen
+        // one isn't set up, and only hand off to WhatsApp if NEITHER works.
+        $method        = ($data['payment_method'] ?? 'gateway') === 'manual' ? 'manual' : 'gateway';
+        $manualEnabled = $tenant->manualPaymentEnabled();
+        $gatewayReady  = $this->createBill->gatewayConfigured($tenant->id);
+
+        if ($method === 'gateway' && ! $gatewayReady) {
+            $method = $manualEnabled ? 'manual' : 'none';
+        } elseif ($method === 'manual' && ! $manualEnabled) {
+            $method = $gatewayReady ? 'gateway' : 'none';
+        }
+
+        // Neither an online gateway nor manual pay is available → hand the
+        // customer off to a WhatsApp deeplink with the enquiry prefilled, so
+        // the page still works out-of-the-box for non-paid tenants.
+        if ($method === 'none') {
             return redirect()->away($this->whatsappFallbackUrl($tenant, $data));
         }
 
@@ -84,14 +97,39 @@ class PublicBookingController extends Controller
                 ->with('booking_error', __('Sorry, these dates were just taken — please pick different dates.'));
         }
 
-        // 2. Payment gateway bill (Toyyibpay or Billplz — whichever the tenant
+        $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);
+
+        // 2a. MANUAL pay path — the guest pays the tenant directly (bank
+        //     transfer / cash). No gateway bill and no Payment row is created
+        //     (the tenant records the money later via "Mark paid", which mints
+        //     the succeeded Payment + receipt). The booking stays PENDING and
+        //     is NOT auto-cancelled by the lifecycle command — that only
+        //     targets bookings carrying an unpaid gateway deposit bill. The
+        //     guest still gets an invoice with the host's payment instructions.
+        if ($method === 'manual') {
+            $invoice = $this->generateInvoice->execute(
+                $booking->fresh(['property', 'tenant', 'bookingGuests']),
+                null,
+                Invoice::TYPE_INVOICE,
+            );
+
+            // Empty payUrl + manual flag → the invoice email/WA render the
+            // host's bank-transfer instructions instead of a pay button.
+            SendBookingInvoice::dispatch($booking->id, $invoice->id, '', true);
+
+            return redirect()->route('tenant-public.booking.sent', [
+                'tenant_slug' => $tenant->slug,
+                'reference'   => $booking->reference,
+            ]);
+        }
+
+        // 2b. Payment gateway bill (Toyyibpay or Billplz — whichever the tenant
         //    has active). Last-minute bookings (made inside the tenant's
         //    full-payment lead time) are billed for the FULL total —
         //    CreateBooking has already set deposit_amount = total in that case —
         //    so we mark the payment TYPE_FULL for accurate records + receipt
         //    wording. Otherwise it's a TYPE_DEPOSIT (booking fee) with the
         //    balance due before check-in.
-        $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);
         try {
             $bill = $this->createBill->execute(
                 $booking,
@@ -160,10 +198,13 @@ class PublicBookingController extends Controller
         $payUrl = $payment?->meta['payment_url'] ?? null;
 
         return view('public-tenant.book-sent', [
-            'tenant'  => $tenant,
-            'booking' => $booking,
-            'payment' => $payment,
-            'payUrl'  => $payUrl,
+            'tenant'             => $tenant,
+            'booking'            => $booking,
+            'payment'            => $payment,
+            'payUrl'             => $payUrl,
+            // No open gateway pay link → manual booking. Surface the host's
+            // bank-transfer instructions (may be null → generic copy).
+            'manualInstructions' => $payUrl ? null : $tenant->manualPaymentInstructions(),
         ]);
     }
 

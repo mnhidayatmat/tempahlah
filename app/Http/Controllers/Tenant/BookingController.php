@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Actions\Booking\CreateBooking;
+use App\Actions\Invoicing\GenerateInvoice;
 use App\Actions\Payments\CreateGatewayBill;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
+use App\Jobs\SendBookingReceipt;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
 use App\Models\BookingGuest;
@@ -293,12 +295,13 @@ class BookingController extends Controller
 
         $wasPending = $booking->status === Booking::STATUS_PENDING;
 
+        $payment = null;
         if ($amount > 0) {
             $type = $kind === 'booking_fee'
                 ? Payment::TYPE_DEPOSIT
                 : ($booking->deposit_paid_at ? Payment::TYPE_BALANCE : Payment::TYPE_FULL);
 
-            Payment::create([
+            $payment = Payment::create([
                 'tenant_id' => $booking->tenant_id,
                 'public_id' => Str::ulid(),
                 'booking_id' => $booking->id,
@@ -335,6 +338,23 @@ class BookingController extends Controller
             try {
                 app(\App\Actions\Operations\GenerateOperationalTasksForBooking::class)
                     ->execute($booking->fresh(['property']));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // Generate + send an official receipt for the money just recorded
+        // (email + WhatsApp), mirroring the gateway settlement flow. So a
+        // manually-paid booking fee yields a fee receipt, and marking the
+        // balance / full payment yields the full receipt the guest expects.
+        if ($payment) {
+            try {
+                $receipt = app(GenerateInvoice::class)->execute(
+                    $booking->fresh(['property', 'tenant', 'bookingGuests']),
+                    $payment,
+                    Invoice::TYPE_RECEIPT,
+                );
+                SendBookingReceipt::dispatch($booking->id, $receipt->id, $payment->id);
             } catch (\Throwable $e) {
                 report($e);
             }

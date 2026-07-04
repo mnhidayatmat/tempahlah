@@ -101,13 +101,13 @@ class WhatsappMessenger
      * (defaults to true since this is core booking-flow comms, not
      * marketing). Attaches the invoice PDF as a WhatsApp document.
      */
-    public static function dispatchInvoice(Booking $booking, string $payUrl, ?Invoice $invoice = null): ?WhatsappMessage
+    public static function dispatchInvoice(Booking $booking, string $payUrl, ?Invoice $invoice = null, bool $manual = false): ?WhatsappMessage
     {
         return self::autoDispatch(
             $booking,
             'auto_invoice',
             WhatsappMessage::KIND_INVOICE,
-            fn () => MessageTemplates::invoice($booking, $payUrl),
+            fn () => MessageTemplates::invoice($booking, $payUrl, $manual),
             $invoice ? self::pdfMedia($invoice) : null,
         );
     }

@@ -21,13 +21,15 @@ class Tenant extends Model
         'public_id', 'slug', 'business_name', 'business_email', 'business_phone',
         'ssm_number', 'motac_license', 'motac_verified_at', 'owner_user_id',
         'kyc_status', 'kyc_documents_path', 'bank_account_encrypted', 'bank_name',
-        'bank_account_holder', 'status', 'sst_registered', 'sst_rate',
-        'logo_path', 'primary_color', 'secondary_color', 'accent_color',
+        'bank_account_holder', 'bank_account_number', 'bank_qr_path', 'status', 'sst_registered', 'sst_rate',
+        'logo_path', 'invoice_tagline', 'business_address', 'invoice_terms',
+        'primary_color', 'secondary_color', 'accent_color',
         'default_locale', 'suspended_at', 'suspended_reason',
         'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on',
         'auto_cancel_unpaid_balance', 'refund_policy',
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
         'auto_housekeeping',
+        'manual_payment_enabled', 'manual_payment_instructions',
     ];
 
     public const THEME_DEFAULTS = [
@@ -57,6 +59,12 @@ class Tenant extends Model
      */
     public const DEFAULT_REFUND_POLICY = 'The booking fee is non-refundable if you cancel your booking.';
 
+    /**
+     * Default terms printed on invoices/receipts when the tenant hasn't set
+     * their own. Editable in Settings → Invoice & documents.
+     */
+    public const DEFAULT_INVOICE_TERMS = "Full payment must be made before check-in. The deposit is refunded after a satisfactory check-out.";
+
     protected $casts = [
         'motac_verified_at' => 'datetime',
         'suspended_at' => 'datetime',
@@ -69,7 +77,11 @@ class Tenant extends Model
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
+        'manual_payment_enabled' => 'boolean',
     ];
+
+    /** Platform default: offer the manual (bank transfer / cash) pay option. */
+    public const MANUAL_PAYMENT_ENABLED_DEFAULT = true;
 
     /** Platform default for the auto-housekeeping SOP master toggle. */
     public const AUTO_HOUSEKEEPING_DEFAULT = true;
@@ -173,6 +185,48 @@ class Tenant extends Model
         return $extra !== ''
             ? __(self::DEFAULT_REFUND_POLICY)."\n".$extra
             : __(self::DEFAULT_REFUND_POLICY);
+    }
+
+    /**
+     * Terms printed on the invoice / receipt. Falls back to a sensible default
+     * so a brand-new tenant's documents still read professionally.
+     */
+    public function invoiceTermsText(): string
+    {
+        $terms = trim((string) ($this->invoice_terms ?? ''));
+
+        return $terms !== '' ? $terms : __(self::DEFAULT_INVOICE_TERMS);
+    }
+
+    /** True when the tenant has enough bank detail to print a payment block. */
+    public function hasBankDetails(): bool
+    {
+        return filled($this->bank_name)
+            || filled($this->bank_account_number)
+            || filled($this->bank_qr_path);
+    }
+
+    /**
+     * Whether the public booking page offers the "pay manually" (bank
+     * transfer / cash) option. Defaults ON when the column is null.
+     */
+    public function manualPaymentEnabled(): bool
+    {
+        return $this->manual_payment_enabled !== null
+            ? (bool) $this->manual_payment_enabled
+            : self::MANUAL_PAYMENT_ENABLED_DEFAULT;
+    }
+
+    /**
+     * Guest-facing instructions for a manual payment (bank name + account
+     * number, DuitNow QR note, etc.). Null when the host hasn't set any —
+     * callers should fall back to "contact the host to arrange payment".
+     */
+    public function manualPaymentInstructions(): ?string
+    {
+        $text = trim((string) ($this->manual_payment_instructions ?? ''));
+
+        return $text !== '' ? $text : null;
     }
 
     public function owner(): BelongsTo

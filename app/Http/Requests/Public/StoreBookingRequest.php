@@ -38,6 +38,9 @@ class StoreBookingRequest extends FormRequest
             'guest_email'      => ['required', 'email:rfc', 'max:160'],
             'guest_phone'      => ['required', 'string', 'min:7', 'max:24'],
             'special_requests' => ['nullable', 'string', 'max:500'],
+            // How the guest chose to pay. Null / absent defaults to the
+            // online gateway in the controller.
+            'payment_method'   => ['nullable', Rule::in(['gateway', 'manual'])],
         ];
     }
 

@@ -30,6 +30,7 @@ class SendBookingInvoice implements ShouldQueue
         public int $bookingId,
         public int $invoiceId,
         public string $payUrl,
+        public bool $manual = false,
     ) {
         // Illuminate\Bus\Queueable::$queue has no default — setting via
         // onQueue() avoids the trait property collision.
@@ -50,7 +51,7 @@ class SendBookingInvoice implements ShouldQueue
         // Email arm — only if we have a recipient address.
         if ($lead?->email) {
             try {
-                Mail::to($lead->email)->send(new BookingInvoiceMail($booking, $invoice, $this->payUrl));
+                Mail::to($lead->email)->send(new BookingInvoiceMail($booking, $invoice, $this->payUrl, $this->manual));
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -60,7 +61,7 @@ class SendBookingInvoice implements ShouldQueue
         // Pass the Invoice so the messenger can attach the PDF as a
         // WhatsApp document via a 7-day signed Spaces URL.
         try {
-            WhatsappMessenger::dispatchInvoice($booking, $this->payUrl, $invoice);
+            WhatsappMessenger::dispatchInvoice($booking, $this->payUrl, $invoice, $this->manual);
         } catch (\Throwable $e) {
             report($e);
         }
