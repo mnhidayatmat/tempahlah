@@ -136,10 +136,14 @@ class WhatsappMessenger
      */
     public static function sendInvoiceManual(Booking $booking, string $payUrl, Invoice $invoice): ?WhatsappMessage
     {
+        // No pay link (gateway off / fully paid) → use the manual template,
+        // which carries the tenant's bank details instead of an empty link.
+        $manual = trim($payUrl) === '';
+
         return self::manualDispatch(
             $booking,
             WhatsappMessage::KIND_INVOICE,
-            fn () => MessageTemplates::invoice($booking, $payUrl),
+            fn () => MessageTemplates::invoice($booking, $payUrl, $manual),
             self::pdfMedia($invoice),
         );
     }

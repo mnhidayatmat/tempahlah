@@ -176,15 +176,12 @@ class MessageTemplates
         $total = self::rm($booking->total_amount);
         $guests = (int) ($booking->adults ?? 1);
 
-        // Manual (bank transfer / cash) — no pay link; carry the host's
-        // payment instructions instead (fall back to "contact the host").
+        // Manual (bank transfer / cash) — no pay link; carry the host's bank
+        // details + payment instructions instead (fall back to "contact host").
         if ($manual) {
-            $instructions = $booking->tenant?->manualPaymentInstructions();
+            $how = self::manualPayHow($booking, $locale);
 
             if ($locale === 'ms') {
-                $how = $instructions
-                    ? "💳 Cara bayaran:\n{$instructions}\n\n"
-                    : "💳 Sila hubungi kami untuk maklumat bayaran (sebut rujukan {$booking->reference}).\n\n";
                 return "Salam {$name}!\n\n"
                      . "Terima kasih kerana memilih *{$business}*. Berikut invois tempahan anda:\n\n"
                      . "📍 {$property}\n"
@@ -193,12 +190,9 @@ class MessageTemplates
                      . "💰 Bayar sekarang: {$deposit} daripada {$total}\n"
                      . "🔖 Rujukan: {$booking->reference}\n\n"
                      . $how
-                     . "Setelah bayaran diterima, tuan rumah akan mengesahkan tempahan dan anda akan menerima resit rasmi.";
+                     . "Sila sertakan rujukan {$booking->reference} semasa membayar. Setelah bayaran diterima, tuan rumah akan mengesahkan tempahan dan menghantar resit rasmi.";
             }
 
-            $how = $instructions
-                ? "💳 How to pay:\n{$instructions}\n\n"
-                : "💳 Please contact us for payment details (quote reference {$booking->reference}).\n\n";
             return "Hi {$name}!\n\n"
                  . "Thanks for choosing *{$business}*. Here's your booking invoice:\n\n"
                  . "📍 {$property}\n"
@@ -207,7 +201,7 @@ class MessageTemplates
                  . "💰 Pay now: {$deposit} of {$total}\n"
                  . "🔖 Reference: {$booking->reference}\n\n"
                  . $how
-                 . "Once we receive your payment, the host will confirm your booking and you'll get an official receipt.";
+                 . "Please quote reference {$booking->reference} when you pay. Once we receive it, the host will confirm your booking and send an official receipt.";
         }
 
         if ($locale === 'ms') {
@@ -324,6 +318,49 @@ class MessageTemplates
     protected static function rm(float|int|null $amount): string
     {
         return 'RM '.number_format((float) ($amount ?? 0), 2);
+    }
+
+    /**
+     * "How to pay" block for a manual (no-gateway) invoice message: the
+     * tenant's bank details (name / account holder / account number) plus any
+     * free-text instructions, or a "contact us" fallback when neither is set.
+     * The payment QR still rides along in the attached invoice PDF.
+     */
+    protected static function manualPayHow(Booking $booking, string $locale): string
+    {
+        $tenant = $booking->tenant;
+        $isBM = $locale === 'ms';
+
+        $bank = [];
+        if (filled($tenant?->bank_name)) {
+            $bank[] = '🏦 Bank: '.$tenant->bank_name;
+        }
+        if (filled($tenant?->bank_account_holder)) {
+            $bank[] = ($isBM ? '👤 Nama akaun: ' : '👤 Account name: ').$tenant->bank_account_holder;
+        }
+        if (filled($tenant?->bank_account_number)) {
+            $bank[] = ($isBM ? '🔢 No. akaun: ' : '🔢 Account no.: ').$tenant->bank_account_number;
+        }
+
+        $instructions = $tenant?->manualPaymentInstructions();
+
+        $parts = [];
+        if ($bank) {
+            $parts[] = implode("\n", $bank);
+        }
+        if (filled($instructions)) {
+            $parts[] = $instructions;
+        }
+
+        if (! $parts) {
+            return $isBM
+                ? "💳 Sila hubungi kami untuk maklumat bayaran.\n\n"
+                : "💳 Please contact us for payment details.\n\n";
+        }
+
+        $header = $isBM ? '💳 Cara bayaran:' : '💳 How to pay:';
+
+        return $header."\n".implode("\n\n", $parts)."\n\n";
     }
 
     /**
