@@ -103,6 +103,15 @@
                                 <x-icon name="message" :size="14"/> <span>{{ __('Send via WhatsApp') }}</span>
                             </button>
                         </form>
+
+                        {{-- Share homestay location/directions via WhatsApp --}}
+                        <form method="POST" action="{{ route('tenant.bookings.whatsapp', $booking->id) }}">
+                            @csrf
+                            <input type="hidden" name="kind" value="location">
+                            <button type="submit" class="bk-menu-item">
+                                <x-icon name="pin" :size="14"/> <span>{{ __('Share location') }}</span>
+                            </button>
+                        </form>
                     @endif
 
                     @if (! $isPaid)

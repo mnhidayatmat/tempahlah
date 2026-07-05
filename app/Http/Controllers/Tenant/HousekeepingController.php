@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Actions\Operations\GenerateOperationalTasksForBooking;
 use App\Http\Controllers\Controller;
 use App\Models\Cleaner;
 use App\Models\CleaningTask;
@@ -19,7 +20,9 @@ class HousekeepingController extends Controller
     {
         $tab = $request->query('tab', 'cleaning');
         $today = Carbon::today();
-        $weekEnd = $today->copy()->addDays(7);
+        // Show the auto-scheduled turnover schedule well ahead (not just 7 days)
+        // so the host can see + share the whole upcoming cleaning plan.
+        $weekEnd = $today->copy()->addDays(60);
 
         // Date the copy-paste WhatsApp schedule is built for (defaults today;
         // host can pick tomorrow the night before to brief the cleaner group).
@@ -70,7 +73,7 @@ class HousekeepingController extends Controller
         ];
 
         $maintenance = MaintenanceTicket::query()
-            ->with(['property:id,name', 'room:id,name', 'assignee:id,name', 'reportedBy:id,name'])
+            ->with(['property:id,name', 'room:id,name', 'assignee:id,name,phone', 'reportedBy:id,name'])
             ->whereIn('status', ['open', 'in_progress'])
             ->orderByDesc('created_at')
             ->limit(50)
@@ -114,6 +117,27 @@ class HousekeepingController extends Controller
             $laundryCopy[$t->id] = $this->laundryTaskText($t, $isBM);
         }
 
+        $maintenanceCopy = [];
+        foreach ($maintenance as $t) {
+            $maintenanceCopy[$t->id] = $this->maintenanceTaskText($t, $isBM);
+        }
+
+        // WhatsApp "Share" deep links (wa.me) per task — pre-fills the message to
+        // the assigned cleaner / laundry vendor / maintenance person. No saved
+        // phone → link with no number so WhatsApp lets the host pick the chat.
+        $cleaningShare = [];
+        foreach ($todayTasks->concat($upcoming) as $t) {
+            $cleaningShare[$t->id] = $this->waShareUrl($t->cleaner?->phone, $cleaningCopy[$t->id] ?? '');
+        }
+        $laundryShare = [];
+        foreach ($laundry as $t) {
+            $laundryShare[$t->id] = $this->waShareUrl($t->vendor?->phone, $laundryCopy[$t->id] ?? '');
+        }
+        $maintenanceShare = [];
+        foreach ($maintenance as $t) {
+            $maintenanceShare[$t->id] = $this->waShareUrl($t->assignee?->phone, $maintenanceCopy[$t->id] ?? '');
+        }
+
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
             'today' => $today,
@@ -131,7 +155,44 @@ class HousekeepingController extends Controller
             'scheduleDate' => $scheduleDate,
             'cleaningCopy' => $cleaningCopy,
             'laundryCopy' => $laundryCopy,
+            'maintenanceCopy' => $maintenanceCopy,
+            'cleaningShare' => $cleaningShare,
+            'laundryShare' => $laundryShare,
+            'maintenanceShare' => $maintenanceShare,
         ]);
+    }
+
+    /** Build a wa.me share link (message pre-filled) to a staff phone. */
+    private function waShareUrl(?string $phone, string $text): string
+    {
+        $digits = $phone ? preg_replace('/\D+/', '', $phone) : '';
+
+        return 'https://wa.me/'.$digits.'?text='.rawurlencode($text);
+    }
+
+    /**
+     * Generate the default cleaning + laundry schedule from the tenant's
+     * upcoming confirmed/checked-in bookings. Host-initiated (a button on the
+     * Housekeeping page), so it forces past the tier gate; idempotent via the
+     * action's firstOrCreate, so re-running never duplicates.
+     */
+    public function generateSchedule(GenerateOperationalTasksForBooking $action)
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $bookings = \App\Models\Booking::query()
+            ->with('property')
+            ->whereIn('status', [\App\Models\Booking::STATUS_CONFIRMED, \App\Models\Booking::STATUS_CHECKED_IN])
+            ->whereDate('check_out', '>=', Carbon::today())
+            ->orderBy('check_in')
+            ->get();
+
+        foreach ($bookings as $booking) {
+            $action->execute($booking, force: true);
+        }
+
+        return back()->with('status', __(':count booking(s) scheduled for cleaning + laundry.', ['count' => $bookings->count()]));
     }
 
     /**
@@ -254,6 +315,33 @@ class HousekeepingController extends Controller
         }
         if ($t->notes) {
             $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Emoji-rich copy/share text for a single maintenance ticket.
+     */
+    private function maintenanceTaskText(MaintenanceTicket $t, bool $isBM): string
+    {
+        $priorityLabel = $isBM ? [
+            'low' => 'Rendah', 'medium' => 'Sederhana', 'high' => 'Tinggi', 'urgent' => 'Segera',
+        ] : [
+            'low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent',
+        ];
+
+        $lines = [];
+        $lines[] = '🔧 *'.($t->title ?: ($isBM ? 'Kerja pembaikan' : 'Maintenance')).'*';
+        $lines[] = '🏠 '.($t->property?->name ?? '—').($t->room ? ' · '.$t->room->name : '');
+        if ($t->priority) {
+            $lines[] = '⚠️ '.($isBM ? 'Keutamaan: ' : 'Priority: ').($priorityLabel[$t->priority] ?? ucfirst((string) $t->priority));
+        }
+        if ($t->description) {
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->description, $isBM, true));
+        }
+        if ($t->assignee) {
+            $lines[] = '👤 '.$t->assignee->name;
         }
 
         return implode("\n", $lines);

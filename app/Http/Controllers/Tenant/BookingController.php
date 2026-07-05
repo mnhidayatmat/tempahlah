@@ -686,7 +686,10 @@ class BookingController extends Controller
      */
     public function sendWhatsapp(Request $request, $id)
     {
-        $booking = Booking::with(['guest:id,name,phone', 'property:id,name', 'tenant'])->findOrFail($id);
+        // Load the full property so address/map_url/lat/lng/check_in_time are
+        // available to the checkin + location templates (a bare id,name select
+        // left those blank).
+        $booking = Booking::with(['guest:id,name,phone', 'property', 'tenant'])->findOrFail($id);
 
         if (! $booking->tenant?->whatsappSession?->isConnected()) {
             return back()->with('status', __('Connect WhatsApp first under Integrations → WhatsApp.'));
@@ -700,6 +703,7 @@ class BookingController extends Controller
         $msg = match ($kind) {
             'reminder' => WhatsappMessenger::dispatchReminder($booking),
             'checkin'  => WhatsappMessenger::dispatchCheckin($booking),
+            'location' => WhatsappMessenger::dispatchLocation($booking),
             default    => WhatsappMessenger::dispatchConfirmation($booking),
         };
 

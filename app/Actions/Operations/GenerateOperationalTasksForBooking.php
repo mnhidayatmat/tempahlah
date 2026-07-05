@@ -51,7 +51,12 @@ class GenerateOperationalTasksForBooking
     private const PRE_CLEAN_CLEANERS = 1;
     private const PRE_CLEAN_DURATION_MIN = 120; // 2 hours
 
-    public function execute(Booking $booking): void
+    /**
+     * @param  bool  $force  When true (host clicked "Generate from bookings"),
+     *                       skip the tier + toggle gates — an explicit manual
+     *                       action always builds the schedule.
+     */
+    public function execute(Booking $booking, bool $force = false): void
     {
         $booking->loadMissing('property', 'tenant');
         $tenant = $booking->tenant;
@@ -60,15 +65,17 @@ class GenerateOperationalTasksForBooking
             return;
         }
 
-        // Scope the tier check to the booking's tenant explicitly — this action
-        // also runs in the Toyyibpay webhook/return path where there's no tenant
-        // context for Pennant's default (TenantContext-based) scope resolver.
-        if (! Feature::for($tenant)->active('auto_operational_tasks')) {
-            return;
-        }
+        if (! $force) {
+            // Scope the tier check to the booking's tenant explicitly — this
+            // action also runs in the Toyyibpay webhook/return path where there's
+            // no tenant context for Pennant's default scope resolver.
+            if (! Feature::for($tenant)->active('auto_operational_tasks')) {
+                return;
+            }
 
-        if (! $tenant->autoHousekeepingEnabled()) {
-            return;
+            if (! $tenant->autoHousekeepingEnabled()) {
+                return;
+            }
         }
 
         $this->schedulePostCheckoutClean($booking);

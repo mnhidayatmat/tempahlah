@@ -203,6 +203,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
         Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
         Route::get('/housekeeping/print.pdf',          [HousekeepingController::class, 'printRunSheet'])->name('housekeeping.print');
+        Route::post('/housekeeping/generate',          [HousekeepingController::class, 'generateSchedule'])->name('housekeeping.generate');
         Route::post('/housekeeping/cleaning',          [HousekeepingController::class, 'storeCleaning'])->name('housekeeping.cleaning.store');
         Route::post('/housekeeping/laundry',           [HousekeepingController::class, 'storeLaundry'])->name('housekeeping.laundry.store');
         Route::patch('/housekeeping/cleaning/{id}',    [HousekeepingController::class, 'updateCleaning'])->name('housekeeping.cleaning.update');

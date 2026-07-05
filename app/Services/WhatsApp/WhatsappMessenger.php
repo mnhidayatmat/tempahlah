@@ -163,6 +163,21 @@ class WhatsappMessenger
     }
 
     /**
+     * Share the homestay's location/directions with the guest — the full
+     * address + a Google Maps link. Host-initiated (manual): fires on demand
+     * when a guest asks for directions, so it uses manualDispatch (no auto-send
+     * pref gate) but still needs a connected session + resolvable phone.
+     */
+    public static function dispatchLocation(Booking $booking): ?WhatsappMessage
+    {
+        return self::manualDispatch(
+            $booking,
+            WhatsappMessage::KIND_LOCATION,
+            fn () => MessageTemplates::location($booking),
+        );
+    }
+
+    /**
      * Cancellation notice — sent when a booking is cancelled (auto-cancel for
      * unpaid fee/balance, or a host-initiated cancel). Gated by the
      * `auto_cancellation` session pref (default true).

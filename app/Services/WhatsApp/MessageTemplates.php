@@ -131,6 +131,58 @@ class MessageTemplates
     }
 
     /**
+     * Directions/location share — the homestay's full address + a Google Maps
+     * link the guest can tap to navigate. Map link priority: the host's own
+     * pasted map_url (exact pin) → lat/lng coordinates → a Maps search on the
+     * text address.
+     */
+    public static function location(Booking $booking): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $name = $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $p = $booking->property;
+
+        $address = trim(implode(', ', array_filter([
+            $p?->address_line1,
+            $p?->address_line2,
+            trim(($p?->postcode ?? '').' '.($p?->city ?? '')),
+            $p?->state,
+            $p?->country,
+        ])));
+
+        $mapsLink = $p?->map_url
+            ?: (($p?->lat && $p?->lng)
+                ? "https://www.google.com/maps/search/?api=1&query={$p->lat},{$p->lng}"
+                : ($address !== ''
+                    ? 'https://www.google.com/maps/search/?api=1&query='.urlencode($address)
+                    : null));
+
+        if ($locale === 'ms') {
+            $body = "Salam {$name}!\n\n"
+                  . "📍 Lokasi *{$property}* ({$business}):\n\n";
+            if ($address !== '') {
+                $body .= "{$address}\n\n";
+            }
+            if ($mapsLink) {
+                $body .= "🗺️ Google Maps: {$mapsLink}\n\n";
+            }
+            return $body . "Jumpa nanti! Balas mesej ini jika perlukan bantuan arah.";
+        }
+
+        $body = "Hi {$name}!\n\n"
+              . "📍 Here's the location for *{$property}* ({$business}):\n\n";
+        if ($address !== '') {
+            $body .= "{$address}\n\n";
+        }
+        if ($mapsLink) {
+            $body .= "🗺️ Google Maps: {$mapsLink}\n\n";
+        }
+        return $body . "See you soon! Reply here if you need help with directions.";
+    }
+
+    /**
      * Pre-checkout reminder, fires N hours before checkout. Wraps the tenant's
      * configured checkout guidelines with a greeting + the checkout time.
      */

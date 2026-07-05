@@ -40,8 +40,16 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
+                <form method="POST" action="{{ route('tenant.housekeeping.generate') }}"
+                      onsubmit="return confirm('{{ __('Auto-schedule cleaning + laundry for all upcoming confirmed bookings? Existing tasks are kept.') }}')">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Generate from bookings') }}</button>
+                </form>
                 <a href="{{ route('tenant.housekeeping.print') }}" target="_blank" rel="noopener" class="btn btn-sm">{{ __("Print today's run sheet") }}</a>
             </div>
+        </div>
+        <div style="margin-top:-8px; color: var(--ink-3); font-size: 12px;">
+            {{ __('“Generate from bookings” builds the default schedule from your bookings — full clean 30 min after check-out (2 cleaners if the next guest is within 2 days, else 1), pre-arrival dusting when the house sat empty 3+ days, and a laundry batch. Edit or share any task below.') }}
         </div>
 
         @if (session('status'))
@@ -189,7 +197,7 @@
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Live status from cleaner mobile app') }}</div>
                     <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
                         @forelse ($todayTasks as $t)
-                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''"/>
+                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
                         @empty
                             <div class="hauz-card" style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
                                 {{ __('No cleaning tasks scheduled today.') }}
@@ -204,7 +212,7 @@
                         <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
                         <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
                             @foreach ($upcoming as $t)
-                                <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''"/>
+                                <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
                             @endforeach
                         </div>
                     </div>
@@ -351,6 +359,7 @@
                                                 <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
                                             </form>
                                         @endif
+                                        <x-housekeeping.share-button :url="$laundryShare[$l->id] ?? '#'"/>
                                         <x-housekeeping.copy-button :text="$laundryCopy[$l->id] ?? ''"/>
                                         <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                                     </div>
@@ -472,7 +481,9 @@
                             <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
                                 <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                             </span>
-                            <div style="display:flex; gap: 4px;">
+                            <div style="display:flex; gap: 4px; align-items:center;">
+                                <x-housekeeping.share-button :url="$maintenanceShare[$m->id] ?? '#'"/>
+                                <x-housekeeping.copy-button :text="$maintenanceCopy[$m->id] ?? ''"/>
                                 @if ($m->status === 'open')
                                     <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
                                         @csrf @method('PATCH')<input type="hidden" name="action" value="start">

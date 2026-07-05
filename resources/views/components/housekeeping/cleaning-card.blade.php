@@ -3,6 +3,7 @@
     'properties',
     'cleaners',
     'copyText' => '',
+    'shareUrl' => null,
 ])
 @php
     $t = $task;
@@ -92,6 +93,9 @@
                         @csrf @method('PATCH')<input type="hidden" name="action" value="complete">
                         <button type="submit" class="btn btn-sm btn-primary">{{ __('Complete') }}</button>
                     </form>
+                @endif
+                @if ($shareUrl)
+                    <x-housekeeping.share-button :url="$shareUrl"/>
                 @endif
                 <x-housekeeping.copy-button :text="$copyText"/>
                 <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
