@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Mail\RefundBankRequestMail;
 use App\Models\Booking;
 use App\Models\Refund;
+use App\Services\WhatsApp\WhatsappMessenger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class RefundController extends Controller
@@ -84,6 +87,68 @@ class RefundController extends Controller
         });
 
         return back()->with('status', __('Refund updated.'));
+    }
+
+    /**
+     * Ask the guest for their bank account so the host can transfer the
+     * deposit back. Mints a signed link to a public form and sends it to the
+     * guest by email + WhatsApp (whichever is available), and returns the link
+     * so the host can also copy/share it themselves. Stamps requested_at.
+     */
+    public function requestBankDetails(Request $request, $id)
+    {
+        $refund = Refund::with(['booking.tenant', 'booking.guest', 'booking.bookingGuests'])->findOrFail($id);
+        $booking = $refund->booking;
+
+        if (! $refund->isOpen()) {
+            return back()->with('error', __('This refund is already closed — no need to request bank details.'));
+        }
+
+        $refund->forceFill(['bank_details_requested_at' => now()])->save();
+
+        $url = $refund->bankFormUrl();
+        $channels = [];
+
+        // Email the guest the secure link.
+        $email = $booking?->guestEmail();
+        if ($email) {
+            try {
+                Mail::to($email)->queue(new RefundBankRequestMail($refund->id));
+                $channels[] = __('email');
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // WhatsApp the guest the secure link (only if the tenant's session is
+        // connected + the guest has a phone).
+        $phone = $booking?->guest?->phone ?? $booking?->resolveLeadGuest()?->phone;
+        if ($booking?->tenant && $phone) {
+            $body = $this->bankRequestMessage($refund, $url);
+            if (WhatsappMessenger::dispatchManual($booking->tenant, $booking, $phone, $body)) {
+                $channels[] = __('WhatsApp');
+            }
+        }
+
+        $msg = $channels
+            ? __('Bank-details request sent to the guest via :channels.', ['channels' => implode(' + ', $channels)])
+            : __('Bank-details link ready — copy it below and send it to your guest.');
+
+        return back()
+            ->with('status', $msg)
+            ->with('refund_bank_link', ['id' => $refund->id, 'url' => $url]);
+    }
+
+    /** BM/EN WhatsApp body for the bank-details request. */
+    private function bankRequestMessage(Refund $refund, string $url): string
+    {
+        $business = $refund->booking?->tenant?->business_name ?? config('app.name');
+        $isBM = ($refund->booking?->tenant?->default_locale ?? app()->getLocale()) === 'ms';
+        $amount = 'RM '.number_format((float) $refund->amount, 2);
+
+        return $isBM
+            ? "Salam, terima kasih menginap bersama {$business}. Untuk pemulangan deposit sebanyak {$amount}, sila isikan maklumat akaun bank anda di pautan selamat ini:\n{$url}"
+            : "Hi, thank you for staying with {$business}. To refund your deposit of {$amount}, please submit your bank account details at this secure link:\n{$url}";
     }
 
     /**

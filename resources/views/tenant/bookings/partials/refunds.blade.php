@@ -70,6 +70,43 @@
                         @endif
                     </div>
 
+                    {{-- Bank details — request from guest / show once submitted --}}
+                    @if ($isOpen)
+                        <div style="padding: 2px 14px 12px; border-top: 1px solid var(--line);">
+                            @if ($r->bankDetailsSubmitted())
+                                <div style="font-size: 11px; font-weight: 600; color: var(--ok); margin: 8px 0 6px;">✓ {{ __('Guest submitted bank details') }}</div>
+                                <div style="font-size: 12.5px; color: var(--ink-2); display:flex; flex-direction:column; gap: 3px;">
+                                    <div><strong>{{ __('Bank') }}:</strong> {{ $r->bank_name }}</div>
+                                    <div><strong>{{ __('Account holder') }}:</strong> {{ $r->bank_account_holder }}</div>
+                                    <div><strong>{{ __('Account no.') }}:</strong> <span class="mono">{{ $r->bank_account_number }}</span></div>
+                                    <div style="color: var(--ink-3); font-size: 11px;">{{ __('Submitted') }} {{ $r->bank_details_submitted_at?->format('d M Y · H:i') }}</div>
+                                </div>
+                            @else
+                                <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px;">
+                                    <form method="POST" action="{{ route('tenant.refunds.request-bank', $r->id) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            {{ $r->bank_details_requested_at ? __('Re-send bank request') : __('Request bank details') }}
+                                        </button>
+                                    </form>
+                                    @if ($r->bank_details_requested_at)
+                                        <span style="font-size: 11px; color: var(--ink-3);">{{ __('Requested :when — waiting for guest', ['when' => $r->bank_details_requested_at->diffForHumans()]) }}</span>
+                                    @else
+                                        <span style="font-size: 11px; color: var(--ink-3);">{{ __('Ask the guest for their bank account to send the deposit back.') }}</span>
+                                    @endif
+                                </div>
+                                @if (session('refund_bank_link') && session('refund_bank_link')['id'] === $r->id)
+                                    @php $lk = session('refund_bank_link')['url']; $gp = preg_replace('/\D/', '', optional($booking->guest)->phone ?? ''); @endphp
+                                    <div style="margin-top: 8px; padding: 10px; background: var(--bg-sunk); border-radius: var(--r-md); display:flex; gap: 6px; flex-wrap: wrap; align-items:center;">
+                                        <input type="text" readonly value="{{ $lk }}" class="input mono" style="flex:1; min-width: 170px; font-size: 11px;" onclick="this.select()">
+                                        <a href="https://wa.me/{{ $gp }}?text={{ rawurlencode(__('Please submit your bank details for your deposit refund: ').$lk) }}"
+                                           target="_blank" rel="noopener" class="btn btn-sm" style="border-color: #25d366; color: #128c3e;">{{ __('Share on WhatsApp') }}</a>
+                                    </div>
+                                @endif
+                            @endif
+                        </div>
+                    @endif
+
                     {{-- Read-only summary line for completed/failed --}}
                     @if (! $isOpen)
                         <div style="padding: 8px 14px 12px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); display:flex; flex-direction:column; gap: 4px;">

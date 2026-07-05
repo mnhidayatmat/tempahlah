@@ -63,6 +63,8 @@ class Refund extends Model
         'amount', 'currency', 'reason', 'status', 'method',
         'external_reference', 'notes', 'failure_reason',
         'requested_at', 'processed_at', 'processed_by_user_id',
+        'bank_name', 'bank_account_number', 'bank_account_holder',
+        'bank_details_requested_at', 'bank_details_submitted_at',
     ];
 
     protected function casts(): array
@@ -71,7 +73,35 @@ class Refund extends Model
             'amount'       => 'decimal:2',
             'requested_at' => 'datetime',
             'processed_at' => 'datetime',
+            // Encrypted at rest — the guest's account number is sensitive.
+            'bank_account_number'        => 'encrypted',
+            'bank_details_requested_at'  => 'datetime',
+            'bank_details_submitted_at'  => 'datetime',
         ];
+    }
+
+    /** True once the guest has submitted their bank details for this refund. */
+    public function bankDetailsSubmitted(): bool
+    {
+        return $this->bank_details_submitted_at !== null;
+    }
+
+    /**
+     * Signed magic-link the guest taps to submit their bank details. No
+     * password — the `signed` middleware verifies the HMAC. Expires 60 days out.
+     */
+    public function bankFormUrl(): string
+    {
+        $slug = $this->booking?->tenant?->slug ?? $this->tenant?->slug;
+        if (! $slug) {
+            return config('app.url');
+        }
+
+        return \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'tenant-public.refund.bank.show',
+            now()->addDays(60),
+            ['tenant_slug' => $slug, 'refund' => $this->public_id],
+        );
     }
 
     public function booking(): BelongsTo
