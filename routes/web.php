@@ -70,18 +70,16 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
 // All existing app routes live here.
 // -----------------------------------------------------------------------------
 Route::domain(config('app.tenant_domain'))->group(function () {
-    Route::get('/', function () {
-        // Logged-in users skip the marketing landing and go straight to their
-        // dashboard. Tenant context / onboarding is resolved by the dashboard
-        // route's own middleware (SetTenantContext falls back to the user's
-        // first active membership; RequireTenant sends tenant-less users to
-        // onboarding), so this is safe for every authenticated user.
-        if (auth()->check()) {
-            return redirect()->route('tenant.dashboard');
-        }
+    // Root is now the traveller-facing homestay marketplace search — for
+    // everyone, including logged-in hosts (who get a Dashboard link in the
+    // nav rather than an auto-redirect). Keeps the `marketplace.search` name
+    // so every existing route('marketplace.search') reference points here.
+    Route::get('/', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'search'])
+        ->middleware('throttle:marketplace-search')
+        ->name('marketplace.search');
 
-        return view('welcome');
-    })->name('home');
+    // Host-acquisition page (the former landing) now lives at /hosts.
+    Route::get('/hosts', fn () => view('welcome'))->name('hosts');
 
     // Tenant signup + login
     Route::middleware('guest')->group(function () {
@@ -135,11 +133,13 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::get('/callback', [\App\Http\Controllers\OAuth\GoogleCalendarOAuthController::class, 'callback'])->name('callback');
         });
 
-    // Marketplace (public)
-    Route::prefix('marketplace')->name('marketplace.')->middleware('throttle:marketplace-search')->group(function () {
-        Route::get('/', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'search'])->name('search');
-        Route::get('/{listing:slug}', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'show'])->name('show');
-    });
+    // Marketplace (public). Search now lives at the root (/), so the old
+    // /marketplace index 301-redirects there; the listing detail stays under
+    // /marketplace/{slug}.
+    Route::redirect('/marketplace', '/', 301);
+    Route::get('/marketplace/{listing:slug}', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'show'])
+        ->middleware('throttle:marketplace-search')
+        ->name('marketplace.show');
 
     // Tenant dashboard (auth + tenant context required)
     Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant.')->group(function () {

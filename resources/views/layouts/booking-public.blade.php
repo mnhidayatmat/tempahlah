@@ -33,13 +33,15 @@
         </a>
         <nav class="bp-pub-nav">
             <a href="{{ route('marketplace.search') }}">{{ __('Properties') }}</a>
-            <a href="#">{{ __('FAQ') }}</a>
+            <a href="{{ route('hosts') }}">{{ __('List your homestay') }}</a>
             <span class="sep"></span>
             @php $loc = app()->getLocale(); @endphp
             <a href="{{ route('locale.switch', $loc === 'ms' ? 'en' : 'ms') }}">{{ strtoupper($loc) }} ▾</a>
-            @guest
+            @auth
+                <a href="{{ route('tenant.dashboard') }}">{{ __('Dashboard') }}</a>
+            @else
                 <a href="{{ route('login') }}">{{ __('Login') }}</a>
-            @endguest
+            @endauth
         </nav>
     </header>
 
@@ -83,7 +85,7 @@
             <div>
                 <div class="kicker" style="margin-bottom:12px;">{{ __('Powered by') }}</div>
                 <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
-                    <li><a href="{{ route('register') }}" style="font-size:13px; color:var(--ink-2); text-decoration:none;">{{ __('Become a host') }}</a></li>
+                    <li><a href="{{ route('hosts') }}" style="font-size:13px; color:var(--ink-2); text-decoration:none;">{{ __('List your homestay') }}</a></li>
                     <li><a href="{{ route('login') }}" style="font-size:13px; color:var(--ink-2); text-decoration:none;">{{ __('Login') }}</a></li>
                 </ul>
             </div>

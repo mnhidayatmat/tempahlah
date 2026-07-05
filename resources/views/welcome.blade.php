@@ -702,7 +702,7 @@
 {{-- ============ NAV ============ --}}
 <header class="tm-nav" id="tmNav">
     <div class="tm-nav-inner">
-        <a class="tm-brand" href="/">
+        <a class="tm-brand" href="{{ route('hosts') }}">
             <img src="/icons/logo.svg" alt="">
             <span>tempahlah</span>
             <span class="tm-brand-domain">.com</span>
@@ -711,7 +711,7 @@
             <a href="#features">{{ $isMs ? 'Ciri-ciri' : 'Features' }}</a>
             <a href="#how">{{ $isMs ? 'Bagaimana' : 'How it works' }}</a>
             <a href="#pricing">{{ $isMs ? 'Harga' : 'Pricing' }}</a>
-            <a href="#faq">{{ $isMs ? 'Soalan' : 'FAQ' }}</a>
+            <a href="{{ route('marketplace.search') }}">{{ $isMs ? 'Cari homestay' : 'Browse homestays' }}</a>
         </nav>
         <div class="tm-nav-cta">
             <div class="tm-locale" role="group" aria-label="Language">
@@ -1569,7 +1569,7 @@
     <div class="tm-container">
         <div class="tm-footer-grid">
             <div class="tm-footer-brand">
-                <a class="tm-brand" href="/">
+                <a class="tm-brand" href="{{ route('hosts') }}">
                     <img src="/icons/logo.svg" alt="">
                     <span>tempahlah</span>
                 </a>
