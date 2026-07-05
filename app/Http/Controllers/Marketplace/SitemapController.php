@@ -16,13 +16,15 @@ class SitemapController extends Controller
             ['loc' => route('hosts'), 'priority' => '0.7', 'freq' => 'monthly'],
         ];
 
-        // Location pages for states / towns that actually have listings.
-        $rows = MarketplaceListing::query()->published()->whereNotNull('state')->get(['state', 'city']);
+        // Location pages for states / towns that actually have listings. Guard
+        // against blank state/city (a listing may be published before the host
+        // fills its address) so URL generation never gets an empty slug.
+        $rows = MarketplaceListing::query()->published()->get(['state', 'city']);
 
-        foreach ($rows->pluck('state')->unique() as $state) {
+        foreach ($rows->pluck('state')->filter(fn ($s) => filled($s))->unique() as $state) {
             $urls[] = ['loc' => route('marketplace.location.state', Str::slug($state)), 'priority' => '0.8', 'freq' => 'daily'];
         }
-        $rows->filter(fn ($r) => filled($r->city))
+        $rows->filter(fn ($r) => filled($r->state) && filled($r->city))
             ->unique(fn ($r) => $r->state.'|'.$r->city)
             ->each(function ($r) use (&$urls) {
                 $urls[] = ['loc' => route('marketplace.location.town', [Str::slug($r->state), Str::slug($r->city)]), 'priority' => '0.7', 'freq' => 'daily'];
