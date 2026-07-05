@@ -75,14 +75,48 @@
         @else
             {{-- Manual payment: show the host's bank-transfer instructions
                  (or a generic "contact the host" note when none are set). --}}
+            @php
+                $bankQrUrl = $tenant->bank_qr_path
+                    ? \Storage::disk(config('filesystems.default'))->url($tenant->bank_qr_path)
+                    : null;
+                $hasBank = method_exists($tenant, 'hasBankDetails') && $tenant->hasBankDetails();
+            @endphp
             <div class="bs-manual">
                 <div class="bs-manual-head">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     {{ $isBM ? 'Cara bayaran' : 'How to pay' }}
                 </div>
-                <div class="bs-manual-body">@if(!empty($manualInstructions)){{ $manualInstructions }}@else{{ $isBM
-                    ? 'Sila hubungi tuan rumah untuk mengaturkan bayaran. Sebut rujukan tempahan anda semasa membayar.'
-                    : 'Please contact the host to arrange your payment. Quote your booking reference when you pay.' }}@endif</div>
+
+                @if(!empty($manualInstructions))
+                    <div class="bs-manual-body">{{ $manualInstructions }}</div>
+                @elseif(! $hasBank)
+                    <div class="bs-manual-body">{{ $isBM
+                        ? 'Sila hubungi tuan rumah untuk mengaturkan bayaran. Sebut rujukan tempahan anda semasa membayar.'
+                        : 'Please contact the host to arrange your payment. Quote your booking reference when you pay.' }}</div>
+                @endif
+
+                @if($hasBank)
+                    <div class="bs-bank">
+                        @if($bankQrUrl)
+                            <div class="bs-qr">
+                                <img src="{{ $bankQrUrl }}" alt="{{ $isBM ? 'Kod QR bayaran' : 'Payment QR' }}">
+                                <span>{{ $isBM ? 'Imbas untuk bayar' : 'Scan to pay' }}</span>
+                            </div>
+                        @endif
+                        <div class="bs-bank-details">
+                            @if($tenant->bank_name)
+                                <div><span>Bank</span><strong>{{ $tenant->bank_name }}</strong></div>
+                            @endif
+                            @if($tenant->bank_account_holder)
+                                <div><span>{{ $isBM ? 'Nama akaun' : 'Account name' }}</span><strong>{{ $tenant->bank_account_holder }}</strong></div>
+                            @endif
+                            @if($tenant->bank_account_number)
+                                <div><span>{{ $isBM ? 'No. akaun' : 'Account no.' }}</span><strong>{{ $tenant->bank_account_number }}</strong></div>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
                 <div class="bs-manual-ref">{{ $isBM ? 'Rujukan' : 'Reference' }}: <strong>{{ $booking->reference }}</strong></div>
             </div>
             @if($contactPhone ?? preg_replace('/\D/', '', $tenant->business_phone ?? ''))
@@ -168,10 +202,11 @@
         }
         .bs-summary-row {
             display: flex; justify-content: space-between; align-items: baseline;
+            gap: 16px;
             font-size: 13px;
         }
-        .bs-summary-row .lbl { color: var(--ink-3); }
-        .bs-summary-row .val { color: var(--ink); font-weight: 500; font-family: var(--font-mono); }
+        .bs-summary-row .lbl { color: var(--ink-3); flex-shrink: 0; }
+        .bs-summary-row .val { color: var(--ink); font-weight: 500; font-family: var(--font-mono); text-align: right; }
         .bs-summary-total {
             margin-top: 6px; padding-top: 8px;
             border-top: 1px dashed var(--line);
@@ -225,6 +260,33 @@
             border-top: 1px dashed var(--line);
             font-size: 12.5px; color: var(--ink-2);
             font-family: var(--font-mono);
+        }
+        .bs-bank {
+            display: flex; gap: 14px; align-items: flex-start;
+            margin-top: 12px; padding-top: 12px;
+            border-top: 1px dashed var(--line);
+        }
+        .bs-qr { flex-shrink: 0; text-align: center; }
+        .bs-qr img {
+            width: 112px; height: 112px; object-fit: contain;
+            background: #fff; border: 1px solid var(--line);
+            border-radius: 10px; padding: 5px;
+        }
+        .bs-qr span {
+            display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 5px;
+        }
+        .bs-bank-details {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column; gap: 9px;
+        }
+        .bs-bank-details > div { display: flex; flex-direction: column; gap: 1px; }
+        .bs-bank-details span {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--ink-3);
+        }
+        .bs-bank-details strong {
+            font-size: 13.5px; color: var(--ink); font-weight: 600;
+            font-family: var(--font-mono); word-break: break-word;
         }
         .bs-channels {
             display: flex; gap: 8px;
