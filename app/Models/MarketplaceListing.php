@@ -21,6 +21,7 @@ class MarketplaceListing extends Model
         'public_id', 'tenant_id', 'property_id',
         'slug', 'title_bm', 'title_en', 'hero_photo_path', 'search_keywords',
         'city', 'state', 'country', 'lat', 'lng',
+        'house_type', 'rooms_count', 'max_guests',
         'base_price_min', 'base_price_max',
         'rating_avg', 'review_count',
         'is_featured', 'featured_until', 'published_at', 'status',

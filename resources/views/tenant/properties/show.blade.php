@@ -154,6 +154,33 @@
                         <x-icon name="link" :size="12"/> {{ __('Public booking link') }}
                     </a>
                 @endif
+
+                {{-- Marketplace opt-in: list this homestay on tempahlah.com (Pro). --}}
+                @php $onMarket = $property->isOnMarketplace(); @endphp
+                @if ($onMarket)
+                    <form method="POST" action="{{ route('tenant.properties.marketplace.unpublish', $property->public_id) }}"
+                          onsubmit="return confirm('{{ addslashes(__('Remove this homestay from the tempahlah.com marketplace? Direct bookings keep working.')) }}')"
+                          style="display:inline;">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn btn-sm" style="border-color:var(--ok); color:var(--ok);"
+                                title="{{ __('Listed on the marketplace — click to remove') }}">
+                            <x-icon name="check" :size="12"/> {{ __('On marketplace') }}
+                        </button>
+                    </form>
+                @elseif (\Laravel\Pennant\Feature::active('marketplace_listing'))
+                    <form method="POST" action="{{ route('tenant.properties.marketplace.publish', $property->public_id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="btn btn-sm"
+                                {{ $isActive ? '' : 'disabled title="'.__('Set the homestay live first').'"' }}>
+                            <x-icon name="sparkle" :size="12"/> {{ __('List on marketplace') }}
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ route('tenant.subscription') }}" class="btn btn-sm" title="{{ __('Marketplace listing is a Pro feature') }}">
+                        <x-icon name="lock" :size="12"/> {{ __('List on marketplace') }}
+                    </a>
+                @endif
+
                 <a href="{{ route('tenant.calendar', ['property_id' => $property->id]) }}" class="btn btn-sm">
                     <x-icon name="calendar" :size="12"/> {{ __('Calendar') }}
                 </a>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Marketplace;
 
 use App\Http\Controllers\Controller;
+use App\Models\Amenity;
 use App\Models\Booking;
 use App\Models\MarketplaceListing;
 use App\Support\Tenancy\BelongsToTenantScope;
@@ -13,38 +14,67 @@ class MarketplaceController extends Controller
 {
     public function search(Request $request): View
     {
-        $listings = MarketplaceListing::query()
+        // Soft launch: while no homestay is published yet, the bare root page
+        // shows the host-acquisition landing instead of an empty grid. The
+        // moment any host lists a homestay, / becomes the search page. Filtered
+        // / paginated requests always render the marketplace (with its empty
+        // state) so search behaviour is predictable.
+        if (! $request->hasAny(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price', 'amenities', 'sort', 'page'])
+            && MarketplaceListing::query()->published()->doesntExist()) {
+            return view('welcome');
+        }
+
+        $sort = in_array($request->input('sort'), ['price_low', 'rating'], true)
+            ? $request->input('sort')
+            : 'relevance';
+
+        // Amenity filter: only real keys, treated as "must have ALL selected".
+        $amenityKeys = array_values(array_filter((array) $request->input('amenities', [])));
+
+        $query = MarketplaceListing::query()
             ->published()
             ->when($request->input('city'), fn ($q, $v) => $q->where('city', 'like', "%$v%"))
             ->when($request->input('state'), fn ($q, $v) => $q->where('state', $v))
             ->when($request->input('q'), fn ($q, $v) => $q->where(function ($q) use ($v) {
-                $q->where('title_bm', 'like', "%$v%")->orWhere('title_en', 'like', "%$v%");
+                $q->where('title_bm', 'like', "%$v%")
+                    ->orWhere('title_en', 'like', "%$v%")
+                    ->orWhere('city', 'like', "%$v%");
             }))
-            ->when($request->input('min_price'), fn ($q, $v) => $q->where('base_price_min', '>=', $v))
-            ->when($request->input('max_price'), fn ($q, $v) => $q->where('base_price_max', '<=', $v))
-            ->orderByDesc('is_featured')
-            ->orderByDesc('rating_avg')
-            ->orderByDesc('published_at')
-            ->paginate(12)
-            ->withQueryString();
+            ->when($request->input('house_type'), fn ($q, $v) => $q->where('house_type', $v))
+            ->when($request->input('min_rooms'), fn ($q, $v) => $q->where('rooms_count', '>=', (int) $v))
+            ->when($request->input('guests'), fn ($q, $v) => $q->where('max_guests', '>=', (int) $v))
+            // Price filters run on the starting rate (what the card shows as
+            // "From RM X") so results match the displayed price.
+            ->when($request->input('min_price'), fn ($q, $v) => $q->where('base_price_min', '>=', (float) $v))
+            ->when($request->input('max_price'), fn ($q, $v) => $q->where('base_price_min', '<=', (float) $v))
+            ->when($amenityKeys, function ($q) use ($amenityKeys) {
+                // whereHas per key → property must have ALL selected amenities.
+                foreach ($amenityKeys as $key) {
+                    $q->whereHas('property.amenities', fn ($q2) => $q2->where('amenities.key', $key));
+                }
+            });
+
+        if ($sort === 'price_low') {
+            $query->orderByRaw('base_price_min is null')->orderBy('base_price_min');
+        } elseif ($sort === 'rating') {
+            $query->orderByDesc('rating_avg')->orderByDesc('published_at');
+        } else {
+            $query->orderByDesc('is_featured')->orderByDesc('rating_avg')->orderByDesc('published_at');
+        }
+
+        $listings = $query->paginate(12)->withQueryString();
 
         $covers = ['beach', 'highland', 'kampung', 'heritage', 'city'];
         foreach ($listings as $listing) {
             $listing->cover_kind = $covers[crc32((string) $listing->id) % count($covers)];
         }
 
-        $facets = [
-            'all'      => MarketplaceListing::query()->published()->count(),
-            'beach'    => MarketplaceListing::query()->published()->where(fn ($q) => $q->where('city', 'like', '%pantai%')->orWhere('search_keywords', 'like', '%beach%'))->count(),
-            'highland' => MarketplaceListing::query()->published()->where(fn ($q) => $q->where('state', 'Pahang')->orWhere('search_keywords', 'like', '%highland%'))->count(),
-            'kampung'  => MarketplaceListing::query()->published()->where('search_keywords', 'like', '%kampung%')->count(),
-            'heritage' => MarketplaceListing::query()->published()->where(fn ($q) => $q->where('city', 'like', '%george town%')->orWhere('search_keywords', 'like', '%heritage%'))->count(),
-        ];
-
         return view('marketplace.search', [
             'listings' => $listings,
-            'filters' => $request->only(['city', 'state', 'q', 'min_price', 'max_price', 'cover']),
-            'facets' => $facets,
+            'filters' => $request->only(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price'])
+                + ['sort' => $sort, 'amenities' => $amenityKeys],
+            'total' => MarketplaceListing::query()->published()->count(),
+            'amenityList' => Amenity::orderBy('sort_order')->get(['key', 'label_bm', 'label_en', 'icon', 'category']),
         ]);
     }
 

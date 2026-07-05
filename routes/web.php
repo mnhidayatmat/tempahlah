@@ -155,6 +155,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/properties/{property:public_id}/fee',      [PropertyController::class, 'updateFee'])->name('properties.fee.update');
         Route::delete('/properties/{property:public_id}',         [PropertyController::class, 'destroy'])->name('properties.destroy');
 
+        // Marketplace opt-in — list / remove this homestay on tempahlah.com.
+        Route::post('/properties/{property:public_id}/marketplace',   [PropertyController::class, 'publishMarketplace'])->name('properties.marketplace.publish');
+        Route::delete('/properties/{property:public_id}/marketplace', [PropertyController::class, 'unpublishMarketplace'])->name('properties.marketplace.unpublish');
+
         // Property photos (upload to DO Spaces, delete, set hero, tag category)
         Route::post('/properties/{property:public_id}/photos',                  [PropertyPhotoController::class, 'store'])->name('properties.photos.store');
         Route::delete('/properties/{property:public_id}/photos/{photo}',        [PropertyPhotoController::class, 'destroy'])->name('properties.photos.destroy');
@@ -243,6 +247,16 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/integrations/google_calendar/select-calendar', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'selectCalendar'])->name('integrations.google_calendar.select');
         Route::post('/integrations/google_calendar/toggle-write', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'toggleWrite'])->name('integrations.google_calendar.toggle-write');
     });
+
+    // In-app Platform Admin ("super tenant") — same login as the tenant app,
+    // toggled from the sidebar. Gated to users with is_platform_admin. Not
+    // under tenant.require so a tenant-less platform admin can still enter.
+    Route::middleware(['auth', 'platform.admin'])
+        ->prefix('dashboard/admin')
+        ->name('platform.')
+        ->group(function () {
+            Route::get('/', [\App\Http\Controllers\PlatformAdminController::class, 'overview'])->name('overview');
+        });
 
     require __DIR__.'/auth-extra.php';
 });

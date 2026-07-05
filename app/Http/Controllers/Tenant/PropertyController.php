@@ -259,9 +259,38 @@ class PropertyController extends Controller
             $property->amenities()->sync($amenityIds);
         });
 
+        // Keep an active marketplace listing's denormalized fields (price,
+        // capacity, house type, cover photo) in step with the edited property.
+        if ($property->marketplace_enabled) {
+            app(\App\Actions\Marketplace\PublishListing::class)->sync($property->fresh('rooms'));
+        }
+
         return redirect()
             ->route('tenant.settings.index')
             ->with('status', __('Homestay ":name" updated.', ['name' => $property->name]));
+    }
+
+    /**
+     * Opt a homestay into the public tempahlah.com marketplace (Pro feature).
+     * PublishListing enforces the plan gate + active-status requirement.
+     */
+    public function publishMarketplace(Property $property, \App\Actions\Marketplace\PublishListing $action)
+    {
+        try {
+            $action->execute($property);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', __('":name" is now listed on the Tempahlah marketplace.', ['name' => $property->name]));
+    }
+
+    /** Remove a homestay from the public marketplace (keeps direct booking working). */
+    public function unpublishMarketplace(Property $property, \App\Actions\Marketplace\PublishListing $action)
+    {
+        $action->unpublish($property);
+
+        return back()->with('status', __('":name" has been removed from the marketplace.', ['name' => $property->name]));
     }
 
     /**
