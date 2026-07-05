@@ -63,6 +63,16 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
         Route::get('/booking/{booking:public_id}', [PublicBookingController::class, 'show'])
             ->middleware('signed')
             ->name('booking.show');
+
+        // Guest submits their bank account for a deposit refund. Signed
+        // magic-link (no password) minted by the host's "Request bank details"
+        // button; the {refund} param is the refund's public_id (ULID).
+        Route::get('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'show'])
+            ->middleware('signed')
+            ->name('refund.bank.show');
+        Route::post('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'submit'])
+            ->middleware('signed')
+            ->name('refund.bank.submit');
     });
 
 // -----------------------------------------------------------------------------
@@ -141,6 +151,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         ->middleware('throttle:marketplace-search')
         ->name('marketplace.show');
 
+    // SEO: XML sitemap + location landing pages (unthrottled for crawlability).
+    Route::get('/sitemap.xml', [App\Http\Controllers\Marketplace\SitemapController::class, 'index'])->name('sitemap');
+    Route::get('/homestay/{state}', [App\Http\Controllers\Marketplace\LocationController::class, 'show'])->name('marketplace.location.state');
+    Route::get('/homestay/{state}/{town}', [App\Http\Controllers\Marketplace\LocationController::class, 'show'])->name('marketplace.location.town');
+
     // Tenant dashboard (auth + tenant context required)
     Route::middleware(['auth', 'tenant.require'])->prefix('dashboard')->name('tenant.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -202,6 +217,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         // Refunds — auto-created on checkout, host updates status here.
         Route::post('/bookings/{id}/refunds',       [\App\Http\Controllers\Tenant\RefundController::class, 'store'])->name('refunds.store')->whereNumber('id');
         Route::patch('/refunds/{id}',               [\App\Http\Controllers\Tenant\RefundController::class, 'update'])->name('refunds.update')->whereNumber('id');
+        Route::post('/refunds/{id}/request-bank',   [\App\Http\Controllers\Tenant\RefundController::class, 'requestBankDetails'])->name('refunds.request-bank')->whereNumber('id');
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');

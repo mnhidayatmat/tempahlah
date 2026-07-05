@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? config('app.name') }}</title>
+    @php $metaDesc = $metaDescription ?? __('Direct-booking homestays across Malaysia — no middleman, no commission, real human hosts on WhatsApp.'); @endphp
+    <meta name="description" content="{{ $metaDesc }}">
+    <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config('app.name', 'Tempahlah') }}">
+    <meta property="og:title" content="{{ $ogTitle ?? $title ?? config('app.name') }}">
+    <meta property="og:description" content="{{ $metaDesc }}">
+    <meta property="og:url" content="{{ $canonical ?? url()->current() }}">
+    <meta property="og:image" content="{{ $ogImage ?? asset('icons/icon-512.png') }}">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" type="image/svg+xml" href="{{ asset('icons/logo.svg') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16.png') }}">

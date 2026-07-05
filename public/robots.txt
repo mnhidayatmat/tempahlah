@@ -1,2 +1,10 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /dashboard
+Disallow: /super-admin
+Disallow: /payments
+Disallow: /oauth
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://tempahlah.com/sitemap.xml
