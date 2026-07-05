@@ -582,12 +582,13 @@
 
                 <label class="wf-book-field">
                     <span class="wf-book-label">{{ $isBM ? 'Nombor WhatsApp' : 'WhatsApp number' }}</span>
-                    <input type="tel" name="guest_phone" required minlength="7" maxlength="24" autocomplete="tel" placeholder="+60123456789" value="{{ old('guest_phone') }}">
+                    <input type="tel" name="guest_phone" required minlength="7" maxlength="24" inputmode="tel" autocomplete="tel" placeholder="0123456789" value="{{ old('guest_phone') }}">
+                    <span class="wf-book-hint">{{ $isBM ? 'Taip nombor anda sahaja, cth: 0123456789' : 'Just type your number, e.g. 0123456789' }}</span>
                 </label>
 
                 <label class="wf-book-field">
                     <span class="wf-book-label">{{ $isBM ? 'Permintaan khas (pilihan)' : 'Special requests (optional)' }}</span>
-                    <textarea name="special_requests" rows="2" maxlength="500" placeholder="{{ $isBM ? 'cth: daftar masuk awal' : 'e.g. early check-in' }}">{{ old('special_requests') }}</textarea>
+                    <textarea name="special_requests" rows="2" maxlength="500" placeholder="{{ $isBM ? 'cth: masuk lewat sikit' : 'e.g. checking in a little late' }}">{{ old('special_requests') }}</textarea>
                 </label>
 
                 @error('guest_email') <div class="wf-book-err">{{ $message }}</div> @enderror
@@ -1944,6 +1945,11 @@
         font-size: 12px;
         font-weight: 500;
         color: var(--ink-2);
+    }
+    .wf-book-hint {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 4px;
     }
     .wf-book-form input,
     .wf-book-form textarea {

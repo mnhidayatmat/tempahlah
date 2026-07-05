@@ -82,7 +82,7 @@ class StoreBookingRequest extends FormRequest
             // via $this->normalizedPhone().
             $normalized = PhoneNumber::normalize($this->input('guest_phone'));
             if (! $normalized) {
-                $v->errors()->add('guest_phone', __('Please enter a valid phone number with country code.'));
+                $v->errors()->add('guest_phone', __('Please enter a valid phone number, e.g. 0123456789.'));
             }
         });
     }
