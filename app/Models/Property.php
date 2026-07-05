@@ -35,13 +35,14 @@ class Property extends Model
         'lat', 'lng',
         'check_in_time', 'check_out_time',
         'house_rules', 'cancellation_policy',
-        'hero_photo_path', 'status', 'marketplace_enabled', 'marketplace_published_at',
+        'hero_photo_path', 'status', 'marketplace_enabled', 'marketplace_published_at', 'marketplace_opt_out',
         'custom_domain', 'meta',
     ];
 
     protected $casts = [
         'marketplace_enabled' => 'boolean',
         'marketplace_published_at' => 'datetime',
+        'marketplace_opt_out' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
         'booking_fee_amount' => 'decimal:2',

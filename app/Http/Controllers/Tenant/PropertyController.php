@@ -148,9 +148,32 @@ class PropertyController extends Controller
                 'n' => $bedrooms,
             ]);
 
+        // Auto-list on the marketplace once the homestay is live (opt-out).
+        $this->autoListMarketplace($property);
+
         return redirect()
             ->route('tenant.properties.show', ['id' => $property->id])
             ->with('status', $message);
+    }
+
+    /**
+     * Auto-publish a homestay to the tempahlah.com marketplace once it's live,
+     * unless the host has explicitly opted out. Idempotent — also keeps an
+     * existing listing's denormalized fields fresh. Fails soft.
+     */
+    protected function autoListMarketplace(Property $property): void
+    {
+        $property->loadMissing('rooms');
+
+        if ($property->status !== Property::STATUS_ACTIVE || $property->marketplace_opt_out) {
+            return;
+        }
+
+        try {
+            app(\App\Actions\Marketplace\PublishListing::class)->execute($property);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function edit(Property $property)
@@ -259,11 +282,9 @@ class PropertyController extends Controller
             $property->amenities()->sync($amenityIds);
         });
 
-        // Keep an active marketplace listing's denormalized fields (price,
-        // capacity, house type, cover photo) in step with the edited property.
-        if ($property->marketplace_enabled) {
-            app(\App\Actions\Marketplace\PublishListing::class)->sync($property->fresh('rooms'));
-        }
+        // Auto-list once live (opt-out), and keep an existing listing's
+        // denormalized fields in step with the edited property.
+        $this->autoListMarketplace($property->fresh('rooms'));
 
         return redirect()
             ->route('tenant.settings.index')
@@ -276,6 +297,9 @@ class PropertyController extends Controller
      */
     public function publishMarketplace(Property $property, \App\Actions\Marketplace\PublishListing $action)
     {
+        // Clear any prior opt-out, then list.
+        $property->update(['marketplace_opt_out' => false]);
+
         try {
             $action->execute($property);
         } catch (\RuntimeException $e) {
@@ -288,6 +312,8 @@ class PropertyController extends Controller
     /** Remove a homestay from the public marketplace (keeps direct booking working). */
     public function unpublishMarketplace(Property $property, \App\Actions\Marketplace\PublishListing $action)
     {
+        // Opt out so it isn't silently re-listed on the next edit.
+        $property->update(['marketplace_opt_out' => true]);
         $action->unpublish($property);
 
         return back()->with('status', __('":name" has been removed from the marketplace.', ['name' => $property->name]));

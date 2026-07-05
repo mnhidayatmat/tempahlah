@@ -5,16 +5,14 @@ namespace App\Actions\Marketplace;
 use App\Models\MarketplaceListing;
 use App\Models\Property;
 use Illuminate\Support\Str;
-use Laravel\Pennant\Feature;
 
 class PublishListing
 {
     public function execute(Property $property): MarketplaceListing
     {
-        if (! Feature::value('marketplace_listing')) {
-            throw new \RuntimeException(__('Marketplace listings require the Pro plan.'));
-        }
-
+        // Marketplace listing is open to every host — a homestay auto-lists once
+        // it goes live (opt-out via the dashboard). Monetization is the 3%
+        // commission on marketplace-sourced bookings, not a listing paywall.
         if ($property->status !== Property::STATUS_ACTIVE) {
             throw new \RuntimeException(__('Property must be active before publishing.'));
         }
