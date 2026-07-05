@@ -148,6 +148,14 @@ class PublicBookingController extends Controller
             return redirect()->away($this->whatsappFallbackUrl($tenant, $data, $booking));
         }
 
+        // Mark this booking as eligible for fee auto-cancel: it's a
+        // guest-initiated online-gateway booking with a live pay link, so if
+        // the fee goes unpaid past the window the lifecycle command should free
+        // the dates. This flag is the ONLY thing that arms auto-cancel — a
+        // manual booking, or a host who later attaches a pay link via "send
+        // invoice", never gets it, so those are never auto-cancelled.
+        $booking->update(['meta' => array_merge($booking->meta ?? [], ['fee_autocancel' => true])]);
+
         // 3. Invoice PDF.
         $invoice = $this->generateInvoice->execute(
             $booking->fresh(['property', 'tenant', 'bookingGuests']),

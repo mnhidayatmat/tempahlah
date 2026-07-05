@@ -69,6 +69,11 @@ class ProcessPaymentLifecycle extends Command
             ->orderBy('id')
             ->chunkById(200, function ($bookings) use (&$count, $now) {
                 foreach ($bookings as $booking) {
+                    // Only nudge guest-initiated online-gateway bookings (see
+                    // feeAutocancelEligible) — never a host-managed / manual one.
+                    if (! $this->feeAutocancelEligible($booking)) {
+                        continue;
+                    }
                     // Nudge only once we're past the midpoint of the window so
                     // we don't double up on the invoice just sent at creation.
                     $created = Carbon::parse($booking->created_at);
@@ -107,6 +112,13 @@ class ProcessPaymentLifecycle extends Command
             ->orderBy('id')
             ->chunkById(200, function ($bookings) use (&$count, $cancelBooking) {
                 foreach ($bookings as $booking) {
+                    // Only guest-initiated online-gateway bookings auto-cancel.
+                    // A manual booking, or one where the host merely attached a
+                    // pay link via "send invoice", has no fee_autocancel flag —
+                    // the host is collecting payment themselves, so leave it be.
+                    if (! $this->feeAutocancelEligible($booking)) {
+                        continue;
+                    }
                     $cancelled = $cancelBooking->execute(
                         $booking,
                         __('Booking fee was not paid within the payment window.'),
@@ -218,9 +230,13 @@ class ProcessPaymentLifecycle extends Command
 
     /**
      * Pending bookings with an unpaid booking fee that were created through
-     * the online flow (i.e. a Toyyibpay deposit bill was issued). Scoping to
-     * online bookings means a host's manually-entered booking that they're
-     * settling offline is never auto-cancelled out from under them.
+     * the online flow (i.e. a gateway deposit bill was issued). This is only a
+     * COARSE prefilter — the definitive gate is the `meta.fee_autocancel` flag
+     * (see feeAutocancelEligible), which is set ONLY by the guest online pay-now
+     * flow. A host who later attaches a pay link to a manual/phone booking (via
+     * "send invoice") also produces a gateway deposit payment, so the presence
+     * of one alone must NOT arm auto-cancel — otherwise sending an invoice would
+     * cancel the customer out from under the host.
      */
     protected function pendingUnpaidOnline()
     {
@@ -229,7 +245,18 @@ class ProcessPaymentLifecycle extends Command
             ->whereNull('deposit_paid_at')
             ->whereHas('payments', fn ($q) => $q
                 ->where('type', Payment::TYPE_DEPOSIT)
-                ->where('gateway_provider', 'toyyibpay'));
+                ->whereIn('gateway_provider', ['toyyibpay', 'billplz']));
+    }
+
+    /**
+     * Whether a booking may be auto-chased / auto-cancelled for an unpaid fee.
+     * True only for guest-initiated online-gateway bookings (flagged at
+     * creation in PublicBookingController). Manual bookings and host-attached
+     * pay links never carry the flag, so the host stays in control of them.
+     */
+    protected function feeAutocancelEligible(Booking $booking): bool
+    {
+        return (bool) (is_array($booking->meta) ? ($booking->meta['fee_autocancel'] ?? false) : false);
     }
 
     /** Most recent open Toyyibpay deposit pay URL for a booking, if any. */
