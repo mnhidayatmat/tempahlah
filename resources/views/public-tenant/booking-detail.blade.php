@@ -152,6 +152,15 @@
             </div>
         @endif
 
+        {{-- Add this booking to the guest's OWN Google Calendar — no login,
+             works for anyone; independent of the host's calendar sync. --}}
+        @if(! in_array($booking->status, ['cancelled', 'no_show'], true))
+            <a href="{{ $booking->googleCalendarUrl() }}" target="_blank" rel="noopener" class="bd-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ $isBM ? 'Tambah ke Google Calendar' : 'Add to Google Calendar' }}
+            </a>
+        @endif
+
         @if($contactPhoneClean)
             <a href="https://wa.me/{{ $contactPhoneClean }}?text={{ rawurlencode(($isBM ? 'Salam ' : 'Hi ').$tenant->business_name.' — '.($isBM ? 'rujukan tempahan ' : 'booking ref ').$booking->reference) }}"
                target="_blank" rel="noopener" class="bd-secondary">

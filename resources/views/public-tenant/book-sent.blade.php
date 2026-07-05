@@ -132,6 +132,13 @@
             @endif
         @endif
 
+        {{-- Let the guest add the stay to their own Google Calendar (no login). --}}
+        <a href="{{ $booking->googleCalendarUrl() }}" target="_blank" rel="noopener"
+           style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:12px 16px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--ink); text-decoration:none; font-weight:600; font-size:14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            {{ $isBM ? 'Tambah ke Google Calendar' : 'Add to Google Calendar' }}
+        </a>
+
         <div class="bs-channels">
             <div class="bs-channel">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>

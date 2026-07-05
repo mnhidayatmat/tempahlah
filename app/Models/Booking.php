@@ -397,4 +397,58 @@ class Booking extends Model
             ['tenant_slug' => $slug, 'booking' => $this->public_id],
         );
     }
+
+    /**
+     * One-click "Add to Google Calendar" link for the GUEST — a pre-filled
+     * Google Calendar event template. No OAuth, no login of ours: any guest
+     * with a Google account taps it and the stay drops into THEIR own calendar.
+     * This is independent of the host's own calendar sync (the tenant OAuth
+     * integration) — it's purely a convenience for the customer.
+     *
+     * The stay is an all-day event spanning check-in → check-out. Google's
+     * TEMPLATE all-day range (YYYYMMDD/YYYYMMDD) treats the end date as
+     * EXCLUSIVE, and check_out is the departure morning — so check_in..check_out
+     * already reads correctly (e.g. 13→16 = nights of the 13th/14th/15th).
+     */
+    public function googleCalendarUrl(): string
+    {
+        $property = $this->property;
+        $business = $this->tenant?->business_name ?? config('app.name');
+        $bm = ($this->tenant?->default_locale ?? app()->getLocale()) === 'ms';
+
+        $title = trim(($property?->name ?? 'Homestay').' — '.$business);
+
+        $start = $this->check_in?->format('Ymd');
+        $end   = $this->check_out?->format('Ymd');
+
+        $address = collect([
+            $property?->address_line1,
+            $property?->address_line2,
+            trim(((string) $property?->postcode).' '.((string) $property?->city)),
+            $property?->state,
+            $property?->country,
+        ])->filter()->implode(', ');
+
+        $checkInTime  = \Illuminate\Support\Str::limit((string) $property?->check_in_time, 5, '');
+        $checkOutTime = \Illuminate\Support\Str::limit((string) $property?->check_out_time, 5, '');
+        $guests = $this->adults.($this->children ? ' + '.$this->children.($bm ? ' kanak-kanak' : ' kids') : '');
+
+        $details = $bm
+            ? "Rujukan tempahan: {$this->reference}\n"
+              ."Daftar masuk: {$checkInTime}\n"
+              ."Daftar keluar: {$checkOutTime}\n"
+              ."Tetamu: {$guests}"
+            : "Booking reference: {$this->reference}\n"
+              ."Check-in: {$checkInTime}\n"
+              ."Check-out: {$checkOutTime}\n"
+              ."Guests: {$guests}";
+
+        return 'https://calendar.google.com/calendar/render?'.http_build_query([
+            'action'   => 'TEMPLATE',
+            'text'     => $title,
+            'dates'    => $start.'/'.$end,
+            'details'  => $details,
+            'location' => $address !== '' ? $address : ($property?->name ?? ''),
+        ]);
+    }
 }

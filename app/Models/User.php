@@ -32,7 +32,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at', 'phone_verified_at', 'locale',
         'mykad_encrypted', 'avatar_path', 'fcm_tokens',
         'user_type', 'last_login_at', 'last_login_ip',
-        'tour_completed_at',
+        'tour_completed_at', 'is_platform_admin',
     ];
 
     protected $hidden = [
@@ -49,7 +49,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'fcm_tokens' => 'array',
             'mykad_encrypted' => 'encrypted',
             'password' => 'hashed',
+            'is_platform_admin' => 'boolean',
         ];
+    }
+
+    /** Platform (super) admin — can access the in-app Platform Admin area. */
+    public function isPlatformAdmin(): bool
+    {
+        return (bool) $this->is_platform_admin;
     }
 
     public function tenantMemberships(): HasMany

@@ -1,9 +1,21 @@
 @php
     $current = app()->getLocale();
 
+    // Platform-admin toggle: a flagged user can flip between their own
+    // workspace and the cross-tenant Platform Admin area, same login.
+    $isPlatformAdmin = (bool) (auth()->user()?->is_platform_admin);
+    $inPlatform = request()->routeIs('platform.*');
+
     // Lightweight badge counts so the sidebar can show small action chips
     $pendingBookings = \App\Models\Booking::where('status', \App\Models\Booking::STATUS_PENDING)->count();
     $openCleaning = \App\Models\CleaningTask::whereIn('status', ['pending', 'in_progress'])->count();
+
+    // Platform Admin nav (shown only while in platform mode).
+    $platformGroups = [
+        ['title' => __('Platform'), 'items' => [
+            ['key' => 'platform.overview', 'label' => __('Subscribers'), 'icon' => 'chart', 'route' => 'platform.overview'],
+        ]],
+    ];
 
     $groups = [
         ['title' => __('Operate'), 'items' => [
@@ -55,9 +67,31 @@
         </button>
     </div>
 
+    {{-- Platform-admin toggle: My Homestay ⇄ Platform (only for flagged users) --}}
+    @if ($isPlatformAdmin)
+        <div style="padding: 0 12px 12px;">
+            <div style="display:flex; gap:3px; padding:3px; background: var(--bg-sunk); border:1px solid var(--line); border-radius: var(--r-md);">
+                <a href="{{ route('tenant.dashboard') }}"
+                   style="flex:1; text-align:center; padding:7px 6px; border-radius: var(--r-sm); text-decoration:none; font-size:11.5px; font-weight:600;
+                          background: {{ $inPlatform ? 'transparent' : 'var(--bg-elev)' }};
+                          color: {{ $inPlatform ? 'var(--ink-3)' : 'var(--primary)' }};
+                          box-shadow: {{ $inPlatform ? 'none' : 'var(--sh-1)' }};">
+                    {{ __('My Homestay') }}
+                </a>
+                <a href="{{ route('platform.overview') }}"
+                   style="flex:1; text-align:center; padding:7px 6px; border-radius: var(--r-sm); text-decoration:none; font-size:11.5px; font-weight:600;
+                          background: {{ $inPlatform ? 'var(--bg-elev)' : 'transparent' }};
+                          color: {{ $inPlatform ? 'var(--primary)' : 'var(--ink-3)' }};
+                          box-shadow: {{ $inPlatform ? 'var(--sh-1)' : 'none' }};">
+                    {{ __('Platform') }}
+                </a>
+            </div>
+        </div>
+    @endif
+
     {{-- Nav --}}
     <nav class="thin-scroll" style="flex:1; padding: 0 8px; overflow-y:auto;">
-        @foreach ($groups as $g)
+        @foreach (($inPlatform ? $platformGroups : $groups) as $g)
             <div style="margin-bottom:18px;">
                 <div class="kicker" style="padding: 6px 12px 6px; letter-spacing:.2em;">{{ $g['title'] }}</div>
                 @foreach ($g['items'] as $it)

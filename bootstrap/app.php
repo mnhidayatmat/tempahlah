@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\Tenancy\RequireTenant;
 use App\Http\Middleware\Tenancy\ResolveTenantFromSubdomain;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.require' => RequireTenant::class,
             'tenant.subdomain' => ResolveTenantFromSubdomain::class,
             'wa.webhook' => VerifyWhatsappWebhook::class,
+            'platform.admin' => EnsurePlatformAdmin::class,
         ]);
 
         $middleware->web(append: [
