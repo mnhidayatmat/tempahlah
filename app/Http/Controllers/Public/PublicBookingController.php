@@ -68,6 +68,11 @@ class PublicBookingController extends Controller
             return redirect()->away($this->whatsappFallbackUrl($tenant, $data));
         }
 
+        // Marketplace attribution → a booking sourced from tempahlah.com is
+        // channel=marketplace (3% commission); a plain direct booking is 0%.
+        $attribution = \App\Support\Marketplace\Attribution::for($tenant);
+        $channel = $attribution ? Booking::CHANNEL_MARKETPLACE : Booking::CHANNEL_DIRECT;
+
         // 1. Create booking (transactional inside the action).
         try {
             $booking = $this->createBooking->execute([
@@ -82,7 +87,7 @@ class PublicBookingController extends Controller
                 'guest_phone'      => $request->normalizedPhone(),
                 'guest_country'    => 'MY',
                 'is_foreigner'     => false,
-                'channel'          => Booking::CHANNEL_DIRECT,
+                'channel'          => $channel,
                 // Omit deposit_pct — CreateBooking will use the
                 // property's flat booking_fee_amount as the pay-now
                 // amount (default RM 100). Falls back to 20% only if
@@ -95,6 +100,16 @@ class PublicBookingController extends Controller
                 ->route('tenant-public.home', ['tenant_slug' => $tenant->slug])
                 ->withInput()
                 ->with('booking_error', __('Sorry, these dates were just taken — please pick different dates.'));
+        }
+
+        // Record the marketplace referral on the booking + clear it so a later
+        // direct booking in the same session isn't mis-attributed.
+        if ($attribution) {
+            $booking->update(['meta' => array_merge($booking->meta ?? [], [
+                'marketplace_ref' => $attribution['ref'] ?? 'tempahlah_mp',
+                'marketplace_listing_id' => $attribution['listing_id'] ?? null,
+            ])]);
+            \App\Support\Marketplace\Attribution::clear();
         }
 
         $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);

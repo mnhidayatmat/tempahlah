@@ -107,6 +107,14 @@ class MarketplaceController extends Controller
 
         $contactPhone = preg_replace('/\D/', '', $listing->property->business_phone ?? $listing->tenant->business_phone ?? '');
 
+        // Click-through to the host's own booking page, carrying marketplace
+        // attribution so a resulting booking is flagged as marketplace-sourced.
+        $bookUrl = $listing->tenant->publicUrl().'/?'.http_build_query([
+            'src' => 'marketplace',
+            'ref' => 'tempahlah_mp',
+            'listing_id' => $listing->id,
+        ]);
+
         return view('marketplace.show', [
             'listing' => $listing,
             'property' => $listing->property,
@@ -114,6 +122,7 @@ class MarketplaceController extends Controller
             'bookedDates' => $bookedDates,
             'coverKind' => $coverKind,
             'contactPhone' => $contactPhone,
+            'bookUrl' => $bookUrl,
             'sleeps' => $listing->property->rooms->sum('max_adults') ?: 4,
             'rate' => (float) $listing->base_price_min ?: ($listing->property->rooms->min('base_price') ?? 0),
             'roomCount' => $listing->property->rooms->count(),

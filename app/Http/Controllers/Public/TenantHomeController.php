@@ -28,6 +28,10 @@ class TenantHomeController extends Controller
         /** @var Tenant $tenant */
         $tenant = $request->attributes->get('subdomain_tenant');
 
+        // Remember a marketplace referral (?src=marketplace) so a booking made
+        // in this session is attributed to the marketplace (3% commission).
+        \App\Support\Marketplace\Attribution::capture($request, $tenant);
+
         $properties = Property::query()
             ->where('tenant_id', $tenant->id)
             ->where('status', Property::STATUS_ACTIVE)

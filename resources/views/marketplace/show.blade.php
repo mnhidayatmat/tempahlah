@@ -332,10 +332,14 @@
                         </span>
                     </div>
 
-                    <a :href="reserveLink()" target="_blank" rel="noopener" class="bp-widget-cta"
-                       :class="{ 'pointer-events-none': !checkin || !checkout }"
-                       :style="(!checkin || !checkout) ? 'opacity:.5; pointer-events:none;' : ''">
-                        <span x-text="(checkin && checkout) ? '{{ __('Reserve on WhatsApp') }}' : '{{ __('Select dates') }}'"></span>
+                    {{-- Primary: click through to the host's own booking page
+                         (carries marketplace attribution → 3% commission). --}}
+                    <a href="{{ $bookUrl }}" class="bp-widget-cta">
+                        {{ __('Book at :host', ['host' => $listing->tenant->business_name]) }} →
+                    </a>
+                    <a :href="reserveLink()" target="_blank" rel="noopener"
+                       style="display:block; text-align:center; margin-top:10px; font-size:13px; color:var(--ink-3); text-decoration:none;">
+                        {{ __('Or ask the host on WhatsApp') }}
                     </a>
                     <div class="bp-widget-cta-hint">{{ __("You won't be charged yet") }}</div>
 
@@ -380,8 +384,8 @@
             <span class="lbl">{{ __('Total incl. fees') }}</span>
             <span class="val" x-text="'RM ' + total().toLocaleString()"></span>
         </div>
-        <a :href="reserveLink()" target="_blank" rel="noopener" class="bp-mobile-cta-btn">
-            <span>{{ __('Reserve') }} · <span x-text="fmtShort(checkin)"></span> → <span x-text="fmtShort(checkout)"></span></span>
+        <a href="{{ $bookUrl }}" class="bp-mobile-cta-btn">
+            <span>{{ __('Book at :host', ['host' => $listing->tenant->business_name]) }}</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </a>
     </div>
