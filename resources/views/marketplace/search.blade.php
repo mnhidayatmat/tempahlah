@@ -90,6 +90,17 @@ a{color:inherit;}
 .reassure svg{width:15px;height:15px;color:var(--primary);}
 .reassure .dot{width:3px;height:3px;border-radius:999px;background:var(--ink-4);}
 
+/* ---------------- destination cards (mobile only) ---------------- */
+.dests-wrap{display:none;}
+.dests-head{padding:0 18px;font-size:14px;font-weight:700;color:var(--ink);margin:0 0 11px;letter-spacing:-.01em;text-align:left;}
+.dests{display:flex;gap:11px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:0 18px 4px;}
+.dests::-webkit-scrollbar{display:none;}
+.dest{flex-shrink:0;width:120px;height:84px;border-radius:15px;position:relative;overflow:hidden;text-decoration:none;box-shadow:0 5px 14px -7px rgba(23,39,47,.4);background:linear-gradient(150deg,#54c1d4,#2ea6c8 55%,#1f83ab);}
+.dest img{width:100%;height:100%;object-fit:cover;display:block;}
+.dest::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(6,22,30,.74),rgba(6,22,30,.04) 64%);}
+.dest span{position:absolute;left:9px;right:8px;bottom:8px;z-index:1;color:#fff;font-size:12.5px;font-weight:600;letter-spacing:-.01em;line-height:1.15;text-shadow:0 1px 4px rgba(0,0,0,.45);display:flex;align-items:center;gap:4px;}
+.dest span svg{width:12px;height:12px;flex-shrink:0;opacity:.9;}
+
 /* ---------------- filter pills ---------------- */
 .filters{max-width:1180px;margin:36px auto 0;padding:0 40px;display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;}
 .filters::-webkit-scrollbar{display:none;}
@@ -169,6 +180,8 @@ a{color:inherit;}
   .search-field{border-top:1px solid var(--line);border-radius:10px;}
   .search-field:first-child{border-top:0;}
   .search-btn{margin:6px 0 0;padding:13px;}
+  .reassure{display:none;}
+  .dests-wrap{display:block;margin-top:22px;}
   .filters{margin-top:26px;padding:0 18px;}
   .results-head{padding:0 18px;margin-top:22px;}
   .grid{grid-template-columns:1fr;padding:4px 18px;gap:22px;}
@@ -218,6 +231,22 @@ a{color:inherit;}
     $heart   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
     $pin     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
     $star    = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.3 3.2L7 14.2l-5-4.8 7-.9z"/></svg>';
+
+    // Popular destination shortcuts (mobile). Each links to a filtered search —
+    // states use ?state=, cities use ?city= (LIKE) — so tapping "Johor" lists
+    // every Johor homestay. Photos share the same host as the demo cards so they
+    // load reliably; the tile gradient shows if an image ever fails.
+    $up = 'https://images.unsplash.com/';
+    $destinations = [
+        ['label' => 'Johor',             'q' => ['state' => 'Johor'],          'img' => $up.'photo-1571003123894-1f0594d2b5d9?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Kuantan',           'q' => ['city' => 'Kuantan'],         'img' => $up.'photo-1520250497591-112f2f40a3f4?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Melaka',            'q' => ['state' => 'Melaka'],         'img' => $up.'photo-1600585154340-be6161a56a0c?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Langkawi',          'q' => ['city' => 'Langkawi'],        'img' => $up.'photo-1505691938895-1758d7feb511?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Pulau Pinang',      'q' => ['state' => 'Pulau Pinang'],   'img' => $up.'photo-1568605114967-8130f3a36994?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Cameron Highlands', 'q' => ['city' => 'Cameron'],         'img' => $up.'photo-1449158743715-0a90ebb6d2d8?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Kuala Lumpur',      'q' => ['state' => 'Kuala Lumpur'],   'img' => $up.'photo-1518780664697-55e3ad937233?w=280&q=80&auto=format&fit=crop'],
+        ['label' => 'Port Dickson',      'q' => ['city' => 'Port Dickson'],    'img' => $up.'photo-1564013799919-ab600027ffc6?w=280&q=80&auto=format&fit=crop'],
+    ];
 @endphp
 
 <header class="hdr">
@@ -279,6 +308,18 @@ a{color:inherit;}
         <span class="dot"></span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>{{ $isBM ? 'Penginapan mesra halal' : 'Halal-friendly stays' }}</span>
       </div>
+    </div>
+  </section>
+
+  <section class="dests-wrap">
+    <div class="dests-head">{{ $isBM ? 'Destinasi popular' : 'Popular destinations' }}</div>
+    <div class="dests">
+      @foreach ($destinations as $d)
+        <a href="{{ route('marketplace.search', $d['q']) }}" class="dest">
+          @if (! empty($d['img']))<img src="{{ $d['img'] }}" alt="{{ $d['label'] }}" loading="lazy" onerror="this.remove()">@endif
+          <span>{!! $pin !!}{{ $d['label'] }}</span>
+        </a>
+      @endforeach
     </div>
   </section>
 
