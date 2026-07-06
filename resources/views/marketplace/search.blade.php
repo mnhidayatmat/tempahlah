@@ -139,7 +139,8 @@ a{color:inherit;}
 .trust-inner{background:var(--bg-elev);border:1px solid var(--line-2);border-radius:22px;padding:30px 24px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px;box-shadow:0 12px 32px -22px rgba(80,45,20,.2);}
 .trust-item{text-align:center;position:relative;}
 .trust-item + .trust-item::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line);}
-.trust-num{font-family:var(--font-display);font-size:32px;font-weight:700;letter-spacing:-.02em;color:var(--primary-deep);line-height:1;}
+.trust-num{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1;}
+.trust-num .star{color:var(--accent);font-size:.78em;margin-left:1px;}
 .trust-label{font-size:12.5px;color:var(--ink-3);margin-top:8px;font-weight:500;}
 
 /* ---------------- footer ---------------- */
@@ -344,7 +345,7 @@ a{color:inherit;}
   <section class="trust">
     <div class="trust-inner">
       <div class="trust-item"><div class="trust-num">{{ $displayCount }}</div><div class="trust-label">{{ $isBM ? 'Homestay aktif' : 'Active stays' }}</div></div>
-      <div class="trust-item"><div class="trust-num">4.8★</div><div class="trust-label">{{ $isBM ? 'Purata penarafan tetamu' : 'Average guest rating' }}</div></div>
+      <div class="trust-item"><div class="trust-num">4.8<span class="star">★</span></div><div class="trust-label">{{ $isBM ? 'Purata penarafan tetamu' : 'Average guest rating' }}</div></div>
       <div class="trust-item"><div class="trust-num">&lt;5 min</div><div class="trust-label">{{ $isBM ? 'Balasan WhatsApp biasa' : 'Typical WhatsApp reply' }}</div></div>
       <div class="trust-item"><div class="trust-num">0%</div><div class="trust-label">{{ $isBM ? 'Komisen tempahan terus' : 'Commission on direct' }}</div></div>
     </div>
