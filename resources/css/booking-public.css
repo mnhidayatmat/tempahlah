@@ -476,6 +476,15 @@
   grid-template-columns: 1fr 1fr;
   gap: 28px;
 }
+/* Desktop: nav-only top row (arrows right); each column carries its own centred, aligned title */
+.bp-cal-month-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.bp-cal-hdr-title { display: none; }
+.bp-cal-col-title { display: block; }
 .bp-cal-month-title {
   font-size: 13px;
   font-weight: 600;
@@ -828,6 +837,8 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px 6px;
   }
+  .bp-cal-hdr-title { display: block; }
+  .bp-cal-col-title-first { display: none; }
   .bp-cal-month-title {
     font-size: 16px; font-weight: 700;
     letter-spacing: -0.015em;

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Marketplace;
 
 use App\Http\Controllers\Controller;
 use App\Models\Amenity;
+use App\Models\Booking;
 use App\Models\MarketplaceListing;
+use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -94,11 +96,14 @@ class MarketplaceController extends Controller
     }
 
     /**
-     * Listing detail. Renders the SAME public booking page the host's own
-     * subdomain shows ({host}.tempahlah.com), scoped to this one homestay — no
-     * redirect, the marketplace URL is preserved. The booking form still posts
-     * to the host's subdomain, and the marketplace attribution is armed so a
-     * resulting booking is flagged channel=marketplace (3% commission).
+     * Listing detail. Device-aware:
+     *   • Phones  → the SAME public booking page the host's own subdomain shows
+     *     ({host}.tempahlah.com), scoped to this one homestay (mobile-first,
+     *     calendar-led). No redirect — the marketplace URL is preserved.
+     *   • Desktop/laptop/tablet → the marketplace's own rich detail layout
+     *     (gallery + sticky booking widget).
+     * Either way the marketplace attribution is armed so a resulting booking is
+     * flagged channel=marketplace (3% commission).
      */
     public function show(MarketplaceListing $listing, \App\Services\Public\PublicHomeBuilder $builder, Request $request): View
     {
@@ -120,10 +125,82 @@ class MarketplaceController extends Controller
         // Arm attribution so a booking made from here is marketplace-sourced.
         \App\Support\Marketplace\Attribution::remember($listing->tenant, $listing->id);
 
-        $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
-        $data['marketplaceContext'] = true;
-        $data['backUrl'] = route('marketplace.search');
+        // Phones get the host's subdomain-style booking page scoped to this
+        // homestay; larger screens keep the marketplace's rich detail layout.
+        if ($this->isMobile($request)) {
+            $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
+            $data['marketplaceContext'] = true;
+            $data['backUrl'] = route('marketplace.search');
 
-        return view('public-tenant.home', $data);
+            return view('public-tenant.home', $data);
+        }
+
+        return $this->showDetailDesktop($listing);
+    }
+
+    /**
+     * Desktop/laptop/tablet marketplace detail — gallery + sticky booking
+     * widget. Booking still hands off to the host's own subdomain page,
+     * carrying ?src=marketplace so a resulting booking is marketplace-sourced.
+     */
+    protected function showDetailDesktop(MarketplaceListing $listing): View
+    {
+        $covers = ['beach', 'highland', 'kampung', 'heritage', 'city'];
+        $coverKind = $covers[crc32((string) $listing->id) % count($covers)];
+
+        $bookedDates = Booking::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->where('property_id', $listing->property_id)
+            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
+            ->where('check_out', '>=', now()->startOfDay())
+            ->get(['check_in', 'check_out'])
+            ->flatMap(function ($b) {
+                $dates = [];
+                $cursor = $b->check_in->copy();
+                while ($cursor->lt($b->check_out)) {
+                    $dates[] = $cursor->toDateString();
+                    $cursor->addDay();
+                }
+
+                return $dates;
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        $contactPhone = preg_replace('/\D/', '', $listing->property->business_phone ?? $listing->tenant->business_phone ?? '');
+
+        // Click-through to the host's own booking page, carrying marketplace
+        // attribution so a resulting booking is flagged as marketplace-sourced.
+        $bookUrl = $listing->tenant->publicUrl().'/?'.http_build_query([
+            'src' => 'marketplace',
+            'ref' => 'tempahlah_mp',
+            'listing_id' => $listing->id,
+        ]);
+
+        return view('marketplace.show', [
+            'listing' => $listing,
+            'property' => $listing->property,
+            'rooms' => $listing->property->rooms,
+            'bookedDates' => $bookedDates,
+            'coverKind' => $coverKind,
+            'contactPhone' => $contactPhone,
+            'bookUrl' => $bookUrl,
+            'sleeps' => $listing->property->rooms->sum('max_adults') ?: 4,
+            'rate' => (float) $listing->base_price_min ?: ($listing->property->rooms->min('base_price') ?? 0),
+            'roomCount' => $listing->property->rooms->count(),
+        ]);
+    }
+
+    /**
+     * Phone detection from the User-Agent. "Mobi" is the token recommended for
+     * mobile detection; tablets (iPad / Android tablets, which omit "Mobi")
+     * fall through to the desktop layout, which the user wants.
+     */
+    protected function isMobile(Request $request): bool
+    {
+        $ua = (string) $request->header('User-Agent');
+
+        return preg_match('/Mobi/i', $ua) === 1 && preg_match('/iPad/i', $ua) !== 1;
     }
 }

@@ -277,9 +277,9 @@
                     </div>
 
                     {{-- Calendar --}}
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;" class="bp-cal-month-row">
-                        <div class="bp-cal-month-title" x-text="monthLabel(0)"></div>
-                        <div>
+                    <div class="bp-cal-month-row">
+                        <div class="bp-cal-month-title bp-cal-hdr-title" x-text="monthLabel(0)"></div>
+                        <div class="bp-cal-nav">
                             <button type="button" class="bp-cal-nav-btn" @click="prevMonth()" :aria-disabled="isCurrentMonth() ? 'true' : 'false'" aria-label="{{ __('Previous month') }}">‹</button>
                             <button type="button" class="bp-cal-nav-btn" @click="nextMonth()" aria-label="{{ __('Next month') }}">›</button>
                         </div>
@@ -288,7 +288,7 @@
                     <div class="bp-cal">
                         <template x-for="m in [0, 1]" :key="m">
                             <div>
-                                <div class="bp-cal-month-title" x-text="monthLabel(m)" :style="m === 0 ? 'display:none' : ''"></div>
+                                <div class="bp-cal-month-title bp-cal-col-title" :class="{ 'bp-cal-col-title-first': m === 0 }" x-text="monthLabel(m)"></div>
                                 <div class="bp-cal-weekdays">
                                     <template x-for="(w, i) in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']" :key="i">
                                         <div class="bp-cal-weekday" x-text="w"></div>

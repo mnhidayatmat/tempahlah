@@ -173,9 +173,11 @@ a{color:inherit;}
   .results-head{padding:0 18px;margin-top:22px;}
   .grid{grid-template-columns:1fr;padding:4px 18px;gap:22px;}
   .card-cover{aspect-ratio:16/11;}
-  .trust{padding:0 18px;margin-top:40px;}
-  .trust-inner{grid-template-columns:1fr 1fr;gap:22px 16px;padding:24px 16px;}
+  .trust{padding:0 18px;margin-top:32px;}
+  .trust-inner{grid-template-columns:1fr 1fr;gap:14px 16px;padding:16px 14px;border-radius:16px;}
   .trust-item:nth-child(3)::before,.trust-item:nth-child(2n+1)::before{display:none;}
+  .trust-num{font-size:22px;}
+  .trust-label{font-size:11px;margin-top:4px;}
   .ft{padding:34px 18px 26px;}
   .ft-grid{grid-template-columns:1fr 1fr;gap:28px;}
   .ft-bar{flex-direction:column;gap:8px;}
