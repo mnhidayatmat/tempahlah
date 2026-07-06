@@ -208,11 +208,19 @@
         <div class="wf-banner-vignette" aria-hidden="true"></div>
 
         <div class="wf-banner-top">
-            <a href="{{ route('locale.switch', $loc === 'ms' ? 'en' : 'ms') }}" class="wf-pill wf-pill-light">
-                <span style="font-family:var(--font-mono); font-weight:600;">{{ strtoupper($loc) }}</span>
-                <span style="opacity:.5;">/</span>
-                <span style="font-family:var(--font-mono); opacity:.7;">{{ $loc === 'ms' ? 'EN' : 'MS' }}</span>
-            </a>
+            <div style="display:flex; gap:8px; align-items:center;">
+                @if ($marketplaceContext ?? false)
+                    <a href="{{ $backUrl }}" class="wf-pill wf-pill-light" style="text-decoration:none;" aria-label="{{ $isBM ? 'Kembali ke marketplace' : 'Back to marketplace' }}">
+                        <span aria-hidden="true" style="font-weight:700;">←</span>
+                        <span style="font-weight:600;">Marketplace</span>
+                    </a>
+                @endif
+                <a href="{{ route('locale.switch', $loc === 'ms' ? 'en' : 'ms') }}" class="wf-pill wf-pill-light">
+                    <span style="font-family:var(--font-mono); font-weight:600;">{{ strtoupper($loc) }}</span>
+                    <span style="opacity:.5;">/</span>
+                    <span style="font-family:var(--font-mono); opacity:.7;">{{ $loc === 'ms' ? 'EN' : 'MS' }}</span>
+                </a>
+            </div>
             @if($contactPhone)
                 <a href="https://wa.me/{{ $contactPhone }}" target="_blank" rel="noopener" class="wf-pill wf-pill-solid" aria-label="WhatsApp">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>

@@ -25,10 +25,20 @@ class Attribution
             return;
         }
 
-        $request->session()->put(self::SESSION_KEY, [
+        self::remember($tenant, $request->query('listing_id'), (string) ($request->query('ref') ?: 'tempahlah_mp'));
+    }
+
+    /**
+     * Arm marketplace attribution directly (no query param) — used when the
+     * marketplace listing detail page is viewed on tempahlah.com, so a booking
+     * made from it is flagged channel=marketplace.
+     */
+    public static function remember(Tenant $tenant, mixed $listingId = null, string $ref = 'tempahlah_mp'): void
+    {
+        session()->put(self::SESSION_KEY, [
             'tenant_id'  => $tenant->id,
-            'listing_id' => $request->query('listing_id'),
-            'ref'        => substr((string) ($request->query('ref') ?: 'tempahlah_mp'), 0, 60),
+            'listing_id' => $listingId,
+            'ref'        => substr($ref ?: 'tempahlah_mp', 0, 60),
         ]);
     }
 

@@ -4,9 +4,7 @@ namespace App\Http\Controllers\Marketplace;
 
 use App\Http\Controllers\Controller;
 use App\Models\Amenity;
-use App\Models\Booking;
 use App\Models\MarketplaceListing;
-use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -95,54 +93,37 @@ class MarketplaceController extends Controller
         ];
     }
 
-    public function show(MarketplaceListing $listing): View
+    /**
+     * Listing detail. Renders the SAME public booking page the host's own
+     * subdomain shows ({host}.tempahlah.com), scoped to this one homestay — no
+     * redirect, the marketplace URL is preserved. The booking form still posts
+     * to the host's subdomain, and the marketplace attribution is armed so a
+     * resulting booking is flagged channel=marketplace (3% commission).
+     */
+    public function show(MarketplaceListing $listing, \App\Services\Public\PublicHomeBuilder $builder, Request $request): View
     {
         abort_unless($listing->status === MarketplaceListing::STATUS_ACTIVE, 404);
-        $listing->load('property.rooms', 'property.photos', 'tenant');
 
-        $covers = ['beach', 'highland', 'kampung', 'heritage', 'city'];
-        $coverKind = $covers[crc32((string) $listing->id) % count($covers)];
-
-        $bookedDates = Booking::query()
-            ->withoutGlobalScope(BelongsToTenantScope::class)
-            ->where('property_id', $listing->property_id)
-            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
-            ->where('check_out', '>=', now()->startOfDay())
-            ->get(['check_in', 'check_out'])
-            ->flatMap(function ($b) {
-                $dates = [];
-                $cursor = $b->check_in->copy();
-                while ($cursor->lt($b->check_out)) {
-                    $dates[] = $cursor->toDateString();
-                    $cursor->addDay();
-                }
-                return $dates;
-            })
-            ->unique()
-            ->values()
-            ->all();
-
-        $contactPhone = preg_replace('/\D/', '', $listing->property->business_phone ?? $listing->tenant->business_phone ?? '');
-
-        // Click-through to the host's own booking page, carrying marketplace
-        // attribution so a resulting booking is flagged as marketplace-sourced.
-        $bookUrl = $listing->tenant->publicUrl().'/?'.http_build_query([
-            'src' => 'marketplace',
-            'ref' => 'tempahlah_mp',
-            'listing_id' => $listing->id,
+        $listing->load([
+            'tenant',
+            'property.rooms:id,property_id,base_price,max_adults,max_children,beds',
+            'property.rooms.pricingRules',
+            'property.photos:id,property_id,path,disk,is_hero,sort_order',
+            'property.amenities:id,key,label_bm,label_en,icon,category,sort_order',
         ]);
 
-        return view('marketplace.show', [
-            'listing' => $listing,
-            'property' => $listing->property,
-            'rooms' => $listing->property->rooms,
-            'bookedDates' => $bookedDates,
-            'coverKind' => $coverKind,
-            'contactPhone' => $contactPhone,
-            'bookUrl' => $bookUrl,
-            'sleeps' => $listing->property->rooms->sum('max_adults') ?: 4,
-            'rate' => (float) $listing->base_price_min ?: ($listing->property->rooms->min('base_price') ?? 0),
-            'roomCount' => $listing->property->rooms->count(),
-        ]);
+        abort_unless(
+            $listing->property && $listing->property->status === \App\Models\Property::STATUS_ACTIVE,
+            404,
+        );
+
+        // Arm attribution so a booking made from here is marketplace-sourced.
+        \App\Support\Marketplace\Attribution::remember($listing->tenant, $listing->id);
+
+        $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
+        $data['marketplaceContext'] = true;
+        $data['backUrl'] = route('marketplace.search');
+
+        return view('public-tenant.home', $data);
     }
 }
