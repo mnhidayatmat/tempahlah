@@ -14,15 +14,10 @@ class MarketplaceController extends Controller
 {
     public function search(Request $request): View
     {
-        // Soft launch: while no homestay is published yet, the bare root page
-        // shows the host-acquisition landing instead of an empty grid. The
-        // moment any host lists a homestay, / becomes the search page. Filtered
-        // / paginated requests always render the marketplace (with its empty
-        // state) so search behaviour is predictable.
-        if (! $request->hasAny(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price', 'amenities', 'sort', 'page'])
-            && MarketplaceListing::query()->published()->doesntExist()) {
-            return view('welcome');
-        }
+        // The bare homepage (no filters/pagination) shows a few showcase demo
+        // homestays alongside the real listings so the grid always looks alive;
+        // filtered / paginated requests show only real matches.
+        $isHome = ! $request->hasAny(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price', 'amenities', 'sort', 'page']);
 
         $sort = in_array($request->input('sort'), ['price_low', 'rating'], true)
             ? $request->input('sort')
@@ -75,7 +70,29 @@ class MarketplaceController extends Controller
                 + ['sort' => $sort, 'amenities' => $amenityKeys],
             'total' => MarketplaceListing::query()->published()->count(),
             'amenityList' => Amenity::orderBy('sort_order')->get(['key', 'label_bm', 'label_en', 'icon', 'category']),
+            'demos' => $isHome ? $this->demoListings() : [],
         ]);
+    }
+
+    /**
+     * Showcase demo homestays shown on the bare homepage grid (after the real
+     * listings) so a freshly-launched marketplace never looks empty. Display
+     * only — not bookable, not counted in totals, never on filtered searches.
+     */
+    protected function demoListings(): array
+    {
+        $p = 'https://images.unsplash.com/';
+
+        return [
+            ['t' => 'Villa Damai Langkawi',   'city' => 'Langkawi',      'state' => 'Kedah',          'rate' => 280, 'rating' => '4.9', 'rev' => 64, 'feat' => true,  'tag' => 'Tepi pantai',  'img' => $p.'photo-1571003123894-1f0594d2b5d9?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Rumah Kayu Cameron',     'city' => 'Tanah Rata',    'state' => 'Pahang',         'rate' => 190, 'rating' => '4.7', 'rev' => 38, 'feat' => false, 'tag' => 'Tanah tinggi', 'img' => $p.'photo-1449158743715-0a90ebb6d2d8?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Kampung Stay Sekinchan', 'city' => 'Sekinchan',     'state' => 'Selangor',       'rate' => 120, 'rating' => '4.8', 'rev' => 52, 'feat' => false, 'tag' => 'Kampung',      'img' => $p.'photo-1568605114967-8130f3a36994?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Heritage House Melaka',  'city' => 'Bandar Melaka', 'state' => 'Melaka',         'rate' => 230, 'rating' => '4.9', 'rev' => 81, 'feat' => false, 'tag' => 'Warisan',      'img' => $p.'photo-1600585154340-be6161a56a0c?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Teluk Kemang Retreat',   'city' => 'Port Dickson',  'state' => 'Negeri Sembilan','rate' => 210, 'rating' => '4.6', 'rev' => 29, 'feat' => false, 'tag' => 'Tepi pantai',  'img' => $p.'photo-1520250497591-112f2f40a3f4?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Chalet Janda Baik',      'city' => 'Janda Baik',    'state' => 'Pahang',         'rate' => 340, 'rating' => '5.0', 'rev' => 47, 'feat' => true,  'tag' => 'Tanah tinggi', 'img' => $p.'photo-1518780664697-55e3ad937233?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Kampung Air Tawar',      'city' => 'Kuala Selangor','state' => 'Selangor',       'rate' => 95,  'rating' => '4.5', 'rev' => 19, 'feat' => false, 'tag' => 'Kampung',      'img' => $p.'photo-1564013799919-ab600027ffc6?w=640&q=80&auto=format&fit=crop'],
+            ['t' => 'Georgetown Loft',        'city' => 'George Town',   'state' => 'Pulau Pinang',   'rate' => 250, 'rating' => '4.8', 'rev' => 73, 'feat' => false, 'tag' => 'Warisan',      'img' => $p.'photo-1505691938895-1758d7feb511?w=640&q=80&auto=format&fit=crop'],
+        ];
     }
 
     public function show(MarketplaceListing $listing): View
