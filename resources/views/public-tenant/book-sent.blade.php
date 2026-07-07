@@ -64,13 +64,14 @@
         </div>
 
         @if($payUrl)
+            @php $gatewayName = ($payment?->gateway_provider ?? '') === 'billplz' ? 'Billplz' : 'Toyyibpay'; @endphp
             <a href="{{ $payUrl }}" class="bs-cta">
                 {{ $isBM ? 'Bayar sekarang' : 'Pay now' }} — RM {{ number_format($booking->deposit_amount, 2) }} →
             </a>
             <p class="bs-fine">
                 {{ $isBM
-                    ? 'Anda akan dialihkan ke Toyyibpay. FPX, kad kredit/debit & DuitNow QR diterima.'
-                    : 'You\'ll be redirected to Toyyibpay. FPX, credit/debit cards & DuitNow QR accepted.' }}
+                    ? 'Anda akan dialihkan ke '.$gatewayName.'. FPX, kad kredit/debit & DuitNow QR diterima.'
+                    : 'You\'ll be redirected to '.$gatewayName.'. FPX, credit/debit cards & DuitNow QR accepted.' }}
             </p>
         @else
             {{-- Manual payment: show the host's bank-transfer instructions

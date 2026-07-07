@@ -490,7 +490,7 @@
             </button>
             <div class="wf-reserve-hint">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>@if($toyyibpayConfigured && $manualPaymentEnabled){{ $isBM ? 'Bayar dalam talian atau pindahan bank · anda pilih' : 'Pay online or by bank transfer · your choice' }}@elseif($toyyibpayConfigured){{ $isBM ? 'Bayar selamat melalui Toyyibpay · FPX, kad, DuitNow' : 'Secure payment via Toyyibpay · FPX, cards, DuitNow' }}@else{{ $isBM ? 'Pindahan bank / tunai · invois dihantar terus' : 'Bank transfer / cash · invoice sent instantly' }}@endif</span>
+                <span>@if($toyyibpayConfigured && $manualPaymentEnabled){{ $isBM ? 'Bayar dalam talian atau pindahan bank · anda pilih' : 'Pay online or by bank transfer · your choice' }}@elseif($toyyibpayConfigured){{ $isBM ? 'Bayar selamat melalui '.($gatewayName ?? 'Toyyibpay').' · FPX, kad, DuitNow' : 'Secure payment via '.($gatewayName ?? 'Toyyibpay').' · FPX, cards, DuitNow' }}@else{{ $isBM ? 'Pindahan bank / tunai · invois dihantar terus' : 'Bank transfer / cash · invoice sent instantly' }}@endif</span>
             </div>
         @elseif($contactPhone)
             {{-- Fallback: tenant hasn't connected Toyyibpay yet. Keep the
@@ -614,8 +614,8 @@
                 </button>
                 <p class="wf-book-fine">
                     <span x-show="payMethod === 'gateway'">{{ $isBM
-                        ? 'Anda akan dialihkan ke Toyyibpay untuk membayar yuran tempahan. Resit & pengesahan dihantar ke emel + WhatsApp.'
-                        : 'You\'ll be redirected to Toyyibpay to pay the booking fee. Receipt + confirmation are sent to your email + WhatsApp.' }}</span>
+                        ? 'Anda akan dialihkan ke '.($gatewayName ?? 'Toyyibpay').' untuk membayar yuran tempahan. Resit & pengesahan dihantar ke emel + WhatsApp.'
+                        : 'You\'ll be redirected to '.($gatewayName ?? 'Toyyibpay').' to pay the booking fee. Receipt + confirmation are sent to your email + WhatsApp.' }}</span>
                     <span x-show="payMethod === 'manual'" x-cloak>{{ $isBM
                         ? 'Invois dengan arahan bayaran dihantar ke emel + WhatsApp. Tuan rumah akan sahkan setelah bayaran diterima.'
                         : 'An invoice with payment instructions is sent to your email + WhatsApp. The host confirms once payment is received.' }}</span>

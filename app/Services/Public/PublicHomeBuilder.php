@@ -107,12 +107,16 @@ class PublicHomeBuilder
                 ->exists();
         }
 
-        $toyyibpayConfigured = TenantIntegration::query()
-            ->withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('provider', TenantIntegration::PROVIDER_TOYYIBPAY)
-            ->where('enabled', true)
-            ->exists();
+        // Which online gateway (if any) is active for this tenant. Gateway-
+        // agnostic: true when EITHER Toyyibpay OR Billplz is enabled, resolved
+        // by the same dispatcher the booking flow bills through — so switching
+        // gateways in the dashboard flips the public page's online-pay option
+        // correctly. (`$toyyibpayConfigured` keeps its name for the view/Alpine,
+        // but now means "an online gateway is configured".)
+        $gatewayBill = app(\App\Actions\Payments\CreateGatewayBill::class);
+        $activeGateway = $gatewayBill->resolveProvider($tenant->id); // 'toyyibpay' | 'billplz' | null
+        $toyyibpayConfigured = $activeGateway !== null;
+        $gatewayName = $activeGateway === 'billplz' ? 'Billplz' : 'Toyyibpay';
 
         return [
             'tenant'               => $tenant,
@@ -120,6 +124,7 @@ class PublicHomeBuilder
             'contactPhone'         => preg_replace('/\D/', '', $tenant->business_phone ?? ''),
             'bookedByProperty'     => $bookedByProperty,
             'toyyibpayConfigured'  => $toyyibpayConfigured,
+            'gatewayName'          => $gatewayName,
             'manualPaymentEnabled' => $tenant->manualPaymentEnabled(),
             'manualInstructions'   => $tenant->manualPaymentInstructions(),
             'ownerCanAccess'       => $ownerCanAccess,
