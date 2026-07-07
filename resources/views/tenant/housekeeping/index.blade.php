@@ -91,6 +91,7 @@
                 ['key' => 'cleaning',    'label' => __('Cleaning'),    'count' => $cleaningStats['today']],
                 ['key' => 'laundry',     'label' => __('Laundry'),     'count' => $laundryStats['in_progress'] + $laundryStats['pending']],
                 ['key' => 'maintenance', 'label' => __('Maintenance'), 'count' => $maintenanceStats['open'] + $maintenanceStats['in_progress']],
+                ['key' => 'history',     'label' => __('History & costs'), 'count' => null],
             ] as $t)
                 @php $active = $tab === $t['key']; @endphp
                 <a href="{{ route('tenant.housekeeping.index', ['tab' => $t['key']]) }}" style="
@@ -100,11 +101,13 @@
                     border-bottom: 2px solid {{ $active ? 'var(--primary)' : 'transparent' }};
                     margin-bottom: -1px; display:inline-flex; align-items:center; gap: 6px;">
                     {{ $t['label'] }}
-                    <span style="background: {{ $active ? 'var(--primary-tint)' : 'var(--bg-sunk)' }};
-                                 color: {{ $active ? 'var(--primary)' : 'var(--ink-3)' }};
-                                 padding: 1px 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600;">
-                        {{ $t['count'] }}
-                    </span>
+                    @if (! is_null($t['count']))
+                        <span style="background: {{ $active ? 'var(--primary-tint)' : 'var(--bg-sunk)' }};
+                                     color: {{ $active ? 'var(--primary)' : 'var(--ink-3)' }};
+                                     padding: 1px 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600;">
+                            {{ $t['count'] }}
+                        </span>
+                    @endif
                 </a>
             @endforeach
         </div>
@@ -621,6 +624,111 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        @endif
+
+        {{-- History & costs tab --}}
+        @if ($tab === 'history')
+            <div style="display:flex; flex-direction:column; gap: 20px;">
+                {{-- Summary cards --}}
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                    @foreach ([
+                        [__('This month').' · '.$history['this_month_label'], $history['this_month'], 'var(--primary)'],
+                        [__('All-time total'), $history['grand_total'], 'var(--ink)'],
+                        [__('Cleaning (all-time)'), $history['cleaning_total'], 'var(--ok)'],
+                        [__('Laundry (all-time)'), $history['laundry_total'], 'var(--info)'],
+                    ] as [$label, $amount, $color])
+                        <div class="hauz-card" style="padding: 16px;">
+                            <div style="font-size: 11.5px; color: var(--ink-3); text-transform:uppercase; letter-spacing:.4px;">{{ $label }}</div>
+                            <div style="font-size: 22px; font-weight: 700; margin-top: 6px; color: {{ $color }}; font-variant-numeric:tabular-nums;">RM {{ number_format((float) $amount, 2) }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Monthly breakdown --}}
+                <div>
+                    <div style="font-size: 14px; font-weight: 600;">{{ __('Monthly cost') }}</div>
+                    <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Cleaning by clean date · laundry by pickup date · maintenance by resolved date. Tap a month for details.') }}</div>
+                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <table class="hk-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Month') }}</th>
+                                    <th class="hk-num">{{ __('Cleaning') }}</th>
+                                    <th class="hk-num">{{ __('Laundry') }}</th>
+                                    <th class="hk-num">{{ __('Maintenance') }}</th>
+                                    <th class="hk-num">{{ __('Total') }}</th>
+                                    <th class="hk-num">{{ __('Cumulative') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($history['rows'] as $r)
+                                    <tr style="{{ $selectedMonth === $r['key'] ? 'background: var(--primary-tint);' : '' }}">
+                                        <td><a href="{{ route('tenant.housekeeping.index', ['tab' => 'history', 'month' => $r['key']]) }}" style="color: var(--primary); font-weight:500; text-decoration:none;">{{ $r['label'] }}</a></td>
+                                        <td class="hk-num hk-cost">{{ $r['cleaning'] ? 'RM '.number_format($r['cleaning'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost">{{ $r['laundry'] ? 'RM '.number_format($r['laundry'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost">{{ $r['maintenance'] ? 'RM '.number_format($r['maintenance'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost">RM {{ number_format($r['total'], 2) }}</td>
+                                        <td class="hk-num hk-cost" style="color: var(--ink-3);">RM {{ number_format($r['cumulative'], 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="hk-empty">{{ __('No costs recorded yet.') }}</td></tr>
+                                @endforelse
+                            </tbody>
+                            @if (! empty($history['rows']))
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td>{{ __('All-time') }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format($history['cleaning_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format($history['laundry_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format($history['maintenance_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format($history['grand_total'], 2) }}</td>
+                                    <td></td>
+                                </tr></tfoot>
+                            @endif
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Selected month drill-down --}}
+                @if ($monthDetail)
+                    <div>
+                        <div style="display:flex; align-items:baseline; gap: 8px;">
+                            <div style="font-size: 14px; font-weight: 600;">{{ $monthDetail['label'] }}</div>
+                            <div style="font-size: 12px; color: var(--ink-3);">{{ count($monthDetail['items']) }} {{ trans_choice('item|items', count($monthDetail['items'])) }}</div>
+                        </div>
+                        <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                            <table class="hk-table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ __('Date') }}</th>
+                                        <th>{{ __('Category') }}</th>
+                                        <th>{{ __('Detail') }}</th>
+                                        <th>{{ __('Property') }}</th>
+                                        <th>{{ __('Who') }}</th>
+                                        <th class="hk-num">{{ __('Cost') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php $catLabel = ['cleaning' => __('Cleaning'), 'laundry' => __('Laundry'), 'maintenance' => __('Maintenance')]; @endphp
+                                    @foreach ($monthDetail['items'] as $it)
+                                        <tr>
+                                            <td style="white-space:nowrap;">{{ $it['date']?->format('j M Y') }}</td>
+                                            <td>{{ $catLabel[$it['cat']] ?? $it['cat'] }}</td>
+                                            <td style="text-transform:capitalize;">{{ str_replace('_', ' ', (string) $it['type']) }}</td>
+                                            <td>{{ $it['property'] ?? '—' }}</td>
+                                            <td>{{ $it['who'] ?? '—' }}</td>
+                                            <td class="hk-num hk-cost">RM {{ number_format($it['cost'], 2) }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td colspan="5">{{ __('Month total') }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format(collect($monthDetail['items'])->sum('cost'), 2) }}</td>
+                                </tr></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     </div>

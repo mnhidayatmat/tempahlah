@@ -150,8 +150,21 @@ class HousekeepingController extends Controller
             $maintenanceShare[$t->id] = $this->waShareUrl($t->assignee?->phone, $maintenanceCopy[$t->id] ?? '');
         }
 
+        // History & costs tab — monthly + cumulative operating cost. Computed
+        // only when that tab is open (cheap grouped aggregate over the tenant's
+        // costed tasks; models are tenant-scoped via the global scope).
+        $history = null;
+        $selectedMonth = null;
+        $monthDetail = null;
+        if ($tab === 'history') {
+            [$history, $selectedMonth, $monthDetail] = $this->buildCostHistory($request);
+        }
+
         return view('tenant.housekeeping.index', [
-            'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance']) ? $tab : 'cleaning',
+            'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance', 'history']) ? $tab : 'cleaning',
+            'history' => $history,
+            'selectedMonth' => $selectedMonth,
+            'monthDetail' => $monthDetail,
             'today' => $today,
             'todayTasks' => $todayTasks,
             'upcoming' => $upcoming,
@@ -180,6 +193,107 @@ class HousekeepingController extends Controller
         $digits = $phone ? preg_replace('/\D+/', '', $phone) : '';
 
         return 'https://wa.me/'.$digits.'?text='.rawurlencode($text);
+    }
+
+    /**
+     * Monthly + cumulative operating cost (cleaning / laundry / maintenance),
+     * plus the individual tasks for a drilled-into month (?month=YYYY-MM).
+     * Grouping dates match the dashboard's "This month cost": cleaning by
+     * scheduled_at, laundry by pickup_at, maintenance by resolved_at.
+     *
+     * @return array{0: array, 1: ?string, 2: ?array}
+     */
+    private function buildCostHistory(Request $request): array
+    {
+        $clean = CleaningTask::query()->whereNotNull('cost')
+            ->with(['property:id,name', 'cleaner:id,name'])
+            ->get(['id', 'property_id', 'cleaner_id', 'type', 'cost', 'scheduled_at', 'status']);
+        $laund = LaundryTask::query()->whereNotNull('cost')
+            ->with(['property:id,name', 'vendor:id,name'])
+            ->get(['id', 'property_id', 'vendor_id', 'cost', 'pickup_at', 'status']);
+        $maint = MaintenanceTicket::query()->whereNotNull('cost')->whereNotNull('resolved_at')
+            ->with(['property:id,name'])
+            ->get(['id', 'property_id', 'title', 'cost', 'resolved_at']);
+
+        // month key => running category totals
+        $buckets = [];
+        $add = function (?Carbon $date, string $cat, float $cost) use (&$buckets) {
+            if (! $date) {
+                return;
+            }
+            $k = $date->format('Y-m');
+            $buckets[$k] ??= ['cleaning' => 0.0, 'laundry' => 0.0, 'maintenance' => 0.0];
+            $buckets[$k][$cat] += $cost;
+        };
+        foreach ($clean as $t) {
+            $add($t->scheduled_at, 'cleaning', (float) $t->cost);
+        }
+        foreach ($laund as $t) {
+            $add($t->pickup_at, 'laundry', (float) $t->cost);
+        }
+        foreach ($maint as $t) {
+            $add($t->resolved_at, 'maintenance', (float) $t->cost);
+        }
+
+        ksort($buckets); // oldest first, to run the cumulative total
+        $cumulative = 0.0;
+        $rows = [];
+        foreach ($buckets as $k => $v) {
+            $total = $v['cleaning'] + $v['laundry'] + $v['maintenance'];
+            $cumulative += $total;
+            $rows[] = [
+                'key' => $k,
+                'label' => Carbon::createFromFormat('Y-m', $k)->translatedFormat('F Y'),
+                'cleaning' => $v['cleaning'],
+                'laundry' => $v['laundry'],
+                'maintenance' => $v['maintenance'],
+                'total' => $total,
+                'cumulative' => $cumulative,
+            ];
+        }
+        $grandTotal = $cumulative;
+        $thisMonthKey = Carbon::today()->format('Y-m');
+        $thisMonth = collect($rows)->firstWhere('key', $thisMonthKey);
+        $rows = array_reverse($rows); // newest first for display
+
+        $history = [
+            'rows' => $rows,
+            'grand_total' => $grandTotal,
+            'this_month' => $thisMonth['total'] ?? 0.0,
+            'this_month_label' => Carbon::today()->translatedFormat('F Y'),
+            'cleaning_total' => collect($rows)->sum('cleaning'),
+            'laundry_total' => collect($rows)->sum('laundry'),
+            'maintenance_total' => collect($rows)->sum('maintenance'),
+        ];
+
+        // Drill-down: individual tasks for a chosen month.
+        $selectedMonth = null;
+        $monthDetail = null;
+        $monthKeys = array_column($rows, 'key');
+        $req = (string) $request->query('month', '');
+        if ($req !== '' && in_array($req, $monthKeys, true)) {
+            $selectedMonth = $req;
+            $items = [];
+            foreach ($clean->filter(fn ($t) => $t->scheduled_at?->format('Y-m') === $req) as $t) {
+                $items[] = ['date' => $t->scheduled_at, 'cat' => 'cleaning', 'type' => $t->type,
+                    'property' => $t->property?->name, 'who' => $t->cleaner?->name, 'status' => $t->status, 'cost' => (float) $t->cost];
+            }
+            foreach ($laund->filter(fn ($t) => $t->pickup_at?->format('Y-m') === $req) as $t) {
+                $items[] = ['date' => $t->pickup_at, 'cat' => 'laundry', 'type' => 'laundry',
+                    'property' => $t->property?->name, 'who' => $t->vendor?->name, 'status' => $t->status, 'cost' => (float) $t->cost];
+            }
+            foreach ($maint->filter(fn ($t) => $t->resolved_at?->format('Y-m') === $req) as $t) {
+                $items[] = ['date' => $t->resolved_at, 'cat' => 'maintenance', 'type' => $t->title,
+                    'property' => $t->property?->name, 'who' => null, 'status' => 'resolved', 'cost' => (float) $t->cost];
+            }
+            usort($items, fn ($a, $b) => ($a['date'] <=> $b['date']));
+            $monthDetail = [
+                'label' => Carbon::createFromFormat('Y-m', $req)->translatedFormat('F Y'),
+                'items' => $items,
+            ];
+        }
+
+        return [$history, $selectedMonth, $monthDetail];
     }
 
     /**
