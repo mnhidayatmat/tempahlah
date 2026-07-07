@@ -2358,5 +2358,29 @@
     }
 </script>
 
+@if (($marketplaceForcedMobile ?? false))
+{{-- This phone-layout page was forced by a squeezed desktop viewport
+    (?view=mobile). Watch for a widen back past the mobile breakpoint and
+    return to the rich marketplace desktop detail. Genuine phones never render
+    this block (marketplaceForcedMobile is false when UA-detected). --}}
+<script>
+(function () {
+    var BP = 820;
+    function sync() {
+        if (window.innerWidth > BP) {
+            var u = new URL(window.location.href);
+            if (u.searchParams.get('view') !== 'desktop') {
+                u.searchParams.set('view', 'desktop');
+                window.location.replace(u.toString());
+            }
+        }
+    }
+    var t;
+    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(sync, 150); });
+    sync();
+})();
+</script>
+@endif
+
 </body>
 </html>

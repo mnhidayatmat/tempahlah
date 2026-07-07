@@ -394,6 +394,27 @@
 
 @push('scripts')
 <script>
+/* Viewport watcher — if the desktop marketplace detail is squeezed to mobile
+   width, switch to the host's public-link (subdomain-style) page. Reloads via
+   ?view=mobile; the mobile page watches for a widen back to desktop. Uses
+   location.replace so the toggle never pollutes browser history. */
+(function () {
+    var BP = 820;
+    function sync() {
+        if (window.innerWidth <= BP) {
+            var u = new URL(window.location.href);
+            if (u.searchParams.get('view') !== 'mobile') {
+                u.searchParams.set('view', 'mobile');
+                window.location.replace(u.toString());
+            }
+        }
+    }
+    var t;
+    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(sync, 150); });
+    sync();
+})();
+</script>
+<script>
 function bookingDetail(opts) {
     return {
         rate: opts.rate,

@@ -127,10 +127,18 @@ class MarketplaceController extends Controller
 
         // Phones get the host's subdomain-style booking page scoped to this
         // homestay; larger screens keep the marketplace's rich detail layout.
-        if ($this->isMobile($request)) {
+        // A ?view= override lets the client-side viewport watcher force either
+        // layout when a desktop browser is squeezed to / from mobile width.
+        $view = $request->query('view');
+
+        if (($this->isMobile($request) || $view === 'mobile') && $view !== 'desktop') {
             $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
             $data['marketplaceContext'] = true;
             $data['backUrl'] = route('marketplace.search');
+            // Only watch for "widen back to desktop" when the phone layout was
+            // forced by a narrow desktop viewport (?view=mobile) — genuine phones
+            // (UA-detected, no param) must never bounce to the desktop layout.
+            $data['marketplaceForcedMobile'] = $view === 'mobile';
 
             return view('public-tenant.home', $data);
         }
