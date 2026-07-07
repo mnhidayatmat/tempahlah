@@ -550,6 +550,7 @@ class HousekeepingController extends Controller
             'property_id' => 'required|exists:properties,id',
             'title' => 'required|string|max:200',
             'priority' => 'required|in:low,medium,high,urgent',
+            'scheduled_at' => 'nullable|date',
             'cost' => 'nullable|numeric|min:0|max:1000000',
             'description' => 'nullable|string|max:2000',
         ]);
@@ -561,6 +562,7 @@ class HousekeepingController extends Controller
             'title' => $validated['title'],
             'priority' => $validated['priority'],
             'status' => MaintenanceTicket::STATUS_OPEN,
+            'scheduled_at' => $validated['scheduled_at'] ?? null,
             'cost' => $validated['cost'] ?? null,
             'description' => $validated['description'] ?? null,
         ]);

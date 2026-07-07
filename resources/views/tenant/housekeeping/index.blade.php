@@ -560,12 +560,16 @@
                             </select>
                         </div>
                         <div>
-                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Repair cost (RM)') }}</label>
-                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="{{ __('optional') }}">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Date') }}</label>
+                            <input type="date" name="scheduled_at" class="input">
                         </div>
-                        <div style="grid-column: span 4;">
+                        <div style="grid-column: span 3;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Issue') }} *</label>
                             <input type="text" name="title" class="input" required maxlength="200" placeholder="{{ __('e.g. Aircond in Room 2 not cooling') }}">
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Repair cost (RM)') }}</label>
+                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="{{ __('optional') }}">
                         </div>
                         <div style="grid-column: span 4;">
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Description') }}</label>
@@ -623,7 +627,7 @@
                                                 <span style="width: 4px; min-height: 30px; background: {{ $pc }}; border-radius: 3px; flex-shrink: 0;"></span>
                                                 <div style="min-width: 0;">
                                                     <div style="font-weight: 500; font-size: 13px;">{{ $m->title }}</div>
-                                                    <div class="hk-ref">{{ $m->property?->name ?? '—' }}@if ($m->room) · {{ $m->room->name }}@endif · {{ $m->created_at->diffForHumans() }}@if ($m->reportedBy) · {{ __('Reported by') }} {{ $m->reportedBy->name }}@endif</div>
+                                                    <div class="hk-ref">{{ $m->property?->name ?? '—' }}@if ($m->room) · {{ $m->room->name }}@endif · @if ($m->scheduled_at)📅 {{ $m->scheduled_at->format('M j, Y') }}@else{{ $m->created_at->diffForHumans() }}@endif@if ($m->reportedBy) · {{ __('Reported by') }} {{ $m->reportedBy->name }}@endif</div>
                                                 </div>
                                             </div>
                                         </td>
