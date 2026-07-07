@@ -26,6 +26,27 @@
         ];
     @endphp
 
+    @once
+    <style>
+        .hk-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        .hk-table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:760px; }
+        .hk-table thead th{
+            text-align:left; padding:9px 14px; font-size:10px; font-weight:600;
+            text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3);
+            background:var(--bg-sunk); border-bottom:.5px solid var(--line); white-space:nowrap;
+        }
+        .hk-table tbody td{ padding:12px 14px; border-top:.5px solid var(--line); vertical-align:middle; color:var(--ink-2); }
+        .hk-table tbody:first-of-type td{ border-top:0; }
+        .hk-table .hk-num{ text-align:right; white-space:nowrap; }
+        .hk-cost{ font-variant-numeric:tabular-nums; color:var(--ink); font-weight:500; }
+        .hk-actions{ display:flex; gap:4px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+        .hk-ref{ font-size:10.5px; color:var(--ink-3); margin-top:2px; }
+        .hk-empty{ padding:32px; text-align:center; color:var(--ink-3); font-size:13px; }
+        .hk-tfoot td{ padding:10px 14px; border-top:.5px solid var(--line); background:var(--bg-sunk); font-size:11.5px; color:var(--ink-3); }
+        .hk-tfoot .hk-cost{ font-size:12.5px; }
+    </style>
+    @endonce
+
     <div style="display:flex; flex-direction:column; gap: 20px;">
 
         {{-- Header --}}
@@ -195,14 +216,33 @@
                 <div>
                     <div style="font-size: 14px; font-weight: 600;">{{ __('Today') }} · {{ $today->format('l j F Y') }}</div>
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Live status from cleaner mobile app') }}</div>
-                    <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
-                        @forelse ($todayTasks as $t)
-                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
-                        @empty
-                            <div class="hauz-card" style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
-                                {{ __('No cleaning tasks scheduled today.') }}
-                            </div>
-                        @endforelse
+                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <table class="hk-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Property') }}</th>
+                                    <th>{{ __('Type') }}</th>
+                                    <th>{{ __('Scheduled') }}</th>
+                                    <th>{{ __('Cleaner') }}</th>
+                                    <th>{{ __('Crew') }}</th>
+                                    <th>{{ __('Status') }}</th>
+                                    <th class="hk-num">{{ __('Cost') }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            @forelse ($todayTasks as $t)
+                                <x-housekeeping.cleaning-row :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
+                            @empty
+                                <tbody><tr><td colspan="8" class="hk-empty">{{ __('No cleaning tasks scheduled today.') }}</td></tr></tbody>
+                            @endforelse
+                            @if ($todayTasks->isNotEmpty())
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td colspan="6">{{ $todayTasks->count() }} {{ trans_choice('task|tasks', $todayTasks->count()) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format((float) $todayTasks->sum('cost'), 2) }}</td>
+                                    <td></td>
+                                </tr></tfoot>
+                            @endif
+                        </table>
                     </div>
                 </div>
 
@@ -213,25 +253,29 @@
                             <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
                             <div style="font-size: 12px; color: var(--ink-3);">{{ $upcoming->count() }} {{ __('scheduled') }}</div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap: 18px; margin-top: 12px;">
-                            @foreach ($upcoming->groupBy(fn ($t) => $t->scheduled_at?->format('Y-m-d')) as $dayTasks)
-                                @php $d = $dayTasks->first()->scheduled_at; @endphp
-                                <div>
-                                    {{-- Date header --}}
-                                    <div style="display:flex; align-items:center; gap: 10px; margin-bottom: 8px;">
-                                        <span style="font-size: 12.5px; font-weight: 600; color: var(--ink-2);">
-                                            {{ $d->isTomorrow() ? __('Tomorrow') : $d->translatedFormat('l, j F') }}
-                                        </span>
-                                        <span style="flex: 1; height: 1px; background: var(--line);"></span>
-                                        <span style="font-size: 11px; color: var(--ink-3);">{{ $dayTasks->count() }} {{ trans_choice('task|tasks', $dayTasks->count()) }}</span>
-                                    </div>
-                                    <div style="display:flex; flex-direction:column; gap: 8px;">
-                                        @foreach ($dayTasks as $t)
-                                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null" compact/>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
+                        <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                            <table class="hk-table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ __('Property') }}</th>
+                                        <th>{{ __('Type') }}</th>
+                                        <th>{{ __('Scheduled') }}</th>
+                                        <th>{{ __('Cleaner') }}</th>
+                                        <th>{{ __('Crew') }}</th>
+                                        <th>{{ __('Status') }}</th>
+                                        <th class="hk-num">{{ __('Cost') }}</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                @foreach ($upcoming as $t)
+                                    <x-housekeeping.cleaning-row :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
+                                @endforeach
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td colspan="6">{{ $upcoming->count() }} {{ trans_choice('task|tasks', $upcoming->count()) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format((float) $upcoming->sum('cost'), 2) }}</td>
+                                    <td></td>
+                                </tr></tfoot>
+                            </table>
                         </div>
                     </div>
                 @endif
@@ -333,128 +377,150 @@
                             <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Tracking pickup → wash → return per property') }}</div>
                         </div>
                     </div>
-                    <div class="hauz-card" style="padding: 0; overflow: hidden; margin-top: 10px;">
-                        @forelse ($laundry as $i => $l)
-                            @php $ui = $laundryStatusUI[$l->status] ?? $laundryStatusUI['pending']; @endphp
-                            <div x-data="{ editing: false }" style="{{ $i === 0 ? '' : 'border-top: .5px solid var(--line);' }}">
-                                {{-- Display row --}}
-                                <div x-show="!editing" style="padding: 14px 18px; display:grid; grid-template-columns: 1fr 2fr 1.4fr 1fr auto; gap: 16px; align-items:center;">
-                                    <div>
-                                        <div style="font-size: 13px; font-weight: 500;">{{ $l->property?->name ?? '—' }}</div>
-                                        <div class="mono" style="font-size: 11px; color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
-                                    </div>
-                                    <div style="min-width: 0;">
-                                        <div style="font-size: 12.5px; color: var(--ink-2);">{{ $l->item_count }} {{ __('items') }}</div>
-                                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 2px;">{{ $l->vendor?->name ?? $l->vendor_name ?? __('Self-service') }}</div>
-                                    </div>
-                                    <div>
-                                        <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
-                                            <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
-                                        </span>
-                                    </div>
-                                    <div style="font-size: 12;">
-                                        @if ($l->picked_up_at)
-                                            <div style="color: var(--ink-2);">{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
-                                        @endif
-                                        @if ($l->expected_return_at)
-                                            <div style="color: {{ $l->returned_at ? 'var(--ok)' : 'var(--ink-3)' }};">
-                                                {{ $l->returned_at ? __('Returned') : __('Expected') }}: <span class="mono">{{ ($l->returned_at ?? $l->expected_return_at)->format('M j') }}</span>
+                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <table class="hk-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Property') }}</th>
+                                    <th>{{ __('Items') }}</th>
+                                    <th>{{ __('Vendor') }}</th>
+                                    <th>{{ __('Schedule') }}</th>
+                                    <th>{{ __('Status') }}</th>
+                                    <th class="hk-num">{{ __('Cost') }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            @forelse ($laundry as $l)
+                                @php $ui = $laundryStatusUI[$l->status] ?? $laundryStatusUI['pending']; @endphp
+                                <tbody x-data="{ editing: false }">
+                                    {{-- Display row --}}
+                                    <tr x-show="!editing">
+                                        <td>
+                                            <div style="font-weight: 500; font-size: 13px;">{{ $l->property?->name ?? '—' }}</div>
+                                            <div class="hk-ref mono">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
+                                        </td>
+                                        <td style="white-space: nowrap;">{{ $l->item_count }} {{ __('items') }}</td>
+                                        <td>{{ $l->vendor?->name ?? $l->vendor_name ?? __('Self-service') }}</td>
+                                        <td style="white-space: nowrap;">
+                                            @if ($l->picked_up_at)
+                                                <div>{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
+                                            @else
+                                                <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
+                                            @endif
+                                            @if ($l->expected_return_at)
+                                                <div class="hk-ref" style="color: {{ $l->returned_at ? 'var(--ok)' : 'var(--ink-3)' }};">
+                                                    {{ $l->returned_at ? __('Returned') : __('Expected') }}: <span class="mono">{{ ($l->returned_at ?? $l->expected_return_at)->format('M j') }}</span>
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                                            </span>
+                                        </td>
+                                        <td class="hk-num hk-cost">{{ $l->cost !== null ? 'RM '.number_format($l->cost, 2) : '—' }}</td>
+                                        <td>
+                                            <div class="hk-actions">
+                                                @if ($l->status === 'pending')
+                                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                                        @csrf @method('PATCH')<input type="hidden" name="action" value="pickup">
+                                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark picked up') }}</button>
+                                                    </form>
+                                                @elseif ($l->status === 'picked_up')
+                                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
+                                                        @csrf @method('PATCH')<input type="hidden" name="action" value="return">
+                                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
+                                                    </form>
+                                                @endif
+                                                <x-housekeeping.share-button :url="$laundryShare[$l->id] ?? '#'"/>
+                                                <x-housekeeping.copy-button :text="$laundryCopy[$l->id] ?? ''"/>
+                                                <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                                             </div>
-                                        @endif
-                                        @if (! $l->picked_up_at)
-                                            <div style="color: var(--warn);">{{ __('Awaiting pickup') }}</div>
-                                        @endif
-                                    </div>
-                                    <div style="display:flex; gap: 4px; align-items:center;">
-                                        @if ($l->status === 'pending')
-                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
-                                                @csrf @method('PATCH')<input type="hidden" name="action" value="pickup">
-                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark picked up') }}</button>
-                                            </form>
-                                        @elseif ($l->status === 'picked_up')
-                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}">
-                                                @csrf @method('PATCH')<input type="hidden" name="action" value="return">
-                                                <button type="submit" class="btn btn-sm btn-primary">{{ __('Mark returned') }}</button>
-                                            </form>
-                                        @endif
-                                        <x-housekeeping.share-button :url="$laundryShare[$l->id] ?? '#'"/>
-                                        <x-housekeeping.copy-button :text="$laundryCopy[$l->id] ?? ''"/>
-                                        <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
-                                    </div>
-                                </div>
+                                        </td>
+                                    </tr>
 
-                                {{-- Edit form --}}
-                                <div x-show="editing" x-cloak style="padding: 14px 18px; display:flex; flex-direction:column; gap: 12px;">
-                                    <div style="font-weight: 600; font-size: 13px;">{{ __('Edit laundry batch') }} · <span class="mono" style="color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</span></div>
-                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                                        @csrf @method('PATCH')
-                                        <input type="hidden" name="action" value="edit">
-                                        <div style="grid-column: span 2;">
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
-                                            <select name="property_id" class="input" required>
-                                                @foreach ($properties as $p)
-                                                    <option value="{{ $p->id }}" @selected($l->property_id == $p->id)>{{ $p->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
-                                            <select name="status" class="input" required>
-                                                @foreach (['pending' => __('Pending pickup'), 'picked_up' => __('In wash'), 'returned' => __('Returned'), 'cancelled' => __('Cancelled')] as $val => $lbl)
-                                                    <option value="{{ $val }}" @selected($l->status === $val)>{{ $lbl }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Item count') }} *</label>
-                                            <input type="number" name="item_count" class="input" min="1" max="9999" required value="{{ $l->item_count }}">
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
-                                            <select name="vendor_id" class="input">
-                                                <option value="">{{ __('— Unassigned —') }}</option>
-                                                @foreach ($laundryVendors as $v)
-                                                    <option value="{{ $v->id }}" @selected($l->vendor_id == $v->id)>{{ $v->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>
-                                            <input type="datetime-local" name="pickup_at" class="input" required value="{{ $l->pickup_at?->format('Y-m-d\TH:i') }}">
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
-                                            <input type="datetime-local" name="expected_return_at" class="input" value="{{ $l->expected_return_at?->format('Y-m-d\TH:i') }}">
-                                        </div>
-                                        <div>
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
-                                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $l->cost }}" placeholder="0.00">
-                                        </div>
-                                        <div style="grid-column: span 3;">
-                                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
-                                            <textarea name="notes" class="input" maxlength="2000" rows="2"
-                                                      placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
-                                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
-                                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
-                                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
-                                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $l->notes }}</textarea>
-                                        </div>
-                                        <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap: 8px;">
-                                            <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
-                                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
-                                        </div>
-                                    </form>
-                                    <form method="POST" action="{{ route('tenant.housekeeping.laundry.destroy', $l->id) }}" onsubmit="return confirm('{{ __('Delete this laundry batch?') }}')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm" style="color: var(--err);">{{ __('Delete batch') }}</button>
-                                    </form>
-                                </div>
-                            </div>
-                        @empty
-                            <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
-                                {{ __('No laundry batches in the last 14 days.') }}
-                            </div>
-                        @endforelse
+                                    {{-- Edit row --}}
+                                    <tr x-show="editing" x-cloak>
+                                        <td colspan="7" style="background: var(--bg-sunk); padding: 16px 14px;">
+                                            <div style="font-weight: 600; font-size: 13px; margin-bottom: 12px;">{{ __('Edit laundry batch') }} · <span class="mono" style="color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</span></div>
+                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                                @csrf @method('PATCH')
+                                                <input type="hidden" name="action" value="edit">
+                                                <div style="grid-column: span 2;">
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                                                    <select name="property_id" class="input" required>
+                                                        @foreach ($properties as $p)
+                                                            <option value="{{ $p->id }}" @selected($l->property_id == $p->id)>{{ $p->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
+                                                    <select name="status" class="input" required>
+                                                        @foreach (['pending' => __('Pending pickup'), 'picked_up' => __('In wash'), 'returned' => __('Returned'), 'cancelled' => __('Cancelled')] as $val => $lbl)
+                                                            <option value="{{ $val }}" @selected($l->status === $val)>{{ $lbl }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Item count') }} *</label>
+                                                    <input type="number" name="item_count" class="input" min="1" max="9999" required value="{{ $l->item_count }}">
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Vendor') }}</label>
+                                                    <select name="vendor_id" class="input">
+                                                        <option value="">{{ __('— Unassigned —') }}</option>
+                                                        @foreach ($laundryVendors as $v)
+                                                            <option value="{{ $v->id }}" @selected($l->vendor_id == $v->id)>{{ $v->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Pickup at') }} *</label>
+                                                    <input type="datetime-local" name="pickup_at" class="input" required value="{{ $l->pickup_at?->format('Y-m-d\TH:i') }}">
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Expected return') }}</label>
+                                                    <input type="datetime-local" name="expected_return_at" class="input" value="{{ $l->expected_return_at?->format('Y-m-d\TH:i') }}">
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Cost (RM)') }}</label>
+                                                    <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $l->cost }}" placeholder="0.00">
+                                                </div>
+                                                <div style="grid-column: span 3;">
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Notes') }}</label>
+                                                    <textarea name="notes" class="input" maxlength="2000" rows="2"
+                                                              placeholder="{{ __('Press Enter for a new line, e.g. 1. … 2. … 3. …') }}"
+                                                              x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                                              @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                              @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                              style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $l->notes }}</textarea>
+                                                </div>
+                                                <div style="grid-column: span 4; display:flex; justify-content:space-between; gap: 8px; align-items:center;">
+                                                    <button type="submit" form="del-laundry-{{ $l->id }}" class="btn btn-sm" style="color: var(--err);">{{ __('Delete batch') }}</button>
+                                                    <div style="display:flex; gap: 8px;">
+                                                        <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                            <form method="POST" id="del-laundry-{{ $l->id }}" action="{{ route('tenant.housekeeping.laundry.destroy', $l->id) }}" onsubmit="return confirm('{{ __('Delete this laundry batch?') }}')">
+                                                @csrf @method('DELETE')
+                                            </form>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            @empty
+                                <tbody><tr><td colspan="7" class="hk-empty">{{ __('No laundry batches in the last 14 days.') }}</td></tr></tbody>
+                            @endforelse
+                            @if ($laundry->isNotEmpty())
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td colspan="5">{{ $laundry->count() }} {{ trans_choice('batch|batches', $laundry->count()) }} · {{ $laundryStats['total_items'] }} {{ __('items') }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format((float) $laundry->sum('cost'), 2) }}</td>
+                                    <td></td>
+                                </tr></tfoot>
+                            @endif
+                        </table>
                     </div>
                 </div>
             </div>
@@ -478,52 +544,82 @@
                     @endforeach
                 </div>
 
-                <div class="hauz-card" style="padding: 0; overflow: hidden;">
-                    <div style="padding: 14px 18px; border-bottom: .5px solid var(--line);">
-                        <div style="font-weight: 600; font-size: 14px;">{{ __('Active tickets') }}</div>
-                        <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Open and in-progress maintenance issues across your properties') }}</div>
+                <div>
+                    <div style="font-size: 14px; font-weight: 600;">{{ __('Tickets') }}</div>
+                    <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Open, in-progress and recently resolved (30 days) — with recorded repair cost') }}</div>
+                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <table class="hk-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Issue') }}</th>
+                                    <th>{{ __('Priority') }}</th>
+                                    <th>{{ __('Status') }}</th>
+                                    <th class="hk-num">{{ __('Cost') }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            @forelse ($maintenance as $m)
+                                @php
+                                    $ui = $maintenanceStatusUI[$m->status] ?? $maintenanceStatusUI['open'];
+                                    $pc = $maintenancePriorityColor[$m->priority] ?? 'var(--ink-3)';
+                                @endphp
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div style="display:flex; align-items:stretch; gap: 10px;">
+                                                <span style="width: 4px; min-height: 30px; background: {{ $pc }}; border-radius: 3px; flex-shrink: 0;"></span>
+                                                <div style="min-width: 0;">
+                                                    <div style="font-weight: 500; font-size: 13px;">{{ $m->title }}</div>
+                                                    <div class="hk-ref">{{ $m->property?->name ?? '—' }}@if ($m->room) · {{ $m->room->name }}@endif · {{ $m->created_at->diffForHumans() }}@if ($m->reportedBy) · {{ __('Reported by') }} {{ $m->reportedBy->name }}@endif</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="pill" style="background: color-mix(in srgb, {{ $pc }} 14%, transparent); color: {{ $pc }}; height: 18px; font-size: 10.5px;">
+                                                <span class="pill-dot" style="background: {{ $pc }};"></span>{{ ucfirst((string) $m->priority) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
+                                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
+                                            </span>
+                                        </td>
+                                        <td class="hk-num hk-cost">{{ $m->cost !== null ? 'RM '.number_format($m->cost, 2) : '—' }}</td>
+                                        <td>
+                                            <div class="hk-actions">
+                                                <x-housekeeping.share-button :url="$maintenanceShare[$m->id] ?? '#'"/>
+                                                <x-housekeeping.copy-button :text="$maintenanceCopy[$m->id] ?? ''"/>
+                                                @if ($m->status === 'open')
+                                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
+                                                        @csrf @method('PATCH')<input type="hidden" name="action" value="start">
+                                                        <button type="submit" class="btn btn-sm">{{ __('Start') }}</button>
+                                                    </form>
+                                                @elseif ($m->status === 'in_progress')
+                                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}"
+                                                          style="display:flex; gap:4px; align-items:center;">
+                                                        @csrf @method('PATCH')<input type="hidden" name="action" value="resolve">
+                                                        <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01"
+                                                               placeholder="{{ __('Cost RM') }}" title="{{ __('Repair cost (RM)') }}"
+                                                               style="width:88px; padding:6px 8px; font-size:12px;">
+                                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Resolve') }}</button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            @empty
+                                <tbody><tr><td colspan="5" class="hk-empty">{{ __('No maintenance tickets.') }}</td></tr></tbody>
+                            @endforelse
+                            @if ($maintenance->isNotEmpty())
+                                <tfoot class="hk-tfoot"><tr>
+                                    <td colspan="3">{{ $maintenance->count() }} {{ trans_choice('ticket|tickets', $maintenance->count()) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format((float) $maintenance->sum('cost'), 2) }}</td>
+                                    <td></td>
+                                </tr></tfoot>
+                            @endif
+                        </table>
                     </div>
-                    @forelse ($maintenance as $m)
-                        @php $ui = $maintenanceStatusUI[$m->status] ?? $maintenanceStatusUI['open']; @endphp
-                        <div style="padding: 14px 18px; border-top: .5px solid var(--line); display:grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items:center;">
-                            <div style="width: 8px; height: 36px; background: {{ $maintenancePriorityColor[$m->priority] ?? 'var(--ink-3)' }}; border-radius: 4px;" title="{{ ucfirst($m->priority) }} priority"></div>
-                            <div style="min-width: 0;">
-                                <div style="font-weight: 500; font-size: 13.5px;">{{ $m->title }}</div>
-                                <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">
-                                    {{ $m->property?->name ?? '—' }}
-                                    @if ($m->room) · {{ $m->room->name }} @endif
-                                    · {{ $m->created_at->diffForHumans() }}
-                                    @if ($m->reportedBy) · {{ __('Reported by') }} {{ $m->reportedBy->name }} @endif
-                                </div>
-                            </div>
-                            <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
-                                <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
-                            </span>
-                            <div style="display:flex; gap: 4px; align-items:center;">
-                                <x-housekeeping.share-button :url="$maintenanceShare[$m->id] ?? '#'"/>
-                                <x-housekeeping.copy-button :text="$maintenanceCopy[$m->id] ?? ''"/>
-                                @if ($m->status === 'open')
-                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}">
-                                        @csrf @method('PATCH')<input type="hidden" name="action" value="start">
-                                        <button type="submit" class="btn btn-sm">{{ __('Start') }}</button>
-                                    </form>
-                                @elseif ($m->status === 'in_progress')
-                                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}"
-                                          style="display:flex; gap:4px; align-items:center;">
-                                        @csrf @method('PATCH')<input type="hidden" name="action" value="resolve">
-                                        <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01"
-                                               placeholder="{{ __('Cost RM') }}" title="{{ __('Repair cost (RM)') }}"
-                                               style="width:96px; padding:6px 8px; font-size:12px;">
-                                        <button type="submit" class="btn btn-sm btn-primary">{{ __('Resolve') }}</button>
-                                    </form>
-                                @endif
-                            </div>
-                        </div>
-                    @empty
-                        <div style="padding: 32px; text-align: center; color: var(--ink-3); font-size: 13px;">
-                            {{ __('No active maintenance tickets.') }}
-                        </div>
-                    @endforelse
                 </div>
             </div>
         @endif

@@ -72,12 +72,24 @@ class HousekeepingController extends Controller
             'total_items' => (int) $laundry->sum('item_count'),
         ];
 
+        // Active tickets + recently-resolved (30d) so their recorded repair cost
+        // stays visible on the table (an in-flight ticket has no cost yet — it's
+        // captured at resolve time). Active first, then resolved, newest within.
         $maintenance = MaintenanceTicket::query()
             ->with(['property:id,name', 'room:id,name', 'assignee:id,name,phone', 'reportedBy:id,name'])
-            ->whereIn('status', ['open', 'in_progress'])
+            ->where(function ($q) use ($today) {
+                $q->whereIn('status', ['open', 'in_progress'])
+                    ->orWhere(function ($q2) use ($today) {
+                        $q2->where('status', 'resolved')
+                            ->where('resolved_at', '>=', $today->copy()->subDays(30));
+                    });
+            })
             ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+            ->limit(80)
+            ->get()
+            // Group active before resolved (stable — preserves the created_at order within each group).
+            ->sortBy(fn ($m) => ['open' => 0, 'in_progress' => 1, 'resolved' => 2][$m->status] ?? 3)
+            ->values();
 
         $maintenanceStats = [
             'open' => MaintenanceTicket::where('status', 'open')->count(),
