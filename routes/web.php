@@ -226,6 +226,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/housekeeping/generate',          [HousekeepingController::class, 'generateSchedule'])->name('housekeeping.generate');
         Route::post('/housekeeping/cleaning',          [HousekeepingController::class, 'storeCleaning'])->name('housekeeping.cleaning.store');
         Route::post('/housekeeping/laundry',           [HousekeepingController::class, 'storeLaundry'])->name('housekeeping.laundry.store');
+        Route::post('/housekeeping/maintenance',       [HousekeepingController::class, 'storeMaintenance'])->name('housekeeping.maintenance.store');
         Route::patch('/housekeeping/cleaning/{id}',    [HousekeepingController::class, 'updateCleaning'])->name('housekeeping.cleaning.update');
         Route::delete('/housekeeping/cleaning/{id}',   [HousekeepingController::class, 'destroyCleaning'])->name('housekeeping.cleaning.destroy');
         Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');

@@ -541,6 +541,35 @@ class HousekeepingController extends Controller
             ->with('status', __('Laundry batch logged.'));
     }
 
+    public function storeMaintenance(Request $request)
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $validated = $request->validate([
+            'property_id' => 'required|exists:properties,id',
+            'title' => 'required|string|max:200',
+            'priority' => 'required|in:low,medium,high,urgent',
+            'cost' => 'nullable|numeric|min:0|max:1000000',
+            'description' => 'nullable|string|max:2000',
+        ]);
+
+        MaintenanceTicket::create([
+            'tenant_id' => $tenant->id,
+            'property_id' => $validated['property_id'],
+            'reported_by_user_id' => $request->user()?->id,
+            'title' => $validated['title'],
+            'priority' => $validated['priority'],
+            'status' => MaintenanceTicket::STATUS_OPEN,
+            'cost' => $validated['cost'] ?? null,
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('tenant.housekeeping.index', ['tab' => 'maintenance'])
+            ->with('status', __('Maintenance ticket created.'));
+    }
+
     public function updateCleaning(Request $request, int $id)
     {
         $task = CleaningTask::findOrFail($id);

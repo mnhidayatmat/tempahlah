@@ -532,6 +532,56 @@
         {{-- Maintenance tab --}}
         @if ($tab === 'maintenance')
             <div style="display:flex; flex-direction:column; gap: 18px;">
+                <details class="hauz-card" style="padding: 0; overflow: hidden;">
+                    <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
+                        <x-icon name="plus" :size="13"/> {{ __('Log a new maintenance ticket') }}
+                    </summary>
+                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.store') }}"
+                          style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        @csrf
+                        <div style="grid-column: span 2;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                            <select name="property_id" class="input" required>
+                                @if ($properties->count() !== 1)
+                                    <option value="">—</option>
+                                @endif
+                                @foreach ($properties as $p)
+                                    <option value="{{ $p->id }}" @selected($properties->count() === 1)>{{ $p->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Priority') }} *</label>
+                            <select name="priority" class="input" required>
+                                <option value="low">{{ __('Low') }}</option>
+                                <option value="medium" selected>{{ __('Medium') }}</option>
+                                <option value="high">{{ __('High') }}</option>
+                                <option value="urgent">{{ __('Urgent') }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Repair cost (RM)') }}</label>
+                            <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" placeholder="{{ __('optional') }}">
+                        </div>
+                        <div style="grid-column: span 4;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Issue') }} *</label>
+                            <input type="text" name="title" class="input" required maxlength="200" placeholder="{{ __('e.g. Aircond in Room 2 not cooling') }}">
+                        </div>
+                        <div style="grid-column: span 4;">
+                            <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Description') }}</label>
+                            <textarea name="description" class="input" maxlength="2000" rows="2"
+                                      placeholder="{{ __('Optional detail — press Enter for a new line') }}"
+                                      x-data
+                                      x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                      @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                      style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;"></textarea>
+                        </div>
+                        <div style="grid-column: span 4; text-align: right;">
+                            <button type="submit" class="btn btn-primary btn-sm">{{ __('Create ticket') }}</button>
+                        </div>
+                    </form>
+                </details>
                 <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                     @foreach ([
                         [__('Open'), $maintenanceStats['open'], __('awaiting triage'), 'var(--warn)'],
