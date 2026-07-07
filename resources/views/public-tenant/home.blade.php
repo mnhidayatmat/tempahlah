@@ -667,15 +667,13 @@
          circle that sits ABOVE the bar. The bar has an SVG cut-out behind
          it so the circle's bottom half visually lifts out of the dock. --}}
     <nav class="wf-botnav" :class="{ 'wf-botnav-has-gallery': current.photos && current.photos.length }">
-        {{-- Utama / Home — scroll to top --}}
-        <button type="button"
-                class="wf-botnav-item"
-                :class="{ 'is-active': navTab === 'home' }"
-                @click="goHome"
-                aria-label="{{ $isBM ? 'Utama' : 'Home' }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 20v-6h6v6"/></svg>
-            <span>{{ $isBM ? 'Utama' : 'Home' }}</span>
-        </button>
+        {{-- Marketplace — search homestays across the platform --}}
+        <a href="{{ route('marketplace.search') }}"
+           class="wf-botnav-item"
+           aria-label="{{ $isBM ? 'Marketplace' : 'Marketplace' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>{{ $isBM ? 'Marketplace' : 'Marketplace' }}</span>
+        </a>
 
         {{-- Gallery — open photo lightbox (hidden when property has 0 photos) --}}
         <button type="button"
