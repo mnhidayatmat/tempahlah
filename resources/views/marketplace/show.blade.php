@@ -38,6 +38,7 @@
 <main class="bp-detail" x-data="bookingDetail({
     rate: {{ (float) $rate }},
     sleeps: {{ (int) $sleeps }},
+    defaultGuests: {{ (int) ($defaultGuests ?? 2) }},
     bookedDates: @js($bookedDates ?? []),
     contactPhone: @js($contactPhone),
     propertyName: @js($title),
@@ -405,7 +406,7 @@ function bookingDetail(opts) {
         today: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
         checkin: null,
         checkout: null,
-        guests: 2,
+        guests: Math.min(opts.defaultGuests || 2, opts.sleeps || 99),
 
         iso(d) {
             const y = d.getFullYear();

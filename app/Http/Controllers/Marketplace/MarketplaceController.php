@@ -187,6 +187,7 @@ class MarketplaceController extends Controller
             'contactPhone' => $contactPhone,
             'bookUrl' => $bookUrl,
             'sleeps' => $listing->property->rooms->sum('max_adults') ?: 4,
+            'defaultGuests' => $listing->property->effectiveDefaultGuests(),
             'rate' => (float) $listing->base_price_min ?: ($listing->property->rooms->min('base_price') ?? 0),
             'roomCount' => $listing->property->rooms->count(),
         ]);
