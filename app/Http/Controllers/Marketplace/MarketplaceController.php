@@ -125,20 +125,15 @@ class MarketplaceController extends Controller
         // Arm attribution so a booking made from here is marketplace-sourced.
         \App\Support\Marketplace\Attribution::remember($listing->tenant, $listing->id);
 
-        // Phones get the host's subdomain-style booking page scoped to this
-        // homestay; larger screens keep the marketplace's rich detail layout.
-        // A ?view= override lets the client-side viewport watcher force either
-        // layout when a desktop browser is squeezed to / from mobile width.
-        $view = $request->query('view');
-
-        if (($this->isMobile($request) || $view === 'mobile') && $view !== 'desktop') {
+        // Real phones (UA-detected) get the host's subdomain-style booking page
+        // scoped to this homestay. Larger screens get the marketplace's own rich
+        // detail layout, which is itself responsive: squeezing a desktop browser
+        // below 820px morphs it into a public-link-style mobile view via CSS —
+        // no reload, so the transition is smooth.
+        if ($this->isMobile($request)) {
             $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
             $data['marketplaceContext'] = true;
             $data['backUrl'] = route('marketplace.search');
-            // Only watch for "widen back to desktop" when the phone layout was
-            // forced by a narrow desktop viewport (?view=mobile) — genuine phones
-            // (UA-detected, no param) must never bounce to the desktop layout.
-            $data['marketplaceForcedMobile'] = $view === 'mobile';
 
             return view('public-tenant.home', $data);
         }

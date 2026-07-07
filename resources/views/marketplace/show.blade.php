@@ -394,27 +394,6 @@
 
 @push('scripts')
 <script>
-/* Viewport watcher — if the desktop marketplace detail is squeezed to mobile
-   width, switch to the host's public-link (subdomain-style) page. Fires the
-   instant the viewport crosses 820px (no debounce) and prefetches the mobile
-   layout up front so the swap is near-instant. Uses location.replace so the
-   toggle never pollutes browser history. */
-(function () {
-    var BP = 820, going = false;
-    var target = (function () { var u = new URL(window.location.href); u.searchParams.set('view', 'mobile'); return u.toString(); })();
-    var pf = document.createElement('link'); pf.rel = 'prefetch'; pf.href = target; document.head.appendChild(pf);
-    function sync() {
-        if (going) return;
-        if (window.innerWidth <= BP && new URL(window.location.href).searchParams.get('view') !== 'mobile') {
-            going = true;
-            window.location.replace(target);
-        }
-    }
-    window.addEventListener('resize', sync, { passive: true });
-    sync();
-})();
-</script>
-<script>
 function bookingDetail(opts) {
     return {
         rate: opts.rate,

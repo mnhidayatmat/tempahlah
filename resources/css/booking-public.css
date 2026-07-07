@@ -641,8 +641,12 @@
 .bp-mobile-cta { display: none; }
 .bp-bottom-nav { display: none; }
 
-/* === MOBILE — Wafa-style layout (palette already shared app-wide) === */
-@media (max-width: 640px) {
+/* === MOBILE — Wafa-style layout (palette already shared app-wide) ===
+   Breakpoint is 820px so squeezing a desktop browser morphs the marketplace
+   detail into this public-link-style mobile layout via pure CSS (no reload).
+   Only .bp-* selectors live here and only the detail page uses them, so the
+   marketplace search page (self-contained styles) is unaffected. */
+@media (max-width: 820px) {
   body[data-public-booking] {
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
