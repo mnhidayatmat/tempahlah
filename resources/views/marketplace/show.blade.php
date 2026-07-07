@@ -395,22 +395,22 @@
 @push('scripts')
 <script>
 /* Viewport watcher — if the desktop marketplace detail is squeezed to mobile
-   width, switch to the host's public-link (subdomain-style) page. Reloads via
-   ?view=mobile; the mobile page watches for a widen back to desktop. Uses
-   location.replace so the toggle never pollutes browser history. */
+   width, switch to the host's public-link (subdomain-style) page. Fires the
+   instant the viewport crosses 820px (no debounce) and prefetches the mobile
+   layout up front so the swap is near-instant. Uses location.replace so the
+   toggle never pollutes browser history. */
 (function () {
-    var BP = 820;
+    var BP = 820, going = false;
+    var target = (function () { var u = new URL(window.location.href); u.searchParams.set('view', 'mobile'); return u.toString(); })();
+    var pf = document.createElement('link'); pf.rel = 'prefetch'; pf.href = target; document.head.appendChild(pf);
     function sync() {
-        if (window.innerWidth <= BP) {
-            var u = new URL(window.location.href);
-            if (u.searchParams.get('view') !== 'mobile') {
-                u.searchParams.set('view', 'mobile');
-                window.location.replace(u.toString());
-            }
+        if (going) return;
+        if (window.innerWidth <= BP && new URL(window.location.href).searchParams.get('view') !== 'mobile') {
+            going = true;
+            window.location.replace(target);
         }
     }
-    var t;
-    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(sync, 150); });
+    window.addEventListener('resize', sync, { passive: true });
     sync();
 })();
 </script>

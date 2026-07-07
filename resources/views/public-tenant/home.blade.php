@@ -2365,18 +2365,17 @@
     this block (marketplaceForcedMobile is false when UA-detected). --}}
 <script>
 (function () {
-    var BP = 820;
+    var BP = 820, going = false;
+    var target = (function () { var u = new URL(window.location.href); u.searchParams.set('view', 'desktop'); return u.toString(); })();
+    var pf = document.createElement('link'); pf.rel = 'prefetch'; pf.href = target; document.head.appendChild(pf);
     function sync() {
-        if (window.innerWidth > BP) {
-            var u = new URL(window.location.href);
-            if (u.searchParams.get('view') !== 'desktop') {
-                u.searchParams.set('view', 'desktop');
-                window.location.replace(u.toString());
-            }
+        if (going) return;
+        if (window.innerWidth > BP && new URL(window.location.href).searchParams.get('view') !== 'desktop') {
+            going = true;
+            window.location.replace(target);
         }
     }
-    var t;
-    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(sync, 150); });
+    window.addEventListener('resize', sync, { passive: true });
     sync();
 })();
 </script>
