@@ -209,10 +209,28 @@
                 {{-- Upcoming --}}
                 @if ($upcoming->isNotEmpty())
                     <div>
-                        <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
-                        <div style="display:flex; flex-direction:column; gap: 10px; margin-top: 10px;">
-                            @foreach ($upcoming as $t)
-                                <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null"/>
+                        <div style="display:flex; align-items:baseline; gap: 8px;">
+                            <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
+                            <div style="font-size: 12px; color: var(--ink-3);">{{ $upcoming->count() }} {{ __('scheduled') }}</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap: 18px; margin-top: 12px;">
+                            @foreach ($upcoming->groupBy(fn ($t) => $t->scheduled_at?->format('Y-m-d')) as $dayTasks)
+                                @php $d = $dayTasks->first()->scheduled_at; @endphp
+                                <div>
+                                    {{-- Date header --}}
+                                    <div style="display:flex; align-items:center; gap: 10px; margin-bottom: 8px;">
+                                        <span style="font-size: 12.5px; font-weight: 600; color: var(--ink-2);">
+                                            {{ $d->isTomorrow() ? __('Tomorrow') : $d->translatedFormat('l, j F') }}
+                                        </span>
+                                        <span style="flex: 1; height: 1px; background: var(--line);"></span>
+                                        <span style="font-size: 11px; color: var(--ink-3);">{{ $dayTasks->count() }} {{ trans_choice('task|tasks', $dayTasks->count()) }}</span>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap: 8px;">
+                                        @foreach ($dayTasks as $t)
+                                            <x-housekeeping.cleaning-card :task="$t" :properties="$properties" :cleaners="$cleaners" :copy-text="$cleaningCopy[$t->id] ?? ''" :share-url="$cleaningShare[$t->id] ?? null" compact/>
+                                        @endforeach
+                                    </div>
+                                </div>
                             @endforeach
                         </div>
                     </div>

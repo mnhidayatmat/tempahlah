@@ -4,6 +4,7 @@
     'cleaners',
     'copyText' => '',
     'shareUrl' => null,
+    'compact' => false,
 ])
 @php
     $t = $task;
@@ -31,7 +32,45 @@
     if ($durationHours) { $crewBits[] = '⏱ '.$durationHours.'h'; }
     $crewLabel = implode(' · ', $crewBits);
 @endphp
-<div class="hauz-card" x-data="{ editing: false }" style="padding: 16px; border-left: 3px solid {{ $borderColor }};">
+<div class="hauz-card" x-data="{ editing: false }" style="padding: {{ $compact ? '12px 14px' : '16px' }}; border-left: 3px solid {{ $borderColor }};">
+    {{-- Compact display row (Upcoming agenda) --}}
+    @if ($compact)
+    <div x-show="!editing" style="display:flex; align-items:center; gap: 14px;">
+        <div style="min-width: 52px; text-align:center;">
+            <div class="mono" style="font-size: 15px; font-weight: 600; line-height: 1; color: var(--ink);">{{ $t->scheduled_at?->format('H:i') }}</div>
+            <span class="pill-dot" style="display:inline-block; margin-top: 6px; background: {{ $ui['color'] }};"></span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-weight: 600; font-size: 13.5px;">{{ $t->property?->name ?? '—' }}</span>
+                @if ($t->auto_generated)
+                    <span class="pill" style="background: var(--primary-tint); color: var(--primary); height: 17px; font-size: 10px;">{{ __('Auto') }}</span>
+                @endif
+                @if ($hasIssues)
+                    <span class="pill" style="background: var(--err-tint); color: var(--err); height: 17px; font-size: 10px;">{{ __('Flagged') }}</span>
+                @endif
+            </div>
+            <div style="font-size: 12px; color: var(--ink-3); display:flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 3px;">
+                <span>{{ $typeLabel }}</span>
+                @if ($crewLabel !== '')<span>{{ $crewLabel }}</span>@endif
+                @if ($t->cleaner)
+                    <span style="display:inline-flex; align-items:center; gap: 4px; color: var(--ink-2);">
+                        <x-avatar :name="$t->cleaner->name" :size="18"/>{{ $t->cleaner->name }}
+                    </span>
+                @else
+                    <span>{{ __('No cleaner') }}</span>
+                @endif
+            </div>
+        </div>
+        <div style="display:flex; gap: 4px; align-items:center;">
+            @if ($shareUrl)
+                <x-housekeeping.share-button :url="$shareUrl"/>
+            @endif
+            <x-housekeeping.copy-button :text="$copyText"/>
+            <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
+        </div>
+    </div>
+    @else
     {{-- Display row --}}
     <div x-show="!editing" style="display:grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items:center;">
         <div style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg-sunk); display:flex; align-items:center; justify-content:center; color: var(--ink-2);">
@@ -102,6 +141,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- Edit form --}}
     <div x-show="editing" x-cloak style="display:flex; flex-direction:column; gap: 12px;">
