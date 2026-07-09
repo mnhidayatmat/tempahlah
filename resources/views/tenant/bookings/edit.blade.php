@@ -8,6 +8,18 @@
         $isForeigner = (bool) old('is_foreigner', $booking->is_foreigner);
     @endphp
 
+    <style>
+        /* A grid item's automatic minimum is its content width, so a plain `1fr`
+           column can't shrink below a long <select> option — the tracks locked at
+           170px and pushed the form off a 360px screen. minmax(0,1fr) lets them
+           shrink; on phones the fields stack for legibility. */
+        .bke-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .bke-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        @media (max-width: 640px) {
+            .bke-grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+
     <div style="max-width: 880px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
 
         <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
@@ -45,8 +57,8 @@
             {{-- Stay --}}
             <div class="hauz-card" style="padding:20px;">
                 <div class="kicker" style="margin-bottom:12px;">{{ __('Stay') }}</div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                    <label style="grid-column: 1 / 3;">
+                <div class="bke-grid-2">
+                    <label style="grid-column: 1 / -1;">
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Room') }}</div>
                         <select name="room_id" required class="input">
                             @foreach ($rooms as $room)
@@ -80,8 +92,8 @@
             {{-- Guest --}}
             <div class="hauz-card" style="padding:20px;">
                 <div class="kicker" style="margin-bottom:12px;">{{ __('Guest') }}</div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                    <label style="grid-column: 1 / 3;">
+                <div class="bke-grid-2">
+                    <label style="grid-column: 1 / -1;">
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Full name') }}</div>
                         <input type="text" name="guest_name" required maxlength="120" value="{{ $gName }}" class="input" placeholder="{{ __('As on IC / passport') }}">
                     </label>
@@ -113,7 +125,7 @@
                             @endforeach
                         </select>
                     </label>
-                    <label style="grid-column: 1 / 3; display:flex; align-items:center; gap:8px; padding-top:4px; cursor:pointer;">
+                    <label style="grid-column: 1 / -1; display:flex; align-items:center; gap:8px; padding-top:4px; cursor:pointer;">
                         <input type="hidden" name="is_foreigner" value="0">
                         <input type="checkbox" name="is_foreigner" value="1" @checked($isForeigner) style="accent-color: var(--primary);">
                         <span style="font-size:13px;">{{ __('Foreign guest') }}</span>
@@ -124,7 +136,7 @@
             {{-- Booking details --}}
             <div class="hauz-card" style="padding:20px;">
                 <div class="kicker" style="margin-bottom:12px;">{{ __('Booking details') }}</div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="bke-grid-2">
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Payment Status') }}</div>
                         @php
@@ -151,7 +163,7 @@
                             @endforeach
                         </select>
                     </label>
-                    <label style="grid-column: 1 / 3;">
+                    <label style="grid-column: 1 / -1;">
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Special requests / notes (optional)') }}</div>
                         <textarea name="special_requests" rows="3" maxlength="1000" class="input" style="height:auto; padding:10px 12px; resize:vertical;" placeholder="{{ __('Late check-in, dietary needs, baby cot…') }}">{{ old('special_requests', $booking->special_requests) }}</textarea>
                     </label>
@@ -164,7 +176,7 @@
                 <p style="font-size:11.5px; color:var(--ink-3); margin:0 0 12px;">
                     {{ __('Edited directly. Total is what the guest pays; deposit is the pay-now / booking-fee portion.') }}
                 </p>
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                <div class="bke-grid-3">
                     <label>
                         <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Base (room)') }}</div>
                         <input type="number" name="base_amount" required min="0" step="0.01" value="{{ old('base_amount', number_format((float) $booking->base_amount, 2, '.', '')) }}" class="input mono">

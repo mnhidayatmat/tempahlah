@@ -174,7 +174,10 @@
         @endif
 
         {{-- Expense list --}}
-        <div class="hauz-card ex-wrap" style="padding: 0; overflow: hidden;">
+        {{-- No inline `overflow:hidden` here: it beats `.ex-wrap`'s overflow-x:auto
+             (inline wins over class), which clipped the 720px table on phones and
+             made the right-hand columns unreachable. --}}
+        <div class="hauz-card ex-wrap" style="padding: 0;">
             <table class="ex-table">
                 <thead>
                     <tr>

@@ -111,11 +111,13 @@ a{color:inherit;}
 .pill[data-active="true"] svg{opacity:1;}
 
 /* ---------------- results header ---------------- */
-.results-head{max-width:1180px;margin:26px auto 14px;padding:0 40px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;}
+/* wrap + shrink: the sort <select> sizes to its longest option ("Harga: rendah ke
+   tinggi"), which pushed this row past a 360px phone and scrolled the whole page. */
+.results-head{max-width:1180px;margin:26px auto 14px;padding:0 40px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .results-title{font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:-.02em;color:var(--ink);margin:0;}
 .results-sub{font-size:13px;color:var(--ink-3);margin-top:3px;}
-.sort{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-3);}
-.sort select{font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--bg-elev);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;cursor:pointer;outline:none;}
+.sort{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-3);min-width:0;max-width:100%;}
+.sort select{font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--bg-elev);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;cursor:pointer;outline:none;min-width:0;max-width:100%;}
 
 /* ---------------- grid + cards ---------------- */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(276px,1fr));gap:26px 24px;max-width:1180px;margin:0 auto;padding:4px 40px 8px;}

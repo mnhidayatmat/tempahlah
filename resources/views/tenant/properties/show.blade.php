@@ -15,6 +15,13 @@
         $bm = app()->getLocale() === 'ms';
     @endphp
 
+    <style>
+        /* Tab strip: scroll it, don't let it widen the page on phones. */
+        .prop-tabs{ scrollbar-width:none; }
+        .prop-tabs::-webkit-scrollbar{ display:none; }
+        .prop-tabs > a{ flex:none; white-space:nowrap; }
+    </style>
+
     <div style="display:flex; flex-direction:column; gap:16px;">
 
         {{-- Back link --}}
@@ -186,8 +193,10 @@
             </div>
         </div>
 
-        {{-- Tabs --}}
-        <div style="display:flex; gap:4px; padding:3px; background: var(--bg-sunk); border-radius: var(--r-md); border: .5px solid var(--line); align-self:flex-start;">
+        {{-- Tabs. `align-self:flex-start` lets the strip size to its content, which
+             is ~447px — wider than a phone — so it dragged the whole page sideways.
+             `max-width:100%` + its own scroll rail keeps it on-screen. --}}
+        <div class="prop-tabs" style="display:flex; gap:4px; padding:3px; background: var(--bg-sunk); border-radius: var(--r-md); border: .5px solid var(--line); align-self:flex-start; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;">
             @foreach ($tabs as $t)
                 @php $active = $tab === $t['key']; @endphp
                 <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => $t['key']]) }}"

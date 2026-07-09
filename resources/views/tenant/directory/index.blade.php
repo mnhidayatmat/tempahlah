@@ -25,8 +25,14 @@
             </div>
         @endif
 
-        {{-- Tabs --}}
-        <div style="display:flex; gap: 2px; border-bottom: .5px solid var(--line);">
+        {{-- Tabs. "Laundry vendors" + counts overflow a 360px phone, so the strip
+             scrolls itself rather than widening the page. --}}
+        <style>
+            .dir-tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+            .dir-tabs::-webkit-scrollbar{ display:none; }
+            .dir-tabs > a{ flex:none; white-space:nowrap; }
+        </style>
+        <div class="dir-tabs" style="display:flex; gap: 2px; border-bottom: .5px solid var(--line);">
             @foreach ([
                 ['key' => 'cleaners',    'label' => __('Cleaners'),        'count' => $cleaners->count()],
                 ['key' => 'vendors',     'label' => __('Laundry vendors'), 'count' => $vendors->count()],

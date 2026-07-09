@@ -50,9 +50,14 @@
             </span>
         </form>
 
-        {{-- Table --}}
-        <div class="hauz-card" style="padding: 0; overflow: hidden;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        {{-- Table. The 8-column layout can't fit a phone, so it lives in its own
+             horizontal scroll rail INSIDE the card — `.hauz-card` sets
+             `overflow:hidden`, which would otherwise clip the right-hand columns
+             with no way to reach them. `min-width` keeps the columns readable
+             instead of squashing them. --}}
+        <div class="hauz-card" style="padding: 0;">
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px;">
                 <thead>
                     <tr style="background: var(--bg-sunk);">
                         @foreach ([__('Guest'), __('Phone'), __('Stays'), __('Nights'), __('Lifetime spend'), __('Last stay'), __('Channels'), ''] as $i => $h)
@@ -123,6 +128,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </x-app-layout>

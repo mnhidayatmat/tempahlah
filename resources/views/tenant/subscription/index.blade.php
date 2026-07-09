@@ -82,6 +82,21 @@
         ];
     @endphp
 
+    <style>
+        /* `1fr` has an automatic minimum of the content's min-width, so the two
+           plan cards refused to shrink (238px + 196px = 435px) and pushed the page
+           sideways on phones. minmax(0,1fr) lets them shrink; below 640px they
+           stack. Same for the FAQ pair. */
+        .sub-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        /* The 3-column comparison rows can't fit a phone — scroll them together as
+           one block so the header and rows stay aligned. */
+        .sub-compare { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .sub-compare > div { min-width: 520px; }
+        @media (max-width: 640px) {
+            .sub-2col { grid-template-columns: 1fr; }
+        }
+    </style>
+
     <div style="max-width: 1100px; margin: 0 auto; display:flex; flex-direction:column; gap: 24px;">
 
         @if (session('status'))
@@ -126,7 +141,7 @@
         </div>
 
         {{-- Plan cards --}}
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+        <div class="sub-2col" style="margin-top: 12px;">
 
             {{-- Starter (Free) --}}
             <div class="hauz-card" style="padding: 28px; position: relative;">
@@ -260,7 +275,7 @@
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Compare in detail') }}</div>
                 <h3 style="margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 600;">{{ __('What you actually get') }}</h3>
             </div>
-            <div>
+            <div class="sub-compare">
                 <div style="display:grid; grid-template-columns: 1.4fr 1fr 1fr; padding: 12px 24px; background: var(--bg-sunk); font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">
                     <span>{{ __('Feature') }}</span>
                     <span style="text-align:center;">{{ __('Starter') }}</span>
@@ -298,7 +313,7 @@
         </div>
 
         {{-- FAQ --}}
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="sub-2col">
             @foreach ($faqs as $f)
                 <div class="hauz-card" style="padding: 18px;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">{{ $f['q'] }}</div>

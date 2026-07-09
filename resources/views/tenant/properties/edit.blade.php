@@ -1,4 +1,16 @@
 <x-app-layout :title="__('Edit :name', ['name' => $property->name])" :breadcrumbs="[__('Settings'), __('Edit')]">
+    <style>
+        /* Plain `1fr` tracks can't shrink below their content (a grid item's
+           automatic minimum), so these field rows overflowed a 360px phone.
+           minmax(0,1fr) lets them shrink; below 640px they stack. */
+        .pe-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .pe-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+        .pe-grid-221 { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 12px; }
+        @media (max-width: 640px) {
+            .pe-grid-2, .pe-grid-3, .pe-grid-221 { grid-template-columns: 1fr; }
+        }
+    </style>
+
     <div style="max-width: 760px; margin: 0 auto; display:flex; flex-direction:column; gap: 20px;">
 
         <div>
@@ -65,7 +77,7 @@
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Address line 2') }}</label>
                         <input class="input" type="text" name="address_line2" value="{{ old('address_line2', $property->address_line2) }}" maxlength="160">
                     </div>
-                    <div style="display:grid; grid-template-columns: 2fr 2fr 1fr; gap: 12px;">
+                    <div class="pe-grid-221">
                         <div>
                             <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('City') }}</label>
                             <input class="input" type="text" name="city" value="{{ old('city', $property->city) }}" maxlength="80">
@@ -133,7 +145,7 @@
                 {{-- Hidden so the controller keeps the existing mode (switching mode is intentionally not supported via edit — it would require rebuilding rooms). --}}
                 <input type="hidden" name="pricing_mode" value="{{ $property->pricing_mode ?? 'whole_house' }}">
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+                <div class="pe-grid-3">
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Check-in time') }} *</label>
                         <input class="input" type="time" name="check_in_time" value="{{ old('check_in_time', \Illuminate\Support\Str::of($property->check_in_time)->limit(5, '')) }}" required>
@@ -157,7 +169,7 @@
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: {{ $isWholeHouse ? '1fr 1fr 1fr' : '1fr 1fr' }}; gap: 14px; margin-top: 14px;">
+                <div class="{{ $isWholeHouse ? 'pe-grid-3' : 'pe-grid-2' }}" style="margin-top: 14px;">
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bathrooms') }}</label>
                         <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', $property->bathrooms) }}" min="0" max="50">

@@ -29,6 +29,10 @@
     @once
     <style>
         .hk-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        /* Tab strip scrolls itself on narrow screens rather than widening the page. */
+        .hk-tabs{ scrollbar-width:none; }
+        .hk-tabs::-webkit-scrollbar{ display:none; }
+        .hk-tabs > a{ flex:none; white-space:nowrap; }
         .hk-table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:760px; }
         .hk-table thead th{
             text-align:left; padding:9px 14px; font-size:10px; font-weight:600;
@@ -103,8 +107,10 @@
             </div>
         @endif
 
-        {{-- Tabs --}}
-        <div style="display:flex; gap: 2px; border-bottom: .5px solid var(--line);">
+        {{-- Tabs. Four labels don't fit a 360px phone, so the strip scrolls on its
+             own instead of pushing the whole page sideways. `flex-shrink:0` on the
+             links stops them squashing; the scrollbar is hidden (.hk-tabs). --}}
+        <div class="hk-tabs" style="display:flex; gap: 2px; border-bottom: .5px solid var(--line); overflow-x: auto; -webkit-overflow-scrolling: touch;">
             @foreach ([
                 ['key' => 'cleaning',    'label' => __('Cleaning'),    'count' => $cleaningStats['today']],
                 ['key' => 'laundry',     'label' => __('Laundry'),     'count' => $laundryStats['in_progress'] + $laundryStats['pending']],
@@ -237,7 +243,7 @@
                 <div>
                     <div style="font-size: 14px; font-weight: 600;">{{ __('Today') }} · {{ $today->format('l j F Y') }}</div>
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Live status from cleaner mobile app') }}</div>
-                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                    <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                         <table class="hk-table">
                             <thead>
                                 <tr>
@@ -274,7 +280,7 @@
                             <div style="font-size: 14px; font-weight: 600;">{{ __('Upcoming') }}</div>
                             <div style="font-size: 12px; color: var(--ink-3);">{{ $upcoming->count() }} {{ __('scheduled') }}</div>
                         </div>
-                        <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                             <table class="hk-table">
                                 <thead>
                                     <tr>
@@ -398,7 +404,7 @@
                             <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Tracking pickup → wash → return per property') }}</div>
                         </div>
                     </div>
-                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                    <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                         <table class="hk-table">
                             <thead>
                                 <tr>
@@ -622,7 +628,7 @@
                 <div>
                     <div style="font-size: 14px; font-weight: 600;">{{ __('Tickets') }}</div>
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Open, in-progress and recently resolved (30 days) — with recorded repair cost') }}</div>
-                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                    <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                         <table class="hk-table">
                             <thead>
                                 <tr>
@@ -787,7 +793,7 @@
                 <div>
                     <div style="font-size: 14px; font-weight: 600;">{{ __('Monthly cost') }}</div>
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Cleaning by clean date · laundry by pickup date · maintenance by resolved date. Tap a month for details.') }}</div>
-                    <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                    <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                         <table class="hk-table">
                             <thead>
                                 <tr>
@@ -837,7 +843,7 @@
                             <div style="font-size: 14px; font-weight: 600;">{{ $monthDetail['label'] }}</div>
                             <div style="font-size: 12px; color: var(--ink-3);">{{ count($monthDetail['items']) }} {{ trans_choice('item|items', count($monthDetail['items'])) }}</div>
                         </div>
-                        <div class="hauz-card hk-wrap" style="padding: 0; overflow: hidden; margin-top: 10px;">
+                        <div class="hauz-card hk-wrap" style="padding: 0; margin-top: 10px;">
                             <table class="hk-table">
                                 <thead>
                                     <tr>
