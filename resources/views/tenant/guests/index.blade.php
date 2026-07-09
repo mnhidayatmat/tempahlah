@@ -50,14 +50,38 @@
             </span>
         </form>
 
-        {{-- Table. The 8-column layout can't fit a phone, so it lives in its own
-             horizontal scroll rail INSIDE the card — `.hauz-card` sets
-             `overflow:hidden`, which would otherwise clip the right-hand columns
-             with no way to reach them. `min-width` keeps the columns readable
-             instead of squashing them. --}}
+        {{-- Table. On desktop it's an 8-column table in a horizontal scroll rail
+             (`.hauz-card` sets `overflow:hidden`, which would otherwise clip the
+             right-hand columns). Below 768px the same markup collapses into one
+             card per guest — the <thead> hides and each cell shows its column
+             name from `data-label`. One source of truth, so the table and the
+             cards can never drift apart.
+             The cells carry inline padding/text-align, which beats a class
+             selector, so the mobile rules need `!important`. --}}
+        <style>
+            @media (max-width: 768px) {
+                .g-scroll{ overflow-x: visible !important; }
+                .g-table{ min-width: 0 !important; display: block; }
+                .g-table thead{ display: none; }
+                .g-table tbody{ display: block; }
+                .g-table tbody tr{ display: block; padding: 6px 0; }
+                .g-table tbody td{
+                    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+                    padding: 5px 14px !important; text-align: left !important;
+                }
+                .g-table td[data-label]::before{
+                    content: attr(data-label); flex: none;
+                    font-size: 10.5px; font-weight: 600; letter-spacing: .05em;
+                    text-transform: uppercase; color: var(--ink-3);
+                }
+                .g-table td.g-title{ display: block; padding-top: 12px !important; }
+                .g-table td.g-actions{ justify-content: flex-end; padding-bottom: 12px !important; }
+                .g-table td[colspan]{ display: block; text-align: center !important; }
+            }
+        </style>
         <div class="hauz-card" style="padding: 0;">
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px;">
+            <div class="g-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="g-table" style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px;">
                 <thead>
                     <tr style="background: var(--bg-sunk);">
                         @foreach ([__('Guest'), __('Phone'), __('Stays'), __('Nights'), __('Lifetime spend'), __('Last stay'), __('Channels'), ''] as $i => $h)
@@ -72,7 +96,7 @@
                 <tbody>
                     @forelse ($guests as $g)
                         <tr style="border-top: .5px solid var(--line);">
-                            <td style="padding: 12px 14px;">
+                            <td class="g-title" style="padding: 12px 14px;">
                                 <div style="display:flex; align-items:center; gap: 10px;">
                                     <x-avatar :name="$g->name" :size="30"/>
                                     <div>
@@ -85,24 +109,24 @@
                                     </div>
                                 </div>
                             </td>
-                            <td style="padding: 12px 14px; color: var(--ink-2);" class="mono">{{ $g->phone }}</td>
-                            <td style="padding: 12px 14px; text-align: right;" class="mono">{{ $g->stays }}</td>
-                            <td style="padding: 12px 14px; text-align: right;" class="mono">{{ $g->nights }}</td>
-                            <td style="padding: 12px 14px; text-align: right; font-weight: 500;" class="mono">
+                            <td data-label="{{ __('Phone') }}" style="padding: 12px 14px; color: var(--ink-2);" class="mono">{{ $g->phone }}</td>
+                            <td data-label="{{ __('Stays') }}" style="padding: 12px 14px; text-align: right;" class="mono">{{ $g->stays }}</td>
+                            <td data-label="{{ __('Nights') }}" style="padding: 12px 14px; text-align: right;" class="mono">{{ $g->nights }}</td>
+                            <td data-label="{{ __('Lifetime spend') }}" style="padding: 12px 14px; text-align: right; font-weight: 500;" class="mono">
                                 RM {{ number_format($g->spend, 0) }}
                             </td>
-                            <td style="padding: 12px 14px; color: var(--ink-2);">
+                            <td data-label="{{ __('Last stay') }}" style="padding: 12px 14px; color: var(--ink-2);">
                                 <div style="font-size: 12.5px;">{{ \Carbon\Carbon::parse($g->last_checkin)->format('M j') }}</div>
                                 <div style="font-size: 11px; color: var(--ink-3);">{{ $g->last_property ?? '—' }}</div>
                             </td>
-                            <td style="padding: 12px 14px;">
+                            <td data-label="{{ __('Channels') }}" style="padding: 12px 14px;">
                                 <div style="display:flex; gap: 4px; flex-wrap: wrap;">
                                     @foreach ($g->channels as $c)
                                         <span class="pill" style="height: 18px; font-size: 10.5px;">{{ ucfirst($c) }}</span>
                                     @endforeach
                                 </div>
                             </td>
-                            <td style="padding: 12px 14px; text-align: right;">
+                            <td class="g-actions" style="padding: 12px 14px; text-align: right;">
                                 @php $waNumber = preg_replace('/\D/', '', $g->phone ?? ''); @endphp
                                 @if ($waNumber)
                                     <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener"

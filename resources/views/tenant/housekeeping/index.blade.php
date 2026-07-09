@@ -46,6 +46,49 @@
         .hk-actions{ display:flex; gap:4px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
         .hk-ref{ font-size:10.5px; color:var(--ink-3); margin-top:2px; }
         .hk-empty{ padding:32px; text-align:center; color:var(--ink-3); font-size:13px; }
+
+        /* ---- Phones: every table row becomes a labelled card -----------------
+           Swiping a 770px table sideways is miserable on a phone, so below 768px
+           the table collapses: the <thead> is hidden and each <td> shows its
+           column name (from data-label) beside the value. One markup source, so
+           the desktop table and the mobile cards can never drift apart.
+           Alpine's x-show sets an inline `display:none`, which still beats these
+           rules, so the inline edit rows keep working. */
+        @media (max-width: 768px) {
+            .hk-wrap{ overflow-x:visible; }
+            .hk-table{ min-width:0; display:block; font-size:13px; }
+            .hk-table thead{ display:none; }
+            .hk-table tbody{ display:block; border-top:.5px solid var(--line); }
+            .hk-table tbody:first-of-type{ border-top:0; }
+            .hk-table tfoot{ display:block; border-top:1px solid var(--line); }
+            .hk-table tbody tr, .hk-table tfoot tr{ display:block; }
+            .hk-table tbody tr + tr{ border-top:.5px solid var(--line); }
+            .hk-table tbody td, .hk-table tfoot td{
+                display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+                border-top:0; padding:5px 14px; text-align:left; white-space:normal;
+            }
+            .hk-table tbody tr td:first-child{ padding-top:12px; }
+            .hk-table tbody tr td:last-child{ padding-bottom:12px; }
+            .hk-table td[data-label]::before{
+                content:attr(data-label); flex:none;
+                font-size:10.5px; font-weight:600; letter-spacing:.05em;
+                text-transform:uppercase; color:var(--ink-3);
+            }
+            /* Action buttons + the edit-form cell carry no label. */
+            .hk-table tbody td:not([data-label]){ justify-content:flex-end; }
+            /* …except the row's heading cell, which spans the card. */
+            .hk-table td.hk-title{ display:block; padding-top:12px; font-weight:600; }
+            .hk-table td[colspan]{ display:block; }
+            .hk-hide-mobile{ display:none; }
+            /* The create + inline-edit forms are 4-column grids whose children
+               carry `grid-column: span N`. Stacked to one column, those spans
+               would create implicit extra columns and push the page sideways,
+               so every field goes full-width instead. */
+            .hk-form-grid{ grid-template-columns: 1fr !important; }
+            .hk-form-grid > *{ grid-column: 1 / -1 !important; }
+            .hk-table .hk-num{ text-align:left; white-space:normal; }
+            .hk-actions{ justify-content:flex-end; }
+        }
         .hk-tfoot td{ padding:10px 14px; border-top:.5px solid var(--line); background:var(--bg-sunk); font-size:11.5px; color:var(--ink-3); }
         .hk-tfoot .hk-cost{ font-size:12.5px; }
         /* Auto-generate switch */
@@ -140,7 +183,7 @@
         @if ($tab === 'cleaning')
             <div style="display:flex; flex-direction:column; gap: 18px;">
                 {{-- Stats --}}
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                     @foreach ([
                         [__('Today'), $cleaningStats['today'], __('turnovers + refreshes'), null],
                         [__('In progress'), $cleaningStats['in_progress'], __('being cleaned now'), 'var(--accent)'],
@@ -169,6 +212,7 @@
                               apply(){ const t = this.times[this.pid] || { check_out: '12:00' }; this.$refs.sched.value = this.date + 'T' + this.addHours(t.check_out, 1); }
                           }"
                           x-init="$nextTick(() => apply())"
+                          class="hk-form-grid"
                           style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         @csrf
                         <div style="grid-column: span 2;">
@@ -312,7 +356,7 @@
         {{-- Laundry tab --}}
         @if ($tab === 'laundry')
             <div style="display:flex; flex-direction:column; gap: 18px;">
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                     @foreach ([
                         [__('Pending pickup'), $laundryStats['pending'], __('awaiting cleaner drop-off'), 'var(--warn)'],
                         [__('In wash'), $laundryStats['in_progress'], __('vendors processing'), 'var(--accent)'],
@@ -342,6 +386,7 @@
                               apply(){ const t = this.times[this.pid] || { check_out: '12:00' }; this.$refs.pickup.value = this.date + 'T' + this.addHours(t.check_out, 2); this.$refs.ret.value = this.nextDay(this.date) + 'T' + t.check_out; }
                           }"
                           x-init="$nextTick(() => apply())"
+                          class="hk-form-grid"
                           style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         @csrf
                         <div style="grid-column: span 2;">
@@ -422,13 +467,13 @@
                                 <tbody x-data="{ editing: false }">
                                     {{-- Display row --}}
                                     <tr x-show="!editing">
-                                        <td>
+                                        <td class="hk-title">
                                             <div style="font-weight: 500; font-size: 13px;">{{ $l->property?->name ?? '—' }}</div>
                                             <div class="hk-ref mono">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</div>
                                         </td>
-                                        <td style="white-space: nowrap;">{{ $l->item_count }} {{ __('items') }}</td>
-                                        <td>{{ $l->vendor?->name ?? $l->vendor_name ?? __('Self-service') }}</td>
-                                        <td style="white-space: nowrap;">
+                                        <td data-label="{{ __('Items') }}" style="white-space: nowrap;">{{ $l->item_count }} {{ __('items') }}</td>
+                                        <td data-label="{{ __('Vendor') }}">{{ $l->vendor?->name ?? $l->vendor_name ?? __('Self-service') }}</td>
+                                        <td data-label="{{ __('Schedule') }}" style="white-space: nowrap;">
                                             @if ($l->picked_up_at)
                                                 <div>{{ __('Picked') }}: <span class="mono">{{ $l->picked_up_at->format('M j') }}</span></div>
                                             @else
@@ -440,12 +485,12 @@
                                                 </div>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td data-label="{{ __('Status') }}">
                                             <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
                                                 <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                                             </span>
                                         </td>
-                                        <td class="hk-num hk-cost">{{ $l->cost !== null ? 'RM '.number_format($l->cost, 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Cost') }}">{{ $l->cost !== null ? 'RM '.number_format($l->cost, 2) : '—' }}</td>
                                         <td>
                                             <div class="hk-actions">
                                                 @if ($l->status === 'pending')
@@ -470,7 +515,7 @@
                                     <tr x-show="editing" x-cloak>
                                         <td colspan="7" style="background: var(--bg-sunk); padding: 16px 14px;">
                                             <div style="font-weight: 600; font-size: 13px; margin-bottom: 12px;">{{ __('Edit laundry batch') }} · <span class="mono" style="color: var(--ink-3);">LD-{{ str_pad($l->id, 4, '0', STR_PAD_LEFT) }}</span></div>
-                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                            <form method="POST" action="{{ route('tenant.housekeeping.laundry.update', $l->id) }}" class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                                                 @csrf @method('PATCH')
                                                 <input type="hidden" name="action" value="edit">
                                                 <div style="grid-column: span 2;">
@@ -560,7 +605,7 @@
                     <summary style="cursor: pointer; padding: 12px 16px; background: var(--bg-sunk); display:flex; align-items:center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none;">
                         <x-icon name="plus" :size="13"/> {{ __('Log a new maintenance ticket') }}
                     </summary>
-                    <form method="POST" action="{{ route('tenant.housekeeping.maintenance.store') }}"
+                    <form class="hk-form-grid" method="POST" action="{{ route('tenant.housekeeping.maintenance.store') }}"
                           style="padding: 16px; display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         @csrf
                         <div style="grid-column: span 2;">
@@ -610,7 +655,7 @@
                         </div>
                     </form>
                 </details>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                     @foreach ([
                         [__('Open'), $maintenanceStats['open'], __('awaiting triage'), 'var(--warn)'],
                         [__('In progress'), $maintenanceStats['in_progress'], __('being repaired'), 'var(--accent)'],
@@ -646,7 +691,7 @@
                                 @endphp
                                 <tbody x-data="{ editing: false }">
                                     <tr x-show="!editing">
-                                        <td>
+                                        <td class="hk-title">
                                             <div style="display:flex; align-items:stretch; gap: 10px;">
                                                 <span style="width: 4px; min-height: 30px; background: {{ $pc }}; border-radius: 3px; flex-shrink: 0;"></span>
                                                 <div style="min-width: 0;">
@@ -655,17 +700,17 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td data-label="{{ __('Priority') }}">
                                             <span class="pill" style="background: color-mix(in srgb, {{ $pc }} 14%, transparent); color: {{ $pc }}; height: 18px; font-size: 10.5px;">
                                                 <span class="pill-dot" style="background: {{ $pc }};"></span>{{ ucfirst((string) $m->priority) }}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td data-label="{{ __('Status') }}">
                                             <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
                                                 <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
                                             </span>
                                         </td>
-                                        <td class="hk-num hk-cost">{{ $m->cost !== null ? 'RM '.number_format($m->cost, 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Cost') }}">{{ $m->cost !== null ? 'RM '.number_format($m->cost, 2) : '—' }}</td>
                                         <td>
                                             <div class="hk-actions">
                                                 <x-housekeeping.share-button :url="$maintenanceShare[$m->id] ?? '#'"/>
@@ -692,7 +737,7 @@
                                     <tr x-show="editing" x-cloak>
                                         <td colspan="5" style="background: var(--bg-sunk); padding: 16px 14px;">
                                             <div style="font-weight: 600; font-size: 13px; margin-bottom: 12px;">{{ __('Edit maintenance ticket') }} · <span class="mono" style="color: var(--ink-3);">MT-{{ str_pad($m->id, 4, '0', STR_PAD_LEFT) }}</span></div>
-                                            <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                            <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}" class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                                                 @csrf @method('PATCH')
                                                 <input type="hidden" name="action" value="edit">
                                                 <div style="grid-column: span 2;">
@@ -809,13 +854,13 @@
                             <tbody>
                                 @forelse ($history['rows'] as $r)
                                     <tr style="{{ $selectedMonth === $r['key'] ? 'background: var(--primary-tint);' : '' }}">
-                                        <td><a href="{{ route('tenant.housekeeping.index', ['tab' => 'history', 'month' => $r['key']]) }}" style="color: var(--primary); font-weight:500; text-decoration:none;">{{ $r['label'] }}</a></td>
-                                        <td class="hk-num hk-cost">{{ $r['cleaning'] ? 'RM '.number_format($r['cleaning'], 2) : '—' }}</td>
-                                        <td class="hk-num hk-cost">{{ $r['laundry'] ? 'RM '.number_format($r['laundry'], 2) : '—' }}</td>
-                                        <td class="hk-num hk-cost">{{ $r['maintenance'] ? 'RM '.number_format($r['maintenance'], 2) : '—' }}</td>
-                                        <td class="hk-num hk-cost">{{ $r['expenses'] ? 'RM '.number_format($r['expenses'], 2) : '—' }}</td>
-                                        <td class="hk-num hk-cost">RM {{ number_format($r['total'], 2) }}</td>
-                                        <td class="hk-num hk-cost" style="color: var(--ink-3);">RM {{ number_format($r['cumulative'], 2) }}</td>
+                                        <td class="hk-title"><a href="{{ route('tenant.housekeeping.index', ['tab' => 'history', 'month' => $r['key']]) }}" style="color: var(--primary); font-weight:600; text-decoration:none;">{{ $r['label'] }}</a></td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Cleaning') }}">{{ $r['cleaning'] ? 'RM '.number_format($r['cleaning'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Laundry') }}">{{ $r['laundry'] ? 'RM '.number_format($r['laundry'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Maintenance') }}">{{ $r['maintenance'] ? 'RM '.number_format($r['maintenance'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Expenses') }}">{{ $r['expenses'] ? 'RM '.number_format($r['expenses'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Total') }}">RM {{ number_format($r['total'], 2) }}</td>
+                                        <td class="hk-num hk-cost" data-label="{{ __('Cumulative') }}" style="color: var(--ink-3);">RM {{ number_format($r['cumulative'], 2) }}</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="7" class="hk-empty">{{ __('No costs recorded yet.') }}</td></tr>
@@ -823,13 +868,13 @@
                             </tbody>
                             @if (! empty($history['rows']))
                                 <tfoot class="hk-tfoot"><tr>
-                                    <td>{{ __('All-time') }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format($history['cleaning_total'], 2) }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format($history['laundry_total'], 2) }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format($history['maintenance_total'], 2) }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format($history['expenses_total'], 2) }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format($history['grand_total'], 2) }}</td>
-                                    <td></td>
+                                    <td class="hk-title">{{ __('All-time') }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Cleaning') }}">RM {{ number_format($history['cleaning_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Laundry') }}">RM {{ number_format($history['laundry_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Maintenance') }}">RM {{ number_format($history['maintenance_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Expenses') }}">RM {{ number_format($history['expenses_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Total') }}">RM {{ number_format($history['grand_total'], 2) }}</td>
+                                    <td class="hk-hide-mobile"></td>
                                 </tr></tfoot>
                             @endif
                         </table>
@@ -859,18 +904,18 @@
                                     @php $catLabel = ['cleaning' => __('Cleaning'), 'laundry' => __('Laundry'), 'maintenance' => __('Maintenance'), 'expenses' => __('Expense')]; @endphp
                                     @foreach ($monthDetail['items'] as $it)
                                         <tr>
-                                            <td style="white-space:nowrap;">{{ $it['date']?->format('j M Y') }}</td>
-                                            <td>{{ $catLabel[$it['cat']] ?? $it['cat'] }}</td>
-                                            <td style="text-transform:capitalize;">{{ str_replace('_', ' ', (string) $it['type']) }}</td>
-                                            <td>{{ $it['property'] ?? '—' }}</td>
-                                            <td>{{ $it['who'] ?? '—' }}</td>
-                                            <td class="hk-num hk-cost">RM {{ number_format($it['cost'], 2) }}</td>
+                                            <td class="hk-title" style="white-space:nowrap;">{{ $it['date']?->format('j M Y') }}</td>
+                                            <td data-label="{{ __('Category') }}">{{ $catLabel[$it['cat']] ?? $it['cat'] }}</td>
+                                            <td data-label="{{ __('Detail') }}" style="text-transform:capitalize;">{{ str_replace('_', ' ', (string) $it['type']) }}</td>
+                                            <td data-label="{{ __('Property') }}">{{ $it['property'] ?? '—' }}</td>
+                                            <td data-label="{{ __('Who') }}">{{ $it['who'] ?? '—' }}</td>
+                                            <td class="hk-num hk-cost" data-label="{{ __('Cost') }}">RM {{ number_format($it['cost'], 2) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                                 <tfoot class="hk-tfoot"><tr>
-                                    <td colspan="5">{{ __('Month total') }}</td>
-                                    <td class="hk-num hk-cost">RM {{ number_format(collect($monthDetail['items'])->sum('cost'), 2) }}</td>
+                                    <td colspan="5" class="hk-title">{{ __('Month total') }}</td>
+                                    <td class="hk-num hk-cost" data-label="{{ __('Total') }}">RM {{ number_format(collect($monthDetail['items'])->sum('cost'), 2) }}</td>
                                 </tr></tfoot>
                             </table>
                         </div>

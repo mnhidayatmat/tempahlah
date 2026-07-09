@@ -33,19 +33,21 @@
 <tbody x-data="{ editing: false }">
     {{-- Display row --}}
     <tr x-show="!editing">
-        <td>
+        {{-- `hk-title` = the row's heading on mobile (no data-label); the rest of
+             the cells carry their column name so the stacked card reads clearly. --}}
+        <td class="hk-title">
             <div style="font-weight: 600; font-size: 13px;">{{ $t->property?->name ?? '—' }}</div>
             <div class="hk-ref mono">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}@if ($t->auto_generated) · <span style="color: var(--primary);">{{ __('Auto') }}</span>@endif@if ($hasIssues) · <span style="color: var(--err);">{{ __('Flagged') }}</span>@endif</div>
         </td>
-        <td>
+        <td data-label="{{ __('Type') }}">
             {{ $typeLabel }}
             @if ($t->room)<div class="hk-ref">{{ $t->room->name }}</div>@endif
         </td>
-        <td class="mono" style="white-space: nowrap;">
+        <td class="mono" data-label="{{ __('Scheduled') }}" style="white-space: nowrap;">
             {{ $t->scheduled_at?->format('D, j M') }}
             <div class="hk-ref mono">{{ $t->scheduled_at?->format('H:i') }}</div>
         </td>
-        <td>
+        <td data-label="{{ __('Cleaner') }}">
             @if ($t->cleaner)
                 <div style="display:flex; align-items:center; gap: 7px;">
                     <x-avatar :name="$t->cleaner->name" :size="24"/>
@@ -58,13 +60,13 @@
                 <span style="color: var(--ink-3);">{{ __('Unassigned') }}</span>
             @endif
         </td>
-        <td style="white-space: nowrap;">{{ $crewLabel !== '' ? $crewLabel : '—' }}</td>
-        <td>
+        <td data-label="{{ __('Crew') }}" style="white-space: nowrap;">{{ $crewLabel !== '' ? $crewLabel : '—' }}</td>
+        <td data-label="{{ __('Status') }}">
             <span class="pill" style="background: {{ $ui['bg'] }}; color: {{ $ui['color'] }}; height: 18px; font-size: 10.5px;">
                 <span class="pill-dot" style="background: {{ $ui['color'] }};"></span>{{ $ui['label'] }}
             </span>
         </td>
-        <td class="hk-num hk-cost">{{ $t->cost !== null ? 'RM '.number_format($t->cost, 2) : '—' }}</td>
+        <td class="hk-num hk-cost" data-label="{{ __('Cost') }}">{{ $t->cost !== null ? 'RM '.number_format($t->cost, 2) : '—' }}</td>
         <td>
             <div class="hk-actions">
                 @if ($t->status === 'pending')
@@ -91,7 +93,7 @@
     <tr x-show="editing" x-cloak>
         <td colspan="8" style="background: var(--bg-sunk); padding: 16px 14px;">
             <div style="font-weight: 600; font-size: 13px; margin-bottom: 12px;">{{ __('Edit cleaning task') }} · <span class="mono" style="color: var(--ink-3);">CL-{{ str_pad($t->id, 4, '0', STR_PAD_LEFT) }}</span></div>
-            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+            <form method="POST" action="{{ route('tenant.housekeeping.cleaning.update', $t->id) }}" class="hk-form-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                 @csrf @method('PATCH')
                 <input type="hidden" name="action" value="edit">
                 <div style="grid-column: span 2;">
