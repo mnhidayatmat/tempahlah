@@ -44,6 +44,14 @@
         .hk-empty{ padding:32px; text-align:center; color:var(--ink-3); font-size:13px; }
         .hk-tfoot td{ padding:10px 14px; border-top:.5px solid var(--line); background:var(--bg-sunk); font-size:11.5px; color:var(--ink-3); }
         .hk-tfoot .hk-cost{ font-size:12.5px; }
+        /* Auto-generate switch */
+        .hk-switch{ display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none; font-size:13px; font-weight:500; color:var(--ink); }
+        .hk-switch input{ position:absolute; opacity:0; width:0; height:0; }
+        .hk-switch-track{ position:relative; width:38px; height:22px; border-radius:999px; background:var(--bg-sunk); border:.5px solid var(--line); transition:background .15s, border-color .15s; flex-shrink:0; }
+        .hk-switch-thumb{ position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .15s; }
+        .hk-switch input:checked + .hk-switch-track{ background:var(--primary); border-color:var(--primary); }
+        .hk-switch input:checked + .hk-switch-track .hk-switch-thumb{ transform:translateX(16px); }
+        .hk-switch input:focus-visible + .hk-switch-track{ box-shadow:0 0 0 3px var(--primary-tint); }
     </style>
     @endonce
 
@@ -60,17 +68,27 @@
                     · {{ $laundryStats['in_progress'] }} {{ __('laundry batches in cycle') }}
                 </div>
             </div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                {{-- Auto-generate toggle: when on, every new confirmed booking auto-schedules cleaning + laundry --}}
+                <form method="POST" action="{{ route('tenant.housekeeping.auto-toggle') }}"
+                      class="hauz-card" style="padding:8px 12px; margin:0;">
+                    @csrf
+                    <label class="hk-switch" title="{{ __('When on, a confirmed booking automatically schedules its cleaning + laundry.') }}">
+                        <input type="checkbox" name="auto_housekeeping" value="1" @checked($autoHousekeeping) onchange="this.form.submit()">
+                        <span class="hk-switch-track"><span class="hk-switch-thumb"></span></span>
+                        <span class="hk-switch-label">{{ __('Generate from bookings') }}</span>
+                    </label>
+                </form>
                 <form method="POST" action="{{ route('tenant.housekeeping.generate') }}"
                       onsubmit="return confirm('{{ __('Auto-schedule cleaning + laundry for all upcoming confirmed bookings? Existing tasks are kept.') }}')">
                     @csrf
-                    <button type="submit" class="btn btn-sm btn-primary">{{ __('Generate from bookings') }}</button>
+                    <button type="submit" class="btn btn-sm">{{ __('Generate now for existing bookings') }}</button>
                 </form>
                 <a href="{{ route('tenant.housekeeping.print') }}" target="_blank" rel="noopener" class="btn btn-sm">{{ __("Print today's run sheet") }}</a>
             </div>
         </div>
         <div style="margin-top:-8px; color: var(--ink-3); font-size: 12px;">
-            {{ __('“Generate from bookings” builds the default schedule from your bookings — full clean 30 min after check-out (2 cleaners if the next guest is within 2 days, else 1), pre-arrival dusting when the house sat empty 3+ days, and a laundry batch. Edit or share any task below.') }}
+            {{ __('Turn on “Generate from bookings” and every new confirmed booking automatically schedules its cleaning + laundry — full clean 30 min after check-out (2 cleaners if the next guest is within 2 days, else 1), pre-arrival dusting when the house sat empty 3+ days, and a laundry batch. Use “Generate now” to backfill your existing bookings. Edit or share any task below.') }}
         </div>
 
         @if (session('status'))
@@ -620,8 +638,8 @@
                                     $ui = $maintenanceStatusUI[$m->status] ?? $maintenanceStatusUI['open'];
                                     $pc = $maintenancePriorityColor[$m->priority] ?? 'var(--ink-3)';
                                 @endphp
-                                <tbody>
-                                    <tr>
+                                <tbody x-data="{ editing: false }">
+                                    <tr x-show="!editing">
                                         <td>
                                             <div style="display:flex; align-items:stretch; gap: 10px;">
                                                 <span style="width: 4px; min-height: 30px; background: {{ $pc }}; border-radius: 3px; flex-shrink: 0;"></span>
@@ -661,7 +679,72 @@
                                                         <button type="submit" class="btn btn-sm btn-primary">{{ __('Resolve') }}</button>
                                                     </form>
                                                 @endif
+                                                <button type="button" class="btn btn-sm" @click="editing = true">{{ __('Edit') }}</button>
                                             </div>
+                                        </td>
+                                    </tr>
+                                    <tr x-show="editing" x-cloak>
+                                        <td colspan="5" style="background: var(--bg-sunk); padding: 16px 14px;">
+                                            <div style="font-weight: 600; font-size: 13px; margin-bottom: 12px;">{{ __('Edit maintenance ticket') }} · <span class="mono" style="color: var(--ink-3);">MT-{{ str_pad($m->id, 4, '0', STR_PAD_LEFT) }}</span></div>
+                                            <form method="POST" action="{{ route('tenant.housekeeping.maintenance.update', $m->id) }}" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                                @csrf @method('PATCH')
+                                                <input type="hidden" name="action" value="edit">
+                                                <div style="grid-column: span 2;">
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Property') }} *</label>
+                                                    <select name="property_id" class="input" required>
+                                                        @foreach ($properties as $p)
+                                                            <option value="{{ $p->id }}" @selected($m->property_id == $p->id)>{{ $p->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Priority') }} *</label>
+                                                    <select name="priority" class="input" required>
+                                                        @foreach (['low' => __('Low'), 'medium' => __('Medium'), 'high' => __('High'), 'urgent' => __('Urgent')] as $val => $lbl)
+                                                            <option value="{{ $val }}" @selected($m->priority === $val)>{{ $lbl }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Status') }} *</label>
+                                                    <select name="status" class="input" required>
+                                                        @foreach (['open' => __('Open'), 'in_progress' => __('In progress'), 'resolved' => __('Resolved'), 'closed' => __('Closed')] as $val => $lbl)
+                                                            <option value="{{ $val }}" @selected($m->status === $val)>{{ $lbl }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Date') }}</label>
+                                                    <input type="date" name="scheduled_at" class="input" value="{{ $m->scheduled_at?->format('Y-m-d') }}">
+                                                </div>
+                                                <div style="grid-column: span 2;">
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Issue') }} *</label>
+                                                    <input type="text" name="title" class="input" required maxlength="200" value="{{ $m->title }}">
+                                                </div>
+                                                <div>
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Repair cost (RM)') }}</label>
+                                                    <input type="number" name="cost" class="input" min="0" max="1000000" step="0.01" value="{{ $m->cost }}" placeholder="{{ __('optional') }}">
+                                                </div>
+                                                <div style="grid-column: span 4;">
+                                                    <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Description') }}</label>
+                                                    <textarea name="description" class="input" maxlength="2000" rows="2"
+                                                              placeholder="{{ __('Optional detail — press Enter for a new line') }}"
+                                                              x-init="$nextTick(() => { $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px' })"
+                                                              @input="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                              @focus="$el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'"
+                                                              style="resize:none; overflow:hidden; min-height:40px; line-height:1.45;">{{ $m->description }}</textarea>
+                                                </div>
+                                                <div style="grid-column: span 4; display:flex; justify-content:space-between; gap: 8px; align-items:center;">
+                                                    <button type="submit" form="del-maintenance-{{ $m->id }}" class="btn btn-sm" style="color: var(--err);">{{ __('Delete ticket') }}</button>
+                                                    <div style="display:flex; gap: 8px;">
+                                                        <button type="button" class="btn btn-sm" @click="editing = false">{{ __('Cancel') }}</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm">{{ __('Save changes') }}</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                            <form method="POST" id="del-maintenance-{{ $m->id }}" action="{{ route('tenant.housekeeping.maintenance.destroy', $m->id) }}" onsubmit="return confirm('{{ __('Delete this maintenance ticket?') }}')">
+                                                @csrf @method('DELETE')
+                                            </form>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -691,6 +774,7 @@
                         [__('All-time total'), $history['grand_total'], 'var(--ink)'],
                         [__('Cleaning (all-time)'), $history['cleaning_total'], 'var(--ok)'],
                         [__('Laundry (all-time)'), $history['laundry_total'], 'var(--info)'],
+                        [__('Expenses (all-time)'), $history['expenses_total'], 'var(--accent)'],
                     ] as [$label, $amount, $color])
                         <div class="hauz-card" style="padding: 16px;">
                             <div style="font-size: 11.5px; color: var(--ink-3); text-transform:uppercase; letter-spacing:.4px;">{{ $label }}</div>
@@ -711,6 +795,7 @@
                                     <th class="hk-num">{{ __('Cleaning') }}</th>
                                     <th class="hk-num">{{ __('Laundry') }}</th>
                                     <th class="hk-num">{{ __('Maintenance') }}</th>
+                                    <th class="hk-num">{{ __('Expenses') }}</th>
                                     <th class="hk-num">{{ __('Total') }}</th>
                                     <th class="hk-num">{{ __('Cumulative') }}</th>
                                 </tr>
@@ -722,11 +807,12 @@
                                         <td class="hk-num hk-cost">{{ $r['cleaning'] ? 'RM '.number_format($r['cleaning'], 2) : '—' }}</td>
                                         <td class="hk-num hk-cost">{{ $r['laundry'] ? 'RM '.number_format($r['laundry'], 2) : '—' }}</td>
                                         <td class="hk-num hk-cost">{{ $r['maintenance'] ? 'RM '.number_format($r['maintenance'], 2) : '—' }}</td>
+                                        <td class="hk-num hk-cost">{{ $r['expenses'] ? 'RM '.number_format($r['expenses'], 2) : '—' }}</td>
                                         <td class="hk-num hk-cost">RM {{ number_format($r['total'], 2) }}</td>
                                         <td class="hk-num hk-cost" style="color: var(--ink-3);">RM {{ number_format($r['cumulative'], 2) }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="6" class="hk-empty">{{ __('No costs recorded yet.') }}</td></tr>
+                                    <tr><td colspan="7" class="hk-empty">{{ __('No costs recorded yet.') }}</td></tr>
                                 @endforelse
                             </tbody>
                             @if (! empty($history['rows']))
@@ -735,6 +821,7 @@
                                     <td class="hk-num hk-cost">RM {{ number_format($history['cleaning_total'], 2) }}</td>
                                     <td class="hk-num hk-cost">RM {{ number_format($history['laundry_total'], 2) }}</td>
                                     <td class="hk-num hk-cost">RM {{ number_format($history['maintenance_total'], 2) }}</td>
+                                    <td class="hk-num hk-cost">RM {{ number_format($history['expenses_total'], 2) }}</td>
                                     <td class="hk-num hk-cost">RM {{ number_format($history['grand_total'], 2) }}</td>
                                     <td></td>
                                 </tr></tfoot>
@@ -763,7 +850,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php $catLabel = ['cleaning' => __('Cleaning'), 'laundry' => __('Laundry'), 'maintenance' => __('Maintenance')]; @endphp
+                                    @php $catLabel = ['cleaning' => __('Cleaning'), 'laundry' => __('Laundry'), 'maintenance' => __('Maintenance'), 'expenses' => __('Expense')]; @endphp
                                     @foreach ($monthDetail['items'] as $it)
                                         <tr>
                                             <td style="white-space:nowrap;">{{ $it['date']?->format('j M Y') }}</td>

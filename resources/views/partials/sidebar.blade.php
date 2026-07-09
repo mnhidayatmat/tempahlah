@@ -29,6 +29,7 @@
         ['title' => __('Manage'), 'items' => [
             ['key' => 'tenant.properties.*',    'label' => __('Properties'),  'icon' => 'building', 'route' => 'tenant.properties.index',    'tour' => 'properties'],
             ['key' => 'tenant.payments.*',      'label' => __('Payments'),    'icon' => 'card',     'route' => 'tenant.payments.index',      'tour' => 'payments'],
+            ['key' => 'tenant.expenses.*',      'label' => __('Expenses'),    'icon' => 'wallet',   'route' => 'tenant.expenses.index'],
             ['key' => 'tenant.reports.*',       'label' => __('Reports'),     'icon' => 'chart',    'route' => 'tenant.reports.index',       'tour' => 'reports'],
         ]],
         ['title' => __('Configure'), 'items' => [

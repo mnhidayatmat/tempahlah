@@ -6,6 +6,7 @@ use App\Actions\Operations\GenerateOperationalTasksForBooking;
 use App\Http\Controllers\Controller;
 use App\Models\Cleaner;
 use App\Models\CleaningTask;
+use App\Models\Expense;
 use App\Models\LaundryTask;
 use App\Models\LaundryVendor;
 use App\Models\MaintenanceTicket;
@@ -18,6 +19,7 @@ class HousekeepingController extends Controller
 {
     public function index(Request $request)
     {
+        $tenant = app(TenantContext::class)->current();
         $tab = $request->query('tab', 'cleaning');
         $today = Carbon::today();
         // Show the auto-scheduled turnover schedule well ahead (not just 7 days)
@@ -162,6 +164,7 @@ class HousekeepingController extends Controller
 
         return view('tenant.housekeeping.index', [
             'tab' => in_array($tab, ['cleaning', 'laundry', 'maintenance', 'history']) ? $tab : 'cleaning',
+            'autoHousekeeping' => $tenant?->autoHousekeepingEnabled() ?? false,
             'history' => $history,
             'selectedMonth' => $selectedMonth,
             'monthDetail' => $monthDetail,
@@ -214,6 +217,9 @@ class HousekeepingController extends Controller
         $maint = MaintenanceTicket::query()->whereNotNull('cost')->whereNotNull('resolved_at')
             ->with(['property:id,name'])
             ->get(['id', 'property_id', 'title', 'cost', 'resolved_at']);
+        $exp = Expense::query()
+            ->with(['property:id,name'])
+            ->get(['id', 'property_id', 'category', 'title', 'paid_to', 'amount', 'incurred_at']);
 
         // month key => running category totals
         $buckets = [];
@@ -222,7 +228,7 @@ class HousekeepingController extends Controller
                 return;
             }
             $k = $date->format('Y-m');
-            $buckets[$k] ??= ['cleaning' => 0.0, 'laundry' => 0.0, 'maintenance' => 0.0];
+            $buckets[$k] ??= ['cleaning' => 0.0, 'laundry' => 0.0, 'maintenance' => 0.0, 'expenses' => 0.0];
             $buckets[$k][$cat] += $cost;
         };
         foreach ($clean as $t) {
@@ -234,12 +240,15 @@ class HousekeepingController extends Controller
         foreach ($maint as $t) {
             $add($t->resolved_at, 'maintenance', (float) $t->cost);
         }
+        foreach ($exp as $t) {
+            $add($t->incurred_at, 'expenses', (float) $t->amount);
+        }
 
         ksort($buckets); // oldest first, to run the cumulative total
         $cumulative = 0.0;
         $rows = [];
         foreach ($buckets as $k => $v) {
-            $total = $v['cleaning'] + $v['laundry'] + $v['maintenance'];
+            $total = $v['cleaning'] + $v['laundry'] + $v['maintenance'] + $v['expenses'];
             $cumulative += $total;
             $rows[] = [
                 'key' => $k,
@@ -247,6 +256,7 @@ class HousekeepingController extends Controller
                 'cleaning' => $v['cleaning'],
                 'laundry' => $v['laundry'],
                 'maintenance' => $v['maintenance'],
+                'expenses' => $v['expenses'],
                 'total' => $total,
                 'cumulative' => $cumulative,
             ];
@@ -264,6 +274,7 @@ class HousekeepingController extends Controller
             'cleaning_total' => collect($rows)->sum('cleaning'),
             'laundry_total' => collect($rows)->sum('laundry'),
             'maintenance_total' => collect($rows)->sum('maintenance'),
+            'expenses_total' => collect($rows)->sum('expenses'),
         ];
 
         // Drill-down: individual tasks for a chosen month.
@@ -286,6 +297,10 @@ class HousekeepingController extends Controller
                 $items[] = ['date' => $t->resolved_at, 'cat' => 'maintenance', 'type' => $t->title,
                     'property' => $t->property?->name, 'who' => null, 'status' => 'resolved', 'cost' => (float) $t->cost];
             }
+            foreach ($exp->filter(fn ($t) => $t->incurred_at?->format('Y-m') === $req) as $t) {
+                $items[] = ['date' => $t->incurred_at, 'cat' => 'expenses', 'type' => $t->title,
+                    'property' => $t->property?->name, 'who' => $t->paid_to, 'status' => Expense::categoryLabel($t->category), 'cost' => (float) $t->amount];
+            }
             usort($items, fn ($a, $b) => ($a['date'] <=> $b['date']));
             $monthDetail = [
                 'label' => Carbon::createFromFormat('Y-m', $req)->translatedFormat('F Y'),
@@ -294,6 +309,24 @@ class HousekeepingController extends Controller
         }
 
         return [$history, $selectedMonth, $monthDetail];
+    }
+
+    /**
+     * Flip the "auto-generate from bookings" toggle. When on, every booking that
+     * becomes confirmed auto-schedules its cleaning + laundry (gated by this same
+     * `auto_housekeeping` flag in SettlePaymentSuccess + applyManualPayment).
+     */
+    public function toggleAutoGenerate(Request $request)
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $on = $request->boolean('auto_housekeeping');
+        $tenant->update(['auto_housekeeping' => $on]);
+
+        return back()->with('status', $on
+            ? __('Auto-generate is on — new confirmed bookings will schedule cleaning + laundry automatically.')
+            : __('Auto-generate is off — schedule housekeeping manually.'));
     }
 
     /**
@@ -773,8 +806,34 @@ class HousekeepingController extends Controller
         $ticket = MaintenanceTicket::findOrFail($id);
 
         $action = $request->input('action');
-        $valid = ['start', 'resolve', 'close'];
+        $valid = ['start', 'resolve', 'close', 'edit'];
         abort_unless(in_array($action, $valid, true), 422, 'Invalid action');
+
+        // Full edit — host adjusts the ticket details + freely sets the status.
+        if ($action === 'edit') {
+            $validated = $request->validate([
+                'property_id' => 'required|exists:properties,id',
+                'title' => 'required|string|max:200',
+                'priority' => 'required|in:low,medium,high,urgent',
+                'status' => 'required|in:open,in_progress,resolved,closed',
+                'scheduled_at' => 'nullable|date',
+                'cost' => 'nullable|numeric|min:0|max:1000000',
+                'description' => 'nullable|string|max:2000',
+            ]);
+
+            $ticket->fill([
+                'property_id' => $validated['property_id'],
+                'title' => $validated['title'],
+                'priority' => $validated['priority'],
+                'scheduled_at' => ! empty($validated['scheduled_at']) ? Carbon::parse($validated['scheduled_at']) : null,
+                'cost' => ($validated['cost'] ?? null) === null ? null : (float) $validated['cost'],
+                'description' => $validated['description'] ?? null,
+            ]);
+            $this->applyMaintenanceStatus($ticket, $validated['status']);
+            $ticket->save();
+
+            return back()->with('status', __('Maintenance ticket updated.'));
+        }
 
         $resolution = $request->input('resolution_notes');
         $cost = $request->input('cost');
@@ -792,5 +851,28 @@ class HousekeepingController extends Controller
         };
 
         return back()->with('status', __('Maintenance ticket updated.'));
+    }
+
+    /**
+     * Set a maintenance ticket's status directly, stamping/clearing resolved_at
+     * so a free-form status edit stays consistent.
+     */
+    private function applyMaintenanceStatus(MaintenanceTicket $ticket, string $status): void
+    {
+        $ticket->status = $status;
+
+        if ($status === MaintenanceTicket::STATUS_RESOLVED) {
+            $ticket->resolved_at = $ticket->resolved_at ?? now();
+        } elseif (in_array($status, [MaintenanceTicket::STATUS_OPEN, MaintenanceTicket::STATUS_IN_PROGRESS], true)) {
+            $ticket->resolved_at = null;
+        }
+        // closed: leave resolved_at as-is (a closed ticket was usually resolved first)
+    }
+
+    public function destroyMaintenance(int $id)
+    {
+        MaintenanceTicket::findOrFail($id)->delete();
+
+        return back()->with('status', __('Maintenance ticket deleted.'));
     }
 }

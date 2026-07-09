@@ -4,6 +4,7 @@ namespace App\Livewire\Tenant;
 
 use App\Models\Booking;
 use App\Models\CleaningTask;
+use App\Models\Expense;
 use App\Models\LaundryTask;
 use App\Models\MaintenanceTicket;
 use App\Models\Payment;
@@ -116,10 +117,11 @@ class Dashboard extends Component
 
     /**
      * This calendar month's operating cost: cleaning + laundry + maintenance
-     * task costs whose activity date falls in the month. Tenant-scoped via the
-     * BelongsToTenant global scope on each model. Cleaning is dated by its
-     * scheduled date, laundry by pickup, maintenance by when it was resolved
-     * (the point the host records the repair cost).
+     * task costs + standalone expenses whose activity date falls in the month.
+     * Tenant-scoped via the BelongsToTenant global scope on each model.
+     * Cleaning is dated by its scheduled date, laundry by pickup, maintenance
+     * by when it was resolved (the point the host records the repair cost), and
+     * expenses by the host-entered incurred date.
      */
     protected function monthlyOperatingCost(Carbon $monthStart, Carbon $monthEnd): float
     {
@@ -135,7 +137,11 @@ class Dashboard extends Component
             ->whereBetween('resolved_at', [$monthStart, $monthEnd])
             ->sum('cost');
 
-        return round($cleaning + $laundry + $maintenance, 2);
+        $expenses = (float) Expense::query()
+            ->whereBetween('incurred_at', [$monthStart, $monthEnd])
+            ->sum('amount');
+
+        return round($cleaning + $laundry + $maintenance + $expenses, 2);
     }
 
     /**

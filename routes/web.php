@@ -12,6 +12,7 @@ use App\Http\Controllers\Tenant\CalendarController;
 use App\Http\Controllers\Tenant\CleanerController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\DirectoryController;
+use App\Http\Controllers\Tenant\ExpenseController;
 use App\Http\Controllers\Tenant\MaintenancePersonController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\HousekeepingController;
@@ -223,6 +224,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
         Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
         Route::get('/housekeeping/print.pdf',          [HousekeepingController::class, 'printRunSheet'])->name('housekeeping.print');
+        Route::post('/housekeeping/auto-toggle',       [HousekeepingController::class, 'toggleAutoGenerate'])->name('housekeeping.auto-toggle');
         Route::post('/housekeeping/generate',          [HousekeepingController::class, 'generateSchedule'])->name('housekeeping.generate');
         Route::post('/housekeeping/cleaning',          [HousekeepingController::class, 'storeCleaning'])->name('housekeeping.cleaning.store');
         Route::post('/housekeeping/laundry',           [HousekeepingController::class, 'storeLaundry'])->name('housekeeping.laundry.store');
@@ -232,6 +234,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/housekeeping/laundry/{id}',     [HousekeepingController::class, 'updateLaundry'])->name('housekeeping.laundry.update');
         Route::delete('/housekeeping/laundry/{id}',    [HousekeepingController::class, 'destroyLaundry'])->name('housekeeping.laundry.destroy');
         Route::patch('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'updateMaintenance'])->name('housekeeping.maintenance.update');
+        Route::delete('/housekeeping/maintenance/{id}', [HousekeepingController::class, 'destroyMaintenance'])->name('housekeeping.maintenance.destroy');
         Route::get('/directory',            [DirectoryController::class, 'index'])->name('directory.index');
         Route::post('/cleaners',            [CleanerController::class, 'store'])->name('cleaners.store');
         Route::patch('/cleaners/{id}',      [CleanerController::class, 'update'])->name('cleaners.update');
@@ -246,6 +249,12 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/payments/export.csv',  [PaymentController::class, 'exportCsv'])->name('payments.export');
         Route::get('/reports',              [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export.pdf',   [ReportController::class, 'exportPdf'])->name('reports.export-pdf');
+
+        // Expenses — standalone spend ledger (renovation, upgrades, supplies).
+        Route::get('/expenses',             [ExpenseController::class, 'index'])->name('expenses.index');
+        Route::post('/expenses',            [ExpenseController::class, 'store'])->name('expenses.store');
+        Route::patch('/expenses/{id}',      [ExpenseController::class, 'update'])->name('expenses.update')->whereNumber('id');
+        Route::delete('/expenses/{id}',     [ExpenseController::class, 'destroy'])->name('expenses.destroy')->whereNumber('id');
         Route::post('/onboarding/complete', [\App\Http\Controllers\Tenant\OnboardingController::class, 'complete'])->name('onboarding.complete');
 
         Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
