@@ -11,7 +11,10 @@ use Illuminate\Http\Request;
 
 /**
  * Lands the guest back on Tempahlah after they complete (or abandon) a gateway
- * payment flow (Toyyibpay or Billplz).
+ * payment flow (Toyyibpay, Billplz or SecurePay).
+ *
+ * Reached by GET for Toyyibpay/Billplz and by POST for SecurePay, which posts
+ * its result to `redirect_url`. The posted body is never trusted.
  *
  * The canonical state change normally arrives server-to-server via the
  * gateway's webhook. But that async callback can be delayed or never

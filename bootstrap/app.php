@@ -35,6 +35,14 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocale::class,
             SetTenantContext::class,
         ]);
+
+        // SecurePay POSTs its payment result to the guest's browser at
+        // `redirect_url`, so that request carries no CSRF token of ours.
+        // Safe to exempt: PaymentReturnController never trusts the posted
+        // body — it re-checks the payment state with the gateway directly.
+        $middleware->validateCsrfTokens(except: [
+            'payments/return/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

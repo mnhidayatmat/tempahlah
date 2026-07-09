@@ -7,6 +7,7 @@
             ['key' => 'whatsapp',        'name' => 'WhatsApp Business',  'desc' => __('Auto-send deposit links and reminders.'),                     'pro' => true],
             ['key' => 'agent',           'name' => 'AI Agent',           'desc' => __('Let an AI assistant reply to WhatsApp enquiries 24/7 — availability, photos, prices, location.'), 'pro' => true],
             ['key' => 'billplz',         'name' => 'Billplz',            'desc' => __('Accept FPX and cards via your own Billplz account.'),          'pro' => true],
+            ['key' => 'securepay',       'name' => 'SecurePay',          'desc' => __('Accept FPX and cards via your own SecurePay account.'),        'pro' => true],
         ];
     @endphp
 

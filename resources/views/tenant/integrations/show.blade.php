@@ -75,7 +75,7 @@
 
         @if ($record->exists)
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                @if (in_array($provider, ['toyyibpay', 'billplz'], true) && $record->enabled)
+                @if (in_array($provider, ['toyyibpay', 'billplz', 'securepay'], true) && $record->enabled)
                     <form method="POST" action="{{ route('tenant.integrations.'.$provider.'.test') }}" style="display:inline;">
                         @csrf
                         <button type="submit" class="btn btn-sm">{{ __('Test connection') }}</button>

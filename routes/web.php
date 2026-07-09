@@ -32,9 +32,15 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
     ->whereIn('locale', ['ms', 'en'])
     ->name('locale.switch');
 
-// Toyyibpay billReturnUrl lands here. Public + unauthenticated — the page
-// just shows the canonical Payment.status; webhook does the real work.
-Route::get('/payments/return/{payment}', [\App\Http\Controllers\PaymentReturnController::class, 'show'])
+// Gateway return URL lands here. Public + unauthenticated — the page just shows
+// the canonical Payment.status (and reconciles server-side); the webhook does
+// the real work.
+//
+// POST twin: Toyyibpay and Billplz send the guest back with a GET, but SecurePay
+// POSTs its result to `redirect_url`. Same handler either way — the posted body
+// is never trusted, we re-check with the gateway. The POST is CSRF-exempt (see
+// bootstrap/app.php) because the form is submitted by the gateway, not by us.
+Route::match(['get', 'post'], '/payments/return/{payment}', [\App\Http\Controllers\PaymentReturnController::class, 'show'])
     ->name('payments.return');
 
 // -----------------------------------------------------------------------------
@@ -271,6 +277,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::delete('/integrations/{provider}',         [IntegrationController::class, 'disconnect'])->name('integrations.disconnect');
         Route::post('/integrations/toyyibpay/test',       [IntegrationController::class, 'testToyyibpay'])->name('integrations.toyyibpay.test');
         Route::post('/integrations/billplz/test',          [IntegrationController::class, 'testBillplz'])->name('integrations.billplz.test');
+        Route::post('/integrations/securepay/test',       [IntegrationController::class, 'testSecurePay'])->name('integrations.securepay.test');
         Route::post('/integrations/google_calendar/select-calendar', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'selectCalendar'])->name('integrations.google_calendar.select');
         Route::post('/integrations/google_calendar/toggle-write', [\App\Http\Controllers\Tenant\GoogleCalendarController::class, 'toggleWrite'])->name('integrations.google_calendar.toggle-write');
     });

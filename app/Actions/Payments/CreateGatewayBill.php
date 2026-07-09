@@ -105,4 +105,18 @@ class CreateGatewayBill
     {
         return $this->resolveProvider($tenantId) !== null;
     }
+
+    /**
+     * Human-readable name for a gateway slug, for guest-facing copy ("You'll be
+     * redirected to …"). Falls back to Toyyibpay, the historical default, so a
+     * render path that can't resolve a provider still prints something sane.
+     */
+    public static function displayName(?string $provider): string
+    {
+        return match ($provider) {
+            'billplz'   => 'Billplz',
+            'securepay' => 'SecurePay',
+            default     => 'Toyyibpay',
+        };
+    }
 }

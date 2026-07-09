@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 
 class IntegrationController extends Controller
 {
-    public const SUPPORTED = ['toyyibpay', 'google_calendar', 'whatsapp', 'agent', 'ses', 'billplz'];
+    public const SUPPORTED = ['toyyibpay', 'google_calendar', 'whatsapp', 'agent', 'ses', 'billplz', 'securepay'];
 
     public function index()
     {
@@ -227,6 +227,47 @@ class IntegrationController extends Controller
                   ]));
     }
 
+    /**
+     * "Test connection" for SecurePay. Hits the merchants/validate endpoint,
+     * which checks the UID + auth token (Basic auth) AND the checksum token in
+     * one call — so a green result means all three credentials are correct.
+     * Nothing is created, so there's no throwaway bill to clean up.
+     */
+    public function testSecurePay()
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403);
+
+        try {
+            $client = \App\Services\Payments\SecurePay\SecurePayClient::forTenant($tenant->id);
+        } catch (\App\Services\Payments\SecurePay\SecurePayException $e) {
+            return redirect()
+                ->route('tenant.integrations.show', 'securepay')
+                ->with('status', __('Save your credentials first, then click Test connection.'));
+        }
+
+        $result = $client->testConnection();
+
+        \App\Services\Payments\SecurePay\SecurePayLog::recordApiCall(
+            $tenant->id, null, 'testConnection',
+            ['sandbox' => $client->sandbox],
+            ['merchant_name' => $result['merchant_name'], 'raw_body' => $result['raw_body']],
+            $result['http_status'], $result['ok'],
+            $result['ok'] ? null : Str::limit($result['raw_body'], 200),
+        );
+
+        return redirect()
+            ->route('tenant.integrations.show', 'securepay')
+            ->with('status', $result['ok']
+                ? __('✓ SecurePay is working. Merchant: :name (:env)', [
+                    'name' => $result['merchant_name'] ?: '—',
+                    'env'  => $client->sandbox ? 'sandbox' : 'production',
+                  ])
+                : __('✗ SecurePay rejected the credentials: :err', [
+                    'err' => Str::limit($result['raw_body'], 200),
+                  ]));
+    }
+
     public function disconnect(string $provider)
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
@@ -313,6 +354,18 @@ class IntegrationController extends Controller
                     'is_primary'      => ['label' => 'Use Billplz as my main gateway', 'type' => 'checkbox', 'help' => 'Only matters if you also have Toyyibpay connected — tick this to bill new bookings through Billplz instead.'],
                 ],
             ],
+            'securepay' => [
+                'name' => 'SecurePay',
+                'description' => 'Accept FPX online banking and cards via SecurePay. Tenant uses their own SecurePay account — payouts land directly in their bank. After saving, click Test connection to verify the credentials.',
+                'pro' => true,
+                'fields' => [
+                    'uid'            => ['label' => 'API UID', 'type' => 'text', 'placeholder' => 'From SecurePay → Apps → your API credentials'],
+                    'auth_token'     => ['label' => 'Auth token', 'type' => 'password', 'placeholder' => 'From SecurePay → Apps → your API credentials'],
+                    'checksum_token' => ['label' => 'Checksum token', 'type' => 'password', 'placeholder' => 'From SecurePay → Apps → your API credentials', 'help' => 'Used to verify payment callbacks. Strongly recommended — without it callbacks fall back to a slower server-side check.'],
+                    'is_sandbox'     => ['label' => 'Use sandbox (sandbox.securepay.my)', 'type' => 'checkbox'],
+                    'is_primary'     => ['label' => 'Use SecurePay as my main gateway', 'type' => 'checkbox', 'help' => 'Only matters if you also have Toyyibpay or Billplz connected — tick this to bill new bookings through SecurePay instead.'],
+                ],
+            ],
         ];
 
         return $catalog[$provider];
@@ -331,6 +384,13 @@ class IntegrationController extends Controller
                 'api_key' => 'required|string|max:200',
                 'collection_id' => 'required|string|max:64',
                 'x_signature_key' => 'nullable|string|max:200',
+                'is_sandbox' => 'sometimes|boolean',
+                'is_primary' => 'sometimes|boolean',
+            ],
+            'securepay' => [
+                'uid' => 'required|string|max:100',
+                'auth_token' => 'required|string|max:200',
+                'checksum_token' => 'nullable|string|max:200',
                 'is_sandbox' => 'sometimes|boolean',
                 'is_primary' => 'sometimes|boolean',
             ],

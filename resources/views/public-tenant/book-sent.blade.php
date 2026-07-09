@@ -64,7 +64,7 @@
         </div>
 
         @if($payUrl)
-            @php $gatewayName = ($payment?->gateway_provider ?? '') === 'billplz' ? 'Billplz' : 'Toyyibpay'; @endphp
+            @php $gatewayName = \App\Actions\Payments\CreateGatewayBill::displayName($payment?->gateway_provider); @endphp
             <a href="{{ $payUrl }}" class="bs-cta">
                 {{ $isBM ? 'Bayar sekarang' : 'Pay now' }} — RM {{ number_format($booking->deposit_amount, 2) }} →
             </a>

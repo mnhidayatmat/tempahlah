@@ -108,15 +108,15 @@ class PublicHomeBuilder
         }
 
         // Which online gateway (if any) is active for this tenant. Gateway-
-        // agnostic: true when EITHER Toyyibpay OR Billplz is enabled, resolved
-        // by the same dispatcher the booking flow bills through — so switching
-        // gateways in the dashboard flips the public page's online-pay option
-        // correctly. (`$toyyibpayConfigured` keeps its name for the view/Alpine,
-        // but now means "an online gateway is configured".)
+        // agnostic: true when ANY of Toyyibpay / Billplz / SecurePay is enabled,
+        // resolved by the same dispatcher the booking flow bills through — so
+        // switching gateways in the dashboard flips the public page's online-pay
+        // option correctly. (`$toyyibpayConfigured` keeps its name for the
+        // view/Alpine, but now means "an online gateway is configured".)
         $gatewayBill = app(\App\Actions\Payments\CreateGatewayBill::class);
-        $activeGateway = $gatewayBill->resolveProvider($tenant->id); // 'toyyibpay' | 'billplz' | null
+        $activeGateway = $gatewayBill->resolveProvider($tenant->id); // 'toyyibpay' | 'billplz' | 'securepay' | null
         $toyyibpayConfigured = $activeGateway !== null;
-        $gatewayName = $activeGateway === 'billplz' ? 'Billplz' : 'Toyyibpay';
+        $gatewayName = \App\Actions\Payments\CreateGatewayBill::displayName($activeGateway);
 
         return [
             'tenant'               => $tenant,
