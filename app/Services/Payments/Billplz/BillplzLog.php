@@ -82,18 +82,32 @@ class BillplzLog
 
         $tx = null;
         if ($tenantId > 0) {
-            $tx = PaymentTransaction::create([
-                'tenant_id' => $tenantId,
-                'payment_id' => $payment?->id,
-                'provider' => 'billplz',
-                'event_type' => 'webhook.callback',
-                'external_id' => $externalId,
-                'signature_status' => $signatureStatus,
-                'payload' => $payload,
-                'flagged' => $signatureStatus !== 'verified' || $flagReason !== null,
-                'flag_reason' => $flagReason ?? ($signatureStatus !== 'verified' ? "signature {$signatureStatus}" : null),
-                'processed_at' => now(),
-            ]);
+            // `payment_transactions` is UNIQUE on (provider, external_id).
+            // Rejected callbacks (bad X-Signature, missing tenant creds) return
+            // early without stamping `processed_at`, so the replay guard in the
+            // controller doesn't catch a retry of the same delivery — and
+            // Billplz does retry. firstOrCreate keeps that idempotent instead of
+            // 500ing on the constraint. Distinct deliveries carry distinct
+            // external ids, so genuine events still each get a row.
+            //
+            // withoutGlobalScopes: the webhook is unauthenticated — the tenant
+            // comes from the Payment row, not from request context.
+            $tx = PaymentTransaction::withoutGlobalScopes()->firstOrCreate(
+                [
+                    'provider' => 'billplz',
+                    'external_id' => $externalId,
+                ],
+                [
+                    'tenant_id' => $tenantId,
+                    'payment_id' => $payment?->id,
+                    'event_type' => 'webhook.callback',
+                    'signature_status' => $signatureStatus,
+                    'payload' => $payload,
+                    'flagged' => $signatureStatus !== 'verified' || $flagReason !== null,
+                    'flag_reason' => $flagReason ?? ($signatureStatus !== 'verified' ? "signature {$signatureStatus}" : null),
+                    'processed_at' => now(),
+                ]
+            );
         }
 
         if ($signatureStatus !== 'verified') {

@@ -10,6 +10,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Pennant\Feature;
 
 /**
@@ -54,7 +55,7 @@ class SettlePaymentSuccess
             if (in_array($payment->type, [Payment::TYPE_DEPOSIT, Payment::TYPE_FULL], true)) {
                 $wasPending = $booking->status === Booking::STATUS_PENDING;
 
-                $booking->update([
+                $updates = [
                     'deposit_paid_at' => $booking->deposit_paid_at ?? now(),
                     // A FULL payment settles the balance outright (last-minute
                     // bookings paid in full to confirm) — stamp it so the
@@ -62,8 +63,31 @@ class SettlePaymentSuccess
                     'balance_paid_at' => $payment->type === Payment::TYPE_FULL
                         ? ($booking->balance_paid_at ?? now())
                         : $booking->balance_paid_at,
-                    'status' => Booking::STATUS_CONFIRMED,
-                ]);
+                ];
+
+                // ONLY a pending booking is confirmed by its payment. Writing
+                // this unconditionally would rewind a checked_in/checked_out
+                // stay back to `confirmed`, or resurrect a cancelled booking
+                // whose dates the host has already freed — and a merely late or
+                // duplicated gateway callback (or the return page reconciling
+                // after the guest re-opens it) is enough to trigger that.
+                if ($wasPending) {
+                    $updates['status'] = Booking::STATUS_CONFIRMED;
+                }
+
+                $booking->update($updates);
+
+                // Money landed on a booking nobody is going to honour. Never
+                // silently swallow this — the host likely owes a refund.
+                if (in_array($booking->status, [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW], true)) {
+                    Log::warning('Gateway payment settled against a non-active booking — refund may be due', [
+                        'booking_id' => $booking->id,
+                        'booking_status' => $booking->status,
+                        'payment_id' => $payment->id,
+                        'gateway_provider' => $payment->gateway_provider,
+                        'amount' => $payment->amount,
+                    ]);
+                }
 
                 if ($wasPending) {
                     // 1. Warm confirmation message (email + WhatsApp).
