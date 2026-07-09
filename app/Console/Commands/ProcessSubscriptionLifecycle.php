@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Subscription;
+use App\Services\Billing\SubscriptionBillingService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -136,6 +137,12 @@ class ProcessSubscriptionLifecycle extends Command
                 'current_period_start' => $now,
                 'current_period_end' => $now->copy()->addYear(),
             ]);
+
+            // Nobody should be chased for a cycle they no longer hold. Pure DB
+            // work — no gateway call — so this runs even with billing unconfigured.
+            if (! $this->dryRun) {
+                app(SubscriptionBillingService::class)->voidOpenInvoices($subscription);
+            }
         }
 
         return $subscriptions->count();

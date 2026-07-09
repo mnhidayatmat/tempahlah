@@ -26,17 +26,36 @@ return [
     // it is downgraded to free. Dunning happens inside this window.
     'subscription_grace_days' => env('SUBSCRIPTION_GRACE_DAYS', 7),
 
-    'channels' => [
-        'toyyibpay' => [
-            'base_url' => env('TOYYIBPAY_BASE_URL'),
-            'secret_key' => env('TOYYIBPAY_SECRET_KEY'),
-            'category_code' => env('TOYYIBPAY_CATEGORY_CODE'),
-        ],
+    /*
+    |---------------------------------------------------------------------------
+    | Platform subscription billing
+    |---------------------------------------------------------------------------
+    | Tempahlah's OWN Billplz merchant account, used to charge tenants the
+    | RM 49/mo subscription. This is NOT the per-tenant gateway a host connects
+    | to take guest booking payments — those credentials live encrypted in
+    | `tenant_integrations` and never come from config.
+    |
+    | Leave the api_key blank and platform billing stays switched off: the
+    | subscription page hides checkout, and `subscriptions:bill-cycle` no-ops.
+    |
+    | NOTE: Billplz has no recurring/subscription/mandate API — see
+    | https://support.billplz.com/api. Each cycle is a one-off bill plus a
+    | callback. True auto-charge needs their Tokenization product (paid plan,
+    | request access from support@billplz.com; Visa/Mastercard only, and FPX
+    | cannot be tokenized), which is layered on top of this later.
+    */
+    'platform_billing' => [
         'billplz' => [
-            'base_url' => env('BILLPLZ_BASE_URL'),
             'api_key' => env('BILLPLZ_API_KEY'),
             'collection_id' => env('BILLPLZ_COLLECTION_ID'),
-            'signature' => env('BILLPLZ_SIGNATURE'),
+            'x_signature_key' => env('BILLPLZ_SIGNATURE'),
+            'sandbox' => (bool) env('BILLPLZ_SANDBOX', true),
         ],
+
+        // How many days before a trial/period ends we mint the next bill.
+        'issue_lead_days' => env('SUBSCRIPTION_ISSUE_LEAD_DAYS', 3),
+
+        // How long a minted bill stays payable before the cycle is re-billed.
+        'invoice_due_days' => env('SUBSCRIPTION_INVOICE_DUE_DAYS', 14),
     ],
 ];

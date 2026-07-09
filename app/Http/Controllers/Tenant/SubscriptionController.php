@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Services\Billing\SubscriptionBillingService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {
-    public function index()
+    public function index(SubscriptionBillingService $billing)
     {
         $tenant = app(TenantContext::class)->current();
         $subscription = $tenant?->subscription;
@@ -23,6 +24,12 @@ class SubscriptionController extends Controller
             'canStartTrial' => $subscription !== null
                 && $subscription->isFree()
                 && ! $subscription->hasUsedTrial(),
+            // Checkout only appears once Tempahlah's own Billplz account is
+            // configured; until then the page tells the tenant to contact us.
+            'billingConfigured' => $billing->configured(),
+            'openInvoice' => $subscription && ! $subscription->isComped()
+                ? $billing->openInvoiceFor($subscription)
+                : null,
         ]);
     }
 

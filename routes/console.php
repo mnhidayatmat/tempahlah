@@ -32,6 +32,16 @@ Schedule::command('bookings:process-payment-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Subscription billing — issues the next RM 49 bill ahead of a trial/period
+// ending, chases past-due tenants inside their grace window, and voids invoices
+// for anyone who has fallen back to free. Runs BEFORE the lifecycle command so a
+// tenant is always given a bill and a chance to pay before anything expires.
+// No-ops entirely when platform billing has no credentials.
+Schedule::command('subscriptions:bill-cycle')
+    ->dailyAt('02:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Subscription lifecycle — expires trials, lapses unpaid paid periods into their
 // grace window, and downgrades to free once grace runs out. Daily is enough:
 // every window is measured in days, and comped accounts are skipped.

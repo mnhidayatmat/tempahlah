@@ -111,6 +111,43 @@
             </div>
         @endif
 
+        {{-- Past due: Pro is still on, but only until grace runs out. --}}
+        @if ($subscription?->inGrace())
+            <div class="hauz-card" style="padding: 16px 18px; border-color: var(--warn); background: var(--warn-tint);">
+                <div style="font-weight: 600; margin-bottom: 4px;">{{ __('Your subscription is unpaid') }}</div>
+                <div style="font-size: 13px; color: var(--ink-2);">
+                    {{ __('Your Pro features stay on until :date. After that your account moves to the free plan — your data stays, but online payments, invoices and receipts switch off.', [
+                        'date' => $subscription->grace_ends_at->format('d M Y'),
+                    ]) }}
+                </div>
+                @if ($billingConfigured)
+                    <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
+                        @csrf
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            {{ __('Pay now') }} — RM {{ number_format($openInvoice?->amount ?? config('homestay.paid_tier_price'), 2) }}
+                        </button>
+                    </form>
+                @endif
+            </div>
+        @elseif ($openInvoice && $billingConfigured)
+            <div class="hauz-card" style="padding: 16px 18px;">
+                <div style="font-weight: 600; margin-bottom: 4px;">
+                    {{ __('Invoice :num is waiting', ['num' => $openInvoice->number]) }}
+                </div>
+                <div style="font-size: 13px; color: var(--ink-2);">
+                    {{ __('RM :amount for :start → :end.', [
+                        'amount' => number_format($openInvoice->amount, 2),
+                        'start' => $openInvoice->period_start->format('d M Y'),
+                        'end' => $openInvoice->period_end->format('d M Y'),
+                    ]) }}
+                </div>
+                <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
+                    @csrf
+                    <button type="submit" class="btn btn-primary btn-sm">{{ __('Pay now') }}</button>
+                </form>
+            </div>
+        @endif
+
         {{-- Header --}}
         <div style="text-align:center; padding-top: 8px;">
             <div class="kicker" style="margin-bottom: 12px;">{{ __('Pricing · Made in Malaysia') }} 🇲🇾</div>
@@ -242,8 +279,17 @@
                             {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
                         </button>
                     </form>
+                @elseif ($billingConfigured)
+                    {{-- Trial used (or declined) — pay for real. --}}
+                    <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px;">
+                        @csrf
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
+                            background: var(--ink); color: var(--bg); border-color: transparent;">
+                            {{ __('Upgrade to Pro') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
+                        </button>
+                    </form>
                 @else
-                    {{-- Trial already used, and checkout does not exist yet. --}}
+                    {{-- Trial used, and Tempahlah's own Billplz account isn't configured yet. --}}
                     <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 8px;
                         background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5;"
                         disabled>

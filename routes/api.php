@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Webhooks\BillplzWebhookController;
 use App\Http\Controllers\Webhooks\SecurePayWebhookController;
+use App\Http\Controllers\Webhooks\SubscriptionBillingWebhookController;
 use App\Http\Controllers\Webhooks\ToyyibpayWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +69,13 @@ Route::post('/webhooks/billplz', [BillplzWebhookController::class, 'handle'])
 Route::post('/webhooks/securepay', [SecurePayWebhookController::class, 'handle'])
     ->middleware('throttle:webhook-securepay')
     ->name('webhooks.securepay');
+
+// Platform subscription billing — a TENANT paying Tempahlah RM 49/mo into our
+// own Billplz account. Distinct from /webhooks/billplz above, which is a GUEST
+// paying a tenant through that tenant's own account.
+Route::post('/webhooks/subscription-billing', [SubscriptionBillingWebhookController::class, 'handle'])
+    ->middleware('throttle:webhook-subscription')
+    ->name('webhooks.subscription-billing');
 
 // Sidecar callbacks — HMAC-signed, loopback only in practice (but signed anyway).
 Route::post('/wa/webhook', WhatsappWebhookController::class)

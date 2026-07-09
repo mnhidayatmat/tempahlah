@@ -43,6 +43,13 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
 Route::match(['get', 'post'], '/payments/return/{payment}', [\App\Http\Controllers\PaymentReturnController::class, 'show'])
     ->name('payments.return');
 
+// Where Billplz sends a tenant back after paying their RM 49/mo subscription.
+// Public + unauthenticated on purpose: the invoice is resolved from the bill id,
+// and the redirect's `paid` flag is never trusted — we re-ask Billplz. Registered
+// outside the domain groups so it resolves on any host, like payments.return.
+Route::get('/subscription/billing/return', [\App\Http\Controllers\Tenant\SubscriptionCheckoutController::class, 'paymentReturn'])
+    ->name('subscription.billing.return');
+
 // -----------------------------------------------------------------------------
 // Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
 // Resolved by the {tenant_slug} domain parameter via ResolveTenantFromSubdomain.
@@ -271,6 +278,8 @@ Route::domain(config('app.tenant_domain'))->group(function () {
 
         Route::get('/subscription',         [SubscriptionController::class, 'index'])->name('subscription');
         Route::post('/subscription/change', [SubscriptionController::class, 'change'])->name('subscription.change');
+        Route::post('/subscription/checkout', [\App\Http\Controllers\Tenant\SubscriptionCheckoutController::class, 'checkout'])
+            ->name('subscription.checkout');
         Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
         Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');
