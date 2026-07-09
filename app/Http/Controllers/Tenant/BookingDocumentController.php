@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Laravel\Pennant\Feature;
 
 /**
  * Invoice + receipt documents for a booking, driven from the booking detail
@@ -32,10 +33,30 @@ use Illuminate\Validation\Rule;
  * Documents are get-or-created: the first view/send mints the Invoice record
  * (stable number + stored PDF); later actions reuse it so the number never
  * churns.
+ *
+ * Issuing documents is a paid feature (`invoice_documents`). Free tenants cannot
+ * reach any action here — their guests receive a plain booking email instead
+ * (see SendBookingInstructions).
  */
 class BookingDocumentController extends Controller
 {
     public function __construct(protected GenerateInvoice $generateInvoice) {}
+
+    /**
+     * Guards every action. Returns null when allowed, otherwise the redirect to
+     * send the host to. The view already hides these controls behind a pro-lock;
+     * this stops a hand-crafted request from minting an Invoice record.
+     */
+    private function documentsBlocked(Booking $booking): ?\Illuminate\Http\RedirectResponse
+    {
+        if (Feature::for($booking->tenant)->active('invoice_documents')) {
+            return null;
+        }
+
+        return redirect()
+            ->route('tenant.bookings.show', $booking->id)
+            ->with('error', __('Invoices and receipts are a Pro feature. Upgrade to issue and send them.'));
+    }
 
     /**
      * Stream the invoice/receipt PDF inline (opens in a new tab).
@@ -46,6 +67,11 @@ class BookingDocumentController extends Controller
         abort_unless(in_array($doc, [Invoice::TYPE_INVOICE, Invoice::TYPE_RECEIPT], true), 404);
 
         $booking = $this->loadBooking($id);
+
+        if ($blocked = $this->documentsBlocked($booking)) {
+            return $blocked;
+        }
+
         $payment = $this->latestPaidPayment($booking);
 
         if ($doc === Invoice::TYPE_RECEIPT && ! $payment) {
@@ -71,6 +97,11 @@ class BookingDocumentController extends Controller
         ]);
 
         $booking = $this->loadBooking($id);
+
+        if ($blocked = $this->documentsBlocked($booking)) {
+            return $blocked;
+        }
+
         $doc     = $data['doc'];
         $channel = $data['channel'];
         $label   = $doc === Invoice::TYPE_RECEIPT ? __('Receipt') : __('Invoice');

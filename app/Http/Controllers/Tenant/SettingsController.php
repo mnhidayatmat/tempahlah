@@ -15,6 +15,7 @@ use Illuminate\Validation\Rule;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Encoders\PngEncoder;
 use Intervention\Image\ImageManager;
+use Laravel\Pennant\Feature;
 
 class SettingsController extends Controller
 {
@@ -144,34 +145,45 @@ class SettingsController extends Controller
 
         $disk = config('filesystems.default', 'spaces');
 
+        // Bank details and the business address stay editable on every plan —
+        // manualPayHow() reads them to tell a free tenant's guest where to send
+        // the money. Only the fields that exist purely to dress an invoice or
+        // receipt PDF (tagline, terms, logo, payment QR) are Pro-only.
+        $canBrandDocuments = Feature::for($tenant)->active('invoice_documents');
+
         $updates = [
-            'invoice_tagline'     => $validated['invoice_tagline'] ?? null,
             'business_address'    => $validated['business_address'] ?? null,
             'bank_name'           => $validated['bank_name'] ?? null,
             'bank_account_holder' => $validated['bank_account_holder'] ?? null,
             'bank_account_number' => $validated['bank_account_number'] ?? null,
-            'invoice_terms'       => $validated['invoice_terms'] ?? null,
         ];
 
-        try {
-            // Logo — replace, remove, or leave as-is.
-            if ($request->boolean('remove_logo')) {
-                $this->deleteBrandImage($tenant->logo_path, $disk);
-                $updates['logo_path'] = null;
-            } elseif ($request->hasFile('logo')) {
-                $new = $this->storeBrandImage($request->file('logo'), $tenant->id, 'logo', 640, $disk);
-                $this->deleteBrandImage($tenant->logo_path, $disk);
-                $updates['logo_path'] = $new;
-            }
+        if ($canBrandDocuments) {
+            $updates['invoice_tagline'] = $validated['invoice_tagline'] ?? null;
+            $updates['invoice_terms'] = $validated['invoice_terms'] ?? null;
+        }
 
-            // Payment QR.
-            if ($request->boolean('remove_qr')) {
-                $this->deleteBrandImage($tenant->bank_qr_path, $disk);
-                $updates['bank_qr_path'] = null;
-            } elseif ($request->hasFile('bank_qr')) {
-                $new = $this->storeBrandImage($request->file('bank_qr'), $tenant->id, 'qr', 900, $disk);
-                $this->deleteBrandImage($tenant->bank_qr_path, $disk);
-                $updates['bank_qr_path'] = $new;
+        try {
+            if ($canBrandDocuments) {
+                // Logo — replace, remove, or leave as-is.
+                if ($request->boolean('remove_logo')) {
+                    $this->deleteBrandImage($tenant->logo_path, $disk);
+                    $updates['logo_path'] = null;
+                } elseif ($request->hasFile('logo')) {
+                    $new = $this->storeBrandImage($request->file('logo'), $tenant->id, 'logo', 640, $disk);
+                    $this->deleteBrandImage($tenant->logo_path, $disk);
+                    $updates['logo_path'] = $new;
+                }
+
+                // Payment QR.
+                if ($request->boolean('remove_qr')) {
+                    $this->deleteBrandImage($tenant->bank_qr_path, $disk);
+                    $updates['bank_qr_path'] = null;
+                } elseif ($request->hasFile('bank_qr')) {
+                    $new = $this->storeBrandImage($request->file('bank_qr'), $tenant->id, 'qr', 900, $disk);
+                    $this->deleteBrandImage($tenant->bank_qr_path, $disk);
+                    $updates['bank_qr_path'] = $new;
+                }
             }
         } catch (\Throwable $e) {
             report($e);
@@ -195,6 +207,9 @@ class SettingsController extends Controller
     {
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
+
+        // Renders a real invoice/receipt document — Pro only.
+        abort_unless(Feature::for($tenant)->active('invoice_documents'), 403, 'Invoices and receipts are a Pro feature.');
 
         $type = $request->query('type') === 'receipt'
             ? \App\Models\Invoice::TYPE_RECEIPT

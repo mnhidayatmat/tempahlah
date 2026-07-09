@@ -3,7 +3,10 @@
 namespace App\Actions\Payments;
 
 use App\Models\Booking;
+use App\Models\Tenant;
 use App\Models\TenantIntegration;
+use App\Services\Payments\NoGatewayAvailableException;
+use Laravel\Pennant\Feature;
 
 /**
  * Gateway-agnostic bill creator. Resolves the tenant's active payment gateway
@@ -49,21 +52,32 @@ class CreateGatewayBill
         $provider = $this->resolveProvider($booking->tenant_id);
 
         return match ($provider) {
-            'billplz'  => $this->billplz->execute($booking, $type, $amount),
+            'billplz' => $this->billplz->execute($booking, $type, $amount),
             'securepay' => $this->securepay->execute($booking, $type, $amount),
-            // Default (and 'toyyibpay') keeps the incumbent gateway. If no
-            // gateway is configured, ToyyibpayClient::forTenant throws
-            // notConfigured — callers guard with gatewayConfigured() first.
-            default    => $this->toyyibpay->execute($booking, $type, $amount),
+            'toyyibpay' => $this->toyyibpay->execute($booking, $type, $amount),
+            // No gateway available — either none enabled, or the tenant is on the
+            // free plan. Callers guard with gatewayConfigured() and fall back to
+            // manual payment; reaching here means one of them forgot to.
+            default => throw NoGatewayAvailableException::forTenant($booking->tenant_id),
         };
     }
 
     /**
      * Which gateway should this tenant bill through? Returns 'toyyibpay',
-     * 'billplz', 'securepay', or null when none is enabled.
+     * 'billplz', 'securepay', or null when none is available.
+     *
+     * Online gateways are a paid feature. A free tenant resolves to null even
+     * with an enabled integration row, so every caller falls back to manual
+     * payment. This is the single choke point: execute() routes through here,
+     * as do PublicBookingController, BookingController::payLink,
+     * ProcessPaymentLifecycle and PublicHomeBuilder.
      */
     public function resolveProvider(int $tenantId): ?string
     {
+        if (! $this->gatewayAllowed($tenantId)) {
+            return null;
+        }
+
         $integrations = TenantIntegration::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
             ->whereIn('provider', self::PRECEDENCE)
@@ -99,11 +113,24 @@ class CreateGatewayBill
     }
 
     /**
-     * True when the tenant has at least one payment gateway enabled.
+     * True when the tenant has at least one payment gateway available to it.
      */
     public function gatewayConfigured(int $tenantId): bool
     {
         return $this->resolveProvider($tenantId) !== null;
+    }
+
+    /**
+     * Is this tenant's plan allowed to bill through an online gateway at all?
+     *
+     * Resolved per tenant rather than through the ambient TenantContext, because
+     * the lifecycle command and the payment-return path run without one.
+     */
+    protected function gatewayAllowed(int $tenantId): bool
+    {
+        $tenant = Tenant::find($tenantId);
+
+        return $tenant !== null && Feature::for($tenant)->active('payment_gateway');
     }
 
     /**

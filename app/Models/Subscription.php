@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Observers\SubscriptionObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy(SubscriptionObserver::class)]
 class Subscription extends Model
 {
     use HasFactory;
@@ -22,6 +25,7 @@ class Subscription extends Model
         'tenant_id', 'plan', 'status', 'billing_method',
         'monthly_amount', 'currency',
         'trial_ends_at', 'current_period_start', 'current_period_end', 'cancelled_at',
+        'comped_at', 'grace_ends_at', 'trial_used_at',
         'meta',
     ];
 
@@ -30,6 +34,9 @@ class Subscription extends Model
         'current_period_start' => 'datetime',
         'current_period_end' => 'datetime',
         'cancelled_at' => 'datetime',
+        'comped_at' => 'datetime',
+        'grace_ends_at' => 'datetime',
+        'trial_used_at' => 'datetime',
         'monthly_amount' => 'decimal:2',
         'meta' => 'array',
     ];
@@ -39,10 +46,52 @@ class Subscription extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    public static function trialDays(): int
+    {
+        return (int) config('homestay.paid_trial_days', 7);
+    }
+
+    public static function graceDays(): int
+    {
+        return (int) config('homestay.subscription_grace_days', 7);
+    }
+
+    /**
+     * Comped accounts (staff, demos, early partners) are never billed and never
+     * downgraded. This is the only way to hold paid features without paying.
+     */
+    public function isComped(): bool
+    {
+        return $this->comped_at !== null;
+    }
+
+    /**
+     * Grants every paid feature flag — see FeatureServiceProvider, where all
+     * flags resolve through Tenant::isPaid() -> here.
+     *
+     * A lapsed trial is NOT paid. A lapsed paid period IS paid until its grace
+     * window closes, so a failed payment doesn't instantly break the tenant's
+     * live guest booking flow. The grace window is derived from current_period_end
+     * rather than read from grace_ends_at alone, so a tenant is never wrongly
+     * cut off just because the daily lifecycle command hasn't run yet.
+     */
     public function isPaid(): bool
     {
-        return $this->plan === self::PLAN_PAID
-            && in_array($this->status, [self::STATUS_TRIALING, self::STATUS_ACTIVE]);
+        if ($this->isComped()) {
+            return true;
+        }
+
+        if ($this->plan !== self::PLAN_PAID) {
+            return false;
+        }
+
+        return match ($this->status) {
+            self::STATUS_TRIALING => (bool) $this->trial_ends_at?->isFuture(),
+            self::STATUS_ACTIVE => $this->current_period_end === null
+                || now()->lessThanOrEqualTo($this->current_period_end->copy()->addDays(self::graceDays())),
+            self::STATUS_PAST_DUE => (bool) $this->grace_ends_at?->isFuture(),
+            default => false,
+        };
     }
 
     public function isFree(): bool
@@ -56,11 +105,37 @@ class Subscription extends Model
             && $this->trial_ends_at?->isFuture();
     }
 
+    /**
+     * True once the tenant has ever started the free trial. Downgrading clears
+     * trial_ends_at, so this is what stops a tenant farming unlimited trials by
+     * cycling paid -> free -> paid.
+     */
+    public function hasUsedTrial(): bool
+    {
+        return $this->trial_used_at !== null;
+    }
+
+    /**
+     * Lapsed, still holding its features, being chased for payment.
+     */
+    public function inGrace(): bool
+    {
+        return ! $this->isComped()
+            && $this->status === self::STATUS_PAST_DUE
+            && (bool) $this->grace_ends_at?->isFuture();
+    }
+
+    /**
+     * Owes money: the paid period ran out, or billing already marked it past_due.
+     * Comped accounts never owe.
+     */
     public function isOverdue(): bool
     {
+        if ($this->isComped() || $this->status === self::STATUS_CANCELLED) {
+            return false;
+        }
+
         return $this->status === self::STATUS_PAST_DUE
-            || ($this->plan === self::PLAN_PAID
-                && $this->current_period_end?->isPast()
-                && $this->status !== self::STATUS_CANCELLED);
+            || ($this->plan === self::PLAN_PAID && (bool) $this->current_period_end?->isPast());
     }
 }

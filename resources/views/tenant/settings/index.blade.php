@@ -574,6 +574,10 @@
             $bDisk   = config('filesystems.default');
             $logoUrl = $tenant->logo_path ? \Storage::disk($bDisk)->url($tenant->logo_path) : null;
             $qrUrl   = $tenant->bank_qr_path ? \Storage::disk($bDisk)->url($tenant->bank_qr_path) : null;
+            // Bank details stay editable on every plan — they tell a free tenant's
+            // guest where to send the money. Only the fields that dress an invoice
+            // or receipt PDF are Pro-only.
+            $canIssueDocuments = \Laravel\Pennant\Feature::active('invoice_documents');
         @endphp
         <form method="POST" action="{{ route('tenant.settings.branding') }}" enctype="multipart/form-data"
               style="display:flex; flex-direction:column; gap: 18px; margin-top: 18px;">
@@ -583,13 +587,29 @@
                     <div>
                         <div class="kicker">{{ __('Invoice & documents') }}</div>
                         <div style="margin-top: 4px; font-size: 13px; color: var(--ink-2); max-width: 560px;">
-                            {{ __('Your logo, tagline and bank details appear on every invoice and receipt you send to guests.') }}
+                            @if ($canIssueDocuments)
+                                {{ __('Your logo, tagline and bank details appear on every invoice and receipt you send to guests.') }}
+                            @else
+                                {{ __('Your bank details are sent to guests with their booking so they know where to pay.') }}
+                            @endif
                         </div>
                     </div>
-                    <a href="{{ route('tenant.settings.invoice-preview') }}" target="_blank" rel="noopener" class="btn btn-sm">
-                        {{ __('Preview sample') }} ↗
-                    </a>
+                    @if ($canIssueDocuments)
+                        <a href="{{ route('tenant.settings.invoice-preview') }}" target="_blank" rel="noopener" class="btn btn-sm">
+                            {{ __('Preview sample') }} ↗
+                        </a>
+                    @endif
                 </div>
+
+                @unless ($canIssueDocuments)
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding:12px 14px; border-radius:var(--r-md); background:var(--pro-tint); color:var(--pro); font-size:12.5px;">
+                        <x-icon name="lock" :size="14"/>
+                        <span style="flex:1; min-width:0;">
+                            {{ __('Logo, tagline, payment QR and terms print on invoices and receipts — a Pro feature.') }}
+                        </span>
+                        <a href="{{ route('tenant.subscription') }}" class="btn btn-sm">{{ __('Upgrade') }} →</a>
+                    </div>
+                @endunless
 
                 {{-- Logo + tagline --}}
                 <div style="display:grid; grid-template-columns: 150px 1fr; gap: 20px; align-items:start; margin-top: 18px;"
@@ -607,6 +627,7 @@
                         <label class="btn btn-sm" style="margin-top: 8px; width: 100%; text-align:center; cursor:pointer;">
                             {{ __('Choose image') }}
                             <input type="file" name="logo" accept="image/*" style="display:none;"
+                                   @disabled(! $canIssueDocuments)
                                    @change="const f=$event.target.files[0]; if(f){ logoPreview=URL.createObjectURL(f); remove=false; }">
                         </label>
                         @if ($logoUrl)
@@ -619,6 +640,7 @@
                         <div>
                             <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Tagline') }}</label>
                             <input class="input" type="text" name="invoice_tagline" maxlength="160"
+                                   @disabled(! $canIssueDocuments)
                                    value="{{ old('invoice_tagline', $tenant->invoice_tagline) }}"
                                    placeholder="{{ __('e.g. Luas, Selesa, & Tenang') }}">
                             <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Shown in italics under your business name.') }}</div>
@@ -650,6 +672,7 @@
                         <label class="btn btn-sm" style="margin-top: 8px; width: 100%; text-align:center; cursor:pointer;">
                             {{ __('Choose QR image') }}
                             <input type="file" name="bank_qr" accept="image/*" style="display:none;"
+                                   @disabled(! $canIssueDocuments)
                                    @change="const f=$event.target.files[0]; if(f){ qrPreview=URL.createObjectURL(f); removeQr=false; }">
                         </label>
                         @if ($qrUrl)
@@ -681,6 +704,7 @@
                 <div style="margin-top: 22px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Terms printed on documents') }}</label>
                     <textarea class="input" name="invoice_terms" rows="3" maxlength="2000"
+                              @disabled(! $canIssueDocuments)
                               style="height:auto; resize:vertical;"
                               placeholder="{{ \App\Models\Tenant::DEFAULT_INVOICE_TERMS }}">{{ old('invoice_terms', $tenant->invoice_terms) }}</textarea>
                     <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Leave blank to use the default terms.') }}</div>

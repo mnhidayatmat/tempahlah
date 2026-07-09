@@ -69,9 +69,15 @@ class SubscriptionResource extends Resource
                     ->columns(2)
                     ->components([
                         DateTimePicker::make('trial_ends_at'),
+                        DateTimePicker::make('trial_used_at')
+                            ->helperText('Set once the tenant starts their free trial. Clearing it lets them trial again.'),
                         DateTimePicker::make('current_period_start'),
                         DateTimePicker::make('current_period_end'),
+                        DateTimePicker::make('grace_ends_at')
+                            ->helperText('While set and in the future, a past_due tenant keeps its paid features.'),
                         DateTimePicker::make('cancelled_at'),
+                        DateTimePicker::make('comped_at')
+                            ->helperText('Complimentary Pro. Never billed, never downgraded, excluded from MRR.'),
                     ]),
             ]);
     }

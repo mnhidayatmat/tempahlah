@@ -10,6 +10,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
+use Laravel\Pennant\Feature;
 
 /**
  * Apply the canonical "payment succeeded" state change to a Payment and its
@@ -105,8 +106,20 @@ class SettlePaymentSuccess
         }
     }
 
+    /**
+     * Receipts are a paid feature. A free tenant cannot use an online gateway at
+     * all (see CreateGatewayBill::gatewayAllowed), so in practice this never
+     * settles for one — but guard anyway rather than mint a document the tenant's
+     * plan doesn't include.
+     */
     protected function dispatchReceipt(Booking $booking, Payment $payment): void
     {
+        $tenant = $booking->tenant;
+
+        if (! $tenant || ! Feature::for($tenant)->active('invoice_documents')) {
+            return;
+        }
+
         try {
             $receipt = app(GenerateInvoice::class)->execute(
                 $booking->fresh(['property', 'tenant', 'bookingGuests']),

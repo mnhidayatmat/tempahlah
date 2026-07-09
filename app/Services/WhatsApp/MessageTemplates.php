@@ -214,6 +214,49 @@ class MessageTemplates
      * Invoice / pay-link message — sent right after a public booking is
      * created on the tenant subdomain. Carries the Toyyibpay deposit link.
      */
+    /**
+     * Free tier: no Invoice document is issued, so the guest gets a plain booking
+     * summary carrying the host's payment instructions. Deliberately never says
+     * "invoice" or "receipt" — those are paid-tier documents.
+     */
+    public static function bookingReceived(Booking $booking): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $lead = $booking->bookingGuests()->where('is_lead', true)->first();
+        $name = $lead?->full_name ?? $booking->guest?->name ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+        $ci = Carbon::parse($booking->check_in)->translatedFormat('D, j M Y');
+        $co = Carbon::parse($booking->check_out)->translatedFormat('D, j M Y');
+        $nights = (int) Carbon::parse($booking->check_in)->diffInDays(Carbon::parse($booking->check_out));
+        $deposit = self::rm($booking->deposit_amount);
+        $total = self::rm($booking->total_amount);
+        $guests = (int) ($booking->adults ?? 1);
+        $how = self::manualPayHow($booking, $locale);
+
+        if ($locale === 'ms') {
+            return "Salam {$name}!\n\n"
+                 . "Terima kasih kerana memilih *{$business}*. Tempahan anda telah diterima:\n\n"
+                 . "📍 {$property}\n"
+                 . "📅 {$ci} → {$co} ({$nights} malam)\n"
+                 . "👥 {$guests} tetamu\n"
+                 . "💰 Bayar sekarang: {$deposit} daripada {$total}\n"
+                 . "🔖 Rujukan: {$booking->reference}\n\n"
+                 . $how
+                 . "Sila sertakan rujukan {$booking->reference} semasa membayar. Tuan rumah akan mengesahkan tempahan anda setelah bayaran diterima.";
+        }
+
+        return "Hi {$name}!\n\n"
+             . "Thanks for choosing *{$business}*. We've received your booking:\n\n"
+             . "📍 {$property}\n"
+             . "📅 {$ci} → {$co} ({$nights} night" . ($nights > 1 ? 's' : '') . ")\n"
+             . "👥 {$guests} guest" . ($guests > 1 ? 's' : '') . "\n"
+             . "💰 Pay now: {$deposit} of {$total}\n"
+             . "🔖 Reference: {$booking->reference}\n\n"
+             . $how
+             . "Please quote reference {$booking->reference} when you pay. The host will confirm your booking once payment is received.";
+    }
+
     public static function invoice(Booking $booking, string $payUrl, bool $manual = false): string
     {
         $locale = $booking->tenant?->default_locale ?? app()->getLocale();

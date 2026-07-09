@@ -84,6 +84,18 @@
 
     <div style="max-width: 1100px; margin: 0 auto; display:flex; flex-direction:column; gap: 24px;">
 
+        @if (session('status'))
+            <div class="hauz-card" style="padding: 14px 16px; border-color: var(--ok); color: var(--ok);">
+                {{ session('status') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="hauz-card" style="padding: 14px 16px; border-color: var(--err); color: var(--err);">
+                {{ session('error') }}
+            </div>
+        @endif
+
         {{-- Header --}}
         <div style="text-align:center; padding-top: 8px;">
             <div class="kicker" style="margin-bottom: 12px;">{{ __('Pricing · Made in Malaysia') }} 🇲🇾</div>
@@ -203,18 +215,28 @@
                     <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px;
                         background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5;"
                         disabled>
-                        {{ __("You're on Pro") }}
+                        {{ $subscription?->isComped() ? __('Complimentary Pro') : __("You're on Pro") }}
                     </button>
-                @else
+                @elseif ($canStartTrial)
                     <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
                         @csrf
                         <input type="hidden" name="plan" value="paid">
                         <input type="hidden" name="billing" value="{{ $billing }}">
                         <button type="submit" class="btn" style="width:100%; justify-content:center;
                             background: var(--ink); color: var(--bg); border-color: transparent;">
-                            {{ __('Start 14-day free trial') }}
+                            {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
                         </button>
                     </form>
+                @else
+                    {{-- Trial already used, and checkout does not exist yet. --}}
+                    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 8px;
+                        background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5;"
+                        disabled>
+                        {{ __('Free trial already used') }}
+                    </button>
+                    <div style="font-size: 12px; color: var(--ink-3); text-align:center; margin-bottom: 22px;">
+                        {{ __('Paid billing is opening soon — contact us to upgrade.') }}
+                    </div>
                 @endif
                 <div class="kicker" style="margin-bottom: 10px; color: var(--pro);">{{ __('Everything in Starter, plus') }}</div>
                 <div style="display:flex; flex-direction:column; gap: 9px;">

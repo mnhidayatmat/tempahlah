@@ -12,10 +12,34 @@ use App\Services\Payments\Toyyibpay\ToyyibpayLog;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Laravel\Pennant\Feature;
 
 class IntegrationController extends Controller
 {
     public const SUPPORTED = ['toyyibpay', 'google_calendar', 'whatsapp', 'agent', 'ses', 'billplz', 'securepay'];
+
+    /**
+     * Online payment gateways — Pro only. Free tenants take manual payments.
+     * Gated here so a free tenant can't store gateway credentials; the booking
+     * flow is separately gated at CreateGatewayBill::resolveProvider().
+     */
+    public const GATEWAYS = ['toyyibpay', 'billplz', 'securepay'];
+
+    /**
+     * Returns a redirect when this provider is a gateway the tenant may not use.
+     * Disconnect is deliberately never blocked, so a tenant who downgrades can
+     * still clear credentials they can no longer use.
+     */
+    private function gatewayBlocked(string $provider): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! in_array($provider, self::GATEWAYS, true) || Feature::active('payment_gateway')) {
+            return null;
+        }
+
+        return redirect()
+            ->route('tenant.integrations.index')
+            ->with('error', __('Online payment gateways are a Pro feature. On the free plan you can accept manual payments — bank transfer or cash — and mark them paid yourself.'));
+    }
 
     public function index()
     {
@@ -44,6 +68,10 @@ class IntegrationController extends Controller
     public function show(string $provider)
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
+
+        if ($blocked = $this->gatewayBlocked($provider)) {
+            return $blocked;
+        }
 
         // WhatsApp uses a QR-scan Baileys session, not a credential form.
         if ($provider === 'whatsapp') {
@@ -124,6 +152,10 @@ class IntegrationController extends Controller
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
 
+        if ($blocked = $this->gatewayBlocked($provider)) {
+            return $blocked;
+        }
+
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403);
 
@@ -154,6 +186,10 @@ class IntegrationController extends Controller
      */
     public function testToyyibpay()
     {
+        if ($blocked = $this->gatewayBlocked('toyyibpay')) {
+            return $blocked;
+        }
+
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403);
 
@@ -194,6 +230,10 @@ class IntegrationController extends Controller
      */
     public function testBillplz()
     {
+        if ($blocked = $this->gatewayBlocked('billplz')) {
+            return $blocked;
+        }
+
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403);
 
@@ -235,6 +275,10 @@ class IntegrationController extends Controller
      */
     public function testSecurePay()
     {
+        if ($blocked = $this->gatewayBlocked('securepay')) {
+            return $blocked;
+        }
+
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403);
 

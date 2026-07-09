@@ -30,6 +30,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Laravel\Pennant\Feature;
 
 class BookingController extends Controller
 {
@@ -404,7 +405,10 @@ class BookingController extends Controller
         // (email + WhatsApp), mirroring the gateway settlement flow. So a
         // manually-paid booking fee yields a fee receipt, and marking the
         // balance / full payment yields the full receipt the guest expects.
-        if ($payment) {
+        //
+        // Receipt documents are a paid feature; on the free plan the payment is
+        // still recorded and the booking still confirms, there's just no receipt.
+        if ($payment && Feature::for($booking->tenant)->active('invoice_documents')) {
             try {
                 $receipt = app(GenerateInvoice::class)->execute(
                     $booking->fresh(['property', 'tenant', 'bookingGuests']),

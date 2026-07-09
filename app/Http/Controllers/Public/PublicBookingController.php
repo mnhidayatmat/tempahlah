@@ -7,6 +7,7 @@ use App\Actions\Invoicing\GenerateInvoice;
 use App\Actions\Payments\CreateGatewayBill;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\StoreBookingRequest;
+use App\Jobs\SendBookingInstructions;
 use App\Jobs\SendBookingInvoice;
 use App\Models\Booking;
 use App\Models\Invoice;
@@ -18,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Laravel\Pennant\Feature;
 
 /**
  * Public direct-booking flow on the tenant subdomain
@@ -122,15 +124,22 @@ class PublicBookingController extends Controller
         //     targets bookings carrying an unpaid gateway deposit bill. The
         //     guest still gets an invoice with the host's payment instructions.
         if ($method === 'manual') {
-            $invoice = $this->generateInvoice->execute(
-                $booking->fresh(['property', 'tenant', 'bookingGuests']),
-                null,
-                Invoice::TYPE_INVOICE,
-            );
+            if (Feature::for($tenant)->active('invoice_documents')) {
+                $invoice = $this->generateInvoice->execute(
+                    $booking->fresh(['property', 'tenant', 'bookingGuests']),
+                    null,
+                    Invoice::TYPE_INVOICE,
+                );
 
-            // Empty payUrl + manual flag → the invoice email/WA render the
-            // host's bank-transfer instructions instead of a pay button.
-            SendBookingInvoice::dispatch($booking->id, $invoice->id, '', true);
+                // Empty payUrl + manual flag → the invoice email/WA render the
+                // host's bank-transfer instructions instead of a pay button.
+                SendBookingInvoice::dispatch($booking->id, $invoice->id, '', true);
+            } else {
+                // Free tier issues no invoice document. The guest still needs the
+                // booking summary and the host's payment instructions, or they'd
+                // be left with no way to pay.
+                SendBookingInstructions::dispatch($booking->id);
+            }
 
             return redirect()->route('tenant-public.booking.sent', [
                 'tenant_slug' => $tenant->slug,

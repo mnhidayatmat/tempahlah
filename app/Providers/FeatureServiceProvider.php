@@ -28,7 +28,19 @@ class FeatureServiceProvider extends ServiceProvider
 
         Feature::define('multiple_properties', fn (Tenant $tenant) => $tenant->isPaid());
 
+        // Online payment gateways (Toyyibpay / Billplz / SecurePay). Free tenants
+        // take manual payments only — bank transfer or cash, recorded by the host.
+        // Enforced at the single choke point, CreateGatewayBill::resolveProvider().
+        Feature::define('payment_gateway', fn (Tenant $tenant) => $tenant->isPaid());
+
+        // Superseded by 'payment_gateway' — this predates Billplz + SecurePay and
+        // was never enforced anywhere. Kept so any stored flag row stays resolvable.
         Feature::define('toyyibpay_payment', fn (Tenant $tenant) => $tenant->isPaid());
+
+        // Invoice + receipt documents: the Invoice record, the branded PDF, the
+        // View/Email/WhatsApp actions, and the invoice branding settings. Free
+        // tenants' guests still get a plain booking email — see SendBookingInstructions.
+        Feature::define('invoice_documents', fn (Tenant $tenant) => $tenant->isPaid());
 
         Feature::define('auto_reminders', fn (Tenant $tenant) => $tenant->isPaid());
 

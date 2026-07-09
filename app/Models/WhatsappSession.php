@@ -32,6 +32,9 @@ class WhatsappSession extends Model
         // WhatsApp integration page if they prefer manual sends.
         'auto_invoice'         => true,
         'auto_receipt'         => true,
+        // Free tier equivalent of auto_invoice: a plain booking summary with the
+        // host's payment instructions, sent when no invoice document is issued.
+        'auto_booking_received' => true,
         // Notice sent when a booking is cancelled (e.g. unpaid fee/balance
         // auto-cancel, or a host-initiated cancel). On by default.
         'auto_cancellation'    => true,

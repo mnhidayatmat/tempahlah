@@ -22,8 +22,15 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
     protected function getStats(): array
     {
         // One aggregate pass over subscriptions, grouped by plan + status.
+        // `paying_amt` excludes comped accounts — they hold paid features as an
+        // admin grant and never pay us, so counting them would inflate MRR.
         $rows = Subscription::query()
-            ->selectRaw('plan, status, COUNT(*) as c, COALESCE(SUM(monthly_amount), 0) as amt')
+            ->selectRaw(
+                'plan, status, COUNT(*) as c,'
+                .' COALESCE(SUM(monthly_amount), 0) as amt,'
+                .' COALESCE(SUM(CASE WHEN comped_at IS NULL THEN monthly_amount ELSE 0 END), 0) as paying_amt,'
+                .' COALESCE(SUM(CASE WHEN comped_at IS NOT NULL THEN 1 ELSE 0 END), 0) as comped_c'
+            )
             ->groupBy('plan', 'status')
             ->get();
 
@@ -41,11 +48,13 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
         $pastDue   = $count(null, Subscription::STATUS_PAST_DUE);
         $cancelled = $count(null, Subscription::STATUS_CANCELLED);
 
-        // MRR = actively-billing paid subs only (trials pay nothing yet).
+        $comped = (int) $rows->sum('comped_c');
+
+        // MRR = actively-billing paid subs only (trials and comped accounts pay nothing).
         $mrr = (float) $rows
             ->where('plan', Subscription::PLAN_PAID)
             ->where('status', Subscription::STATUS_ACTIVE)
-            ->sum('amt');
+            ->sum('paying_amt');
 
         // Paying + trialing = the "subscribed" tenants the host cares about.
         $subscribed = $paidActive + $trialing;
@@ -66,14 +75,16 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
                 ->color('gray'),
 
             Stat::make('Subscribed (Paid)', $subscribed)
-                ->description($trialing > 0
-                    ? "{$paidActive} active · {$trialing} on trial"
-                    : "{$paidActive} active")
+                ->description(collect([
+                    "{$paidActive} active",
+                    $trialing > 0 ? "{$trialing} on trial" : null,
+                    $comped > 0 ? "{$comped} comped" : null,
+                ])->filter()->implode(' · '))
                 ->descriptionIcon(Heroicon::OutlinedCheckBadge)
                 ->color('success'),
 
             Stat::make('On trial', $trialing)
-                ->description('7-day paid trial')
+                ->description(Subscription::trialDays().'-day paid trial')
                 ->descriptionIcon(Heroicon::OutlinedSparkles)
                 ->color('info'),
 
@@ -83,7 +94,9 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
                 ->color($pastDue > 0 ? 'warning' : 'gray'),
 
             Stat::make('MRR', 'RM '.number_format($mrr, 0))
-                ->description("From {$paidActive} active paid")
+                ->description($comped > 0
+                    ? "From {$paidActive} active paid · {$comped} comped excluded"
+                    : "From {$paidActive} active paid")
                 ->descriptionIcon(Heroicon::OutlinedBanknotes)
                 ->color('primary'),
         ];

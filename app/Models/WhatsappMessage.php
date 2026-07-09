@@ -24,6 +24,9 @@ class WhatsappMessage extends Model
     public const KIND_LOCATION     = 'location';
     public const KIND_INVOICE      = 'invoice';
     public const KIND_RECEIPT      = 'receipt';
+    // Free tier: no Invoice record exists, so the guest gets a plain booking
+    // summary carrying the host's payment instructions instead of an invoice.
+    public const KIND_BOOKING_RECEIVED = 'booking_received';
     public const KIND_CANCELLATION = 'cancellation';
     public const KIND_TEST         = 'test';
     public const KIND_INBOUND      = 'inbound';

@@ -9,6 +9,9 @@
     gates the WhatsApp button.
 --}}
 @php
+    // Issuing invoices/receipts is Pro. Scope to the booking's tenant rather than
+    // the ambient one so the calendar's compact variant is always right.
+    $canIssueDocuments = \Laravel\Pennant\Feature::for($booking->tenant)->active('invoice_documents');
     $hasPayment  = $booking->payments->where('status', 'succeeded')->isNotEmpty();
     $hasEmail    = (bool) $booking->guestEmail();
     $hasPhone    = (bool) $booking->guestPhone();
@@ -62,6 +65,20 @@
         }
     </style>
 @endonce
+@if (! $canIssueDocuments)
+    @if ($compact)
+        {{-- Calendar day-detail: one line per booked room, so keep it to a hint. --}}
+        <div style="font-size:12px; color:var(--ink-3);">
+            {{ __('Invoices & receipts are a Pro feature.') }}
+            <a href="{{ route('tenant.subscription') }}" style="color:var(--pro);">{{ __('Upgrade') }} →</a>
+        </div>
+    @else
+        <x-pro-lock
+            feature="invoice_documents"
+            :title="__('Invoices & receipts')"
+            :reason="__('Issue numbered invoices and receipts, download the branded PDF, and send it to your guest by email or WhatsApp. Your guests still receive their booking details on the free plan.')"/>
+    @endif
+@else
 <div class="bk-docs {{ $compact ? 'bk-docs--compact' : '' }}">
     @foreach ($docs as $d)
         <div class="bk-doc">
@@ -107,3 +124,4 @@
         </div>
     @endforeach
 </div>
+@endif

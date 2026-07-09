@@ -31,3 +31,11 @@ Schedule::command('bookings:process-payment-lifecycle')
     ->hourly()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Subscription lifecycle — expires trials, lapses unpaid paid periods into their
+// grace window, and downgrades to free once grace runs out. Daily is enough:
+// every window is measured in days, and comped accounts are skipped.
+Schedule::command('subscriptions:process-lifecycle')
+    ->dailyAt('02:15')
+    ->withoutOverlapping()
+    ->onOneServer();

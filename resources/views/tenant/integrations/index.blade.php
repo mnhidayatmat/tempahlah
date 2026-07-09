@@ -9,6 +9,12 @@
             ['key' => 'billplz',         'name' => 'Billplz',            'desc' => __('Accept FPX and cards via your own Billplz account.'),          'pro' => true],
             ['key' => 'securepay',       'name' => 'SecurePay',          'desc' => __('Accept FPX and cards via your own SecurePay account.'),        'pro' => true],
         ];
+
+        // Online gateways are Pro. Free tenants take manual payments instead, so
+        // lock the tiles rather than let them walk into a 'Connect' page that
+        // IntegrationController would just bounce.
+        $canGateway = \Laravel\Pennant\Feature::active('payment_gateway');
+        $gatewayKeys = \App\Http\Controllers\Tenant\IntegrationController::GATEWAYS;
     @endphp
 
     <div style="display:flex; flex-direction:column; gap: 20px; max-width: 920px;">
@@ -23,6 +29,12 @@
         @if (session('status'))
             <div class="hauz-card" style="padding: 12px 16px; border-color: var(--ok); background: var(--ok-tint); color: var(--ok); font-size: 13px;">
                 {{ session('status') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="hauz-card" style="padding: 12px 16px; border-color: var(--err); background: var(--err-tint); color: var(--err); font-size: 13px;">
+                {{ session('error') }}
             </div>
         @endif
 
@@ -55,6 +67,11 @@
                     <div style="display:flex; gap: 6px;">
                         @if (! empty($it['soon']))
                             <button type="button" class="btn btn-sm" disabled>{{ __('Coming soon') }}</button>
+                        @elseif (in_array($it['key'], $gatewayKeys, true) && ! $canGateway)
+                            <a href="{{ route('tenant.subscription') }}" class="btn btn-sm"
+                               title="{{ __('Online payment gateways are a Pro feature. Free tenants accept manual payments.') }}">
+                                <x-icon name="lock" :size="12"/> {{ __('Upgrade') }}
+                            </a>
                         @elseif ($connected)
                             <a href="{{ route('tenant.integrations.show', $it['key']) }}" class="btn btn-sm">{{ __('Manage') }}</a>
                         @else
