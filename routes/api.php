@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Webhooks\BillplzWebhookController;
+use App\Http\Controllers\Webhooks\SecurePayWebhookController;
 use App\Http\Controllers\Webhooks\ToyyibpayWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +64,10 @@ Route::post('/webhooks/toyyibpay', [ToyyibpayWebhookController::class, 'handle']
 Route::post('/webhooks/billplz', [BillplzWebhookController::class, 'handle'])
     ->middleware('throttle:webhook-billplz')
     ->name('webhooks.billplz');
+
+Route::post('/webhooks/securepay', [SecurePayWebhookController::class, 'handle'])
+    ->middleware('throttle:webhook-securepay')
+    ->name('webhooks.securepay');
 
 // Sidecar callbacks — HMAC-signed, loopback only in practice (but signed anyway).
 Route::post('/wa/webhook', WhatsappWebhookController::class)
