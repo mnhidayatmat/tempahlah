@@ -538,8 +538,8 @@
                         </label>
                         <label>
                             <div class="nb-label">{{ __('WhatsApp / phone') }}</div>
-                            <input type="tel" name="guest_phone" maxlength="30" value="{{ old('guest_phone') }}" class="input" inputmode="tel" placeholder="0127964501">
-                            <div class="nb-hint">{{ __('Just type the number, e.g. 0127964501 — no need for +6.') }}</div>
+                            <input type="tel" name="guest_phone" maxlength="30" value="{{ old('guest_phone') }}" class="input" inputmode="tel" placeholder="+60123456789" data-phone-input>
+                            <div class="nb-hint">{{ __('+60 is filled in for you — just type the rest. For a foreign guest, type their own country code.') }}</div>
                         </label>
                         <label>
                             <div class="nb-label">{{ __('Country') }}</div>

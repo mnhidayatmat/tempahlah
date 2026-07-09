@@ -85,6 +85,14 @@ class SettingsController extends Controller
             'accent_color.regex'    => __('Pick a valid hex color (e.g. #e8b94a).'),
         ]);
 
+        // Store the business phone in E.164 — it drives the public page's
+        // wa.me links and the WhatsApp sender. Unparseable input is kept as
+        // typed rather than blanked.
+        if (! empty($validated['business_phone'])) {
+            $validated['business_phone'] = \App\Services\WhatsApp\PhoneNumber::normalize($validated['business_phone'])
+                ?? $validated['business_phone'];
+        }
+
         $validated['sst_registered'] = $request->boolean('sst_registered');
         $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
         $validated['manual_payment_enabled'] = $request->boolean('manual_payment_enabled');

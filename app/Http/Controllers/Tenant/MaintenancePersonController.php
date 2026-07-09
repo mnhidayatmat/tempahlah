@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Services\WhatsApp\PhoneNumber;
 use App\Models\MaintenancePerson;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class MaintenancePersonController extends Controller
         MaintenancePerson::create([
             'tenant_id' => $tenant->id,
             'name' => $validated['name'],
-            'phone' => $validated['phone'] ?? null,
+            'phone' => PhoneNumber::normalize($validated['phone'] ?? null) ?? ($validated['phone'] ?? null),
             'email' => $validated['email'] ?? null,
             'bank_name' => $validated['bank_name'] ?? null,
             'bank_account_no' => $validated['bank_account_no'] ?? null,
@@ -55,7 +56,7 @@ class MaintenancePersonController extends Controller
 
         $person->update([
             'name' => $validated['name'],
-            'phone' => $validated['phone'] ?? null,
+            'phone' => PhoneNumber::normalize($validated['phone'] ?? null) ?? ($validated['phone'] ?? null),
             'email' => $validated['email'] ?? null,
             'bank_name' => $validated['bank_name'] ?? null,
             'bank_account_no' => $validated['bank_account_no'] ?? null,

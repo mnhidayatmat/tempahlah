@@ -211,7 +211,7 @@
             </label>
             <label style="display:flex; flex-direction:column; gap: 4px;">
                 <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Notify me at (WhatsApp number)') }}</span>
-                <input class="input" type="text" wire:model="handoffPhone" placeholder="+60123456789" style="max-width: 280px;">
+                <input class="input" type="tel" inputmode="tel" wire:model="handoffPhone" placeholder="+60123456789" data-phone-input style="max-width: 280px;">
                 <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Optional. We will ping you when the AI escalates.') }}</span>
             </label>
         </div>

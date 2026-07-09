@@ -62,7 +62,7 @@
             </div>
             <div>
                 <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Phone') }}</label>
-                <input type="text" name="phone" class="input" maxlength="40" value="{{ old('phone') }}" placeholder="012-3456789">
+                <input type="tel" inputmode="tel" name="phone" class="input" maxlength="40" value="{{ old('phone') }}" placeholder="+60123456789" data-phone-input>
             </div>
             <div>
                 <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Email') }} <span style="color:var(--ink-3); text-transform:none; letter-spacing:0;">({{ __('optional') }})</span></label>
@@ -142,7 +142,7 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Phone') }}</label>
-                            <input type="text" name="phone" class="input" maxlength="40" value="{{ $p->phone }}">
+                            <input type="tel" inputmode="tel" name="phone" class="input" maxlength="40" value="{{ $p->phone }}" data-phone-input>
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom: 4px;">{{ __('Email') }}</label>

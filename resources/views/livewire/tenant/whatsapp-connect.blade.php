@@ -129,7 +129,7 @@
             <div style="margin-top: 18px; border-top: .5px solid var(--line); padding-top: 16px;">
                 <div class="kicker" style="margin-bottom: 8px;">{{ __('Send a test message') }}</div>
                 <div style="display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 8px;">
-                    <input class="input" type="text" wire:model="testPhone" placeholder="+60123456789">
+                    <input class="input" type="tel" inputmode="tel" wire:model="testPhone" placeholder="+60123456789" data-phone-input>
                     <input class="input" type="text" wire:model="testName" placeholder="{{ __('Name (optional)') }}">
                     <button class="btn btn-primary" wire:click="sendTest">{{ __('Send test') }}</button>
                 </div>

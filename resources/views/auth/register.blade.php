@@ -877,7 +877,7 @@
                             <input id="phone" name="phone" type="tel" required autocomplete="tel"
                                    value="{{ old('phone') }}"
                                    class="field-input"
-                                   placeholder="+60123456789">
+                                   placeholder="+60123456789" data-phone-input>
                             @error('phone') <span class="field-err">{{ $message }}</span> @enderror
                         </div>
                     </div>
@@ -968,5 +968,6 @@
             });
         })();
     </script>
+    @include('partials.phone-input')
 </body>
 </html>

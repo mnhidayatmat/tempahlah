@@ -105,7 +105,7 @@
                     </div>
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Business phone') }}</label>
-                        <input class="input" type="text" name="business_phone" value="{{ old('business_phone', $tenant->business_phone) }}" maxlength="32" placeholder="+60 12-345 6789">
+                        <input class="input" type="tel" inputmode="tel" name="business_phone" value="{{ old('business_phone', $tenant->business_phone) }}" maxlength="32" placeholder="+60123456789" data-phone-input>
                     </div>
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Owner') }}</label>

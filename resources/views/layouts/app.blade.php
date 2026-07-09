@@ -141,5 +141,6 @@
 
     @livewireScripts
     @stack('scripts')
+    @include('partials.phone-input')
 </body>
 </html>

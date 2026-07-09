@@ -590,8 +590,8 @@
 
                 <label class="wf-book-field">
                     <span class="wf-book-label">{{ $isBM ? 'Nombor WhatsApp' : 'WhatsApp number' }}</span>
-                    <input type="tel" name="guest_phone" required minlength="7" maxlength="24" inputmode="tel" autocomplete="tel" placeholder="0123456789" value="{{ old('guest_phone') }}">
-                    <span class="wf-book-hint">{{ $isBM ? 'Taip nombor anda sahaja, cth: 0123456789' : 'Just type your number, e.g. 0123456789' }}</span>
+                    <input type="tel" name="guest_phone" required minlength="7" maxlength="24" inputmode="tel" autocomplete="tel" placeholder="+60123456789" value="{{ old('guest_phone') }}" data-phone-input>
+                    <span class="wf-book-hint">{{ $isBM ? '+60 diisi automatik — taip nombor anda sahaja' : "We'll add +60 for you — just type your number" }}</span>
                 </label>
 
                 <label class="wf-book-field">
@@ -2359,5 +2359,6 @@
 </script>
 
 
+    @include('partials.phone-input')
 </body>
 </html>
