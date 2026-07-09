@@ -379,20 +379,19 @@ class HousekeepingController extends Controller
     }
 
     /**
-     * Format a task's notes for the WhatsApp schedule. A single-line note stays
+     * Format a task's notes for the copy-paste text. A single-line note stays
      * inline ("Nota: text"); a multi-point note puts the label on its own line
      * and each point on its own indented line below it, e.g.
      *
      *   Nota:
-     *   1. ...
-     *   2. ...
+     *     1. ...
+     *     2. ...
      *
      * @return array<int, string>
      */
-    private function formatScheduleNotes(string $notes, bool $isBM, bool $withEmoji = true): array
+    private function formatScheduleNotes(string $notes, bool $isBM): array
     {
-        $textLabel = $isBM ? 'Nota:' : 'Notes:';
-        $label = $withEmoji ? '📝 '.$textLabel : $textLabel;
+        $label = $isBM ? 'Nota:' : 'Notes:';
         $notes = trim($notes);
 
         if ($notes === '') {
@@ -400,87 +399,90 @@ class HousekeepingController extends Controller
         }
 
         if (! str_contains($notes, "\n")) {
-            return ['   '.$label.' '.$notes];
+            return [$label.' '.$notes];
         }
 
-        $out = ['   '.$label];
+        $out = [$label];
         foreach (preg_split('/\r\n|\r|\n/', $notes) as $line) {
             $line = trim($line);
             if ($line === '') {
                 continue; // drop blank lines for a tidy point list
             }
-            $out[] = '   '.$line;
+            $out[] = '  '.$line;
         }
 
         return $out;
     }
 
     /**
-     * Emoji-rich copy-paste text for a single cleaning task — drives the
-     * per-task "Copy text" button (clipboard keeps emoji fine).
+     * Copy-paste text for a single cleaning task — drives the per-task
+     * "Copy text" button. Plain labels, no emoji: the crew reads the job,
+     * not the icons.
      */
     private function cleaningTaskText(CleaningTask $t, bool $isBM): string
     {
         $lines = [];
-        $lines[] = '🧹 *'.($t->property?->name ?? '—').'*';
+        $lines[] = '*'.($t->property?->name ?? '—').'*';
         if ($t->scheduled_at) {
-            $lines[] = '📅 '.$t->scheduled_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
-            $lines[] = '⏰ '.$t->scheduled_at->format('g:i A');
+            $lines[] = $t->scheduled_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY')
+                .' · '.$t->scheduled_at->format('g:i A');
         }
-        $lines[] = '🧽 '.$this->cleaningTypeLabel((string) $t->type, $isBM);
+        $lines[] = ($isBM ? 'Kerja: ' : 'Task: ').$this->cleaningTypeLabel((string) $t->type, $isBM);
+        if ($t->room) {
+            $lines[] = ($isBM ? 'Bilik: ' : 'Room: ').$t->room->name;
+        }
         // Crew size + how long the job should take (auto-scheduled turnovers).
         $crew = [];
         if ($t->cleaners_required) {
-            $crew[] = '👥 '.((int) $t->cleaners_required).' '.($isBM ? 'pencuci' : ($t->cleaners_required > 1 ? 'cleaners' : 'cleaner'));
+            $crew[] = ((int) $t->cleaners_required).' '.($isBM ? 'pencuci' : ($t->cleaners_required > 1 ? 'cleaners' : 'cleaner'));
         }
         if ($t->duration_minutes) {
-            $crew[] = '⏱️ ~'.rtrim(rtrim(number_format($t->duration_minutes / 60, 1), '0'), '.').($isBM ? ' jam' : 'h');
+            $crew[] = '~'.rtrim(rtrim(number_format($t->duration_minutes / 60, 1), '0'), '.').($isBM ? ' jam' : 'h');
         }
         if ($crew) {
-            $lines[] = implode('  ', $crew);
-        }
-        if ($t->room) {
-            $lines[] = '🛏️ '.$t->room->name;
+            $lines[] = ($isBM ? 'Pasukan: ' : 'Crew: ').implode(' · ', $crew);
         }
         if ($t->cleaner) {
-            $lines[] = '👤 '.$t->cleaner->name.($t->cleaner->phone ? ' ('.$t->cleaner->phone.')' : '');
+            $lines[] = ($isBM ? 'Ditugaskan: ' : 'Assigned: ').$t->cleaner->name
+                .($t->cleaner->phone ? ' ('.$t->cleaner->phone.')' : '');
         }
         if ($t->notes) {
-            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
         }
 
         return implode("\n", $lines);
     }
 
     /**
-     * Emoji-rich copy-paste text for a single laundry batch — drives the
-     * per-batch "Copy text" button.
+     * Copy-paste text for a single laundry batch — drives the per-batch
+     * "Copy text" button.
      */
     private function laundryTaskText(LaundryTask $t, bool $isBM): string
     {
         $lines = [];
-        $lines[] = '🧺 *'.($t->property?->name ?? '—').'*';
+        $lines[] = '*'.($t->property?->name ?? '—').'*';
         if ($t->pickup_at) {
-            $lines[] = '📅 '.$t->pickup_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
-            $lines[] = '⏰ '.($isBM ? 'Ambil: ' : 'Pickup: ').$t->pickup_at->format('g:i A');
+            $lines[] = $t->pickup_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('dddd, D MMMM YYYY');
+            $lines[] = ($isBM ? 'Ambil: ' : 'Pickup: ').$t->pickup_at->format('g:i A');
         }
-        $lines[] = '📦 '.((int) $t->item_count).($isBM ? ' helai/item' : ' items');
+        $lines[] = ($isBM ? 'Item: ' : 'Items: ').((int) $t->item_count).($isBM ? ' helai' : '');
         if ($t->expected_return_at) {
-            $lines[] = '🔄 '.($isBM ? 'Jangka pulang: ' : 'Return: ').$t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
+            $lines[] = ($isBM ? 'Jangka pulang: ' : 'Return: ')
+                .$t->expected_return_at->copy()->locale($isBM ? 'ms' : 'en')->isoFormat('ddd, D MMM');
         }
         $vendor = $t->vendor?->name ?? $t->vendor_name;
         if ($vendor) {
-            $lines[] = '🏪 '.$vendor.($t->vendor?->phone ? ' ('.$t->vendor->phone.')' : '');
+            $lines[] = 'Vendor: '.$vendor.($t->vendor?->phone ? ' ('.$t->vendor->phone.')' : '');
         }
         if ($t->notes) {
-            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM, true));
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->notes, $isBM));
         }
 
         return implode("\n", $lines);
     }
 
     /**
-     * Emoji-rich copy/share text for a single maintenance ticket.
+     * Copy/share text for a single maintenance ticket.
      */
     private function maintenanceTaskText(MaintenanceTicket $t, bool $isBM): string
     {
@@ -491,16 +493,16 @@ class HousekeepingController extends Controller
         ];
 
         $lines = [];
-        $lines[] = '🔧 *'.($t->title ?: ($isBM ? 'Kerja pembaikan' : 'Maintenance')).'*';
-        $lines[] = '🏠 '.($t->property?->name ?? '—').($t->room ? ' · '.$t->room->name : '');
+        $lines[] = '*'.($t->title ?: ($isBM ? 'Kerja pembaikan' : 'Maintenance')).'*';
+        $lines[] = ($t->property?->name ?? '—').($t->room ? ' · '.$t->room->name : '');
         if ($t->priority) {
-            $lines[] = '⚠️ '.($isBM ? 'Keutamaan: ' : 'Priority: ').($priorityLabel[$t->priority] ?? ucfirst((string) $t->priority));
+            $lines[] = ($isBM ? 'Keutamaan: ' : 'Priority: ').($priorityLabel[$t->priority] ?? ucfirst((string) $t->priority));
         }
         if ($t->description) {
-            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->description, $isBM, true));
+            $lines = array_merge($lines, $this->formatScheduleNotes((string) $t->description, $isBM));
         }
         if ($t->assignee) {
-            $lines[] = '👤 '.$t->assignee->name;
+            $lines[] = ($isBM ? 'Ditugaskan: ' : 'Assigned: ').$t->assignee->name;
         }
 
         return implode("\n", $lines);
