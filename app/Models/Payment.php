@@ -22,6 +22,7 @@ class Payment extends Model
     public const METHOD_MANUAL = 'manual';
     public const METHOD_TOYYIBPAY = 'toyyibpay';
     public const METHOD_BILLPLZ = 'billplz';
+    public const METHOD_SECUREPAY = 'securepay';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_PROCESSING = 'processing';

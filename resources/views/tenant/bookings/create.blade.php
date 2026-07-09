@@ -3,6 +3,67 @@
 
     <style>
         [x-cloak] { display: none !important; }
+
+        /* ---- Page shell ---------------------------------------------------- */
+        .nb-root { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .nb-back { font-size: 13px; color: var(--ink-3); text-decoration: none; display: inline-block; }
+        .nb-back:hover { color: var(--ink-2); }
+        .nb-lede { color: var(--ink-3); font-size: 13px; margin: 6px 0 0; max-width: 62ch; line-height: 1.5; }
+        .nb-form { display: flex; flex-direction: column; gap: 14px; }
+        .nb-card { padding: 20px; }
+        .nb-alert { padding: 12px 16px; background: var(--err-tint); color: var(--err); border-color: var(--err); font-size: 13px; }
+
+        /* ---- Form grid ------------------------------------------------------
+           `.nb-span` uses `1 / -1` (not `1 / 3`) so it still spans the whole row
+           when the grid collapses to a single column on mobile — a fixed end
+           line would otherwise create an implicit extra column. */
+        .nb-grid   { display: grid; gap: 12px; }
+        .nb-grid-2 { grid-template-columns: 1fr 1fr; }
+        .nb-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .nb-pair   { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .nb-dates  { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .nb-span   { grid-column: 1 / -1; }
+
+        /* A grid item's default `min-width: auto` lets it push its track wider
+           than the container — `input[type=date]` in particular has a fat
+           intrinsic width. Let items shrink so nothing spills out of the card. */
+        .nb-grid > * { min-width: 0; }
+        .nb-form .input { min-width: 0; }
+
+        .nb-label { font-size: 12px; color: var(--ink-2); margin-bottom: 6px; font-weight: 500; }
+        .nb-hint  { font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.45; }
+        .nb-check { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding-top: 4px; cursor: pointer; }
+        .nb-check input[type="checkbox"] { accent-color: var(--primary); width: 18px; height: 18px; flex: none; }
+        .nb-check span { font-size: 13px; }
+        .nb-textarea { height: auto; padding: 10px 12px; resize: vertical; min-height: 84px; }
+
+        /* ---- Price card ----------------------------------------------------- */
+        .nb-price-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+        .nb-price-note { font-size: 11px; color: var(--ink-3); }
+        .nb-reset { font-size: 11px; color: var(--primary); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 4px 0; }
+        .nb-breakdown { border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; }
+        .nb-money-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--ink-2); }
+        .nb-money-total { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--line); font-weight: 600; color: var(--ink); }
+        .nb-num { font-variant-numeric: tabular-nums; }
+
+        /* ---- Payment option cards ------------------------------------------- */
+        .nb-pay-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        .nb-pay-opt  { cursor: pointer; position: relative; display: block; }
+        .nb-pay-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .nb-pay-box  { border: 1.5px solid var(--line); border-radius: var(--r-md); padding: 16px 18px; height: 100%; transition: border-color .12s, background .12s; }
+        .nb-pay-opt input:focus-visible + .nb-pay-box { box-shadow: 0 0 0 3px var(--primary-tint); }
+        .nb-pay-name { font-size: 13px; font-weight: 600; }
+        .nb-pay-desc { font-size: 11px; color: var(--ink-3); margin-top: 4px; line-height: 1.4; }
+
+        /* ---- Footer actions -------------------------------------------------- */
+        .nb-actions  { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+        .nb-conflict { font-size: 12px; color: var(--err); font-weight: 500; }
+        .nb-btn-cancel, .nb-btn-submit { text-decoration: none; }
+
+        /* ---- Availability calendar ------------------------------------------- */
+        .avail-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .avail-cal-month { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+        .avail-cal-navs { display: flex; gap: 6px; }
         .avail-cal-nav {
             width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
             background: var(--bg-elev); color: var(--ink-2); cursor: pointer; font-size: 16px;
@@ -10,6 +71,7 @@
         }
         .avail-cal-nav:hover { background: var(--bg-sunk); }
         .avail-cal-nav:disabled { opacity: .4; cursor: not-allowed; }
+        .avail-cal-prompt { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; }
         .avail-cal-week, .avail-cal-grid {
             display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
         }
@@ -49,29 +111,70 @@
             background: var(--err-tint); color: var(--err); border: 1px solid var(--err);
             font-size: 12px; font-weight: 500;
         }
+
+        /* ---- Mobile ----------------------------------------------------------
+           Matches the app shell's 640px breakpoint. Desktop is untouched. */
+        @media (max-width: 640px) {
+            .nb-root { gap: 14px; }
+            .nb-card { padding: 16px 14px; }
+            .nb-lede { font-size: 12.5px; }
+
+            /* Long fields take the full width. Adults/children stay paired —
+               number inputs shrink happily. Dates get their own row: a native
+               date control can't render under ~175px without clipping, and the
+               calendar above is the primary picker anyway. */
+            .nb-grid { gap: 14px; }
+            .nb-grid-2, .nb-grid-3, .nb-dates { grid-template-columns: 1fr; }
+            .nb-pair { gap: 10px; }
+
+            /* 16px is the threshold below which iOS Safari zooms the page in on
+               focus. The taller control also clears the 44px touch-target min. */
+            .nb-form .input { font-size: 16px; height: 44px; }
+            .nb-form textarea.input { height: auto; }
+            .nb-label { font-size: 12.5px; margin-bottom: 7px; }
+
+            .nb-price-head { flex-wrap: wrap; }
+            .nb-breakdown { font-size: 14px; }
+
+            .nb-pay-grid { grid-template-columns: 1fr; gap: 8px; }
+            .nb-pay-box { padding: 13px 14px; }
+
+            /* Stack the footer: warning first, primary action under the thumb. */
+            .nb-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+            .nb-actions .btn {
+                width: 100%; min-height: 46px; font-size: 14px;
+                display: inline-flex; align-items: center; justify-content: center;
+            }
+            .nb-conflict   { order: 0; text-align: center; }
+            .nb-btn-submit { order: 1; }
+            .nb-btn-cancel { order: 2; }
+
+            .avail-cal-nav { width: 38px; height: 38px; font-size: 18px; }
+            .avail-cal-week, .avail-cal-grid { gap: 3px; }
+            .avail-cal-cell { font-size: 14px; border-radius: 7px; }
+            .avail-cal-legend { gap: 12px; }
+        }
     </style>
 
-    <div style="max-width: 880px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
+    <div class="nb-root">
 
-        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-            <div>
-                <a href="{{ route('tenant.bookings.index') }}" style="font-size:13px; color:var(--ink-3); text-decoration:none;">← {{ __('Back to bookings') }}</a>
-                <div class="kicker" style="margin-top:8px;">{{ __('Reservations') }}</div>
-                <h2 class="display-2" style="margin: 4px 0 0;">{{ __('New booking') }}</h2>
-                <p style="color:var(--ink-3); font-size:13px; margin:6px 0 0;">
-                    {{ __('Manually log a booking made via WhatsApp, walk-in or phone. The price is computed from the room rate, SST and tourism tax.') }}
-                </p>
-            </div>
+        <div>
+            <a href="{{ route('tenant.bookings.index') }}" class="nb-back">← {{ __('Back to bookings') }}</a>
+            <div class="kicker" style="margin-top:8px;">{{ __('Reservations') }}</div>
+            <h2 class="display-2" style="margin: 4px 0 0;">{{ __('New booking') }}</h2>
+            <p class="nb-lede">
+                {{ __('Manually log a booking made via WhatsApp, walk-in or phone. The price is computed from the room rate, SST and tourism tax.') }}
+            </p>
         </div>
 
         @if (session('status'))
-            <div class="hauz-card" style="padding:12px 16px; background:var(--err-tint); color:var(--err); border-color:var(--err); font-size:13px;">
+            <div class="hauz-card nb-alert">
                 {{ session('status') }}
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="hauz-card" style="padding:12px 16px; background:var(--err-tint); color:var(--err); border-color:var(--err); font-size:13px;">
+            <div class="hauz-card nb-alert">
                 <strong>{{ __('Please correct the following:') }}</strong>
                 <ul style="margin:6px 0 0 18px;">
                     @foreach ($errors->all() as $err)
@@ -90,7 +193,7 @@
                 <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary" style="text-decoration:none;">{{ __('Add a property') }}</a>
             </div>
         @else
-            <form method="POST" action="{{ route('tenant.bookings.store') }}" style="display:flex; flex-direction:column; gap:14px;"
+            <form method="POST" action="{{ route('tenant.bookings.store') }}" class="nb-form"
                   x-data="{
                       roomFees: {{ Js::from($roomFees) }},
                       roomGuests: {{ Js::from($roomGuests) }},
@@ -108,6 +211,60 @@
                       children: {{ (int) old('children', 0) }},
                       maxGuests: 30,
                       paymentReceived: '{{ old('payment_received', 'none') }}',
+                      /* ---- Price: server-quoted default, host-editable ---- */
+                      quoteUrl: '{{ route('tenant.bookings.quote') }}',
+                      price: '{{ old('base_amount') }}',
+                      priceTouched: {{ old('base_amount') !== null ? 'true' : 'false' }},
+                      isForeigner: {{ old('is_foreigner') ? 'true' : 'false' }},
+                      quote: null,
+                      quoteLoading: false,
+                      quoteError: false,
+                      async fetchQuote() {
+                          // Only quote a complete, conflict-free stay.
+                          if (!this.selectedRoom || !this.checkIn || !this.checkOut
+                              || this.checkOut <= this.checkIn || this.rangeConflict()) {
+                              this.quote = null;
+                              return;
+                          }
+                          this.quoteLoading = true;
+                          this.quoteError = false;
+                          try {
+                              const p = new URLSearchParams({
+                                  room_id: this.selectedRoom,
+                                  check_in: this.checkIn,
+                                  check_out: this.checkOut,
+                                  is_foreigner: this.isForeigner ? 1 : 0,
+                              });
+                              const res = await fetch(this.quoteUrl + '?' + p.toString(), {
+                                  headers: { 'Accept': 'application/json' },
+                                  credentials: 'same-origin',
+                              });
+                              if (!res.ok) throw new Error('quote failed');
+                              this.quote = await res.json();
+                              // Fill the price only while the host hasn't typed
+                              // their own — never clobber a hand-entered amount.
+                              if (!this.priceTouched) this.price = this.quote.accommodation;
+                          } catch (e) {
+                              this.quote = null;
+                              this.quoteError = true;
+                          } finally {
+                              this.quoteLoading = false;
+                          }
+                      },
+                      resetPrice() {
+                          this.priceTouched = false;
+                          if (this.quote) this.price = this.quote.accommodation;
+                      },
+                      /* Derived money lines — mirror CreateBooking exactly:
+                         SST is charged on the (possibly overridden) accommodation. */
+                      priceNum() { const n = parseFloat(this.price); return isNaN(n) ? 0 : n; },
+                      sstAmount() { return this.quote ? Math.round(this.priceNum() * this.quote.sst_rate * 100) / 100 : 0; },
+                      tourismTax() { return this.quote ? this.quote.tourism_tax : 0; },
+                      grandTotal() {
+                          return Math.round((this.priceNum() + this.sstAmount() + this.tourismTax()) * 100) / 100
+                              + (this.quote ? this.quote.booking_fee : 0);
+                      },
+                      money(n) { return 'RM ' + (Math.round(n * 100) / 100).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
                       weekdays: {{ Js::from($isBM ? ['Ahd','Isn','Sel','Rab','Kha','Jum','Sab'] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']) }},
                       applyGuestDefaults(id) {
                           // Follow the tenant's per-property guest setup: default
@@ -202,15 +359,23 @@
                       }
                       if (adults === null) adults = {{ (int) $defaultGuests }};
                       focusMonth(checkIn);
+                      // Re-quote whenever anything that moves the price changes —
+                      // covers the calendar, the native date inputs and the
+                      // foreign-guest toggle in one place.
+                      $watch('selectedRoom', () => fetchQuote());
+                      $watch('checkIn', () => fetchQuote());
+                      $watch('checkOut', () => fetchQuote());
+                      $watch('isForeigner', () => fetchQuote());
+                      fetchQuote();
                   ">
                 @csrf
 
                 {{-- Stay --}}
-                <div class="hauz-card" style="padding:20px;">
+                <div class="hauz-card nb-card">
                     <div class="kicker" style="margin-bottom:12px;">{{ __('Stay') }}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                        <label style="grid-column: 1 / 3;">
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Room') }}</div>
+                    <div class="nb-grid nb-grid-2">
+                        <label class="nb-span">
+                            <div class="nb-label">{{ __('Room') }}</div>
                             <select name="room_id" required class="input" x-model="selectedRoom" @change="onRoomChange($event.target.value)">
                                 @if ($rooms->count() !== 1)
                                     <option value="">{{ __('— select a room —') }}</option>
@@ -222,13 +387,15 @@
                                 @endforeach
                             </select>
                         </label>
+                    </div>
 
+                    <div class="nb-grid nb-dates" style="margin-top:12px;">
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-in') }}</div>
+                            <div class="nb-label">{{ __('Check-in') }}</div>
                             <input type="date" name="check_in" required min="{{ $today }}" class="input" x-model="checkIn" @change="afterCheckInChange()">
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Check-out') }}</div>
+                            <div class="nb-label">{{ __('Check-out') }}</div>
                             <input type="date" name="check_out" required :min="minCheckOut()" class="input" x-model="checkOut">
                         </label>
                     </div>
@@ -236,15 +403,15 @@
                     {{-- Availability calendar — greys out nights already booked for
                          the selected room so the host can't double-book. --}}
                     <div class="avail-cal" style="margin-top:14px;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                            <div style="font-size:12px; color:var(--ink-2); font-weight:600;" x-text="monthLabel()"></div>
-                            <div style="display:flex; gap:6px;">
+                        <div class="avail-cal-head">
+                            <div class="avail-cal-month" x-text="monthLabel()"></div>
+                            <div class="avail-cal-navs">
                                 <button type="button" class="avail-cal-nav" @click="prevMonth()" :disabled="atMinMonth()" aria-label="{{ __('Previous month') }}">‹</button>
                                 <button type="button" class="avail-cal-nav" @click="nextMonth()" aria-label="{{ __('Next month') }}">›</button>
                             </div>
                         </div>
 
-                        <div style="font-size:12px; color:var(--ink-3); margin-bottom:8px;">
+                        <div class="avail-cal-prompt">
                             <template x-if="!selectedRoom">
                                 <span>{{ __('Select a room to see its availability.') }}</span>
                             </template>
@@ -288,37 +455,94 @@
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px;">
+                    <div class="nb-grid nb-pair" style="margin-top:14px;">
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Adults') }}</div>
+                            <div class="nb-label">{{ __('Adults') }}</div>
                             <input type="number" name="adults" required min="1" :max="maxGuests" x-model.number="adults" class="input">
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Children') }}</div>
+                            <div class="nb-label">{{ __('Children') }}</div>
                             <input type="number" name="children" min="0" :max="maxGuests" x-model.number="children" class="input">
                         </label>
                     </div>
                 </div>
 
+                {{-- Price --}}
+                <div class="hauz-card nb-card">
+                    <div class="nb-price-head">
+                        <div class="kicker">{{ __('Price') }}</div>
+                        <span x-show="quoteLoading" x-cloak class="nb-price-note">{{ __('Calculating…') }}</span>
+                        <button type="button" x-show="!quoteLoading && priceTouched && quote" x-cloak @click="resetPrice()" class="nb-reset">
+                            {{ __('Reset to calculated price') }}
+                        </button>
+                    </div>
+
+                    <label style="display:block; margin-bottom:12px;">
+                        <div class="nb-label">{{ __('Accommodation price (RM)') }}</div>
+                        <input type="number" name="base_amount" step="0.01" min="0" required
+                               x-model="price" @input="priceTouched = true" class="input" placeholder="0.00">
+                        <div class="nb-hint">
+                            <span x-show="quote && !priceTouched" x-cloak>
+                                {{ __('Auto-calculated from the room rate') }}
+                                (<span x-text="quote?.nights"></span> <span x-text="quote?.nights === 1 ? '{{ __('night') }}' : '{{ __('nights') }}'"></span>).
+                                {{ __('Edit it to charge an agreed price.') }}
+                            </span>
+                            <span x-show="quote && priceTouched" x-cloak style="color:var(--warn);">
+                                {{ __('Custom price — calculated was') }} <span x-text="money(quote?.accommodation ?? 0)"></span>.
+                            </span>
+                            <span x-show="!quote && !quoteLoading && !quoteError" x-cloak>
+                                {{ __('Pick a room and dates to calculate the price.') }}
+                            </span>
+                            <span x-show="quoteError" x-cloak style="color:var(--err);">
+                                {{ __('Could not calculate a price — enter one manually.') }}
+                            </span>
+                        </div>
+                    </label>
+
+                    {{-- Breakdown: mirrors what CreateBooking will store. --}}
+                    <div x-show="quote" x-cloak class="nb-breakdown">
+                        <div class="nb-money-row">
+                            <span>{{ __('Accommodation') }}</span>
+                            <span class="nb-num" x-text="money(priceNum())"></span>
+                        </div>
+                        <div x-show="sstAmount() > 0" class="nb-money-row">
+                            <span>{{ __('SST') }}</span>
+                            <span class="nb-num" x-text="money(sstAmount())"></span>
+                        </div>
+                        <div x-show="tourismTax() > 0" class="nb-money-row">
+                            <span>{{ __('Tourism tax') }}</span>
+                            <span class="nb-num" x-text="money(tourismTax())"></span>
+                        </div>
+                        <div x-show="quote?.booking_fee > 0" class="nb-money-row">
+                            <span>{{ __('Booking fee') }}</span>
+                            <span class="nb-num" x-text="money(quote?.booking_fee ?? 0)"></span>
+                        </div>
+                        <div class="nb-money-total">
+                            <span>{{ __('Total') }}</span>
+                            <span class="nb-num" x-text="money(grandTotal())"></span>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Guest --}}
-                <div class="hauz-card" style="padding:20px;">
+                <div class="hauz-card nb-card">
                     <div class="kicker" style="margin-bottom:12px;">{{ __('Guest') }}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                        <label style="grid-column: 1 / 3;">
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Full name') }}</div>
+                    <div class="nb-grid nb-grid-2">
+                        <label class="nb-span">
+                            <div class="nb-label">{{ __('Full name') }}</div>
                             <input type="text" name="guest_name" required maxlength="120" value="{{ old('guest_name') }}" class="input" placeholder="{{ __('As on IC / passport') }}">
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Email') }}</div>
+                            <div class="nb-label">{{ __('Email') }}</div>
                             <input type="email" name="guest_email" maxlength="160" value="{{ old('guest_email') }}" class="input" placeholder="guest@example.com">
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('WhatsApp / phone') }}</div>
+                            <div class="nb-label">{{ __('WhatsApp / phone') }}</div>
                             <input type="tel" name="guest_phone" maxlength="30" value="{{ old('guest_phone') }}" class="input" inputmode="tel" placeholder="0127964501">
-                            <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">{{ __('Just type the number, e.g. 0127964501 — no need for +6.') }}</div>
+                            <div class="nb-hint">{{ __('Just type the number, e.g. 0127964501 — no need for +6.') }}</div>
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Country') }}</div>
+                            <div class="nb-label">{{ __('Country') }}</div>
                             <select name="guest_country" class="input">
                                 @foreach ([
                                     'MY' => '🇲🇾 Malaysia',
@@ -336,20 +560,20 @@
                                 @endforeach
                             </select>
                         </label>
-                        <label style="grid-column: 1 / 3; display:flex; align-items:center; gap:8px; padding-top:4px; cursor:pointer;">
+                        <label class="nb-check">
                             <input type="hidden" name="is_foreigner" value="0">
-                            <input type="checkbox" name="is_foreigner" value="1" @checked(old('is_foreigner')) style="accent-color: var(--primary);">
-                            <span style="font-size:13px;">{{ __('Foreign guest — apply RM 10/night tourism tax') }}</span>
+                            <input type="checkbox" name="is_foreigner" value="1" x-model="isForeigner" @checked(old('is_foreigner'))>
+                            <span>{{ __('Foreign guest — apply RM 10/night tourism tax') }}</span>
                         </label>
                     </div>
                 </div>
 
                 {{-- Booking --}}
-                <div class="hauz-card" style="padding:20px;">
+                <div class="hauz-card nb-card">
                     <div class="kicker" style="margin-bottom:12px;">{{ __('Booking details') }}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                    <div class="nb-grid nb-grid-3">
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Channel') }}</div>
+                            <div class="nb-label">{{ __('Channel') }}</div>
                             <select name="channel" required class="input">
                                 @foreach ([
                                     \App\Models\Booking::CHANNEL_DIRECT => __('Direct (WhatsApp / phone)'),
@@ -361,53 +585,52 @@
                             </select>
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Booking fee (RM)') }}</div>
+                            <div class="nb-label">{{ __('Booking fee (RM)') }}</div>
                             <input type="number" name="deposit_amount" required min="0" max="1000000" step="0.01" x-model="bookingFee" class="input" placeholder="0.00">
-                            <div style="font-size:11px; color:var(--ink-3); margin-top:5px;">{{ __('Upfront amount the guest pays to secure the booking.') }}</div>
+                            <div class="nb-hint">{{ __('Upfront amount the guest pays to secure the booking.') }}</div>
                         </label>
                         <label>
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Reminder days before') }}</div>
+                            <div class="nb-label">{{ __('Reminder days before') }}</div>
                             <input type="number" name="reminder_days" min="0" max="60" step="1" value="{{ old('reminder_days', 7) }}" class="input">
                         </label>
-                        <label style="grid-column: 1 / 4;">
-                            <div style="font-size:12px; color:var(--ink-2); margin-bottom:6px; font-weight:500;">{{ __('Special requests (optional)') }}</div>
-                            <textarea name="special_requests" rows="3" maxlength="1000" class="input" style="height:auto; padding:10px 12px; resize:vertical;" placeholder="{{ __('Late check-in, dietary needs, baby cot…') }}">{{ old('special_requests') }}</textarea>
+                        <label class="nb-span">
+                            <div class="nb-label">{{ __('Special requests (optional)') }}</div>
+                            <textarea name="special_requests" rows="3" maxlength="1000" class="input nb-textarea" placeholder="{{ __('Late check-in, dietary needs, baby cot…') }}">{{ old('special_requests') }}</textarea>
                         </label>
                     </div>
                 </div>
 
                 {{-- Payment — record a manual (cash / bank-transfer) payment now,
                      or leave as "Not paid yet" to collect later via reminder. --}}
-                <div class="hauz-card" style="padding:20px;">
+                <div class="hauz-card nb-card">
                     <div class="kicker" style="margin-bottom:4px;">{{ __('Payment') }}</div>
-                    <p style="color:var(--ink-3); font-size:12px; margin:0 0 12px;">
+                    <p style="color:var(--ink-3); font-size:12px; margin:0 0 12px; line-height:1.5;">
                         {{ __('Did the guest already pay you directly (cash / bank transfer)? Record it now, or leave as “Not paid yet” to collect later.') }}
                     </p>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+                    <div class="nb-pay-grid">
                         @foreach ([
                             'none'        => [__('Not paid yet'), __('Collect later — you can send a reminder')],
                             'booking_fee' => [__('Booking fee paid'), __('Confirms the booking')],
                             'full'        => [__('Fully paid'), __('Settles the whole amount')],
                         ] as $val => $opt)
-                            <label style="cursor:pointer; position:relative; display:block;">
-                                <input type="radio" name="payment_received" value="{{ $val }}" x-model="paymentReceived"
-                                       style="position:absolute; opacity:0; width:0; height:0;">
-                                <div style="border:1.5px solid var(--line); border-radius:var(--r-md); padding:16px 18px; height:100%; transition:border-color .12s, background .12s;"
+                            <label class="nb-pay-opt">
+                                <input type="radio" name="payment_received" value="{{ $val }}" x-model="paymentReceived">
+                                <div class="nb-pay-box"
                                      :style="paymentReceived === '{{ $val }}' ? 'border-color:var(--primary); background:var(--primary-tint);' : ''">
-                                    <div style="font-size:13px; font-weight:600;">{{ $opt[0] }}</div>
-                                    <div style="font-size:11px; color:var(--ink-3); margin-top:4px; line-height:1.4;">{{ $opt[1] }}</div>
+                                    <div class="nb-pay-name">{{ $opt[0] }}</div>
+                                    <div class="nb-pay-desc">{{ $opt[1] }}</div>
                                 </div>
                             </label>
                         @endforeach
                     </div>
                 </div>
 
-                <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px;">
-                    <span x-show="rangeConflict()" x-cloak style="font-size:12px; color:var(--err); font-weight:500;">
+                <div class="nb-actions">
+                    <span x-show="rangeConflict()" x-cloak class="nb-conflict">
                         {{ __('Dates overlap an existing booking.') }}
                     </span>
-                    <a href="{{ route('tenant.bookings.index') }}" class="btn" style="text-decoration:none;">{{ __('Cancel') }}</a>
-                    <button type="submit" class="btn btn-primary" :disabled="rangeConflict()"
+                    <a href="{{ route('tenant.bookings.index') }}" class="btn nb-btn-cancel">{{ __('Cancel') }}</a>
+                    <button type="submit" class="btn btn-primary nb-btn-submit" :disabled="rangeConflict()"
                             :style="rangeConflict() ? 'opacity:.5; cursor:not-allowed;' : ''">{{ __('Create booking') }}</button>
                 </div>
             </form>

@@ -207,6 +207,59 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * Live price quote for the manual booking form (JSON).
+     *
+     * Returns the accommodation subtotal the PricingEngine would charge for
+     * this room + date range — pricing rules (weekend / holiday / season) and
+     * all — plus the taxes and booking fee stacked on top. The form pre-fills
+     * its editable "Accommodation price" field from `accommodation`, so the
+     * host sees the real computed price and can accept or override it.
+     *
+     * Read-only: touches no rows. Room lookup is tenant-scoped by the
+     * BelongsToTenant global scope, so one tenant can't quote another's room.
+     */
+    public function quote(Request $request, \App\Services\Pricing\PricingEngine $pricing)
+    {
+        $validated = $request->validate([
+            'room_id' => ['required', Rule::exists('rooms', 'id')],
+            'check_in' => 'required|date',
+            'check_out' => 'required|date|after:check_in',
+            'is_foreigner' => 'nullable|boolean',
+        ]);
+
+        $room = Room::with('property:id,booking_fee_amount')->find($validated['room_id']);
+        abort_unless($room, 403);
+
+        $checkIn = Carbon::parse($validated['check_in'])->startOfDay();
+        $checkOut = Carbon::parse($validated['check_out'])->startOfDay();
+
+        $quote = $pricing->quoteRange($room, $checkIn, $checkOut);
+
+        $tenant = $room->tenant;
+        $sstRate = $room->sst_applicable && $tenant->sst_registered ? (float) $tenant->sst_rate : 0;
+        $sstAmount = round($quote['total'] * $sstRate, 2);
+
+        $isForeigner = (bool) ($validated['is_foreigner'] ?? false);
+        $tourismTax = $isForeigner
+            ? round((float) config('homestay.tourism_tax_per_night_foreigner', 10) * $quote['count'], 2)
+            : 0;
+
+        $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
+
+        return response()->json([
+            'accommodation' => $quote['total'],
+            'nights' => $quote['count'],
+            // Rate (not just the amount) so the form can re-derive SST when the
+            // host overrides the accommodation price — same maths as CreateBooking.
+            'sst_rate' => $sstRate,
+            'sst' => $sstAmount,
+            'tourism_tax' => $tourismTax,
+            'booking_fee' => $bookingFee,
+            'total' => round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2),
+        ]);
+    }
+
     public function store(Request $request, CreateBooking $createBooking)
     {
         $validated = $request->validate([
@@ -225,6 +278,10 @@ class BookingController extends Controller
                 Booking::CHANNEL_MARKETPLACE,
                 Booking::CHANNEL_WALK_IN,
             ])],
+            // Accommodation subtotal (room nights, before taxes + booking fee).
+            // Pre-filled from the live PricingEngine quote but host-editable —
+            // when omitted, CreateBooking falls back to the quote.
+            'base_amount' => 'nullable|numeric|min:0|max:1000000',
             'deposit_amount' => 'required|numeric|min:0|max:1000000',
             'reminder_days' => 'nullable|integer|min:0|max:60',
             'special_requests' => 'nullable|string|max:1000',

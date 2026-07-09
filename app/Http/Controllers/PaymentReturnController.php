@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Payments\SettlePaymentSuccess;
 use App\Models\Payment;
 use App\Services\Payments\Billplz\BillplzClient;
+use App\Services\Payments\SecurePay\SecurePayClient;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
 use Illuminate\Http\Request;
 
@@ -69,6 +70,12 @@ class PaymentReturnController extends Controller
         if ($row->gateway_provider === 'billplz') {
             $client = BillplzClient::forTenant($row->tenant_id);
             return (bool) $client->getBill((string) $row->gateway_ref)['paid'];
+        }
+
+        if ($row->gateway_provider === 'securepay') {
+            // gateway_ref holds the order_number we sent (= payment public_id).
+            $client = SecurePayClient::forTenant($row->tenant_id);
+            return (bool) $client->getPaymentStatus((string) $row->gateway_ref)['paid'];
         }
 
         return false;

@@ -43,9 +43,20 @@ class CreateBooking
         return DB::transaction(function () use ($data, $room, $checkIn, $checkOut) {
             $quote = $this->pricing->quoteRange($room, $checkIn, $checkOut);
 
+            // Accommodation subtotal (room nights, before SST / tourism tax /
+            // booking fee). Defaults to the PricingEngine quote — which already
+            // applies the tenant's pricing rules — but a host creating a manual
+            // booking may override it with an agreed price (the "Accommodation
+            // price" field). Everything downstream (SST, total, marketplace
+            // commission, payout) is derived from this one number.
+            $priceOverridden = array_key_exists('base_amount', $data) && $data['base_amount'] !== null;
+            $accommodation = $priceOverridden
+                ? round(max(0, (float) $data['base_amount']), 2)
+                : $quote['total'];
+
             $tenant = $room->tenant;
             $sstRate = $room->sst_applicable && $tenant->sst_registered ? (float) $tenant->sst_rate : 0;
-            $sstAmount = round($quote['total'] * $sstRate, 2);
+            $sstAmount = round($accommodation * $sstRate, 2);
 
             $isForeigner = (bool) ($data['is_foreigner'] ?? false);
             $tourismTax = $isForeigner ? round((float) config('homestay.tourism_tax_per_night_foreigner', 10) * $quote['count'], 2) : 0;
@@ -55,7 +66,7 @@ class CreateBooking
             // existing bookings. NULL/0 → no fee, line omitted everywhere.
             $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
 
-            $total = round($quote['total'] + $sstAmount + $tourismTax + $bookingFee, 2);
+            $total = round($accommodation + $sstAmount + $tourismTax + $bookingFee, 2);
 
             // Last-minute guard: a booking made INSIDE the tenant's
             // full-payment lead time (default 7 days before check-in) must be
@@ -102,7 +113,7 @@ class CreateBooking
 
             $channel = $data['channel'] ?? Booking::CHANNEL_DIRECT;
             $commissionAmt = $channel === Booking::CHANNEL_MARKETPLACE
-                ? round($quote['total'] * (float) config('homestay.marketplace_commission_rate', 0.03), 2)
+                ? round($accommodation * (float) config('homestay.marketplace_commission_rate', 0.03), 2)
                 : 0;
 
             // Payment-lifecycle deadlines, driven by the tenant's policy:
@@ -131,7 +142,7 @@ class CreateBooking
                 'adults' => $data['adults'] ?? 1,
                 'children' => $data['children'] ?? 0,
                 'currency' => 'MYR',
-                'base_amount' => $quote['total'],
+                'base_amount' => $accommodation,
                 'sst_amount' => $sstAmount,
                 'tourism_tax_amount' => $tourismTax,
                 'booking_fee_amount' => $bookingFee,
@@ -154,6 +165,10 @@ class CreateBooking
                     // confirm — lets the invoice/receipt copy say "full payment"
                     // instead of "booking fee / deposit".
                     'requires_full_payment' => $requiresFullPayment,
+                    // Host agreed a price that differs from the PricingEngine
+                    // quote — keep the original so the difference is auditable.
+                    'price_overridden' => $priceOverridden && $accommodation !== $quote['total'],
+                    'quoted_accommodation' => $quote['total'],
                 ],
             ]);
 
@@ -171,10 +186,10 @@ class CreateBooking
                 Commission::create([
                     'tenant_id' => $room->tenant_id,
                     'booking_id' => $booking->id,
-                    'gross_amount' => $quote['total'],
+                    'gross_amount' => $accommodation,
                     'commission_rate' => (float) config('homestay.marketplace_commission_rate', 0.03),
                     'commission_amount' => $commissionAmt,
-                    'payout_amount' => round($quote['total'] - $commissionAmt, 2),
+                    'payout_amount' => round($accommodation - $commissionAmt, 2),
                     'status' => Commission::STATUS_PENDING,
                 ]);
             }

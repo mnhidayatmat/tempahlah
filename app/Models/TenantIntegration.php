@@ -16,6 +16,7 @@ class TenantIntegration extends Model
     public const PROVIDER_WHATSAPP = 'whatsapp';
     public const PROVIDER_SES = 'ses';
     public const PROVIDER_BILLPLZ = 'billplz';
+    public const PROVIDER_SECUREPAY = 'securepay';
 
     protected $fillable = [
         'tenant_id', 'provider', 'enabled', 'config',
