@@ -105,6 +105,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
     // Host-acquisition page (the former landing) now lives at /hosts.
     Route::get('/hosts', fn () => view('welcome'))->name('hosts');
 
+    // Public legal pages linked from the register form + footers. Bilingual
+    // via the app locale; static content, so plain view routes.
+    Route::view('/terms', 'legal.terms')->name('legal.terms');
+    Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
+
     // Tenant signup + login
     Route::middleware('guest')->group(function () {
         Route::get('/register', [TenantRegisterController::class, 'show'])->name('register');
