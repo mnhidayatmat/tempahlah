@@ -468,6 +468,7 @@ class MessageTemplates
         return match ($payment->method) {
             Payment::METHOD_TOYYIBPAY => ($locale === 'ms' ? ' melalui Toyyibpay' : ' via Toyyibpay'),
             Payment::METHOD_BILLPLZ   => ($locale === 'ms' ? ' melalui Billplz' : ' via Billplz'),
+            Payment::METHOD_SECUREPAY => ($locale === 'ms' ? ' melalui SecurePay' : ' via SecurePay'),
             Payment::METHOD_MANUAL    => ($locale === 'ms' ? ' (tunai / pindahan bank)' : ' (cash / bank transfer)'),
             default                   => '',
         };

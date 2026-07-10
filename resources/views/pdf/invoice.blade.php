@@ -96,6 +96,7 @@
     $methodLabels = [
         'toyyibpay' => 'Toyyibpay',
         'billplz'   => 'Billplz',
+        'securepay' => 'SecurePay',
         'manual'    => $isBM ? 'Tunai / Pindahan bank' : 'Cash / Bank transfer',
     ];
     $payMethod = $payment ? ($methodLabels[$payment->method] ?? ucfirst((string) $payment->method)) : null;

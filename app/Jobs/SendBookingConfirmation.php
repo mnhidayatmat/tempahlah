@@ -29,13 +29,24 @@ class SendBookingConfirmation implements ShouldQueue
 
         $lead = $booking->bookingGuests()->where('is_lead', true)->first();
 
-        // Email arm — only if we have an address.
+        // Email arm — only if we have an address. Isolated: a rejecting mail
+        // transport (an SES identity that isn't verified, say) must not abort
+        // the job before the WhatsApp arm below ever runs. Same guard the
+        // receipt/invoice/cancellation jobs already carry.
         if ($lead?->email) {
-            Mail::to($lead->email)->send(new BookingConfirmationMail($booking));
+            try {
+                Mail::to($lead->email)->send(new BookingConfirmationMail($booking));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         // WhatsApp arm — Messenger handles all gating (tenant pref, connected,
         // guest opt-out, recipient guard).
-        WhatsappMessenger::dispatchConfirmation($booking, $this->invoiceUrl);
+        try {
+            WhatsappMessenger::dispatchConfirmation($booking, $this->invoiceUrl);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }
