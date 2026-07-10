@@ -73,6 +73,12 @@
         </div>
     </div>
 
+    {{-- === FIRST-RUN SETUP CHECKLIST ===
+         Sits above the stat cards on purpose: for a brand-new tenant every stat
+         below reads RM 0.00, so the actionable thing belongs first. Removes
+         itself once all steps are satisfied. --}}
+    @include('partials.setup-checklist')
+
     {{-- === STAT CARDS === --}}
     {{-- auto-fit so 4 cols on desktop, 2 cols on tablet/mobile naturally
          (no inline grid-template that has to be CSS-overridden later). --}}

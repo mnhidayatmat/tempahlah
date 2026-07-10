@@ -10,6 +10,7 @@ use App\Models\MaintenanceTicket;
 use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Review;
+use App\Services\Onboarding\SetupChecklist;
 use App\Services\Reports\StatisticsService;
 use App\Support\Tenancy\TenantContext;
 use Carbon\Carbon;
@@ -39,6 +40,10 @@ class Dashboard extends Component
 
         $plan = $tenant?->subscription?->plan ?? 'free';
 
+        // First-run setup checklist. Derived from live state, so it disappears
+        // on its own once the tenant is genuinely ready to take bookings.
+        $checklist = $tenant ? app(SetupChecklist::class)->for($tenant) : null;
+
         return view('livewire.tenant.dashboard', [
             'tenant' => $tenant,
             'stats' => $stats,
@@ -48,6 +53,7 @@ class Dashboard extends Component
             'actions' => $actions,
             'plan' => $plan,
             'isPro' => $plan !== 'free',
+            'checklist' => $checklist,
         ])->layout('layouts.app', [
             'title' => __('Dashboard'),
             'breadcrumbs' => [$tenant?->business_name ?? __('Workspace')],

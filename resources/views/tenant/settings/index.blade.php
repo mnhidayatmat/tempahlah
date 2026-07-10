@@ -26,6 +26,32 @@
             <div class="hauz-card" style="padding: 12px 16px; background: var(--err-tint); color: var(--err); border-color: var(--err); font-size: 13px;">{{ session('error') }}</div>
         @endif
 
+        {{-- ─── Getting started ────────────────────────────────────────
+             The onboarding tour's own last step promises hosts they "can always
+             replay this tour from Settings". Until this card existed, nothing
+             ever cleared users.tour_completed_at, so that promise was a lie. --}}
+        <div class="hauz-card" style="padding: 22px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div class="kicker">{{ __('Getting started') }}</div>
+                    <div style="margin-top: 4px; font-size: 13.5px; color: var(--ink);">{{ __('App walkthrough') }}</div>
+                    <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-3);">
+                        @if (auth()->user()?->tour_completed_at)
+                            {{ __('You finished it :when. Replay it any time.', ['when' => auth()->user()->tour_completed_at->diffForHumans()]) }}
+                        @else
+                            {{ __('It will play the next time you open your dashboard.') }}
+                        @endif
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('tenant.onboarding.replay') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-sm">
+                        <x-icon name="sparkle" :size="12"/> {{ __('Replay walkthrough') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {{-- ─── Your homestays ─────────────────────────────────────── --}}
         <div class="hauz-card" style="padding: 22px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; gap: 12px;">

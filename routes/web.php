@@ -270,6 +270,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::patch('/expenses/{id}',      [ExpenseController::class, 'update'])->name('expenses.update')->whereNumber('id');
         Route::delete('/expenses/{id}',     [ExpenseController::class, 'destroy'])->name('expenses.destroy')->whereNumber('id');
         Route::post('/onboarding/complete', [\App\Http\Controllers\Tenant\OnboardingController::class, 'complete'])->name('onboarding.complete');
+        Route::post('/onboarding/replay',   [\App\Http\Controllers\Tenant\OnboardingController::class, 'replay'])->name('onboarding.replay');
 
         Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
