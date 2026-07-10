@@ -5,6 +5,7 @@ namespace App\Services\Payments\Billplz;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\TenantIntegration;
+use App\Services\Payments\AttemptOutcome;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
@@ -274,6 +275,41 @@ class BillplzClient
             || $paid === 1
             || $paid === '1'
             || (string) ($bill['state'] ?? '') === 'paid';
+    }
+
+    /**
+     * Read the outcome of one attempt out of a CALLBACK payload.
+     *
+     * A declined FPX transaction leaves the bill `state: due` — indistinguishable
+     * from a bill nobody has opened yet. `transaction_status` is the only field
+     * that says a payment was actually tried and rejected, so it is the sole
+     * failure signal here. getBill() carries no such field; route its response
+     * through billOutcome() instead.
+     */
+    public function attemptOutcome(array $payload): AttemptOutcome
+    {
+        if ($this->isPaid($payload)) {
+            return AttemptOutcome::Paid;
+        }
+
+        return strtolower((string) ($payload['transaction_status'] ?? '')) === 'failed'
+            ? AttemptOutcome::Failed
+            : AttemptOutcome::Unknown;
+    }
+
+    /**
+     * Read the outcome of a server-side getBill() response. A deleted bill can
+     * never be paid, so it is terminal; `due` just means not paid yet.
+     */
+    public function billOutcome(array $bill): AttemptOutcome
+    {
+        if ($this->isPaid($bill)) {
+            return AttemptOutcome::Paid;
+        }
+
+        return (string) ($bill['state'] ?? '') === 'deleted'
+            ? AttemptOutcome::Failed
+            : AttemptOutcome::Unknown;
     }
 
     /**

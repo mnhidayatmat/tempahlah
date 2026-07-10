@@ -5,6 +5,7 @@ namespace App\Services\Payments\SecurePay;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\TenantIntegration;
+use App\Services\Payments\AttemptOutcome;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
@@ -272,6 +273,33 @@ class SecurePayClient
             || $status === 'true'
             || $status === 1
             || $status === '1';
+    }
+
+    /**
+     * Read the outcome of one attempt out of a CALLBACK or REDIRECT payload.
+     *
+     * Only valid for those two — SecurePay pushes them once the shopper has
+     * been through the bank, so `payment_status: false` there means declined.
+     * The status API returns the same false for an order nobody has attempted
+     * yet, so callers must NOT route its response through here; map its
+     * `paid` flag to Paid/Unknown instead.
+     *
+     * `fpx_debit_auth_code` 00 = approved, 99 = pending approval (B2B1, which
+     * later transitions to 00). 99 is therefore Unknown, not a failure.
+     */
+    public function attemptOutcome(array $payload): AttemptOutcome
+    {
+        if ($this->isPaid($payload)) {
+            return AttemptOutcome::Paid;
+        }
+
+        if ((string) ($payload['fpx_debit_auth_code'] ?? '') === '99') {
+            return AttemptOutcome::Unknown;
+        }
+
+        return array_key_exists('payment_status', $payload)
+            ? AttemptOutcome::Failed
+            : AttemptOutcome::Unknown;
     }
 
     /**

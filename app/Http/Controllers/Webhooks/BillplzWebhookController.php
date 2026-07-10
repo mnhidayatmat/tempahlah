@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
+use App\Services\Payments\AttemptOutcome;
 use App\Services\Payments\Billplz\BillplzClient;
 use App\Services\Payments\Billplz\BillplzException;
 use App\Services\Payments\Billplz\BillplzLog;
@@ -85,14 +86,18 @@ class BillplzWebhookController extends Controller
             return response()->json(['error' => 'invalid_signature'], 200);
         }
 
-        // When we can't verify the signature (tenant set no X-Signature key, or
-        // Billplz sent none), fall back to a server-side getBill check before
-        // trusting `paid`.
-        $paidConfirmed = $client->isPaid($body);
+        // A signature-verified callback is trustworthy, so read the attempt
+        // outcome — paid OR declined — straight out of it.
+        //
+        // When we can't verify it (tenant set no X-Signature key, or Billplz
+        // sent none), fall back to a server-side getBill. A declined FPX
+        // transaction leaves the bill `due`, exactly like one nobody has tried,
+        // so that check can only ever confirm payment, never a decline.
+        $outcome = $client->attemptOutcome($body);
         if ($signatureStatus === 'missing') {
             try {
                 $check = $client->getBill((string) ($billId !== '' ? $billId : $payment->gateway_ref));
-                $paidConfirmed = (bool) $check['paid'];
+                $outcome = $client->billOutcome($check['bill']);
             } catch (BillplzException $e) {
                 BillplzLog::recordWebhook(
                     $payment->tenant_id, $payment, $request->post(), $externalId, 'missing',
@@ -110,19 +115,24 @@ class BillplzWebhookController extends Controller
                 $payment->tenant_id, $payment, $request->post(), $externalId, $signatureStatus
             );
 
-            $newStatus = $paidConfirmed ? Payment::STATUS_SUCCEEDED : Payment::STATUS_PROCESSING;
+            $paid = $outcome === AttemptOutcome::Paid;
 
             $payment->update([
-                'status' => $newStatus,
-                'paid_at' => $newStatus === Payment::STATUS_SUCCEEDED ? now() : $payment->paid_at,
+                'status' => $paid ? Payment::STATUS_SUCCEEDED : Payment::STATUS_PROCESSING,
+                'paid_at' => $paid ? now() : $payment->paid_at,
                 'meta' => array_merge($payment->meta ?? [], [
                     'callback' => $request->post(),
                     'callback_received_at' => now()->toIso8601String(),
                 ]),
             ]);
 
-            if ($newStatus === Payment::STATUS_SUCCEEDED) {
+            if ($paid) {
                 $this->onPaymentSucceeded($payment);
+            } elseif ($outcome === AttemptOutcome::Failed) {
+                // Stays `processing` — the bill is still payable, so the guest
+                // retries the same link. This only tells the return page (and
+                // the host) that the last attempt was declined.
+                $payment->markAttemptFailed();
             }
 
             $log['event']->update(['processed_at' => now()]);

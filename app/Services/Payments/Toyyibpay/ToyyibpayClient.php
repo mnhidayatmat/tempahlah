@@ -5,6 +5,7 @@ namespace App\Services\Payments\Toyyibpay;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\TenantIntegration;
+use App\Services\Payments\AttemptOutcome;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
@@ -189,6 +190,44 @@ class ToyyibpayClient
         );
 
         return hash_equals($expected, (string) $payload['hash']) ? 'verified' : 'invalid';
+    }
+
+    /**
+     * Read the outcome of one attempt out of a CALLBACK payload.
+     * `status`: 1 = success, 2 = pending, 3 = fail.
+     */
+    public function attemptOutcome(array $payload): AttemptOutcome
+    {
+        return match ((int) ($payload['status'] ?? 0)) {
+            1 => AttemptOutcome::Paid,
+            3 => AttemptOutcome::Failed,
+            default => AttemptOutcome::Unknown,
+        };
+    }
+
+    /**
+     * Read the outcome of a server-side getBillTransactions() response.
+     * A bill can carry several transactions (a decline, then a retry), so a
+     * single success anywhere wins; otherwise the most recent one decides.
+     *
+     * `billpaymentStatus`: "1" = success, "2" = pending, "3" = fail.
+     *
+     * @param  array  $transactions  The `transactions` key of getBillTransactions().
+     */
+    public function transactionsOutcome(array $transactions): AttemptOutcome
+    {
+        $statuses = array_map(
+            static fn ($t) => (string) ($t['billpaymentStatus'] ?? ''),
+            array_values($transactions),
+        );
+
+        if (in_array('1', $statuses, true)) {
+            return AttemptOutcome::Paid;
+        }
+
+        return end($statuses) === '3'
+            ? AttemptOutcome::Failed
+            : AttemptOutcome::Unknown;
     }
 
     /**

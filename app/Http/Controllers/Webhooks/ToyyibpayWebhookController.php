@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
+use App\Services\Payments\AttemptOutcome;
 use App\Services\Payments\Toyyibpay\ToyyibpayClient;
 use App\Services\Payments\Toyyibpay\ToyyibpayException;
 use App\Services\Payments\Toyyibpay\ToyyibpayLog;
@@ -85,8 +86,14 @@ class ToyyibpayWebhookController extends Controller
             return response()->json(['error' => 'invalid_signature'], 200);
         }
 
+        // A hash-verified callback is trustworthy, so read the attempt outcome
+        // — paid OR declined — straight out of it.
+        $outcome = $client->attemptOutcome($payload);
+
         if ($signatureStatus === 'missing') {
-            // Likely DuitNow QR — confirm via server-side query.
+            // Likely DuitNow QR — confirm via server-side query, and DECIDE on
+            // that answer. An unsigned payload's own `status` must never settle
+            // a payment: anyone who knows a billcode could POST status=1.
             try {
                 $check = $client->getBillTransactions((string) ($payload['billcode'] ?? ''));
                 ToyyibpayLog::recordApiCall(
@@ -94,6 +101,7 @@ class ToyyibpayWebhookController extends Controller
                     ['billCode' => $payload['billcode'] ?? ''],
                     $check['response'], $check['http_status'], true
                 );
+                $outcome = $client->transactionsOutcome($check['transactions']);
             } catch (ToyyibpayException $e) {
                 ToyyibpayLog::recordWebhook(
                     $payment->tenant_id, $payment, $payload, 'missing',
@@ -111,23 +119,24 @@ class ToyyibpayWebhookController extends Controller
                 $payment->tenant_id, $payment, $payload, $signatureStatus
             );
 
-            $newStatus = match ((int) ($payload['status'] ?? 0)) {
-                1 => Payment::STATUS_SUCCEEDED,
-                3 => Payment::STATUS_FAILED,
-                default => Payment::STATUS_PROCESSING,
-            };
+            $paid = $outcome === AttemptOutcome::Paid;
 
             $payment->update([
-                'status' => $newStatus,
-                'paid_at' => $newStatus === Payment::STATUS_SUCCEEDED ? now() : null,
+                'status' => $paid ? Payment::STATUS_SUCCEEDED : Payment::STATUS_PROCESSING,
+                'paid_at' => $paid ? now() : $payment->paid_at,
                 'meta' => array_merge($payment->meta ?? [], [
                     'callback' => $payload,
                     'callback_received_at' => now()->toIso8601String(),
                 ]),
             ]);
 
-            if ($newStatus === Payment::STATUS_SUCCEEDED) {
+            if ($paid) {
                 $this->onPaymentSucceeded($payment);
+            } elseif ($outcome === AttemptOutcome::Failed) {
+                // Stays `processing` — the bill is still payable, so the guest
+                // retries the same link. Closing it here would miss the reuse
+                // guard in CreateGatewayBill and mint a second live bill.
+                $payment->markAttemptFailed();
             }
 
             $log['event']->update(['processed_at' => now()]);

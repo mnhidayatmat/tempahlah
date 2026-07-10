@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\WebhookEvent;
+use App\Services\Payments\AttemptOutcome;
 use App\Services\Payments\SecurePay\SecurePayClient;
 use App\Services\Payments\SecurePay\SecurePayException;
 use App\Services\Payments\SecurePay\SecurePayLog;
@@ -87,14 +88,19 @@ class SecurePayWebhookController extends Controller
             return response()->json(['error' => 'invalid_signature'], 200);
         }
 
-        // When we can't verify the checksum (tenant stored no checksum token,
-        // or SecurePay sent none), fall back to a server-side status check
-        // before trusting `payment_status`.
-        $paidConfirmed = $client->isPaid($body);
+        // A checksum-verified callback is trustworthy, so read the attempt
+        // outcome — paid OR declined — straight out of it.
+        //
+        // When we can't verify it (tenant stored no checksum token, or
+        // SecurePay sent none), fall back to a server-side status check. That
+        // can only ever CONFIRM payment: it reports `payment_status: false`
+        // both for a declined order and for one nobody has attempted, so a
+        // false there is Unknown, never Failed.
+        $outcome = $client->attemptOutcome($body);
         if ($signatureStatus === 'missing') {
             try {
                 $check = $client->getPaymentStatus($orderNumber);
-                $paidConfirmed = (bool) $check['paid'];
+                $outcome = $check['paid'] ? AttemptOutcome::Paid : AttemptOutcome::Unknown;
             } catch (SecurePayException $e) {
                 SecurePayLog::recordWebhook(
                     $payment->tenant_id, $payment, $request->post(), $externalId, 'missing',
@@ -112,19 +118,24 @@ class SecurePayWebhookController extends Controller
                 $payment->tenant_id, $payment, $request->post(), $externalId, $signatureStatus
             );
 
-            $newStatus = $paidConfirmed ? Payment::STATUS_SUCCEEDED : Payment::STATUS_PROCESSING;
+            $paid = $outcome === AttemptOutcome::Paid;
 
             $payment->update([
-                'status' => $newStatus,
-                'paid_at' => $newStatus === Payment::STATUS_SUCCEEDED ? now() : $payment->paid_at,
+                'status' => $paid ? Payment::STATUS_SUCCEEDED : Payment::STATUS_PROCESSING,
+                'paid_at' => $paid ? now() : $payment->paid_at,
                 'meta' => array_merge($payment->meta ?? [], [
                     'callback' => $request->post(),
                     'callback_received_at' => now()->toIso8601String(),
                 ]),
             ]);
 
-            if ($newStatus === Payment::STATUS_SUCCEEDED) {
+            if ($paid) {
                 $this->onPaymentSucceeded($payment);
+            } elseif ($outcome === AttemptOutcome::Failed) {
+                // Stays `processing` — the session is still payable, so the
+                // guest retries the same link. This only tells the return page
+                // (and the host) that the last attempt was declined.
+                $payment->markAttemptFailed();
             }
 
             $log['event']->update(['processed_at' => now()]);

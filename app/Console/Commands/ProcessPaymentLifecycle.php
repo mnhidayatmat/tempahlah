@@ -245,7 +245,7 @@ class ProcessPaymentLifecycle extends Command
             ->whereNull('deposit_paid_at')
             ->whereHas('payments', fn ($q) => $q
                 ->where('type', Payment::TYPE_DEPOSIT)
-                ->whereIn('gateway_provider', ['toyyibpay', 'billplz']));
+                ->whereIn('gateway_provider', ['toyyibpay', 'billplz', 'securepay']));
     }
 
     /**
