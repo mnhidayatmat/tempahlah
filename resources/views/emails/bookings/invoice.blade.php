@@ -27,7 +27,7 @@
 <x-mail::panel>
 **{{ __('How to pay') }}**
 
-@if(!empty($manualInstructions)){{ $manualInstructions }}@else{{ __('Please contact the host to arrange your payment. Quote your booking reference :ref when you pay.', ['ref' => $booking->reference]) }}@endif
+@include('emails.partials.how-to-pay')
 </x-mail::panel>
 
 {{ __('Once we\'ve received your payment, your booking will be confirmed and you\'ll receive an official receipt.') }}

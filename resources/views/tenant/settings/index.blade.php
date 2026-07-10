@@ -245,20 +245,8 @@
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Manual payment (bank transfer / cash)') }}</div>
                 <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
-                    {{ __('Let guests choose to pay you directly instead of the online gateway. They still get an invoice; you mark the booking fee / full payment as paid in the booking, which sends them a receipt.') }}
+                    {{ __('Your booking page always lets guests choose to pay you directly instead of through the online gateway. They still get an invoice; you mark the booking fee / full payment as paid in the booking, which sends them a receipt.') }}
                 </p>
-
-                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
-                    <input type="hidden" name="manual_payment_enabled" value="0">
-                    <input type="checkbox" name="manual_payment_enabled" value="1" style="margin-top: 2px;"
-                           {{ old('manual_payment_enabled', $tenant->manualPaymentEnabled()) ? 'checked' : '' }}>
-                    <span>
-                        <span style="font-size: 13px; font-weight: 600;">{{ __('Offer "pay manually" on my booking page') }}</span>
-                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
-                            {{ __('When on, the public booking form shows a bank-transfer / cash option alongside the online gateway. Works even if you haven\'t connected a payment gateway yet.') }}
-                        </span>
-                    </span>
-                </label>
 
                 <div style="margin-top: 16px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Payment instructions shown to guests') }}</label>

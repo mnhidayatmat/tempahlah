@@ -189,7 +189,6 @@
           isBM: @js($isBM),
           properties: @js($propertiesPayload),
           toyyibpayConfigured: @js($toyyibpayConfigured),
-          manualEnabled: @js($manualPaymentEnabled),
           depositPct: 20,
       })">
 
@@ -480,34 +479,20 @@
             </div>
         </div>
 
-        @php $canBook = $toyyibpayConfigured || $manualPaymentEnabled; @endphp
-        @if($canBook)
-            {{-- Reserve CTA: opens the reservation form. --}}
-            <button type="button" class="wf-reserve" @click="openBookForm = true; $nextTick(() => { const el = document.getElementById('wf-book-name'); if (el) el.focus(); })">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>{{ $toyyibpayConfigured ? ($isBM ? 'Tempah & bayar sekarang' : 'Reserve & pay now') : ($isBM ? 'Tempah sekarang' : 'Reserve now') }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </button>
-            <div class="wf-reserve-hint">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>@if($toyyibpayConfigured && $manualPaymentEnabled){{ $isBM ? 'Bayar dalam talian atau pindahan bank · anda pilih' : 'Pay online or by bank transfer · your choice' }}@elseif($toyyibpayConfigured){{ $isBM ? 'Bayar selamat melalui '.($gatewayName ?? 'Toyyibpay').' · FPX, kad, DuitNow' : 'Secure payment via '.($gatewayName ?? 'Toyyibpay').' · FPX, cards, DuitNow' }}@else{{ $isBM ? 'Pindahan bank / tunai · invois dihantar terus' : 'Bank transfer / cash · invoice sent instantly' }}@endif</span>
-            </div>
-        @elseif($contactPhone)
-            {{-- Fallback: tenant hasn't connected Toyyibpay yet. Keep the
-                 wa.me deeplink so the page still works out-of-the-box. --}}
-            <a :href="reserveLink()" target="_blank" rel="noopener" class="wf-reserve">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.4A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9.9-2.9-.2-.3a8.2 8.2 0 1 1 6.8 3.7z"/></svg>
-                <span>{{ $isBM ? 'Tempah di WhatsApp' : 'Reserve on WhatsApp' }} · RM <span x-text="formatMoney(grandTotal())"></span></span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
-            <div class="wf-reserve-hint">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>{{ $isBM ? 'Tiada bayaran sekarang — tuan rumah akan sahkan' : 'No payment yet — host confirms first' }}</span>
-            </div>
-        @endif
+        {{-- Reserve CTA: opens the reservation form. Manual (bank transfer /
+             cash) is always an option, so the form is always reachable —
+             a tenant with no online gateway simply gets the manual path. --}}
+        <button type="button" class="wf-reserve" @click="openBookForm = true; $nextTick(() => { const el = document.getElementById('wf-book-name'); if (el) el.focus(); })">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>{{ $toyyibpayConfigured ? ($isBM ? 'Tempah & bayar sekarang' : 'Reserve & pay now') : ($isBM ? 'Tempah sekarang' : 'Reserve now') }} · RM <span x-text="formatMoney(depositAmount())"></span></span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <div class="wf-reserve-hint">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>@if($toyyibpayConfigured){{ $isBM ? 'Bayar dalam talian atau pindahan bank · anda pilih' : 'Pay online or by bank transfer · your choice' }}@else{{ $isBM ? 'Pindahan bank / tunai · invois dihantar terus' : 'Bank transfer / cash · invoice sent instantly' }}@endif</span>
+        </div>
     </section>
 
-    @if($canBook ?? ($toyyibpayConfigured || $manualPaymentEnabled))
     {{-- ───── BOOK FORM MODAL ─────────────────────────────────────── --}}
     <div class="wf-book-overlay" x-show="openBookForm" x-cloak x-transition.opacity @click.self="openBookForm = false" @keydown.escape.window="openBookForm = false">
         <div class="wf-book-card" @click.stop x-transition>
@@ -556,10 +541,11 @@
                 <input type="hidden" name="children" value="0">
                 <input type="hidden" name="payment_method" :value="payMethod">
 
-                @if($toyyibpayConfigured && $manualPaymentEnabled)
+                @if($toyyibpayConfigured)
                     {{-- Payment method choice: online gateway vs pay manually.
-                         Only shown when BOTH are available; otherwise payMethod
-                         is pinned to whichever one works. --}}
+                         Manual is always available, so the chooser appears
+                         whenever the tenant also has an online gateway. With no
+                         gateway, payMethod stays pinned to 'manual'. --}}
                     <div class="wf-paymethod">
                         <span class="wf-book-label" style="margin-bottom:2px;">{{ $isBM ? 'Cara bayaran' : 'Payment method' }}</span>
                         <button type="button" class="wf-paymethod-opt" :class="{ 'is-active': payMethod === 'gateway' }" @click="payMethod = 'gateway'">
@@ -648,7 +634,6 @@
             </form>
         </div>
     </div>
-    @endif
 
     @if (session('booking_error'))
         <div class="wf-flash wf-flash-err">{{ session('booking_error') }}</div>
@@ -2123,9 +2108,9 @@
                resets to that property's own default. */
             guests: opts.properties?.[0]?.default_guests || 2,
             toyyibpayConfigured: opts.toyyibpayConfigured,
-            manualEnabled: !!opts.manualEnabled,
             /* Chosen payment method in the book form: 'gateway' or 'manual'.
-               Default to the online gateway when it's available, else manual. */
+               Manual is always offered; default to the online gateway when the
+               tenant has one connected. */
             payMethod: opts.toyyibpayConfigured ? 'gateway' : 'manual',
             depositPct: opts.depositPct || 20,
             openBookForm: false,

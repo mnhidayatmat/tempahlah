@@ -49,25 +49,15 @@ class PublicBookingController extends Controller
         $tenant = $request->attributes->get('subdomain_tenant');
         $data = $request->validated();
 
-        // Resolve the effective payment method. The guest picks gateway or
-        // manual on the form, but we validate against what's actually
-        // available: fall back gateway→manual (or vice-versa) if the chosen
-        // one isn't set up, and only hand off to WhatsApp if NEITHER works.
-        $method        = ($data['payment_method'] ?? 'gateway') === 'manual' ? 'manual' : 'gateway';
-        $manualEnabled = $tenant->manualPaymentEnabled();
-        $gatewayReady  = $this->createBill->gatewayConfigured($tenant->id);
+        // Resolve the effective payment method. Manual (bank transfer / cash)
+        // is always available to the guest; the online gateway only when the
+        // tenant has one connected. So a guest who asks for the gateway on a
+        // tenant without one falls back to manual rather than being turned away.
+        $method       = ($data['payment_method'] ?? 'gateway') === 'manual' ? 'manual' : 'gateway';
+        $gatewayReady = $this->createBill->gatewayConfigured($tenant->id);
 
         if ($method === 'gateway' && ! $gatewayReady) {
-            $method = $manualEnabled ? 'manual' : 'none';
-        } elseif ($method === 'manual' && ! $manualEnabled) {
-            $method = $gatewayReady ? 'gateway' : 'none';
-        }
-
-        // Neither an online gateway nor manual pay is available → hand the
-        // customer off to a WhatsApp deeplink with the enquiry prefilled, so
-        // the page still works out-of-the-box for non-paid tenants.
-        if ($method === 'none') {
-            return redirect()->away($this->whatsappFallbackUrl($tenant, $data));
+            $method = 'manual';
         }
 
         // Marketplace attribution → a booking sourced from tempahlah.com is

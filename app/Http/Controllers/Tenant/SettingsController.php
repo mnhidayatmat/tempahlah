@@ -66,7 +66,6 @@ class SettingsController extends Controller
                 Tenant::CANCEL_BALANCE_CHECK_IN,
             ])],
             'auto_cancel_unpaid_balance' => 'nullable|boolean',
-            'manual_payment_enabled'   => 'nullable|boolean',
             'manual_payment_instructions' => 'nullable|string|max:2000',
             'refund_policy'            => 'nullable|string|max:2000',
             'checkout_reminder_enabled' => 'nullable|boolean',
@@ -95,7 +94,6 @@ class SettingsController extends Controller
 
         $validated['sst_registered'] = $request->boolean('sst_registered');
         $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
-        $validated['manual_payment_enabled'] = $request->boolean('manual_payment_enabled');
         $validated['checkout_reminder_enabled'] = $request->boolean('checkout_reminder_enabled');
         $validated['auto_housekeeping'] = $request->boolean('auto_housekeeping');
         if (! $validated['sst_registered']) {

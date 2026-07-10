@@ -29,7 +29,7 @@ class Tenant extends Model
         'auto_cancel_unpaid_balance', 'refund_policy',
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
         'auto_housekeeping',
-        'manual_payment_enabled', 'manual_payment_instructions',
+        'manual_payment_instructions',
     ];
 
     public const THEME_DEFAULTS = [
@@ -77,11 +77,7 @@ class Tenant extends Model
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
-        'manual_payment_enabled' => 'boolean',
     ];
-
-    /** Platform default: offer the manual (bank transfer / cash) pay option. */
-    public const MANUAL_PAYMENT_ENABLED_DEFAULT = true;
 
     /** Platform default for the auto-housekeeping SOP master toggle. */
     public const AUTO_HOUSEKEEPING_DEFAULT = true;
@@ -204,17 +200,6 @@ class Tenant extends Model
         return filled($this->bank_name)
             || filled($this->bank_account_number)
             || filled($this->bank_qr_path);
-    }
-
-    /**
-     * Whether the public booking page offers the "pay manually" (bank
-     * transfer / cash) option. Defaults ON when the column is null.
-     */
-    public function manualPaymentEnabled(): bool
-    {
-        return $this->manual_payment_enabled !== null
-            ? (bool) $this->manual_payment_enabled
-            : self::MANUAL_PAYMENT_ENABLED_DEFAULT;
     }
 
     /**

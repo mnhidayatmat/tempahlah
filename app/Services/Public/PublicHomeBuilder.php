@@ -125,7 +125,6 @@ class PublicHomeBuilder
             'bookedByProperty'     => $bookedByProperty,
             'toyyibpayConfigured'  => $toyyibpayConfigured,
             'gatewayName'          => $gatewayName,
-            'manualPaymentEnabled' => $tenant->manualPaymentEnabled(),
             'manualInstructions'   => $tenant->manualPaymentInstructions(),
             'ownerCanAccess'       => $ownerCanAccess,
             'apexUrl'              => rtrim((string) config('app.url'), '/'),
