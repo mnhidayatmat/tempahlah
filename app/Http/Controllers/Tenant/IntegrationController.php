@@ -162,6 +162,17 @@ class IntegrationController extends Controller
         $rules = $this->validationRulesFor($provider);
         $validated = $request->validate($rules);
 
+        // An unticked checkbox is absent from the POST, and `sometimes` then
+        // drops it from $validated — so the key vanishes from config instead of
+        // being stored as false. The gateway clients read `$config['is_sandbox']
+        // ?? true`, so unticking "Use sandbox" silently kept the tenant on the
+        // sandbox host. Write every catalog checkbox explicitly.
+        foreach ($this->providerMeta($provider)['fields'] ?? [] as $key => $field) {
+            if (($field['type'] ?? null) === 'checkbox') {
+                $validated[$key] = $request->boolean($key);
+            }
+        }
+
         $integration = TenantIntegration::firstOrNew(['provider' => $provider]);
         $integration->tenant_id = $tenant->id;
         $integration->enabled = $request->boolean('enabled');
