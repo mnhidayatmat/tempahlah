@@ -85,14 +85,30 @@ class CalendarController extends Controller
             $days[] = null;
         }
 
-        // Month stats
+        // Month stats.
+        //
+        // A night belongs to the day it starts on, so the month's nights run over
+        // the half-open interval [monthStart, firstOfNextMonth) — the same rule
+        // AvailabilityService uses for [check_in, check_out).
+        //
+        // This used to clamp against `$monthEnd->copy()->addDay()`. endOfMonth()
+        // lands on 23:59:59.999999, so that bound was the 1st of the next month at
+        // 23:59:59.999999 — a full day too late. A stay crossing month-end had its
+        // first night of the NEXT month counted into this one, and diffInDays()
+        // (a float in Carbon 3) rendered the result as 6.9999999999884.
+        $nextMonthStart = $monthStart->copy()->addMonthNoOverflow();
+
         $bookedNights = 0;
         $revenue = 0.0;
         foreach ($bookings as $b) {
-            $rangeStart = $b->check_in->greaterThan($monthStart) ? $b->check_in : $monthStart;
-            $rangeEnd = $b->check_out->lessThan($monthEnd->copy()->addDay()) ? $b->check_out : $monthEnd->copy()->addDay();
-            $overlap = max(0, $rangeStart->diffInDays($rangeEnd));
+            $rangeStart = $b->check_in->greaterThan($monthStart) ? $b->check_in->copy() : $monthStart->copy();
+            $rangeEnd = $b->check_out->lessThan($nextMonthStart) ? $b->check_out->copy() : $nextMonthStart->copy();
+
+            // Both ends are already midnight; startOfDay() guards against a stray
+            // time component and keeps the float integral before the cast.
+            $overlap = (int) max(0, $rangeStart->startOfDay()->diffInDays($rangeEnd->startOfDay()));
             $bookedNights += $overlap;
+
             if ((int) $b->nights > 0) {
                 $revenue += ((float) $b->total_amount) * ($overlap / (int) $b->nights);
             }
