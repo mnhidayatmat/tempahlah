@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Services\Public\PublicHomeBuilder;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -33,6 +34,67 @@ class TenantHomeController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('public-tenant.home', $builder->build($tenant, $properties, $request));
+        $data = $builder->build($tenant, $properties, $request);
+        $data['prefill'] = $this->prefill($request, $properties);
+
+        return view('public-tenant.home', $data);
+    }
+
+    /**
+     * Seed the booking form from a link the host sent this guest ("Send booking
+     * form" in the dashboard), e.g. ?property_id=3&check_in=…&guests=4&pay=manual
+     *
+     * The guest may still change any of it — the price is recomputed server-side
+     * on submit and availability is re-checked there — so these params are a
+     * convenience, not a contract. Anything unusable is dropped silently rather
+     * than 404'ing: a stale link should still open a working booking page.
+     */
+    protected function prefill(Request $request, $properties): ?array
+    {
+        if (! $request->hasAny(['property_id', 'check_in', 'check_out', 'guests', 'pay'])) {
+            return null;
+        }
+
+        $property = $properties->firstWhere('id', (int) $request->query('property_id'));
+
+        $checkIn = $this->parseDate($request->query('check_in'));
+        $checkOut = $this->parseDate($request->query('check_out'));
+
+        // Never seed a range the calendar would reject.
+        if ($checkIn && $checkIn->lt(today())) {
+            $checkIn = null;
+        }
+        if (! $checkIn || ($checkOut && $checkOut->lte($checkIn))) {
+            $checkOut = null;
+        }
+
+        $guests = (int) $request->query('guests', 0);
+        $pay = (string) $request->query('pay', '');
+
+        $prefill = array_filter([
+            'property_id' => $property?->id,
+            'check_in' => $checkIn?->toDateString(),
+            'check_out' => $checkOut?->toDateString(),
+            'guests' => ($guests >= 1 && $guests <= 20) ? $guests : null,
+            'pay' => in_array($pay, ['manual', 'gateway'], true) ? $pay : null,
+        ], fn ($v) => $v !== null);
+
+        return $prefill ?: null;
+    }
+
+    /** Strict Y-m-d, so "2026-13-45" is rejected rather than rolled over. */
+    protected function parseDate(?string $value): ?Carbon
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', $value);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $date->format('Y-m-d') === $value ? $date->startOfDay() : null;
     }
 }

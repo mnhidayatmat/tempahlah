@@ -19,6 +19,7 @@ use App\Models\IncidentReport;
 use App\Models\Invoice;
 use App\Models\LaundryTask;
 use App\Models\Payment;
+use App\Models\Property;
 use App\Models\Review;
 use App\Models\Room;
 use App\Models\User;
@@ -73,6 +74,74 @@ class BookingController extends Controller
         return view('tenant.bookings.index', [
             'bookings' => $bookings,
             'filter' => $filter,
+        ]);
+    }
+
+    /**
+     * "Send booking form" — build a link to this tenant's own public booking
+     * page, prefilled with the homestay, dates, guest count and payment method
+     * the host agreed with a guest over WhatsApp or the phone.
+     *
+     * There is no token and no invite record on purpose: the booking page is
+     * already public, so a signed link would add ceremony without protecting
+     * anything. The guest may edit the dates; the price is recomputed and
+     * availability re-checked server-side when they submit.
+     */
+    public function sendForm(Request $request)
+    {
+        $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
+
+        $properties = Property::query()
+            ->where('status', Property::STATUS_ACTIVE)
+            ->with('rooms:id,property_id,base_price,max_adults,max_children')
+            ->orderBy('name')
+            ->get(['id', 'name', 'city', 'default_guests']);
+
+        $today = Carbon::today();
+
+        // Nights already occupied, so the host is warned before quoting a date
+        // that is gone. Half-open [check_in, check_out) — the checkout morning
+        // is still sellable, matching AvailabilityService.
+        $booked = Booking::query()
+            ->whereIn('status', [
+                Booking::STATUS_PENDING,
+                Booking::STATUS_CONFIRMED,
+                Booking::STATUS_CHECKED_IN,
+            ])
+            ->whereDate('check_out', '>=', $today)
+            ->get(['property_id', 'check_in', 'check_out'])
+            ->groupBy('property_id')
+            ->map(function ($rows) {
+                $dates = [];
+                foreach ($rows as $b) {
+                    for ($d = $b->check_in->copy(); $d->lt($b->check_out); $d->addDay()) {
+                        $dates[] = $d->toDateString();
+                    }
+                }
+
+                return array_values(array_unique($dates));
+            });
+
+        $payload = $properties->map(function (Property $p) use ($booked) {
+            $sleeps = (int) $p->rooms->sum(fn ($r) => (int) $r->max_adults + (int) $r->max_children);
+            $configured = (int) ($p->default_guests ?? 0);
+
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'city' => $p->city,
+                'rate' => round((float) ($p->rooms->min('base_price') ?? 0), 2),
+                'sleeps' => max(1, $sleeps),
+                'default_guests' => $configured > 0 ? $configured : max(1, (int) floor($sleeps / 2)),
+                'booked' => $booked[$p->id] ?? [],
+            ];
+        })->values();
+
+        return view('tenant.bookings.send-form', [
+            'properties' => $payload,
+            'publicUrl' => $tenant->publicUrl(),
+            'businessName' => $tenant->business_name,
+            'gatewayReady' => app(CreateGatewayBill::class)->gatewayConfigured($tenant->id),
         ]);
     }
 

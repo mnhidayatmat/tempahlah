@@ -190,6 +190,7 @@
           properties: @js($propertiesPayload),
           toyyibpayConfigured: @js($toyyibpayConfigured),
           depositPct: 20,
+          prefill: @js($prefill ?? null),
       })">
 
     {{-- ───── HERO BANNER ─────────────────────────────────────────── --}}
@@ -2115,6 +2116,68 @@
             depositPct: opts.depositPct || 20,
             openBookForm: false,
             bookSubmitting: false,
+
+            /* Set when the host sent this guest a prefilled booking-form link.
+               Everything here stays editable — the server recomputes the price
+               and re-checks availability on submit. */
+            prefill: opts.prefill || null,
+
+            init() {
+                const p = this.prefill;
+                if (!p) return;
+
+                /* Property first: selectProperty() resets the guest count to the
+                   new property's default, so it has to run before we apply the
+                   host's number. Index 0 is already selected. */
+                if (p.property_id) {
+                    const i = this.properties.findIndex(x => x.id === p.property_id);
+                    if (i > 0) this.selectProperty(i);
+                }
+
+                if (p.guests) {
+                    this.guests = Math.max(1, Math.min(p.guests, this.current.sleeps || p.guests));
+                }
+
+                if (p.check_in) {
+                    this.checkin = p.check_in;
+                    this.checkout = p.check_out || null;
+
+                    /* The link may quote nights that have since been booked.
+                       Drop the range rather than showing a stay we can't sell. */
+                    if (this.checkout && this.rangeHasBookedNight(this.checkin, this.checkout)) {
+                        this.checkin = null;
+                        this.checkout = null;
+                    } else if (this.currentBookedSet.has(this.checkin)) {
+                        this.checkin = null;
+                        this.checkout = null;
+                    }
+
+                    /* Open the calendar on the month the host quoted. */
+                    const d = new Date(p.check_in + 'T00:00:00');
+                    if (!isNaN(d.getTime())) { d.setDate(1); this.cursor = d; }
+                }
+
+                /* Honour the host's request to be paid manually. Falls back to
+                   manual when they asked for a gateway the tenant no longer has. */
+                if (p.pay) {
+                    this.payMethod = (p.pay === 'gateway' && this.toyyibpayConfigured) ? 'gateway' : 'manual';
+                }
+
+                this.openBookForm = true;
+                this.navTab = 'book';
+                this.$nextTick(() => this.scrollToCalendar());
+            },
+
+            /* Any booked night inside the half-open range [ci, co)? */
+            rangeHasBookedNight(ci, co) {
+                const cur = new Date(ci + 'T00:00:00');
+                const end = new Date(co + 'T00:00:00');
+                while (cur < end) {
+                    if (this.currentBookedSet.has(this.iso(cur))) return true;
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return false;
+            },
 
             /* ── Bottom-nav state ──────────────────────────────────
                navTab is the currently-highlighted dock item. Set

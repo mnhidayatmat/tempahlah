@@ -14,6 +14,9 @@
                button), leaving just the compact, swipeable filter strip. */
             .bk-title { display: none; }
             .bk-new   { display: none; }
+            /* "Send booking form" has no floating counterpart, so it stays —
+               full-width under the filter strip rather than crammed beside it. */
+            .bk-sendform { display: flex; justify-content: center; margin-top: 10px; }
             .bk-head { flex-direction: column; align-items: stretch; gap: 0; }
             .bk-head > div:last-child { gap: 0 !important; }
             .bk-filters { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -66,6 +69,9 @@
                         </a>
                     @endforeach
                 </div>
+                <a href="{{ route('tenant.bookings.send-form') }}" class="btn btn-sm bk-sendform" style="text-decoration:none; white-space:nowrap;">
+                    <x-icon name="link" :size="12"/> {{ __('Send booking form') }}
+                </a>
                 <a href="{{ route('tenant.bookings.create') }}" class="btn btn-primary btn-sm bk-new" style="text-decoration:none;">
                     <x-icon name="plus" :size="12"/> {{ __('New booking') }}
                 </a>
