@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\WhatsappWebhookController;
 use App\Http\Controllers\Webhooks\BillplzWebhookController;
 use App\Http\Controllers\Webhooks\SecurePayWebhookController;
+use App\Http\Controllers\Webhooks\SesNotificationController;
 use App\Http\Controllers\Webhooks\SubscriptionBillingWebhookController;
 use App\Http\Controllers\Webhooks\ToyyibpayWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -76,6 +77,13 @@ Route::post('/webhooks/securepay', [SecurePayWebhookController::class, 'handle']
 Route::post('/webhooks/subscription-billing', [SubscriptionBillingWebhookController::class, 'handle'])
     ->middleware('throttle:webhook-subscription')
     ->name('webhooks.subscription-billing');
+
+// SES bounce + complaint notifications, delivered via SNS (signature-verified
+// inside the controller). Keeps our sender reputation clean by suppressing dead
+// addresses so we never re-send to them.
+Route::post('/webhooks/ses', [SesNotificationController::class, 'handle'])
+    ->middleware('throttle:webhook-ses')
+    ->name('webhooks.ses');
 
 // Sidecar callbacks — HMAC-signed, loopback only in practice (but signed anyway).
 Route::post('/wa/webhook', WhatsappWebhookController::class)

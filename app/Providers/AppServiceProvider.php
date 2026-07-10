@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Listeners\HaltMailToSuppressed;
 use App\Services\WhatsApp\RecipientGuard;
 use App\Services\WhatsApp\Sidecar\SidecarClient;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +36,11 @@ class AppServiceProvider extends ServiceProvider
         // has no current_tenant_public_id, and RequireTenant routes tenant-less users to
         // onboarding, so this target is safe for every authenticated user.
         RedirectIfAuthenticated::redirectUsing(fn () => route('tenant.dashboard'));
+
+        // Never send email to an address SES flagged as a hard bounce or a spam
+        // complaint. One listener on the framework's send event covers every
+        // mailable — see App\Listeners\HaltMailToSuppressed.
+        Event::listen(MessageSending::class, [HaltMailToSuppressed::class, 'handle']);
     }
 
     protected function configureRateLimiters(): void
@@ -60,6 +68,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Platform subscription billing callback (a tenant paying us RM 49/mo).
         RateLimiter::for('webhook-subscription', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
+
+        RateLimiter::for('webhook-ses', fn (Request $r) => Limit::perMinute(120)->by($r->ip()));
 
         RateLimiter::for('password-reset', fn (Request $r) => Limit::perHour(3)->by($r->input('email', $r->ip())));
     }

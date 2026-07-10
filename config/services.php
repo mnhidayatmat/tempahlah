@@ -26,6 +26,10 @@ return [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        // Optional: pin the SNS topic the bounce/complaint webhook accepts.
+        // Leave unset and any AWS-signed SNS message to /api/webhooks/ses is
+        // processed; set it to reject anything but your own topic.
+        'sns_topic_arn' => env('SES_SNS_TOPIC_ARN'),
     ],
 
     'slack' => [
