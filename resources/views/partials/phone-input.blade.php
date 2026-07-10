@@ -58,9 +58,10 @@
     function matches(el) { return el && el.matches && el.matches(SEL); }
 
     function setValue(el, next) {
-        if (next === el.value) return;
+        if (next === el.value) { syncValidity(el); return; }
         el.value = next;
         try { el.setSelectionRange(next.length, next.length); } catch (e) {}
+        syncValidity(el);
         busy = true;
         el.dispatchEvent(new Event('input', { bubbles: true }));
         busy = false;
@@ -72,6 +73,7 @@
             e.target.value = CC;
             try { e.target.setSelectionRange(CC.length, CC.length); } catch (err) {}
         }
+        syncValidity(e.target);
     });
 
     document.addEventListener('input', function (e) {
@@ -86,8 +88,52 @@
 
     document.addEventListener('focusout', function (e) {
         if (!matches(e.target)) return;
-        if (isBare(e.target.value)) setValue(e.target, '');
+        // A required field keeps its "+60" so the guest always sees the prefix.
+        // An optional one empties out, so we never store a lone country code.
+        if (isBare(e.target.value)) setValue(e.target, e.target.required ? CC : '');
     });
+
+    // Required fields (the guest's WhatsApp number, the host's phone at signup)
+    // show "+60" straight away rather than only once tapped — a grey placeholder
+    // reads as "type the whole thing", which is how we got 0-prefixed numbers.
+    // Optional fields stay empty until focused.
+    // `minlength` only bites on a value the USER typed, so a script-written "+60"
+    // would sail through the browser's check and only fail on the server. Mark it
+    // invalid ourselves, so the guest gets the native "please fill this in" bubble
+    // on the field instead of a round-trip and an error page.
+    var BARE_MSG = @json(__('Please enter your phone number after +60.'));
+    function syncValidity(el) {
+        if (!el.setCustomValidity) return;
+        el.setCustomValidity(el.required && isBare(el.value) ? BARE_MSG : '');
+    }
+
+    function prefillRequired(root) {
+        (root || document).querySelectorAll(SEL).forEach(function (el) {
+            if (el.required && el.value.trim() === '') el.value = CC;
+            syncValidity(el);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { prefillRequired(); });
+    } else {
+        prefillRequired();
+    }
+
+    // Livewire/Alpine can inject a phone field after load (a modal, a repeater).
+    if (window.MutationObserver) {
+        new MutationObserver(function (records) {
+            for (var i = 0; i < records.length; i++) {
+                var added = records[i].addedNodes;
+                for (var j = 0; j < added.length; j++) {
+                    var n = added[j];
+                    if (n.nodeType !== 1) continue;
+                    if (n.matches && n.matches(SEL)) { if (n.required && n.value.trim() === '') n.value = CC; }
+                    else if (n.querySelectorAll) prefillRequired(n);
+                }
+            }
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    }
 })();
 </script>
 @endonce
