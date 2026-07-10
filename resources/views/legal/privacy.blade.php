@@ -58,7 +58,7 @@
         <li><strong>Menarik balik persetujuan</strong> — menarik balik persetujuan pemprosesan (yang mungkin menjejaskan penggunaan perkhidmatan).</li>
         <li><strong>Menghadkan pemprosesan</strong> untuk tujuan pemasaran.</li>
     </ul>
-    <p>Untuk melaksanakan hak ini, emel <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>. Tuan rumah juga boleh mengeksport data mereka dari papan pemuka.</p>
+    <p>Untuk melaksanakan hak ini, emel <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>. Tuan rumah juga boleh mengeksport data mereka dari papan pemuka.</p>
 
     <h2><span class="lg-num">10.</span>Kuki</h2>
     <p>Kami menggunakan kuki yang perlu untuk log masuk, keselamatan sesi dan pilihan bahasa. Ia penting untuk platform berfungsi dan bukan untuk pengiklanan pihak ketiga.</p>
@@ -70,7 +70,7 @@
     <p>Kami boleh mengemas kini notis ini dari semasa ke semasa. Tarikh "berkuat kuasa" di atas menunjukkan versi terkini.</p>
 
     <h2><span class="lg-num">13.</span>Hubungi kami</h2>
-    <p>Untuk sebarang soalan privasi atau permintaan data, emel <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>.</p>
+    <p>Untuk sebarang soalan privasi atau permintaan data, emel <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>.</p>
 @else
     <p class="lg-eyebrow">Privacy Notice</p>
     <h1>PDPA Privacy Policy</h1>
@@ -125,7 +125,7 @@
         <li><strong>Withdraw consent</strong> — withdraw consent to processing (which may affect your use of the service).</li>
         <li><strong>Limit processing</strong> for marketing purposes.</li>
     </ul>
-    <p>To exercise these rights, email <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>. Hosts can also export their data from the dashboard.</p>
+    <p>To exercise these rights, email <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>. Hosts can also export their data from the dashboard.</p>
 
     <h2><span class="lg-num">10.</span>Cookies</h2>
     <p>We use cookies necessary for login, session security and language preference. They are essential for the platform to work and are not used for third-party advertising.</p>
@@ -137,6 +137,6 @@
     <p>We may update this notice from time to time. The "effective" date above shows the current version.</p>
 
     <h2><span class="lg-num">13.</span>Contact us</h2>
-    <p>For any privacy question or data request, email <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>.</p>
+    <p>For any privacy question or data request, email <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>.</p>
 @endif
 @endsection

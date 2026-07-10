@@ -58,7 +58,7 @@
     <p>Terma ini ditadbir oleh undang-undang Malaysia, dan mahkamah Malaysia mempunyai bidang kuasa eksklusif ke atas sebarang pertikaian.</p>
 
     <h2><span class="lg-num">13.</span>Hubungi kami</h2>
-    <p>Soalan tentang terma ini? Emel kami di <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>.</p>
+    <p>Soalan tentang terma ini? Emel kami di <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>.</p>
 @else
     <p class="lg-eyebrow">Terms of Service</p>
     <h1>Terms of Service</h1>
@@ -113,6 +113,6 @@
     <p>These terms are governed by the laws of Malaysia, and the courts of Malaysia have exclusive jurisdiction over any dispute.</p>
 
     <h2><span class="lg-num">13.</span>Contact us</h2>
-    <p>Questions about these terms? Email us at <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>.</p>
+    <p>Questions about these terms? Email us at <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>.</p>
 @endif
 @endsection

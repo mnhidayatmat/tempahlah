@@ -138,7 +138,7 @@
         <span class="lg-foot-links">
             <a href="{{ url('/terms') }}">{{ $isBM ? 'Terma Perkhidmatan' : 'Terms of Service' }}</a>
             <a href="{{ url('/privacy') }}">{{ $isBM ? 'Polisi PDPA' : 'PDPA Privacy Policy' }}</a>
-            <a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a>
+            <a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a>
         </span>
     </footer>
 </body>
