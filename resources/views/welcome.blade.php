@@ -1596,7 +1596,7 @@
                 <ul>
                     <li><a href="#">{{ $isMs ? 'Tentang kami' : 'About' }}</a></li>
                     <li><a href="#">{{ $isMs ? 'Blog' : 'Blog' }}</a></li>
-                    <li><a href="mailto:hello@tempahlah.com">hello@tempahlah.com</a></li>
+                    <li><a href="mailto:drhidayatmat@gmail.com">drhidayatmat@gmail.com</a></li>
                 </ul>
             </div>
             <div class="tm-footer-col">
