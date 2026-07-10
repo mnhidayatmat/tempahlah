@@ -545,7 +545,8 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('tenant-public.booking.store', ['tenant_slug' => $tenant->slug]) }}" class="wf-book-form">
+            <form method="POST" action="{{ route('tenant-public.booking.store', ['tenant_slug' => $tenant->slug]) }}" class="wf-book-form"
+                  @submit="bookSubmitting = true">
                 @csrf
                 <input type="hidden" name="property_id" :value="current.id">
                 <input type="hidden" name="room_id" :value="current.room_id">
@@ -594,6 +595,25 @@
                     <span class="wf-book-hint">{{ $isBM ? '+60 diisi automatik — taip nombor anda sahaja' : "We'll add +60 for you — just type your number" }}</span>
                 </label>
 
+                {{-- Drives the RM 10/night tourism tax, which by law applies to
+                     foreign guests only. Anything other than Malaysia flags the
+                     booking as foreign — see StoreBookingRequest::guestIsForeigner(). --}}
+                <label class="wf-book-field" x-data="{ country: '{{ old('guest_country', 'MY') }}' }">
+                    <span class="wf-book-label">{{ $isBM ? 'Warganegara' : 'Nationality' }}</span>
+                    <select name="guest_country" x-model="country">
+                        @foreach (\App\Http\Requests\Public\StoreBookingRequest::COUNTRY_LABELS as $code => $label)
+                            <option value="{{ $code }}" @selected(old('guest_country', 'MY') === $code)>
+                                {{ $code === 'OT' ? '🌐 '.($isBM ? 'Lain-lain' : 'Other') : $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="wf-book-hint" x-show="country !== 'MY'" x-cloak>
+                        {{ $isBM
+                            ? 'Cukai pelancongan RM 10/malam dikenakan ke atas tetamu bukan warganegara.'
+                            : 'Tourism tax of RM 10/night applies to non-Malaysian guests.' }}
+                    </span>
+                </label>
+
                 <label class="wf-book-field">
                     <span class="wf-book-label">{{ $isBM ? 'Permintaan khas (pilihan)' : 'Special requests (optional)' }}</span>
                     <textarea name="special_requests" rows="2" maxlength="500" placeholder="{{ $isBM ? 'cth: masuk lewat sikit' : 'e.g. checking in a little late' }}">{{ old('special_requests') }}</textarea>
@@ -607,11 +627,16 @@
                     {{ $tenant->refundPolicyText() }}
                 </div>
 
-                <button type="submit" class="wf-book-submit" @click="bookSubmitting = true">
+                {{-- `bookSubmitting` is flipped by the form's @submit, not this button's
+                     @click, so a failed HTML5 validation no longer strands the label on
+                     "Processing…". The label swap is the spinner here, so busy-ui
+                     only contributes the double-submit guard. --}}
+                <button type="submit" class="wf-book-submit" data-busy-submit>
                     <span x-show="!bookSubmitting && payMethod === 'gateway'">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }} RM <span x-text="formatMoney(depositAmount())"></span></span>
                     <span x-show="!bookSubmitting && payMethod === 'manual'" x-cloak>{{ $isBM ? 'Sahkan tempahan' : 'Confirm booking' }}</span>
                     <span x-show="bookSubmitting" x-cloak>{{ $isBM ? 'Memproses…' : 'Processing…' }}</span>
                 </button>
+                <x-busy-ui />
                 <p class="wf-book-fine">
                     <span x-show="payMethod === 'gateway'">{{ $isBM
                         ? 'Anda akan dialihkan ke '.($gatewayName ?? 'Toyyibpay').' untuk membayar yuran tempahan. Resit & pengesahan dihantar ke emel + WhatsApp.'
@@ -1958,6 +1983,7 @@
         margin-top: 4px;
     }
     .wf-book-form input,
+    .wf-book-form select,
     .wf-book-form textarea {
         width: 100%;
         padding: 10px 12px;
@@ -1976,9 +2002,21 @@
         touch-action: manipulation;
     }
     .wf-book-form input:focus,
+    .wf-book-form select:focus,
     .wf-book-form textarea:focus {
         border-color: var(--primary);
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    }
+    /* Native select on iOS ignores the shared padding/height unless we reset
+       its appearance; keep the 16px font so Safari doesn't zoom on tap. */
+    .wf-book-form select {
+        -webkit-appearance: none;
+        appearance: none;
+        padding-right: 34px;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 16px;
     }
     .wf-book-form textarea { resize: vertical; min-height: 56px; }
     .wf-book-err {

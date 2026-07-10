@@ -84,7 +84,15 @@ class PropertyController extends Controller
                 'check_in_time' => '15:00',
                 'check_out_time' => '11:00',
                 'description_en' => $validated['description'] ?? null,
-                'status' => Property::STATUS_DRAFT,
+                // Live immediately. A draft property is invisible on the host's
+                // own booking page (TenantHomeController filters on active) and
+                // is rejected by StoreBookingRequest — so a host who created a
+                // homestay and shared their link saw an empty page, and any guest
+                // who reached the form was told "Selected property is not
+                // available". There is no status field on the create form, so
+                // nobody ever chose draft. They can still archive or unpublish
+                // from the edit page.
+                'status' => Property::STATUS_ACTIVE,
                 // Sensible default — RM 100 booking fee = the "pay now"
                 // amount on the public booking flow. Host can edit or
                 // zero it from Property → Pricing → Booking fee.
@@ -148,8 +156,13 @@ class PropertyController extends Controller
                 'n' => $bedrooms,
             ]);
 
-        // Auto-list on the marketplace once the homestay is live (opt-out).
-        $this->autoListMarketplace($property);
+        // Deliberately NOT auto-listing on the marketplace here. This call was a
+        // no-op while new properties were drafts (autoListMarketplace returns
+        // early on anything but active), and now that they're created live it
+        // would publish a homestay to tempahlah.com before the host has added a
+        // single photo. Listing still happens on the first save from the edit
+        // page — exactly when it did before, since that's where the host used to
+        // flip the property to active.
 
         return redirect()
             ->route('tenant.properties.show', ['id' => $property->id])

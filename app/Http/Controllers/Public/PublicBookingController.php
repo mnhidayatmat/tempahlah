@@ -87,8 +87,12 @@ class PublicBookingController extends Controller
                 'guest_name'       => $data['guest_name'],
                 'guest_email'      => $data['guest_email'],
                 'guest_phone'      => $request->normalizedPhone(),
-                'guest_country'    => 'MY',
-                'is_foreigner'     => false,
+                // Was hardcoded MY/false, so an online booking by a foreign guest
+                // never attracted the statutory RM 10/night tourism tax — only a
+                // booking the host typed in by hand did. Both derive from the one
+                // country answer, so they can't contradict each other.
+                'guest_country'    => $request->guestCountry(),
+                'is_foreigner'     => $request->guestIsForeigner(),
                 'channel'          => $channel,
                 // Omit deposit_pct — CreateBooking will use the
                 // property's flat booking_fee_amount as the pay-now

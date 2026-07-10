@@ -20,9 +20,49 @@ use Illuminate\Validation\Rule;
  */
 class StoreBookingRequest extends FormRequest
 {
+    /**
+     * Countries offered on the public booking form, mirroring the dashboard's
+     * manual-booking form. `OT` = other. Anything that isn't `MY` is a foreign
+     * guest and attracts the RM 10/night tourism tax.
+     *
+     * @var array<string, string>
+     */
+    public const COUNTRY_LABELS = [
+        'MY' => '🇲🇾 Malaysia',
+        'SG' => '🇸🇬 Singapore',
+        'ID' => '🇮🇩 Indonesia',
+        'TH' => '🇹🇭 Thailand',
+        'CN' => '🇨🇳 China',
+        'JP' => '🇯🇵 Japan',
+        'AU' => '🇦🇺 Australia',
+        'GB' => '🇬🇧 United Kingdom',
+        'US' => '🇺🇸 United States',
+        'OT' => '🌐 Other',
+    ];
+
+    public const COUNTRIES = ['MY', 'SG', 'ID', 'TH', 'CN', 'JP', 'AU', 'GB', 'US', 'OT'];
+
     public function authorize(): bool
     {
         return $this->attributes->get('subdomain_tenant') !== null;
+    }
+
+    /**
+     * The guest's country, upper-cased, defaulting to Malaysian.
+     */
+    public function guestCountry(): string
+    {
+        $code = strtoupper((string) $this->input('guest_country', 'MY'));
+
+        return in_array($code, self::COUNTRIES, true) ? $code : 'MY';
+    }
+
+    /**
+     * Tourism tax (RM 10/night) applies to foreign guests only.
+     */
+    public function guestIsForeigner(): bool
+    {
+        return $this->guestCountry() !== 'MY';
     }
 
     public function rules(): array
@@ -37,6 +77,10 @@ class StoreBookingRequest extends FormRequest
             'guest_name'       => ['required', 'string', 'min:2', 'max:120'],
             'guest_email'      => ['required', 'email:rfc', 'max:160'],
             'guest_phone'      => ['required', 'string', 'min:7', 'max:24'],
+            // Drives the RM 10/night tourism tax, which is levied on foreign
+            // guests only. Absent (an older cached form) falls back to Malaysian,
+            // matching the previous behaviour rather than over-charging.
+            'guest_country'    => ['nullable', 'string', 'size:2', Rule::in(self::COUNTRIES)],
             'special_requests' => ['nullable', 'string', 'max:500'],
             // How the guest chose to pay. Null / absent defaults to the
             // online gateway in the controller.
