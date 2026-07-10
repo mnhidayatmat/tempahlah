@@ -609,9 +609,9 @@
                         </div>
                     </div>
                     @if ($canIssueDocuments)
-                        <a href="{{ route('tenant.settings.invoice-preview') }}" target="_blank" rel="noopener" class="btn btn-sm">
+                        <x-btn-link :href="route('tenant.settings.invoice-preview')" target="_blank" rel="noopener" class="btn btn-sm">
                             {{ __('Preview sample') }} ↗
-                        </a>
+                        </x-btn-link>
                     @endif
                 </div>
 
@@ -725,7 +725,9 @@
                 </div>
 
                 <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary">{{ __('Save invoice branding') }}</button>
+                    {{-- Decodes, resizes and re-encodes the logo + payment QR, then puts
+                         both to object storage — slow on a phone-sized upload. --}}
+                    <x-btn-submit class="btn btn-primary">{{ __('Save invoice branding') }}</x-btn-submit>
                 </div>
             </div>
         </form>
