@@ -203,6 +203,49 @@ class StripeBilling
     }
 
     /**
+     * "Test connection" for the super-admin settings screen. Hits GET /v1/account
+     * with the stored secret key. Read-only, creates nothing. Also sanity-checks
+     * that the configured price exists + is recurring.
+     *
+     * @return array{ok: bool, account: ?string, country: ?string, currency: ?string, price_ok: bool, error: ?string}
+     */
+    public function testConnection(): array
+    {
+        $secret = (string) $this->config('secret_key');
+        if ($secret === '') {
+            return ['ok' => false, 'account' => null, 'country' => null, 'currency' => null, 'price_ok' => false, 'error' => 'No secret key set.'];
+        }
+
+        $acct = Http::withBasicAuth($secret, '')->timeout(15)->get(self::BASE.'/v1/account');
+        $ajson = is_array($acct->json()) ? $acct->json() : [];
+
+        if (! $acct->successful() || empty($ajson['id'])) {
+            return [
+                'ok' => false, 'account' => null, 'country' => null, 'currency' => null, 'price_ok' => false,
+                'error' => $ajson['error']['message'] ?? 'Secret key rejected by Stripe.',
+            ];
+        }
+
+        // Confirm the price id resolves + is recurring (so checkout won't 400 later).
+        $priceOk = false;
+        if (filled($this->priceId())) {
+            $price = Http::withBasicAuth($secret, '')->timeout(15)
+                ->get(self::BASE.'/v1/prices/'.rawurlencode($this->priceId()));
+            $pjson = is_array($price->json()) ? $price->json() : [];
+            $priceOk = $price->successful() && ! empty($pjson['recurring']);
+        }
+
+        return [
+            'ok' => true,
+            'account' => (string) $ajson['id'],
+            'country' => $ajson['country'] ?? null,
+            'currency' => $ajson['default_currency'] ?? null,
+            'price_ok' => $priceOk,
+            'error' => null,
+        ];
+    }
+
+    /**
      * Form-encoded POST with basic auth (secret key as user, blank password).
      * No auto-retry on writes: creating a customer/session isn't idempotent
      * without an Idempotency-Key, and a retry after a network blip could
@@ -234,8 +277,17 @@ class StripeBilling
         }
     }
 
+    /**
+     * A key configured by the super-admin in the UI (encrypted in
+     * platform_settings) wins; otherwise fall back to the .env/config value. So
+     * either way of configuring Stripe works, and the DB never has to be
+     * pre-seeded for an env-only deploy.
+     */
     private function config(string $key): mixed
     {
-        return config("homestay.platform_billing.stripe.{$key}");
+        return \App\Models\PlatformSetting::get(
+            "stripe.{$key}",
+            config("homestay.platform_billing.stripe.{$key}"),
+        );
     }
 }

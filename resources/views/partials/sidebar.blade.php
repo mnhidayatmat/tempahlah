@@ -14,6 +14,7 @@
     $platformGroups = [
         ['title' => __('Platform'), 'items' => [
             ['key' => 'platform.overview', 'label' => __('Subscribers'), 'icon' => 'chart', 'route' => 'platform.overview'],
+            ['key' => 'platform.settings', 'label' => __('Settings'), 'icon' => 'cog', 'route' => 'platform.settings'],
         ]],
     ];
 

@@ -327,6 +327,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         ->name('platform.')
         ->group(function () {
             Route::get('/', [\App\Http\Controllers\PlatformAdminController::class, 'overview'])->name('overview');
+            // Platform settings — Stripe keys etc. (encrypted in platform_settings).
+            Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
+            Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');
+            Route::post('/settings/test-stripe', [\App\Http\Controllers\PlatformAdminController::class, 'testStripe'])->name('settings.test-stripe');
         });
 
     require __DIR__.'/auth-extra.php';
