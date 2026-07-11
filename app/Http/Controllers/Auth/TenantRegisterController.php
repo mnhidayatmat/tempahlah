@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Actions\Tenancy\CreateTenantAndOwner;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TenantRegisterRequest;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -22,7 +21,15 @@ class TenantRegisterController extends Controller
         $tenant = $action->execute($request->validated());
 
         Auth::login($tenant->owner);
-        event(new Registered($tenant->owner));
+
+        // NOTE: we deliberately do NOT fire Illuminate\Auth\Events\Registered
+        // here. User implements MustVerifyEmail, so that event triggers the
+        // framework's SendEmailVerificationNotification listener, which builds
+        // a link via route('verification.verify') — a route that does not
+        // exist in this app. It threw RouteNotFoundException on every signup.
+        // Email verification is not part of v1 (the owner is marked verified
+        // in CreateTenantAndOwner); re-introduce the event only alongside a
+        // complete verification flow.
 
         $request->session()->put('current_tenant_public_id', $tenant->public_id);
 

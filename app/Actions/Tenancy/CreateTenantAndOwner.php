@@ -22,6 +22,12 @@ class CreateTenantAndOwner
                     'password' => $data['password'],
                     'locale' => $data['locale'] ?? 'ms',
                     'user_type' => User::TYPE_TENANT_USER,
+                    // Email verification is not part of the v1 onboarding flow
+                    // (no verify route exists, and prod SES is in sandbox so a
+                    // verification email could not be delivered to a new host
+                    // anyway). Mark the owner verified on creation so nothing
+                    // gates on an unverifiable state.
+                    'email_verified_at' => now(),
                 ],
             );
 
