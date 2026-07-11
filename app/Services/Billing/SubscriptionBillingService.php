@@ -30,6 +30,16 @@ class SubscriptionBillingService
         return $this->billplz->configured();
     }
 
+    /**
+     * Whether Billplz card auto-renew (Tokenization) is live. Passthrough so
+     * callers holding the service (the subscription page, checkout) don't need a
+     * separate PlatformBillplz dependency — mirrors configured().
+     */
+    public function tokenizationEnabled(): bool
+    {
+        return $this->billplz->tokenizationEnabled();
+    }
+
     public function price(): float
     {
         return (float) config('homestay.paid_tier_price', 49.00);
