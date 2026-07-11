@@ -112,8 +112,16 @@
 
             {{-- First-time welcome walkthrough. Renders once per user;
                  hidden forever after dismiss/finish (writes
-                 users.tour_completed_at). --}}
-            @if (auth()->user() && auth()->user()->tour_completed_at === null)
+                 users.tour_completed_at).
+
+                 Scoped to the dashboard HOME only. The tour is a full-viewport
+                 modal whose dimmed backdrop swallows the first click on the page
+                 beneath it — so when it rendered on every dashboard page, a new
+                 user's first click on (say) the Photos tab's "Upload photos"
+                 button just dismissed the tour and did nothing, reading as
+                 "upload is broken". The walkthrough only ever runs on the home
+                 screen anyway, so confine the overlay there. --}}
+            @if (auth()->user() && auth()->user()->tour_completed_at === null && request()->routeIs('tenant.dashboard'))
                 @include('partials.onboarding-tour')
             @endif
         </div>

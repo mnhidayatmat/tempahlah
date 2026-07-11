@@ -67,6 +67,33 @@ class OnboardingTourTest extends TestCase
             ->assertDontSee('onboardingTour(', false);
     }
 
+    /**
+     * The tour is a full-viewport modal whose backdrop swallows the first
+     * click on the page beneath it. It must therefore render ONLY on the
+     * dashboard home — never on deep pages like a property's Photos tab, where
+     * it silently ate the "Upload photos" click and read as a broken upload.
+     */
+    public function test_tour_renders_only_on_dashboard_home(): void
+    {
+        $t = $this->freeTenant();
+        $this->actingAs($t->owner);
+        $this->withSession(['current_tenant_public_id' => $t->public_id]);
+        $this->assertNull($t->owner->tour_completed_at);
+
+        // Home: tour renders.
+        $this->get('http://localhost/dashboard')
+            ->assertOk()
+            ->assertSee('onboardingTour(', false);
+
+        // A deep dashboard page: tour must NOT render (would block clicks).
+        $this->get('http://localhost/dashboard/settings')
+            ->assertOk()
+            ->assertDontSee('onboardingTour(', false);
+        $this->get('http://localhost/dashboard/bookings')
+            ->assertOk()
+            ->assertDontSee('onboardingTour(', false);
+    }
+
     public function test_finish_is_idempotent(): void
     {
         $t = $this->freeTenant();
