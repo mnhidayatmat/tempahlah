@@ -364,6 +364,16 @@ class BookingController extends Controller
         // Confirm the room belongs to the current tenant (BelongsToTenant scope filters this).
         abort_unless(Room::find($validated['room_id']), 403);
 
+        // Free-tier monthly booking cap. Paid / trialing tenants are unlimited.
+        $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
+        if ($tenant && ! \App\Support\Billing\PlanLimits::canAddBooking($tenant)) {
+            return back()
+                ->withInput()
+                ->with('error', __('You\'ve reached your Free plan limit of :n bookings this month. Upgrade to Pro for unlimited bookings.', [
+                    'n' => \App\Support\Billing\PlanLimits::maxBookingsPerMonth(),
+                ]));
+        }
+
         $validated['is_foreigner'] = (bool) ($validated['is_foreigner'] ?? false);
         $validated['guest_country'] = $validated['guest_country'] ?? 'MY';
         $paymentReceived = $validated['payment_received'] ?? 'none';

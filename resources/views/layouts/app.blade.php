@@ -61,6 +61,11 @@
                             {{ session('status') }}
                         </div>
                     @endif
+                    @if (session('error'))
+                        <div class="hauz-card" style="padding:12px 16px; margin-bottom:16px; background: var(--err-tint); border-color: color-mix(in oklab, var(--err) 30%, transparent); color: var(--err);">
+                            {{ session('error') }}
+                        </div>
+                    @endif
                     {{ $slot ?? '' }}
                     @yield('content')
                 </main>

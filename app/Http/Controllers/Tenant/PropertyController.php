@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Amenity;
 use App\Models\Property;
 use App\Models\Room;
+use App\Support\Billing\PlanLimits;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,28 @@ class PropertyController extends Controller
 
         $mode = $validated['pricing_mode'] ?? Property::PRICING_WHOLE_HOUSE;
         $bedrooms = (int) $validated['bedrooms'];
+
+        // Free-tier caps (config/homestay.php → free_tier_limits). Paid /
+        // trialing tenants are never limited.
+        if (! PlanLimits::canAddProperty($tenant)) {
+            return redirect()
+                ->route('tenant.properties.index')
+                ->with('error', __('Your Free plan includes :n homestay. Upgrade to Pro for unlimited homestays.', [
+                    'n' => PlanLimits::maxProperties(),
+                ]));
+        }
+
+        // A per-room property creates one Room per bedroom; a whole-house
+        // property is always a single Room, so this only bites large per-room
+        // setups on the Free plan.
+        $requestedRooms = $mode === Property::PRICING_WHOLE_HOUSE ? 1 : $bedrooms;
+        if (! PlanLimits::roomsAllowed($tenant, $requestedRooms)) {
+            return back()
+                ->withInput()
+                ->with('error', __('Your Free plan allows up to :n rooms per homestay. Upgrade to Pro for unlimited rooms.', [
+                    'n' => PlanLimits::maxRoomsPerProperty(),
+                ]));
+        }
         // Sensible default for whole-house capacity: 2 guests per bedroom.
         $maxGuests = (int) ($validated['max_guests'] ?? max(2, $bedrooms * 2));
 

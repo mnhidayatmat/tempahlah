@@ -49,6 +49,17 @@ class PublicBookingController extends Controller
         $tenant = $request->attributes->get('subdomain_tenant');
         $data = $request->validated();
 
+        // Free-tier monthly booking cap. When the host is on the Free plan and
+        // has hit their monthly allowance, online booking is unavailable until
+        // next month. The guest can't upgrade — point them at the host instead
+        // of exposing a plan upsell. Paid / trialing hosts are unlimited.
+        if (! \App\Support\Billing\PlanLimits::canAddBooking($tenant)) {
+            return redirect()
+                ->route('tenant-public.home', ['tenant_slug' => $tenant->slug])
+                ->withInput()
+                ->with('booking_error', __('Online booking is temporarily unavailable. Please contact the host directly to book.'));
+        }
+
         // Resolve the effective payment method. Manual (bank transfer / cash)
         // is always available to the guest; the online gateway only when the
         // tenant has one connected. So a guest who asks for the gateway on a
