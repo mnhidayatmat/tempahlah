@@ -46,6 +46,9 @@ class SettingsController extends Controller
             'business_name'   => 'required|string|max:120',
             'business_email'  => 'required|email|max:160',
             'business_phone'  => 'nullable|string|max:32',
+            // The owner's display name lives on the User record, not the tenant,
+            // so it's pulled out of $validated before the tenant fill() below.
+            'owner_name'      => 'required|string|max:120',
             'ssm_number'      => 'nullable|string|max:32',
             'motac_license'   => 'nullable|string|max:64',
             'slug'            => [
@@ -84,6 +87,11 @@ class SettingsController extends Controller
             'accent_color.regex'    => __('Pick a valid hex color (e.g. #e8b94a).'),
         ]);
 
+        // Owner name updates the User record, not the tenant, so lift it out
+        // before the tenant fill() below (owner_name is not a tenants column).
+        $ownerName = trim($validated['owner_name']);
+        unset($validated['owner_name']);
+
         // Store the business phone in E.164 — it drives the public page's
         // wa.me links and the WhatsApp sender. Unparseable input is kept as
         // typed rather than blanked.
@@ -113,6 +121,13 @@ class SettingsController extends Controller
 
         $oldSlug = $tenant->slug;
         $tenant->fill($validated)->save();
+
+        // Owner's display name (on the User record). Only write when it actually
+        // changed so we don't touch the row on every settings save.
+        $owner = $tenant->owner;
+        if ($owner && $ownerName !== '' && $owner->name !== $ownerName) {
+            $owner->forceFill(['name' => $ownerName])->save();
+        }
 
         $msg = $oldSlug !== $tenant->slug
             ? __('Settings saved. Your booking page is now :url — the old :old.tempahlah.com address no longer works.', [

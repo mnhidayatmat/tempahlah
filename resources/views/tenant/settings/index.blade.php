@@ -134,8 +134,8 @@
                         <input class="input" type="tel" inputmode="tel" name="business_phone" value="{{ old('business_phone', $tenant->business_phone) }}" maxlength="32" placeholder="+60123456789" data-phone-input>
                     </div>
                     <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Owner') }}</label>
-                        <input class="input" type="text" value="{{ $tenant->owner?->name ?? '—' }}" disabled style="opacity: .7;">
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Owner') }} *</label>
+                        <input class="input" type="text" name="owner_name" value="{{ old('owner_name', $tenant->owner?->name) }}" required maxlength="120">
                     </div>
                     <div x-data="{
                             slug: '{{ old('slug', $tenant->slug) }}',
