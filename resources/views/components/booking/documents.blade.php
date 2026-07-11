@@ -93,29 +93,29 @@
             </div>
             <div class="bk-doc-actions">
                 @if ($d['ready'])
-                    <a class="bk-doc-btn" target="_blank" rel="noopener"
-                       href="{{ route('tenant.bookings.documents.show', [$booking->id, $d['type']]) }}">
+                    <x-btn-link class="bk-doc-btn" target="_blank" rel="noopener"
+                       :href="route('tenant.bookings.documents.show', [$booking->id, $d['type']])">
                         <x-icon name="link" :size="13"/> {{ __('View PDF') }}
-                    </a>
+                    </x-btn-link>
                     <form method="POST" action="{{ route('tenant.bookings.documents.send', $booking->id) }}">
                         @csrf
                         <input type="hidden" name="doc" value="{{ $d['type'] }}">
                         <input type="hidden" name="channel" value="email">
-                        <button type="submit" class="bk-doc-btn"
-                                {{ $hasEmail ? '' : 'disabled' }}
+                        <x-btn-submit class="bk-doc-btn"
+                                :disabled="! $hasEmail"
                                 title="{{ $hasEmail ? __('Email to :addr', ['addr' => $booking->guestEmail()]) : __('No guest email on file') }}">
                             <x-icon name="mail" :size="13"/> {{ __('Email') }}
-                        </button>
+                        </x-btn-submit>
                     </form>
                     <form method="POST" action="{{ route('tenant.bookings.documents.send', $booking->id) }}">
                         @csrf
                         <input type="hidden" name="doc" value="{{ $d['type'] }}">
                         <input type="hidden" name="channel" value="whatsapp">
-                        <button type="submit" class="bk-doc-btn bk-doc-btn--wa"
-                                {{ $canWa ? '' : 'disabled' }}
+                        <x-btn-submit class="bk-doc-btn bk-doc-btn--wa"
+                                :disabled="! $canWa"
                                 title="{{ $canWa ? __('Send via WhatsApp') : (! $waConnected ? __('Connect WhatsApp under Integrations') : __('No guest phone on file')) }}">
                             <x-icon name="message" :size="13"/> {{ __('WhatsApp') }}
-                        </button>
+                        </x-btn-submit>
                     </form>
                 @else
                     <span style="font-size:12px; color:var(--ink-3);">{{ __('Available after payment') }}</span>

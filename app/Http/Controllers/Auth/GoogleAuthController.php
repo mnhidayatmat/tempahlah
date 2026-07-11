@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Actions\Tenancy\CreateTenantAndOwner;
 use App\Http\Controllers\Controller;
 use App\Models\TenantUser;
 use App\Models\User;
@@ -123,22 +122,27 @@ class GoogleAuthController extends Controller
             return $this->loginAndRedirect($request, $user, returning: true);
         }
 
-        // Path B — new user. Auto-create a tenant via the same action the
-        // manual register form uses. The host can rename later in Settings.
-        $tenant = app(CreateTenantAndOwner::class)->execute([
-            'name'          => $name ?: explode('@', $email)[0],
-            'email'         => $email,
-            'phone'         => null,
-            // Google users have no password — set a random unguessable hash
-            // so the NOT NULL constraint is satisfied. They authenticate via
-            // Google going forward (they can use "Forgot password" to set one
-            // if they ever want to sign in with a password too).
-            'password'      => Hash::make(Str::random(40)),
-            'locale'        => app()->getLocale(),
-            'business_name' => $name ?: ('Homestay '.Str::random(4)),
+        // Path B — new user. Create the account only; we do NOT auto-generate
+        // a tenant/business name from the Google profile or email. Log them in
+        // and send them to the one-step "name your homestay" onboarding, where
+        // the host types the name guests will see (mirrors the /register form).
+        $user = User::create([
+            'name'      => $name ?: explode('@', $email)[0],
+            'email'     => $email,
+            'phone'     => null,
+            // Google users have no password — set a random unguessable hash so
+            // the NOT NULL constraint is satisfied. They authenticate via Google
+            // going forward (they can use "Forgot password" to set one too).
+            'password'          => Hash::make(Str::random(40)),
+            'locale'            => app()->getLocale(),
+            'user_type'         => User::TYPE_TENANT_USER,
+            'email_verified_at' => now(),
         ]);
 
-        return $this->loginAndRedirect($request, $tenant->owner, returning: false);
+        Auth::login($user, remember: true);
+
+        return redirect()->route('onboarding.homestay')
+            ->with('status', __('One last step — name your homestay.'));
     }
 
     /**

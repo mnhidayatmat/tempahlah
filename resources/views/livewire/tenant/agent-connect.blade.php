@@ -10,6 +10,9 @@
 
 <div wire:poll.5s style="display:flex; flex-direction:column; gap: 20px;">
 
+    {{-- Ships the .bs-spinner styles used by the wire:loading states below. --}}
+    <x-busy-ui />
+
     {{-- Pro gate ----------------------------------------------------- --}}
     @if (! $unlocked)
         <x-pro-lock
@@ -241,7 +244,12 @@
         </div>
 
         <div style="display:flex; gap: 10px; justify-content:flex-end;">
-            <button type="submit" class="btn btn-primary">{{ __('Save settings') }}</button>
+            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="save">
+                <span wire:loading.remove wire:target="save">{{ __('Save settings') }}</span>
+                <span wire:loading wire:target="save">
+                    <span class="bs-spinner bs-spinner--inline" aria-hidden="true"></span>{{ __('Saving…') }}
+                </span>
+            </button>
         </div>
     </form>
 
@@ -255,8 +263,15 @@
             <input class="input" type="text" wire:model="testMessage"
                    placeholder="{{ __('e.g. Is your homestay available 25–28 June for 4 pax?') }}"
                    style="flex: 1;">
-            <button type="button" class="btn btn-primary" wire:click="runTest" @disabled($testRunning || empty($availableProviders))>
-                @if ($testRunning) {{ __('Thinking…') }} @else {{ __('Test') }} @endif
+            {{-- wire:target pins the loading state to this action, so the root's
+                 wire:poll.5s and the wire:model.live fields don't trip it. --}}
+            <button type="button" class="btn btn-primary" wire:click="runTest"
+                    wire:loading.attr="disabled" wire:target="runTest"
+                    @disabled(empty($providers))>
+                <span wire:loading.remove wire:target="runTest">{{ __('Test') }}</span>
+                <span wire:loading wire:target="runTest">
+                    <span class="bs-spinner bs-spinner--inline" aria-hidden="true"></span>{{ __('Thinking…') }}
+                </span>
             </button>
         </div>
         @if ($testReply)

@@ -36,7 +36,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <a href="{{ route('tenant.payments.export') }}" class="btn btn-sm">{{ __('Export CSV') }}</a>
+                <x-btn-link class="btn btn-sm" :href="route('tenant.payments.export')">{{ __('Export CSV') }}</x-btn-link>
             </div>
         </div>
 

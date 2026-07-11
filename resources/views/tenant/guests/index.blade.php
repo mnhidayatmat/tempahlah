@@ -13,7 +13,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <a href="{{ route('tenant.guests.export', ['q' => $q]) }}" class="btn btn-sm">{{ __('Export CSV') }}</a>
+                <x-btn-link class="btn btn-sm" :href="route('tenant.guests.export', ['q' => $q])">{{ __('Export CSV') }}</x-btn-link>
             </div>
         </div>
 

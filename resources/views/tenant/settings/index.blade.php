@@ -317,16 +317,29 @@
                 </div>
             </div>
 
-            {{-- Check-out reminder --}}
+            {{-- Check-out reminder — auto WhatsApp = a Pro (auto_reminders) feature. --}}
+            @php $canAutoRemind = \Laravel\Pennant\Feature::active('auto_reminders'); @endphp
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Check-out reminder') }}</div>
                 <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
                     {{ __('Automatically WhatsApp the guest your check-out guidelines a few hours before they leave (clean up, take out the rubbish, lock up, etc.). Sends only if your WhatsApp is connected.') }}
                 </p>
 
-                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                @unless ($canAutoRemind)
+                    <div style="display:flex; align-items:center; gap:10px; margin: 0 0 16px; padding:12px 14px; border-radius:var(--r-md); background:var(--pro-tint); color:var(--pro); font-size:12.5px;">
+                        <x-icon name="lock" :size="14"/>
+                        <span style="flex:1; min-width:0;">
+                            {{ __('Automatic check-out reminders are a Pro feature.') }}
+                        </span>
+                        <a href="{{ route('tenant.subscription') }}" class="btn btn-sm">{{ __('Upgrade') }} →</a>
+                    </div>
+                @endunless
+
+                <fieldset @disabled(! $canAutoRemind) style="border:0; padding:0; margin:0; {{ $canAutoRemind ? '' : 'opacity:.55;' }}">
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: {{ $canAutoRemind ? 'pointer' : 'not-allowed' }};">
                     <input type="hidden" name="checkout_reminder_enabled" value="0">
                     <input type="checkbox" name="checkout_reminder_enabled" value="1" style="margin-top: 2px;"
+                           @disabled(! $canAutoRemind)
                            {{ old('checkout_reminder_enabled', $tenant->checkoutReminderEnabled()) ? 'checked' : '' }}>
                     <span>
                         <span style="font-size: 13px; font-weight: 600;">{{ __('Send a check-out reminder on WhatsApp') }}</span>
@@ -339,6 +352,7 @@
                 <div style="margin-top: 16px; max-width: 280px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Hours before check-out') }}</label>
                     <input class="input" type="number" name="checkout_reminder_hours" min="1" max="72" step="1"
+                           @disabled(! $canAutoRemind)
                            value="{{ old('checkout_reminder_hours', $tenant->checkoutReminderHours()) }}">
                     <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('e.g. 3 = sent 3 hours before the property’s check-out time.') }}</div>
                 </div>
@@ -346,22 +360,37 @@
                 <div style="margin-top: 16px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Check-out guidelines message') }}</label>
                     <textarea class="input" name="checkout_reminder_message" rows="6"
+                              @disabled(! $canAutoRemind)
                               style="height:auto; padding:10px 12px; resize:vertical;"
                               placeholder="{{ __(\App\Models\Tenant::DEFAULT_CHECKOUT_MESSAGE) }}">{{ old('checkout_reminder_message', $tenant->checkout_reminder_message) }}</textarea>
                     <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Leave blank to use the default guidelines shown above. A greeting and your check-out time are added automatically.') }}</div>
                 </div>
+                </fieldset>
             </div>
 
-            {{-- Housekeeping automation --}}
+            {{-- Housekeeping automation — auto-scheduling = a Pro (auto_operational_tasks) feature. --}}
+            @php $canAutoHousekeep = \Laravel\Pennant\Feature::active('auto_operational_tasks'); @endphp
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Housekeeping automation') }}</div>
                 <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
                     {{ __('Automatically schedule cleaning + laundry from your bookings, following a typical homestay routine — no manual setup per booking.') }}
                 </p>
 
-                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                @unless ($canAutoHousekeep)
+                    <div style="display:flex; align-items:center; gap:10px; margin: 0 0 16px; padding:12px 14px; border-radius:var(--r-md); background:var(--pro-tint); color:var(--pro); font-size:12.5px;">
+                        <x-icon name="lock" :size="14"/>
+                        <span style="flex:1; min-width:0;">
+                            {{ __('Auto-scheduling cleaning & laundry is a Pro feature. On the free plan, schedule housekeeping tasks by hand in Housekeeping.') }}
+                        </span>
+                        <a href="{{ route('tenant.subscription') }}" class="btn btn-sm">{{ __('Upgrade') }} →</a>
+                    </div>
+                @endunless
+
+                <fieldset @disabled(! $canAutoHousekeep) style="border:0; padding:0; margin:0; {{ $canAutoHousekeep ? '' : 'opacity:.55;' }}">
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: {{ $canAutoHousekeep ? 'pointer' : 'not-allowed' }};">
                     <input type="hidden" name="auto_housekeeping" value="0">
                     <input type="checkbox" name="auto_housekeeping" value="1" style="margin-top: 2px;"
+                           @disabled(! $canAutoHousekeep)
                            {{ old('auto_housekeeping', $tenant->autoHousekeepingEnabled()) ? 'checked' : '' }}>
                     <span>
                         <span style="font-size: 13px; font-weight: 600;">{{ __('Auto-schedule cleaning & laundry from bookings') }}</span>
@@ -370,6 +399,7 @@
                         </span>
                     </span>
                 </label>
+                </fieldset>
 
                 <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 11.5px; color: var(--ink-2); line-height: 1.6;">
                     <div style="font-weight: 600; margin-bottom: 4px;">{{ __('When a booking is confirmed, the system will:') }}</div>

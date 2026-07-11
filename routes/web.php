@@ -138,9 +138,24 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             ->name('verify');
     });
 
-    // Tenant onboarding bridge (when user has no tenant)
-    Route::get('/onboard', function () {
-        return redirect()->route('register');
+    // "Name your homestay" — one-step onboarding for an authenticated but
+    // tenant-less host (chiefly Google sign-ups). The host types the business
+    // name; nothing is auto-generated from their Google profile / email.
+    Route::middleware('auth')->group(function () {
+        Route::get('/onboard/homestay', [\App\Http\Controllers\Onboarding\CreateHomestayController::class, 'show'])
+            ->name('onboarding.homestay');
+        Route::post('/onboard/homestay', [\App\Http\Controllers\Onboarding\CreateHomestayController::class, 'store'])
+            ->middleware('throttle:auth-login')
+            ->name('onboarding.homestay.store');
+    });
+
+    // Tenant onboarding bridge (when user has no tenant). An authenticated
+    // user is missing a workspace → send them to name their homestay; a guest
+    // → the full signup form.
+    Route::get('/onboard', function (\Illuminate\Http\Request $request) {
+        return $request->user()
+            ? redirect()->route('onboarding.homestay')
+            : redirect()->route('register');
     })->name('tenant.onboard');
 
     // OAuth callbacks (platform-owned OAuth apps — Tempahlah holds the

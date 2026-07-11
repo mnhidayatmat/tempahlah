@@ -76,6 +76,11 @@ class SettingsController extends Controller
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
 
+        // Automatic check-out reminders (auto WhatsApp) are a Pro feature. The
+        // free-tenant form submits them disabled, but guard server-side too so a
+        // crafted POST can never enable them.
+        $canAutoRemind = $tenant->isPaid();
+
         $reservedSlugs = CreateTenantAndOwner::reservedSlugs();
 
         $validated = $request->validate([
@@ -108,7 +113,9 @@ class SettingsController extends Controller
             'manual_payment_instructions' => 'nullable|string|max:2000',
             'refund_policy'            => 'nullable|string|max:2000',
             'checkout_reminder_enabled' => 'nullable|boolean',
-            'checkout_reminder_hours'  => 'required|integer|min:1|max:72',
+            // Only required when the tenant can actually use it (Pro); a free
+            // tenant's disabled field submits nothing, so don't demand it.
+            'checkout_reminder_hours'  => ($canAutoRemind ? 'required' : 'nullable').'|integer|min:1|max:72',
             'checkout_reminder_message' => 'nullable|string|max:2000',
             'auto_housekeeping'        => 'nullable|boolean',
             'primary_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
@@ -138,8 +145,26 @@ class SettingsController extends Controller
 
         $validated['sst_registered'] = $request->boolean('sst_registered');
         $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
-        $validated['checkout_reminder_enabled'] = $request->boolean('checkout_reminder_enabled');
-        $validated['auto_housekeeping'] = $request->boolean('auto_housekeeping');
+        if ($canAutoRemind) {
+            $validated['checkout_reminder_enabled'] = $request->boolean('checkout_reminder_enabled');
+        } else {
+            // Free tenant — never write reminder settings. Leave any existing DB
+            // values untouched; the dispatch command gates on paid tier too, so
+            // a value left over from a prior Pro period will not fire.
+            unset(
+                $validated['checkout_reminder_enabled'],
+                $validated['checkout_reminder_hours'],
+                $validated['checkout_reminder_message'],
+            );
+        }
+        // Auto-scheduling cleaning & laundry is a Pro (auto_operational_tasks)
+        // feature. Free tenants submit it disabled; guard server-side too so a
+        // crafted POST can't enable it. Leave any existing DB value untouched.
+        if ($tenant->isPaid()) {
+            $validated['auto_housekeeping'] = $request->boolean('auto_housekeeping');
+        } else {
+            unset($validated['auto_housekeeping']);
+        }
         if (! $validated['sst_registered']) {
             $validated['sst_rate'] = 0;
         } elseif (empty($validated['sst_rate'])) {

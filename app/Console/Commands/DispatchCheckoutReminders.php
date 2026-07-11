@@ -56,7 +56,10 @@ class DispatchCheckoutReminders extends Command
             ->chunkById(100, function ($bookings) use (&$count, $dry, $now) {
                 foreach ($bookings as $booking) {
                     $tenant = $booking->tenant;
-                    if (! $tenant || ! $tenant->checkoutReminderEnabled()) {
+                    // Auto reminders are a Pro feature — skip free tenants even
+                    // if a stale checkout_reminder_enabled=true is left in the DB
+                    // from a lapsed Pro period.
+                    if (! $tenant || ! $tenant->isPaid() || ! $tenant->checkoutReminderEnabled()) {
                         continue;
                     }
 

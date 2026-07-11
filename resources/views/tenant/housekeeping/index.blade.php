@@ -115,22 +115,35 @@
                     · {{ $laundryStats['in_progress'] }} {{ __('laundry batches in cycle') }}
                 </div>
             </div>
+            @php $canAutoHousekeep = \Laravel\Pennant\Feature::active('auto_operational_tasks'); @endphp
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                {{-- Auto-generate toggle: when on, every new confirmed booking auto-schedules cleaning + laundry --}}
-                <form method="POST" action="{{ route('tenant.housekeeping.auto-toggle') }}"
-                      class="hauz-card" style="padding:8px 12px; margin:0;">
-                    @csrf
-                    <label class="hk-switch" title="{{ __('When on, a confirmed booking automatically schedules its cleaning + laundry.') }}">
-                        <input type="checkbox" name="auto_housekeeping" value="1" @checked($autoHousekeeping) onchange="this.form.submit()">
-                        <span class="hk-switch-track"><span class="hk-switch-thumb"></span></span>
-                        <span class="hk-switch-label">{{ __('Generate from bookings') }}</span>
-                    </label>
-                </form>
-                <form method="POST" action="{{ route('tenant.housekeeping.generate') }}"
-                      onsubmit="return confirm('{{ __('Auto-schedule cleaning + laundry for all upcoming confirmed bookings? Existing tasks are kept.') }}')">
-                    @csrf
-                    <button type="submit" class="btn btn-sm">{{ __('Generate now for existing bookings') }}</button>
-                </form>
+                @if ($canAutoHousekeep)
+                    {{-- Auto-generate toggle: when on, every new confirmed booking auto-schedules cleaning + laundry --}}
+                    <form method="POST" action="{{ route('tenant.housekeeping.auto-toggle') }}"
+                          class="hauz-card" style="padding:8px 12px; margin:0;">
+                        @csrf
+                        <label class="hk-switch" title="{{ __('When on, a confirmed booking automatically schedules its cleaning + laundry.') }}">
+                            <input type="checkbox" name="auto_housekeeping" value="1" @checked($autoHousekeeping) onchange="this.form.submit()">
+                            <span class="hk-switch-track"><span class="hk-switch-thumb"></span></span>
+                            <span class="hk-switch-label">{{ __('Generate from bookings') }}</span>
+                        </label>
+                    </form>
+                    <form method="POST" action="{{ route('tenant.housekeeping.generate') }}"
+                          onsubmit="return confirm('{{ __('Auto-schedule cleaning + laundry for all upcoming confirmed bookings? Existing tasks are kept.') }}')">
+                        @csrf
+                        {{-- Walks every upcoming confirmed booking, so it scales with the
+                             tenant's calendar rather than being a constant-time write. --}}
+                        <x-btn-submit class="btn btn-sm">{{ __('Generate now for existing bookings') }}</x-btn-submit>
+                    </form>
+                @else
+                    {{-- Auto-scheduling is a Pro feature. Free tenants schedule tasks by
+                         hand below; show an upgrade prompt instead of the controls. --}}
+                    <a href="{{ route('tenant.subscription') }}" class="hauz-card"
+                       style="display:flex; align-items:center; gap:8px; padding:8px 12px; margin:0; text-decoration:none; color:var(--pro); background:var(--pro-tint); font-size:12px;">
+                        <x-icon name="lock" :size="13"/>
+                        <span>{{ __('Auto-schedule from bookings — Pro') }}</span>
+                    </a>
+                @endif
                 <a href="{{ route('tenant.housekeeping.print') }}" target="_blank" rel="noopener" class="btn btn-sm">{{ __("Print today's run sheet") }}</a>
             </div>
         </div>

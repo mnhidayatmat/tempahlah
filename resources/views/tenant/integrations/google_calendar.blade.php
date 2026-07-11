@@ -109,7 +109,9 @@
                             @if (! empty($record->config['calendar_id']))
                                 <a href="{{ route('tenant.integrations.show', 'google_calendar') }}" class="btn">{{ __('Cancel') }}</a>
                             @endif
-                            <button type="submit" class="btn btn-primary">{{ __('Save calendar choice') }}</button>
+                            {{-- Refreshes the access token, and may create a new calendar
+                                 at Google — two round-trips before we redirect. --}}
+                            <x-btn-submit class="btn btn-primary">{{ __('Save calendar choice') }}</x-btn-submit>
                         </div>
                     </form>
                 @endif
@@ -199,7 +201,8 @@
                           style="margin-left: auto;">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--err, #b94a3a);">{{ __('Disconnect') }}</button>
+                        {{-- Revokes the refresh token at Google before clearing our row. --}}
+                        <x-btn-submit class="btn btn-ghost btn-sm" style="color: var(--err, #b94a3a);">{{ __('Disconnect') }}</x-btn-submit>
                     </form>
                 </div>
             </div>

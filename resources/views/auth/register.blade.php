@@ -909,8 +909,9 @@
                     </label>
                     @error('terms') <span class="field-err" style="margin-top:-22px; display:block; margin-bottom: 18px;">{{ $message }}</span> @enderror
 
-                    <button type="submit" class="cta">
+                    <button type="submit" class="cta" data-busy-submit>
                         <span class="cta-label">
+                            <span class="bs-spinner" aria-hidden="true"></span>
                             {{ $isBM ? 'Buka homestay anda' : 'Open your inn' }}
                             <span class="arrow" aria-hidden="true">→</span>
                         </span>
@@ -918,6 +919,7 @@
                             {{ $isBM ? 'Selamat memulakan ✦' : 'Welcome to the keepers ✦' }}
                         </span>
                     </button>
+                    <x-busy-ui />
 
                     <div class="or-sep" aria-hidden="true">
                         <span>{{ $isBM ? 'atau' : 'or' }}</span>

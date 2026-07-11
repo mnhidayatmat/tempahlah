@@ -146,8 +146,13 @@ new class extends Component
             <option value="active">{{ __('Active') }}</option>
             <option value="archived">{{ __('Archived') }}</option>
         </select>
-        <button type="submit" class="rounded-md bg-sky-600 text-white px-5 py-2.5 hover:bg-sky-700">
-            {{ __('Save property') }}
+        <button type="submit" wire:loading.attr="disabled" wire:target="save"
+                class="rounded-md bg-sky-600 text-white px-5 py-2.5 hover:bg-sky-700 disabled:opacity-60 disabled:cursor-progress">
+            <span wire:loading.remove wire:target="save">{{ __('Save property') }}</span>
+            <span wire:loading wire:target="save">
+                <span class="bs-spinner bs-spinner--inline" aria-hidden="true"></span>{{ __('Saving…') }}
+            </span>
         </button>
+        <x-busy-ui />
     </div>
 </form>

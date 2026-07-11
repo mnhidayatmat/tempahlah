@@ -7,6 +7,7 @@ use App\Http\Middleware\Tenancy\ResolveTenantFromPath;
 use App\Http\Middleware\Tenancy\ResolveTenantFromSubdomain;
 use App\Http\Middleware\Tenancy\SetTenantContext;
 use App\Http\Middleware\VerifyWhatsappWebhook;
+use App\Support\Http\DownloadToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -44,6 +45,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // body — it re-checks the payment state with the gateway directly.
         $middleware->validateCsrfTokens(except: [
             'payments/return/*',
+        ]);
+
+        // Echoed straight back to the page that asked for a download, so it can
+        // tell when the file started arriving and stop its spinner. Encrypting it
+        // would hand the browser a ciphertext it cannot compare. Carries no secret
+        // — it is the client's own nonce. See App\Support\Http\DownloadToken.
+        $middleware->encryptCookies(except: [
+            DownloadToken::COOKIE,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

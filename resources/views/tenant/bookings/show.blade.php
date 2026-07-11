@@ -131,17 +131,17 @@
                             <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}">
                                 @csrf
                                 <input type="hidden" name="kind" value="booking_fee">
-                                <button type="submit" class="bk-menu-item">
+                                <x-btn-submit class="bk-menu-item">
                                     <x-icon name="check" :size="14"/> <span>{{ __('Mark booking fee paid') }}</span>
-                                </button>
+                                </x-btn-submit>
                             </form>
                         @endunless
                         <form method="POST" action="{{ route('tenant.bookings.mark-paid', $booking->id) }}">
                             @csrf
                             <input type="hidden" name="kind" value="full">
-                            <button type="submit" class="bk-menu-item bk-menu-item--primary">
+                            <x-btn-submit class="bk-menu-item bk-menu-item--primary">
                                 <x-icon name="check" :size="14"/> <span>{{ __('Mark fully paid') }}</span>
-                            </button>
+                            </x-btn-submit>
                         </form>
                     @endif
 

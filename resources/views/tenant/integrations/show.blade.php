@@ -76,9 +76,11 @@
         @if ($record->exists)
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 @if (in_array($provider, ['toyyibpay', 'billplz', 'securepay'], true) && $record->enabled)
+                    {{-- Live round-trip to the gateway (Toyyibpay's even creates then
+                         deletes a RM1 bill), so this can sit for a second or two. --}}
                     <form method="POST" action="{{ route('tenant.integrations.'.$provider.'.test') }}" style="display:inline;">
                         @csrf
-                        <button type="submit" class="btn btn-sm">{{ __('Test connection') }}</button>
+                        <x-btn-submit class="btn btn-sm">{{ __('Test connection') }}</x-btn-submit>
                     </form>
                 @else
                     <span></span>

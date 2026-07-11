@@ -162,6 +162,8 @@ html[data-theme="dark"] input:-webkit-autofill {
 .btn-ghost:hover { background: var(--bg-tint); }
 .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
 .btn-lg { height: 44px; padding: 0 18px; font-size: 14px; }
+.btn:disabled, .btn[disabled] { opacity: .55; cursor: not-allowed; }
+.btn:disabled:active, .btn[disabled]:active { transform: none; }
 
 .card, .hauz-card { background: var(--bg-elev); border: .5px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
 

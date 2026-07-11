@@ -22,7 +22,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
-                <a href="{{ route('tenant.reports.export-pdf') }}" class="btn btn-sm">{{ __('Export PDF') }}</a>
+                <x-btn-link class="btn btn-sm" :href="route('tenant.reports.export-pdf')">{{ __('Export PDF') }}</x-btn-link>
             </div>
         </div>
 

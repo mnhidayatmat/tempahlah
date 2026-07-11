@@ -83,11 +83,13 @@
                                 </div>
                             @else
                                 <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px;">
+                                    {{-- Guarded for idempotence, not latency: the work is queued,
+                                         but a double-click emails + WhatsApps the guest twice. --}}
                                     <form method="POST" action="{{ route('tenant.refunds.request-bank', $r->id) }}">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-primary">
+                                        <x-btn-submit class="btn btn-sm btn-primary">
                                             {{ $r->bank_details_requested_at ? __('Re-send bank request') : __('Request bank details') }}
-                                        </button>
+                                        </x-btn-submit>
                                     </form>
                                     @if ($r->bank_details_requested_at)
                                         <span style="font-size: 11px; color: var(--ink-3);">{{ __('Requested :when — waiting for guest', ['when' => $r->bank_details_requested_at->diffForHumans()]) }}</span>

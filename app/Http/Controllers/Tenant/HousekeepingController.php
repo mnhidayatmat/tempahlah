@@ -321,6 +321,13 @@ class HousekeepingController extends Controller
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
 
+        // Auto-scheduling is a Pro (auto_operational_tasks) feature. Free tenants
+        // never get the toggle rendered, but guard the endpoint too so a crafted
+        // POST can't enable it.
+        if (! $tenant->isPaid()) {
+            return back()->with('error', __('Auto-scheduling cleaning & laundry is a Pro feature. Upgrade to enable it.'));
+        }
+
         $on = $request->boolean('auto_housekeeping');
         $tenant->update(['auto_housekeeping' => $on]);
 
@@ -339,6 +346,13 @@ class HousekeepingController extends Controller
     {
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
+
+        // Auto-scheduling is a Pro (auto_operational_tasks) feature, and this
+        // path passes force:true to the action (bypassing its own tier gate),
+        // so we MUST gate here — otherwise a free tenant could bulk-generate.
+        if (! $tenant->isPaid()) {
+            return back()->with('error', __('Auto-scheduling cleaning & laundry is a Pro feature. Upgrade to enable it.'));
+        }
 
         $bookings = \App\Models\Booking::query()
             ->with('property')
