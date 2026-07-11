@@ -200,7 +200,7 @@
                 if (this.validRange()) q.set('check_out', this.checkOut);
                 if (this.guests) q.set('guests', this.guests);
                 q.set('pay', this.manual ? 'manual' : 'gateway');
-                return `${this.publicUrl}/?${q.toString()}`;
+                return `${this.publicUrl}?${q.toString()}`;
             },
 
             money(n) {

@@ -425,7 +425,15 @@ class Tenant extends Model
         $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'https';
         $port = parse_url($appUrl, PHP_URL_PORT);
         $portSuffix = $port && ! in_array((int) $port, [80, 443], true) ? ':'.$port : '';
+        $domain = config('app.tenant_domain');
 
-        return $scheme.'://'.$this->slug.'.'.config('app.tenant_domain').$portSuffix;
+        // Pro perk: a clean subdomain (slug.tempahlah.com). Free tenants publish
+        // under the apex path (tempahlah.com/slug) — and their subdomain 404s,
+        // enforced in ResolveTenantFromSubdomain.
+        if ($this->isPaid()) {
+            return $scheme.'://'.$this->slug.'.'.$domain.$portSuffix;
+        }
+
+        return $scheme.'://'.$domain.$portSuffix.'/'.$this->slug;
     }
 }

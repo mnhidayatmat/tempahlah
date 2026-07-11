@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\Tenancy\RequireTenant;
+use App\Http\Middleware\Tenancy\ResolveTenantFromPath;
 use App\Http\Middleware\Tenancy\ResolveTenantFromSubdomain;
 use App\Http\Middleware\Tenancy\SetTenantContext;
 use App\Http\Middleware\VerifyWhatsappWebhook;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.context' => SetTenantContext::class,
             'tenant.require' => RequireTenant::class,
             'tenant.subdomain' => ResolveTenantFromSubdomain::class,
+            'tenant.path' => ResolveTenantFromPath::class,
             'wa.webhook' => VerifyWhatsappWebhook::class,
             'platform.admin' => EnsurePlatformAdmin::class,
         ]);

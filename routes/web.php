@@ -59,41 +59,17 @@ Route::get('/subscription/stripe/return', [\App\Http\Controllers\Tenant\StripeCh
 
 // -----------------------------------------------------------------------------
 // Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
-// Resolved by the {tenant_slug} domain parameter via ResolveTenantFromSubdomain.
-// Registered FIRST so subdomain matching wins over the catch-all root group.
+// PRO-ONLY perk: the tenant.subdomain middleware 404s free tenants (they use
+// the canonical tempahlah.com/{slug} path below). Registered FIRST so subdomain
+// matching wins over the apex group. Only the landing lives here — the page's
+// forms + signed magic-links resolve to the tenant-public.* PATH routes
+// (tempahlah.com/slug/...), which work for both free and pro, so there's no
+// need to duplicate the booking flow on the subdomain.
 // -----------------------------------------------------------------------------
 Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
     ->middleware('tenant.subdomain')
-    ->name('tenant-public.')
     ->group(function () {
-        Route::get('/', [TenantHomeController::class, 'index'])->name('home');
-
-        // Public direct-booking flow: guest fills the form on home, we
-        // create a pending booking + Toyyibpay deposit bill + invoice,
-        // then send the pay link via email + WhatsApp.
-        Route::post('/book', [PublicBookingController::class, 'store'])
-            ->middleware('throttle:booking-create-public')
-            ->name('booking.store');
-        Route::get('/book/sent/{reference}', [PublicBookingController::class, 'sent'])
-            ->name('booking.sent');
-
-        // Guest-facing booking detail page reached via a signed magic-link in
-        // the confirmation email + WhatsApp. No password — `signed` middleware
-        // verifies the HMAC over the URL (expires 90d post-checkout). The
-        // {booking} param is the public_id (ULID); model binding resolves it.
-        Route::get('/booking/{booking:public_id}', [PublicBookingController::class, 'show'])
-            ->middleware('signed')
-            ->name('booking.show');
-
-        // Guest submits their bank account for a deposit refund. Signed
-        // magic-link (no password) minted by the host's "Request bank details"
-        // button; the {refund} param is the refund's public_id (ULID).
-        Route::get('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'show'])
-            ->middleware('signed')
-            ->name('refund.bank.show');
-        Route::post('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'submit'])
-            ->middleware('signed')
-            ->name('refund.bank.submit');
+        Route::get('/', [TenantHomeController::class, 'index'])->name('tenant-sub.home');
     });
 
 // -----------------------------------------------------------------------------
@@ -335,3 +311,52 @@ Route::domain(config('app.tenant_domain'))->group(function () {
 
     require __DIR__.'/auth-extra.php';
 });
+
+// -----------------------------------------------------------------------------
+// Tenant public page by PATH — tempahlah.com/{slug}. The CANONICAL public URL:
+// every free tenant lives here, and it's equally valid for pro. Registered LAST
+// so the specific apex routes above (/register, /login, /marketplace, /hosts,
+// /terms, /dashboard, /auth/google, …) always win the match; only an otherwise
+// unmatched first path segment falls through to the tenant resolver.
+//
+// The named tenant-public.* routes live HERE (they used to be domain-based), so
+// every route('tenant-public.*', ['tenant_slug' => …]) in views/controllers now
+// generates a path URL automatically — the public page's booking form + signed
+// magic-links therefore work on the path host with no view/controller changes.
+// The slug is constrained to lowercase/digits/hyphens so it can't swallow paths
+// with dots (files) or other segments.
+// -----------------------------------------------------------------------------
+Route::domain(config('app.tenant_domain'))
+    ->prefix('{tenant_slug}')
+    ->middleware('tenant.path')
+    ->name('tenant-public.')
+    ->where(['tenant_slug' => '[a-z0-9\-]+'])
+    ->group(function () {
+        Route::get('/', [TenantHomeController::class, 'index'])->name('home');
+
+        // Public direct-booking flow: guest fills the form on home, we create a
+        // pending booking + gateway deposit bill + invoice, then send the pay
+        // link via email + WhatsApp.
+        Route::post('/book', [PublicBookingController::class, 'store'])
+            ->middleware('throttle:booking-create-public')
+            ->name('booking.store');
+        Route::get('/book/sent/{reference}', [PublicBookingController::class, 'sent'])
+            ->name('booking.sent');
+
+        // Guest-facing booking detail reached via a signed magic-link in the
+        // confirmation email + WhatsApp. No password — `signed` verifies the
+        // HMAC over the URL. {booking} is the public_id (ULID).
+        Route::get('/booking/{booking:public_id}', [PublicBookingController::class, 'show'])
+            ->middleware('signed')
+            ->name('booking.show');
+
+        // Guest submits their bank account for a deposit refund. Signed
+        // magic-link minted by the host's "Request bank details" button;
+        // {refund} is the refund's public_id (ULID).
+        Route::get('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'show'])
+            ->middleware('signed')
+            ->name('refund.bank.show');
+        Route::post('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'submit'])
+            ->middleware('signed')
+            ->name('refund.bank.submit');
+    });

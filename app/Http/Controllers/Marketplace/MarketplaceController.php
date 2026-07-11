@@ -175,7 +175,7 @@ class MarketplaceController extends Controller
 
         // Click-through to the host's own booking page, carrying marketplace
         // attribution so a resulting booking is flagged as marketplace-sourced.
-        $bookUrl = $listing->tenant->publicUrl().'/?'.http_build_query([
+        $bookUrl = $listing->tenant->publicUrl().'?'.http_build_query([
             'src' => 'marketplace',
             'ref' => 'tempahlah_mp',
             'listing_id' => $listing->id,

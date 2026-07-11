@@ -8,7 +8,13 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class ResolveTenantFromSubdomain
+/**
+ * Resolves the tenant for the canonical path-based public page
+ * (tempahlah.com/{slug}). Works for every active tenant regardless of plan —
+ * the clean subdomain is the Pro-only perk, not the path. Mirrors
+ * ResolveTenantFromSubdomain but without the paid-tier gate.
+ */
+class ResolveTenantFromPath
 {
     public function __construct(protected TenantContext $context) {}
 
@@ -30,16 +36,10 @@ class ResolveTenantFromSubdomain
             abort(404);
         }
 
-        // The clean subdomain (slug.tempahlah.com) is a Pro perk. Free tenants
-        // publish at the canonical path tempahlah.com/slug instead, so their
-        // subdomain 404s — matching Tenant::publicUrl(), which only hands a
-        // subdomain URL to paid tenants.
-        if (! $tenant->isPaid()) {
-            abort(404);
-        }
-
         $this->context->clear();
         $this->context->set($tenant);
+        // Same attribute the subdomain path uses, so TenantHomeController and
+        // the public controllers read the tenant identically on both hosts.
         $request->attributes->set('subdomain_tenant', $tenant);
 
         return $next($request);
