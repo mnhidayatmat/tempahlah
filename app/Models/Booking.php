@@ -199,6 +199,7 @@ class Booking extends Model
         'is_foreigner', 'commission_amount',
         'special_requests', 'source_url', 'source_uid',
         'checked_in_at', 'checked_out_at', 'cancelled_at', 'cancellation_reason',
+        'review_requested_at',
         'meta',
     ];
 
@@ -216,6 +217,7 @@ class Booking extends Model
         'checkout_reminder_sent_at' => 'datetime',
         'checked_in_at' => 'datetime',
         'checked_out_at' => 'datetime',
+        'review_requested_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'is_foreigner' => 'boolean',
         'base_amount' => 'decimal:2',
@@ -394,6 +396,41 @@ class Booking extends Model
         return \Illuminate\Support\Facades\URL::temporarySignedRoute(
             'tenant-public.booking.show',
             $this->check_out->copy()->addDays(90),
+            ['tenant_slug' => $slug, 'booking' => $this->public_id],
+        );
+    }
+
+    /**
+     * The guest's testimonial (a published-or-not guest review of the property).
+     * At most one per booking — SubmitGuestReview is idempotent on booking_id.
+     */
+    public function review(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Review::class)
+            ->where('reviewer_type', Review::REVIEWER_GUEST);
+    }
+
+    public function hasReview(): bool
+    {
+        return $this->review()->exists();
+    }
+
+    /**
+     * Signed, no-login "leave a testimonial" link the guest gets after checkout.
+     * Same pattern as guestPortalUrl — HMAC over the subdomain URL, expiring 60
+     * days after checkout (long enough to nudge a slow reviewer, short enough not
+     * to leave an open form forever).
+     */
+    public function reviewUrl(): string
+    {
+        $slug = $this->tenant?->slug;
+        if (! $slug) {
+            return config('app.url');
+        }
+
+        return \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'tenant-public.review.create',
+            $this->check_out->copy()->addDays(60),
             ['tenant_slug' => $slug, 'booking' => $this->public_id],
         );
     }

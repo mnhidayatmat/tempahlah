@@ -3,6 +3,8 @@
 namespace App\Services\Public;
 
 use App\Models\Booking;
+use App\Models\Property;
+use App\Models\Review;
 use App\Models\Tenant;
 use App\Models\TenantIntegration;
 use App\Services\Pricing\PricingEngine;
@@ -99,6 +101,47 @@ class PublicHomeBuilder
             }
         }
 
+        // Per-property published guest testimonials + their rating summary.
+        // Reviews carry a tenant global scope; bypass it (this is a public,
+        // no-tenant-context request).
+        $reviewsByProperty = [];
+        $ratingByProperty = [];
+        if ($properties->isNotEmpty()) {
+            foreach ($properties as $property) {
+                $reviewsByProperty[$property->id] = [];
+                $ratingByProperty[$property->id] = ['avg' => null, 'count' => 0];
+            }
+
+            $reviews = Review::query()
+                ->withoutGlobalScope(BelongsToTenantScope::class)
+                ->where('reviewer_type', Review::REVIEWER_GUEST)
+                ->where('subject_type', Property::class)
+                ->whereIn('subject_id', $properties->pluck('id'))
+                ->where('is_published', true)
+                ->with(['booking:id,check_out,guest_id', 'booking.guest:id,name'])
+                ->latest()
+                ->get();
+
+            foreach ($reviews as $r) {
+                $reviewsByProperty[$r->subject_id][] = [
+                    'name'    => $r->displayName(),
+                    'rating'  => (int) $r->rating_overall,
+                    'comment' => (string) $r->comment,
+                    'stay'    => $r->stayLabel(),
+                ];
+            }
+
+            foreach ($reviewsByProperty as $pid => $list) {
+                $n = count($list);
+                $ratingByProperty[$pid] = [
+                    'avg'   => $n ? round(array_sum(array_column($list, 'rating')) / $n, 1) : null,
+                    'count' => $n,
+                ];
+                // Cap the payload — a page doesn't need hundreds inline.
+                $reviewsByProperty[$pid] = array_slice($list, 0, 24);
+            }
+        }
+
         $ownerCanAccess = false;
         if ($user = $request->user()) {
             $ownerCanAccess = $user->tenants()
@@ -123,6 +166,8 @@ class PublicHomeBuilder
             'properties'           => $properties,
             'contactPhone'         => preg_replace('/\D/', '', $tenant->business_phone ?? ''),
             'bookedByProperty'     => $bookedByProperty,
+            'reviewsByProperty'    => $reviewsByProperty,
+            'ratingByProperty'     => $ratingByProperty,
             'toyyibpayConfigured'  => $toyyibpayConfigured,
             'gatewayName'          => $gatewayName,
             'manualInstructions'   => $tenant->manualPaymentInstructions(),

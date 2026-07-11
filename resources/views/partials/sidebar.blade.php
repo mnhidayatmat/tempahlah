@@ -14,6 +14,7 @@
     $platformGroups = [
         ['title' => __('Platform'), 'items' => [
             ['key' => 'platform.overview', 'label' => __('Subscribers'), 'icon' => 'chart', 'route' => 'platform.overview'],
+            ['key' => 'platform.testimonials', 'label' => __('Testimonials'), 'icon' => 'star', 'route' => 'platform.testimonials'],
             ['key' => 'platform.settings', 'label' => __('Settings'), 'icon' => 'cog', 'route' => 'platform.settings'],
         ]],
     ];
@@ -24,6 +25,7 @@
             ['key' => 'tenant.calendar',        'label' => __('Calendar'),    'icon' => 'calendar', 'route' => 'tenant.calendar',            'tour' => 'calendar'],
             ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index',      'badge' => $pendingBookings ?: null, 'tour' => 'bookings'],
             ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index',        'tour' => 'guests'],
+            ['key' => 'tenant.testimonials.*',  'label' => __('Testimonials'),'icon' => 'star',     'route' => 'tenant.testimonials.index'],
             ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index',  'badge' => $openCleaning ?: null, 'tour' => 'housekeeping'],
             ['key' => 'tenant.directory.*',     'label' => __('Directory'),   'icon' => 'users',    'route' => 'tenant.directory.index'],
         ]],

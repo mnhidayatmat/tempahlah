@@ -158,6 +158,18 @@
                         </form>
                     @endif
 
+                    {{-- Request testimonial — only after checkout, until one is left --}}
+                    @if ($booking->status === \App\Models\Booking::STATUS_CHECKED_OUT && ! $booking->review)
+                        <form method="POST" action="{{ route('tenant.bookings.request-review', $booking->id) }}">
+                            @csrf
+                            <button type="submit" class="bk-menu-item"
+                                    title="{{ __('Send the guest a link to leave a testimonial') }}">
+                                <x-icon name="star" :size="14"/>
+                                <span>{{ $booking->review_requested_at ? __('Re-send testimonial request') : __('Request testimonial') }}</span>
+                            </button>
+                        </form>
+                    @endif
+
                     @if ($canCancel)
                         <div class="bk-menu-sep"></div>
                         {{-- Cancel booking --}}

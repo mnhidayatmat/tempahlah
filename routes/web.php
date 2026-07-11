@@ -216,6 +216,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/bookings/{id}/documents/send', [BookingDocumentController::class, 'send'])->name('bookings.documents.send')->whereNumber('id');
         Route::post('/bookings/{id}/cancel',        [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('/bookings/{id}/check-out',     [BookingController::class, 'checkOut'])->name('bookings.check-out')->whereNumber('id');
+        Route::post('/bookings/{id}/request-review', [BookingController::class, 'requestReview'])->name('bookings.request-review')->whereNumber('id');
         Route::delete('/bookings/{id}',             [BookingController::class, 'destroy'])->name('bookings.destroy')->whereNumber('id');
 
         // Refunds — auto-created on checkout, host updates status here.
@@ -225,6 +226,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
+        Route::get('/testimonials',         [\App\Http\Controllers\Tenant\TestimonialController::class, 'index'])->name('testimonials.index');
         Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
         Route::get('/housekeeping/print.pdf',          [HousekeepingController::class, 'printRunSheet'])->name('housekeeping.print');
         Route::post('/housekeeping/auto-toggle',       [HousekeepingController::class, 'toggleAutoGenerate'])->name('housekeeping.auto-toggle');
@@ -303,6 +305,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         ->name('platform.')
         ->group(function () {
             Route::get('/', [\App\Http\Controllers\PlatformAdminController::class, 'overview'])->name('overview');
+            // Cross-tenant testimonial moderation — hide/show/delete guest reviews.
+            Route::get('/testimonials', [\App\Http\Controllers\PlatformAdminController::class, 'testimonials'])->name('testimonials');
+            Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');
+            Route::delete('/testimonials/{id}', [\App\Http\Controllers\PlatformAdminController::class, 'deleteTestimonial'])->name('testimonials.delete')->whereNumber('id');
             // Platform settings — Stripe keys etc. (encrypted in platform_settings).
             Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
             Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');
@@ -359,4 +365,14 @@ Route::domain(config('app.tenant_domain'))
         Route::post('/refund/{refund:public_id}/bank', [\App\Http\Controllers\Public\RefundBankController::class, 'submit'])
             ->middleware('signed')
             ->name('refund.bank.submit');
+
+        // Guest leaves a testimonial after checkout. Signed magic-link (no
+        // password) sent by email + WhatsApp; {booking} is the public_id (ULID).
+        // The guest is the ONLY writer — hosts can't create/edit/delete reviews.
+        Route::get('/review/{booking}', [\App\Http\Controllers\Public\ReviewController::class, 'show'])
+            ->middleware('signed')
+            ->name('review.create');
+        Route::post('/review/{booking}', [\App\Http\Controllers\Public\ReviewController::class, 'store'])
+            ->middleware('signed')
+            ->name('review.store');
     });

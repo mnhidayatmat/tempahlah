@@ -219,6 +219,32 @@ class MessageTemplates
      * summary carrying the host's payment instructions. Deliberately never says
      * "invoice" or "receipt" — those are paid-tier documents.
      */
+    /**
+     * Post-checkout "leave us a testimonial" nudge. Carries the signed review
+     * link. Kept short + warm — it's asking a favour.
+     */
+    public static function reviewRequest(Booking $booking, string $url): string
+    {
+        $locale = $booking->tenant?->default_locale ?? app()->getLocale();
+        $name = $booking->guest?->name ?? $booking->guestName() ?? '';
+        $property = $booking->property?->name ?? '';
+        $business = $booking->tenant?->business_name ?? config('app.name');
+
+        if ($locale === 'ms') {
+            return "Salam {$name}!\n\n"
+                 . "Terima kasih kerana menginap di *{$property}*. 🙏\n\n"
+                 . "Boleh luangkan seminit untuk kongsi pengalaman anda? Ia sangat membantu tetamu lain:\n"
+                 . $url."\n\n"
+                 . "Terima kasih,\n{$business}";
+        }
+
+        return "Hi {$name}!\n\n"
+             . "Thank you for staying at *{$property}*. 🙏\n\n"
+             . "Could you spare a minute to share how it went? It really helps other guests:\n"
+             . $url."\n\n"
+             . "Thank you,\n{$business}";
+    }
+
     public static function bookingReceived(Booking $booking): string
     {
         $locale = $booking->tenant?->default_locale ?? app()->getLocale();

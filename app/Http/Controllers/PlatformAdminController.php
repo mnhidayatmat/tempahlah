@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PlatformSetting;
+use App\Models\Review;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\Billing\StripeBilling;
+use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -88,6 +90,66 @@ class PlatformAdminController extends Controller
             '✓ Stripe connected: :acct (:country · :currency). :price',
             ['acct' => $r['account'], 'country' => strtoupper((string) $r['country']), 'currency' => strtoupper((string) $r['currency']), 'price' => $priceNote],
         ));
+    }
+
+    /**
+     * Cross-tenant testimonial moderation. Guest testimonials auto-publish, so
+     * this is where a super admin hides/removes spam, abuse, or a fake. Reviews
+     * carry a tenant global scope; bypass it so we see every tenant's.
+     */
+    public function testimonials(Request $request)
+    {
+        $filter = in_array($request->query('show'), ['published', 'hidden'], true)
+            ? $request->query('show')
+            : null;
+        $q = trim((string) $request->query('q', ''));
+
+        $reviews = Review::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->guestTestimonials()
+            ->with(['tenant:id,business_name,slug', 'subject:id,name', 'booking:id,check_out,guest_id', 'booking.guest:id,name'])
+            ->when($filter === 'published', fn ($query) => $query->where('is_published', true))
+            ->when($filter === 'hidden', fn ($query) => $query->where('is_published', false))
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
+                ->where('comment', 'like', "%{$q}%")
+                ->orWhere('guest_name', 'like', "%{$q}%")))
+            ->latest()
+            ->paginate(25)
+            ->withQueryString();
+
+        $publishedTotal = Review::query()->withoutGlobalScope(BelongsToTenantScope::class)->guestTestimonials()->where('is_published', true)->count();
+        $hiddenTotal = Review::query()->withoutGlobalScope(BelongsToTenantScope::class)->guestTestimonials()->where('is_published', false)->count();
+
+        return view('platform.testimonials', [
+            'reviews'        => $reviews,
+            'publishedTotal' => $publishedTotal,
+            'hiddenTotal'    => $hiddenTotal,
+        ]);
+    }
+
+    /** Hide/show a testimonial (flip is_published). */
+    public function toggleTestimonial(int $id)
+    {
+        $review = Review::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->findOrFail($id);
+
+        $review->update(['is_published' => ! $review->is_published]);
+
+        return back()->with('status', $review->is_published
+            ? __('Testimonial is now visible on the homestay page.')
+            : __('Testimonial hidden from the homestay page.'));
+    }
+
+    /** Permanently delete a testimonial (abuse / spam). */
+    public function deleteTestimonial(int $id)
+    {
+        Review::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->findOrFail($id)
+            ->delete();
+
+        return back()->with('status', __('Testimonial deleted.'));
     }
 
     /** Masked hint for a stored secret: "sk_test_…mIc8kjh" style, never the whole thing. */

@@ -207,6 +207,20 @@ class WhatsappMessenger
     }
 
     /**
+     * Post-checkout "leave a testimonial" request carrying the signed review
+     * link. Gated by the `auto_review` session pref (default true).
+     */
+    public static function dispatchReviewRequest(Booking $booking, string $url): ?WhatsappMessage
+    {
+        return self::autoDispatch(
+            $booking,
+            'auto_review',
+            WhatsappMessage::KIND_REVIEW_REQUEST,
+            fn () => MessageTemplates::reviewRequest($booking, $url),
+        );
+    }
+
+    /**
      * Build the `['url' => ..., 'kind' => 'pdf', 'filename' => ...]` media
      * payload for an Invoice or Receipt. Uses a 7-day temporary signed URL
      * from the configured filesystem so PDFs stay private even though the

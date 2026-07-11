@@ -7,6 +7,7 @@ use App\Actions\Invoicing\GenerateInvoice;
 use App\Actions\Payments\CreateGatewayBill;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendBookingConfirmation;
+use App\Jobs\SendReviewRequest;
 use App\Jobs\SendBookingReceipt;
 use App\Jobs\SendPaymentReminder;
 use App\Models\Booking;
@@ -724,7 +725,7 @@ class BookingController extends Controller
     public function show($id)
     {
         $booking = Booking::query()
-            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name'])
+            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name', 'review'])
             ->findOrFail($id);
 
         return view('tenant.bookings.show', compact('booking'));
@@ -955,7 +956,38 @@ class BookingController extends Controller
             }
         });
 
+        // Auto-request a testimonial once, right after checkout. Guarded by
+        // review_requested_at so a re-checkout (or a status flip back and forth)
+        // never nags the guest twice.
+        if (! $booking->review_requested_at) {
+            SendReviewRequest::dispatch($booking->id);
+        }
+
         return back()->with('status', __('Guest checked out. Refund prepared.'));
+    }
+
+    /**
+     * Manually (re-)send the "leave a testimonial" request. Used from the
+     * booking page when the host wants to nudge a guest who hasn't reviewed yet.
+     * Re-sends are allowed (unlike the auto path); no-op once a review exists.
+     */
+    public function requestReview(Request $request, $id)
+    {
+        $booking = Booking::with(['guest:id,name,email,phone', 'review'])->findOrFail($id);
+
+        if ($booking->status !== Booking::STATUS_CHECKED_OUT) {
+            return back()->with('error', __('You can only request a testimonial after the guest has checked out.'));
+        }
+        if ($booking->review) {
+            return back()->with('status', __('This guest has already left a testimonial.'));
+        }
+        if (! $booking->guestEmail() && ! $booking->guestPhone()) {
+            return back()->with('error', __('No guest email or phone on file — cannot send the request.'));
+        }
+
+        SendReviewRequest::dispatch($booking->id);
+
+        return back()->with('status', __('Testimonial request sent (email + WhatsApp where available).'));
     }
 
     /**

@@ -23,6 +23,9 @@ class SubmitGuestReview
                 'rating_overall' => $data['rating_overall'],
                 'rating_breakdown' => $data['rating_breakdown'] ?? null,
                 'comment' => $data['comment'] ?? null,
+                'guest_name' => $data['guest_name'] ?? null,
+                // Auto-publish on submit (host can never touch it; a super admin
+                // can hide it later from the Platform Admin moderation screen).
                 'is_published' => true,
             ],
         );

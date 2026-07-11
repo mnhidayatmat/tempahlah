@@ -61,7 +61,7 @@
             ],
         ];
 
-        $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM, $bookedByProperty) {
+        $propertiesPayload = $properties->map(function ($p) use ($coverGradients, $isBM, $bookedByProperty, $reviewsByProperty, $ratingByProperty) {
             $cover = $coverGradients[$p->cover_kind] ?? $coverGradients['city'];
             // For whole-house properties this is the single synthetic Room.
             // For per-room properties this picks the cheapest — matching
@@ -152,6 +152,10 @@
                 'tone_label'=> trim((string) ($p->address_line1 ?? '')),
                 'initial'   => mb_strtoupper(mb_substr($p->name, 0, 1)),
                 'booked'    => $bookedByProperty[$p->id] ?? [],
+                // Published guest testimonials + rating summary for this property.
+                'reviews'      => $reviewsByProperty[$p->id] ?? [],
+                'rating_avg'   => $ratingByProperty[$p->id]['avg'] ?? null,
+                'rating_count' => $ratingByProperty[$p->id]['count'] ?? 0,
                 // Default room id used by the booking-form hidden input.
                 'room_id'   => $defaultRoom?->id,
                 // Dynamic per-date rates (60-day window starting today).
@@ -366,6 +370,43 @@
                 <span>🧭</span>
                 <span>{{ $isBM ? 'Arah' : 'Directions' }}</span>
             </a>
+        </div>
+    </section>
+
+    {{-- ───── GUEST TESTIMONIALS ──────────────────────────────────── --}}
+    <style>
+        .wf-reviews { padding: 20px 20px 4px; }
+        .wf-reviews-avg { display:inline-flex; align-items:center; gap:4px; font-weight:700; font-size:13px; color: var(--primary); }
+        .wf-reviews-avg .wf-reviews-star { color:#f5b301; }
+        .wf-reviews-count { color: var(--ink-3); font-weight:500; }
+        .wf-reviews-row { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px; margin-top:12px; -webkit-overflow-scrolling:touch; }
+        .wf-reviews-row::-webkit-scrollbar { display:none; }
+        .wf-review-card { flex:0 0 82%; max-width:320px; scroll-snap-align:start; background: var(--bg-elev); border:1px solid var(--line); border-radius:16px; padding:16px; box-sizing:border-box; }
+        .wf-review-stars { color:#f5b301; font-size:14px; letter-spacing:1px; }
+        .wf-review-comment { margin:8px 0 10px; font-size:13.5px; line-height:1.55; color: var(--ink-2); }
+        .wf-review-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .wf-review-name { font-weight:600; font-size:12.5px; }
+        .wf-review-stay { font-size:11px; color: var(--ink-3); }
+    </style>
+    <section class="wf-reviews" x-show="current.reviews && current.reviews.length > 0" x-cloak>
+        <div class="wf-section-eyebrow-row">
+            <div class="wf-section-eyebrow">{{ $isBM ? 'Kata tetamu' : 'Guest reviews' }}</div>
+            <div class="wf-reviews-avg" x-show="current.rating_avg">
+                <span class="wf-reviews-star">★</span><span x-text="current.rating_avg"></span>
+                <span class="wf-reviews-count" x-text="`(${current.rating_count})`"></span>
+            </div>
+        </div>
+        <div class="wf-reviews-row">
+            <template x-for="(rv, i) in current.reviews" :key="i">
+                <div class="wf-review-card">
+                    <div class="wf-review-stars" x-text="'★'.repeat(rv.rating) + '☆'.repeat(5 - rv.rating)"></div>
+                    <p class="wf-review-comment" x-text="rv.comment"></p>
+                    <div class="wf-review-meta">
+                        <span class="wf-review-name" x-text="rv.name"></span>
+                        <span class="wf-review-stay" x-show="rv.stay" x-text="rv.stay"></span>
+                    </div>
+                </div>
+            </template>
         </div>
     </section>
 

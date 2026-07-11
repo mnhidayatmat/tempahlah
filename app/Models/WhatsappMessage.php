@@ -28,6 +28,7 @@ class WhatsappMessage extends Model
     // summary carrying the host's payment instructions instead of an invoice.
     public const KIND_BOOKING_RECEIVED = 'booking_received';
     public const KIND_CANCELLATION = 'cancellation';
+    public const KIND_REVIEW_REQUEST = 'review_request';
     public const KIND_TEST         = 'test';
     public const KIND_INBOUND      = 'inbound';
     public const KIND_AGENT_REPLY  = 'agent_reply';

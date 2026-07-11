@@ -38,6 +38,8 @@ class WhatsappSession extends Model
         // Notice sent when a booking is cancelled (e.g. unpaid fee/balance
         // auto-cancel, or a host-initiated cancel). On by default.
         'auto_cancellation'    => true,
+        // "Leave a testimonial" request sent after checkout. On by default.
+        'auto_review'          => true,
         'reminder_days_before' => 3,
         'checkin_hours_before' => 24,
         'rate_limit_seconds'   => 8,
