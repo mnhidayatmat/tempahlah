@@ -72,5 +72,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('webhook-ses', fn (Request $r) => Limit::perMinute(120)->by($r->ip()));
 
         RateLimiter::for('password-reset', fn (Request $r) => Limit::perHour(3)->by($r->input('email', $r->ip())));
+
+        // Public per-room iCal busy-feed. OTA crawlers poll it a few times an
+        // hour at most; 30/min/IP is generous while blunting scraping/abuse.
+        RateLimiter::for('ical-feed', fn (Request $r) => Limit::perMinute(30)->by($r->ip()));
     }
 }

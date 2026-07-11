@@ -57,6 +57,16 @@ Route::get('/subscription/stripe/return', [\App\Http\Controllers\Tenant\StripeCh
     ->middleware('auth')
     ->name('subscription.stripe.return');
 
+// Public iCal busy-feed for one room, addressed by an unguessable token. This
+// is the URL the host pastes into Airbnb / Booking.com to import their booked
+// dates. Unauthenticated (OTA crawlers fetch it) + rate-limited. Registered
+// outside the domain groups so it resolves on any host. Token constrained so
+// the literal `.ics` suffix isn't captured into the parameter.
+Route::get('/calendar/{token}.ics', [\App\Http\Controllers\Public\ChannelFeedController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->middleware('throttle:ical-feed')
+    ->name('ical.feed');
+
 // -----------------------------------------------------------------------------
 // Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
 // PRO-ONLY perk: the tenant.subdomain middleware 404s free tenants (they use
@@ -287,6 +297,13 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/subscription/stripe/portal', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'portal'])
             ->name('subscription.stripe.portal');
         Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
+        // Channel sync (Airbnb + Booking.com iCal) — registered BEFORE the
+        // generic /integrations/{provider} route so "channel-sync" isn't
+        // captured as a provider. {room} binds by public_id, tenant-scoped.
+        Route::get('/integrations/channel-sync', [\App\Http\Controllers\Tenant\ChannelSyncController::class, 'index'])->name('integrations.channel-sync');
+        Route::post('/integrations/channel-sync/{room}', [\App\Http\Controllers\Tenant\ChannelSyncController::class, 'update'])->name('integrations.channel-sync.update');
+        Route::post('/integrations/channel-sync/{room}/sync', [\App\Http\Controllers\Tenant\ChannelSyncController::class, 'syncNow'])->name('integrations.channel-sync.sync');
+        Route::post('/integrations/channel-sync/{room}/rotate', [\App\Http\Controllers\Tenant\ChannelSyncController::class, 'rotate'])->name('integrations.channel-sync.rotate');
         Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');
         Route::delete('/integrations/{provider}',         [IntegrationController::class, 'disconnect'])->name('integrations.disconnect');

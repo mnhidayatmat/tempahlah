@@ -3,6 +3,7 @@
         $catalog = [
             ['key' => 'toyyibpay',       'name' => 'Toyyibpay',          'desc' => __('Accept FPX, cards, and e-wallets. Fees ~1%.'),                'pro' => true],
             ['key' => 'google_calendar', 'name' => 'Google Calendar',    'desc' => __('Two-way iCal/CalDAV sync. Prevents double-bookings.'),         'pro' => true],
+            ['key' => 'channel_sync',    'name' => 'Airbnb & Booking.com', 'desc' => __('Auto-sync your calendar both ways. A booking on one channel blocks the dates everywhere — no double-bookings.'), 'pro' => true, 'route' => 'tenant.integrations.channel-sync', 'feature' => 'ical_channel_sync'],
             ['key' => 'ses',             'name' => 'Amazon SES',         'desc' => __('Send confirmations and reminders from your domain.'),         'pro' => false],
             ['key' => 'whatsapp',        'name' => 'WhatsApp Business',  'desc' => __('Auto-send deposit links and reminders.'),                     'pro' => true],
             ['key' => 'agent',           'name' => 'AI Agent',           'desc' => __('Let an AI assistant reply to WhatsApp enquiries 24/7 — availability, photos, prices, location.'), 'pro' => true],
@@ -65,13 +66,16 @@
                         <div style="font-size: 12.5px; color: var(--ink-3); line-height: 1.45;">{{ $it['desc'] }}</div>
                     </div>
                     <div style="display:flex; gap: 6px;">
+                        @php $featureGated = ! empty($it['feature']) && ! \Laravel\Pennant\Feature::active($it['feature']); @endphp
                         @if (! empty($it['soon']))
                             <button type="button" class="btn btn-sm" disabled>{{ __('Coming soon') }}</button>
-                        @elseif (in_array($it['key'], $gatewayKeys, true) && ! $canGateway)
+                        @elseif ((in_array($it['key'], $gatewayKeys, true) && ! $canGateway) || $featureGated)
                             <a href="{{ route('tenant.subscription') }}" class="btn btn-sm"
-                               title="{{ __('Online payment gateways are a Pro feature. Free tenants accept manual payments.') }}">
+                               title="{{ __('This is a Pro feature. Upgrade to unlock it.') }}">
                                 <x-icon name="lock" :size="12"/> {{ __('Upgrade') }}
                             </a>
+                        @elseif (! empty($it['route']))
+                            <a href="{{ route($it['route']) }}" class="btn btn-primary btn-sm">{{ __('Set up') }}</a>
                         @elseif ($connected)
                             <a href="{{ route('tenant.integrations.show', $it['key']) }}" class="btn btn-sm">{{ __('Manage') }}</a>
                         @else

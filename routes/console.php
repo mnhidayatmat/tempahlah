@@ -49,3 +49,11 @@ Schedule::command('subscriptions:process-lifecycle')
     ->dailyAt('02:15')
     ->withoutOverlapping()
     ->onOneServer();
+
+// Channel calendar sync — pull Airbnb / Booking.com iCal reservations into
+// availability blocks so cross-platform bookings can't double-book. Pro-gated
+// per tenant inside the command; no-ops when a tenant has no import links.
+Schedule::command('channels:sync-ical')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
