@@ -225,10 +225,19 @@
                     </button>
                 </template>
                 <template x-if="step === total - 1">
-                    <a href="{{ route('tenant.properties.create') }}" class="ob-cta" @click="finish()">
-                        <span x-text="labels.finish[lang]"></span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M12 5v14M5 12h14"/></svg>
-                    </a>
+                    {{-- A real form POST stamps tour_completed_at server-side and
+                         then redirects to the create page, so the flag is
+                         already persisted before that page renders. The old
+                         <a> + async keepalive fetch raced the navigation and
+                         the create-page GET often won, re-showing the tour from
+                         step 1 — an endless loop. --}}
+                    <form method="POST" action="{{ route('tenant.onboarding.finish') }}" style="margin:0;">
+                        @csrf
+                        <button type="submit" class="ob-cta">
+                            <span x-text="labels.finish[lang]"></span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                    </form>
                 </template>
             </div>
         </div>

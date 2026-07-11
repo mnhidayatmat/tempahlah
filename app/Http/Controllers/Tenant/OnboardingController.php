@@ -25,6 +25,26 @@ class OnboardingController extends Controller
     }
 
     /**
+     * Finish the walkthrough and go add the first homestay. Stamps
+     * tour_completed_at SERVER-SIDE and then redirects to the property
+     * create page — so the flag is already persisted before that page
+     * renders. The old finish CTA was an <a> that fired an async
+     * keepalive fetch while the browser navigated at the same time; the
+     * create-page GET routinely won that race, read tour_completed_at as
+     * still null, and re-rendered the tour from step 1 — an endless loop.
+     */
+    public function finish(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user && $user->tour_completed_at === null) {
+            $user->forceFill(['tour_completed_at' => now()])->save();
+        }
+
+        return redirect()->route('tenant.properties.create');
+    }
+
+    /**
      * Clear tour_completed_at so the walkthrough plays again on the next
      * dashboard load. The tour's own final step has always told hosts they
      * "can always replay this tour from Settings" — until now nothing ever
