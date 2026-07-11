@@ -287,6 +287,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/onboarding/replay',   [\App\Http\Controllers\Tenant\OnboardingController::class, 'replay'])->name('onboarding.replay');
 
         Route::get('/settings',             [SettingsController::class, 'index'])->name('settings.index');
+        Route::get('/settings/slug-available', [SettingsController::class, 'slugAvailable'])->name('settings.slug-available');
         Route::patch('/settings',           [SettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/branding',   [SettingsController::class, 'updateBranding'])->name('settings.branding');
         Route::get('/settings/invoice-preview', [SettingsController::class, 'invoicePreview'])->name('settings.invoice-preview');

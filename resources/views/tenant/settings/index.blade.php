@@ -140,24 +140,58 @@
                     <div x-data="{
                             slug: '{{ old('slug', $tenant->slug) }}',
                             original: '{{ $tenant->slug }}',
+                            status: '',
+                            message: '',
+                            timer: null,
                             sanitize() {
                                 this.slug = this.slug
                                     .toLowerCase()
                                     .replace(/[^a-z0-9-]/g, '-')
                                     .replace(/--+/g, '-')
                                     .replace(/^-+|-+$/g, '');
+                                this.check();
+                            },
+                            check() {
+                                clearTimeout(this.timer);
+                                if (!this.slug || this.slug === this.original) {
+                                    this.status = this.slug === this.original ? 'current' : '';
+                                    this.message = '';
+                                    return;
+                                }
+                                this.status = 'checking';
+                                this.message = '{{ __('Checking availability…') }}';
+                                this.timer = setTimeout(async () => {
+                                    try {
+                                        const r = await fetch('{{ route('tenant.settings.slug-available') }}?slug=' + encodeURIComponent(this.slug), { headers: { 'Accept': 'application/json' } });
+                                        const j = await r.json();
+                                        this.status = j.status;
+                                        this.message = j.message;
+                                    } catch (e) { this.status = ''; this.message = ''; }
+                                }, 350);
+                            },
+                            color() {
+                                return { available:'var(--ok)', current:'var(--ink-3)', checking:'var(--ink-3)',
+                                         taken:'var(--err)', reserved:'var(--err)', invalid:'var(--err)' }[this.status] || 'var(--ink-3)';
                             },
                          }">
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Booking-page URL slug') }}</label>
                         <input class="input" type="text" name="slug"
                                x-model="slug"
                                @input="sanitize()"
-                               style="font-family: var(--font-mono); text-transform: lowercase;"
+                               :style="'font-family: var(--font-mono); text-transform: lowercase;' + ((status==='taken'||status==='reserved'||status==='invalid') ? ' border-color: var(--err);' : (status==='available' ? ' border-color: var(--ok);' : ''))"
                                minlength="2" maxlength="60" required
                                pattern="[a-z0-9]+(-[a-z0-9]+)*">
                         @error('slug')
                             <div style="font-size: 11.5px; color: var(--err); margin-top: 4px;">{{ $message }}</div>
                         @enderror
+
+                        {{-- Live availability result --}}
+                        <div x-show="message" x-cloak :style="'font-size: 11.5px; margin-top: 5px; display:flex; align-items:center; gap:5px; color:' + color()">
+                            <span x-show="status==='checking'">⏳</span>
+                            <span x-show="status==='available'">✓</span>
+                            <span x-show="status==='taken' || status==='reserved' || status==='invalid'">✗</span>
+                            <span x-text="message"></span>
+                        </div>
 
                         {{-- Live URL preview --}}
                         <div style="font-size: 11.5px; color: var(--ink-3); margin-top: 5px; line-height: 1.4;">

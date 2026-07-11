@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -33,6 +34,41 @@ class SettingsController extends Controller
             'tenant'     => $tenant,
             'properties' => $properties,
         ]);
+    }
+
+    /**
+     * Live availability check for the booking-page slug, called as the host
+     * types. Advisory only — settings.update still enforces uniqueness +
+     * reserved-slug + format server-side, so this can never be the sole guard.
+     * Mirrors those exact rules so the live answer matches what save will do.
+     */
+    public function slugAvailable(Request $request): JsonResponse
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $slug = strtolower(trim((string) $request->query('slug', '')));
+
+        if ($slug === '') {
+            return response()->json(['status' => 'invalid', 'message' => __('Enter a slug.')]);
+        }
+        if ($slug === $tenant->slug) {
+            return response()->json(['status' => 'current', 'message' => __('This is your current address.')]);
+        }
+        if (strlen($slug) < 2 || strlen($slug) > 60 || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+            return response()->json(['status' => 'invalid', 'message' => __('Use lowercase letters, numbers and single hyphens (2–60 characters).')]);
+        }
+        if (in_array($slug, CreateTenantAndOwner::reservedSlugs(), true)) {
+            return response()->json(['status' => 'reserved', 'message' => __('That slug is reserved. Please pick another.')]);
+        }
+
+        // `tenants` is a cross-tenant table (no BelongsToTenant scope), so this
+        // sees every tenant — a genuine platform-wide uniqueness check.
+        $taken = Tenant::where('slug', $slug)->where('id', '!=', $tenant->id)->exists();
+
+        return response()->json($taken
+            ? ['status' => 'taken', 'message' => __('That slug is already taken. Please pick another.')]
+            : ['status' => 'available', 'message' => __('Available — this address is free.')]);
     }
 
     public function update(Request $request)
