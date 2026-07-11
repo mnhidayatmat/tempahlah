@@ -123,9 +123,9 @@
                 @if ($billingConfigured)
                     <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
                         @csrf
-                        <x-btn-submit class="btn btn-primary btn-sm">
+                        <button type="submit" class="btn btn-primary btn-sm">
                             {{ __('Pay now') }} — RM {{ number_format($openInvoice?->amount ?? config('homestay.paid_tier_price'), 2) }}
-                        </x-btn-submit>
+                        </button>
                     </form>
                 @endif
             </div>
@@ -143,7 +143,7 @@
                 </div>
                 <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
                     @csrf
-                    <x-btn-submit class="btn btn-primary btn-sm">{{ __('Pay now') }}</x-btn-submit>
+                    <button type="submit" class="btn btn-primary btn-sm">{{ __('Pay now') }}</button>
                 </form>
             </div>
         @endif
@@ -296,9 +296,9 @@
                             {{-- Pro but no card yet (e.g. on trial) — offer to add one. --}}
                             <form method="POST" action="{{ route('tenant.subscription.card.enroll') }}" style="margin-bottom: 22px;">
                                 @csrf
-                                <x-btn-submit class="btn btn-sm" style="width:100%; justify-content:center;">
+                                <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
                                     <x-icon name="card" :size="13"/> {{ __('Add a card for auto-renew') }}
-                                </x-btn-submit>
+                                </button>
                                 <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-top: 6px;">
                                     {{ __('Visa / Mastercard. Charged automatically each month.') }}
                                 </div>
@@ -320,11 +320,11 @@
                          payment stays available for bank users who can't tokenize. --}}
                     <form method="POST" action="{{ route('tenant.subscription.card.enroll') }}" style="margin-bottom: 8px;">
                         @csrf
-                        <x-btn-submit class="btn" style="width:100%; justify-content:center;
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
                             background: var(--ink); color: var(--bg); border-color: transparent;">
                             <x-icon name="card" :size="14"/>
                             {{ __('Subscribe with auto-renew') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
-                        </x-btn-submit>
+                        </button>
                     </form>
                     <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-bottom: 10px;">
                         {{ __('Visa / Mastercard — charged automatically each month.') }}
@@ -340,10 +340,10 @@
                     {{-- Trial used (or declined) — pay for real (no card auto-renew). --}}
                     <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px;">
                         @csrf
-                        <x-btn-submit class="btn" style="width:100%; justify-content:center;
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
                             background: var(--ink); color: var(--bg); border-color: transparent;">
                             {{ __('Upgrade to Pro') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
-                        </x-btn-submit>
+                        </button>
                     </form>
                 @else
                     {{-- Trial used, and Tempahlah's own Billplz account isn't configured yet. --}}
