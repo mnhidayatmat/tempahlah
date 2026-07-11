@@ -91,7 +91,7 @@
                             <tr style="border-top: .5px solid var(--line);">
                                 <td style="padding: 12px 16px;">
                                     <div style="font-weight: 600;">{{ $t->business_name }}</div>
-                                    <div class="mono" style="font-size: 11px; color: var(--ink-3);">{{ $t->slug }}.{{ config('app.tenant_domain') }}</div>
+                                    <div class="mono" style="font-size: 11px; color: var(--ink-3);">{{ str_replace(['https://', 'http://'], '', $t->publicUrl()) }}</div>
                                 </td>
                                 <td style="padding: 12px 16px; color: var(--ink-2);">
                                     {{ $t->owner?->name ?? '—' }}
