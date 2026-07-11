@@ -437,8 +437,10 @@
                     ['key' => 'charcoal',  'label' => __('Modern Charcoal'),     'primary' => '#2d2d2d', 'secondary' => '#1a1a1a', 'accent' => '#2596c6'],
                     ['key' => 'tropical',  'label' => __('Tropical Teal'),       'primary' => '#1e8a8a', 'secondary' => '#0e5c5c', 'accent' => '#d4a437'],
                 ];
+                $canBrandTheme = \Laravel\Pennant\Feature::active('brand_theme');
             @endphp
 
+            @if ($canBrandTheme)
             <div class="hauz-card" style="padding: 22px;"
                  x-data="{
                     primary:   '{{ $brand['primary'] }}',
@@ -608,6 +610,29 @@
                     </div>
                 </div>
             </div>
+            @else
+            {{-- Free tenant — theming is Pro-only. Show the palette they're on
+                 (the platform default) plus an upsell; no editable inputs render,
+                 so nothing colour-related is posted. --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom: 14px; flex-wrap: wrap;">
+                    <div>
+                        <div class="kicker">{{ __('Brand & theme') }}</div>
+                        <div style="margin-top: 4px; font-size: 13px; color: var(--ink-2); max-width: 520px;">
+                            {{ __('Your booking page uses the default Tempahlah palette. Upgrade to Pro to pick your own brand colors for the dashboard and the public page guests see at') }}
+                            <span class="mono" style="color: var(--ink); background: var(--bg-sunk); padding: 2px 6px; border-radius: 4px; font-size: 11.5px;">{{ str_replace(['https://','http://'], '', $tenant->publicUrl()) }}</span>.
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:var(--r-md); background:var(--pro-tint); color:var(--pro); font-size:12.5px;">
+                    <x-icon name="lock" :size="14"/>
+                    <span style="flex:1; min-width:0;">
+                        {{ __('Custom brand colors are a Pro feature.') }}
+                    </span>
+                    <a href="{{ route('tenant.subscription') }}" class="btn btn-sm">{{ __('Upgrade') }} →</a>
+                </div>
+            </div>
+            @endif
 
             <div style="display:flex; justify-content: flex-end; gap: 8px;">
                 <button type="reset" class="btn">{{ __('Discard') }}</button>

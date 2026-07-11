@@ -257,16 +257,28 @@ class Tenant extends Model
 
     public function themePrimary(): string
     {
+        if (! $this->isPaid()) {
+            return self::THEME_DEFAULTS['primary'];
+        }
+
         return $this->normalizeHex($this->primary_color) ?? self::THEME_DEFAULTS['primary'];
     }
 
     public function themeSecondary(): string
     {
+        if (! $this->isPaid()) {
+            return self::THEME_DEFAULTS['secondary'];
+        }
+
         return $this->normalizeHex($this->secondary_color) ?? self::THEME_DEFAULTS['secondary'];
     }
 
     public function themeAccent(): string
     {
+        if (! $this->isPaid()) {
+            return self::THEME_DEFAULTS['accent'];
+        }
+
         return $this->normalizeHex($this->accent_color) ?? self::THEME_DEFAULTS['accent'];
     }
 

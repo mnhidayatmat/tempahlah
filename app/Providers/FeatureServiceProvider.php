@@ -50,6 +50,10 @@ class FeatureServiceProvider extends ServiceProvider
 
         Feature::define('tenant_branded_emails', fn (Tenant $tenant) => $tenant->isPaid());
 
+        // Brand & theme: the dashboard + public booking page colour palette
+        // (primary/secondary/accent). Free tenants keep the platform default.
+        Feature::define('brand_theme', fn (Tenant $tenant) => $tenant->isPaid());
+
         Feature::define('custom_invoice_template', fn (Tenant $tenant) => $tenant->isPaid());
 
         Feature::define('marketplace_listing', fn (Tenant $tenant) => $tenant->isPaid());

@@ -146,14 +146,25 @@ class SettingsController extends Controller
             $validated['sst_rate'] = 0.08;
         }
 
-        foreach (['primary_color', 'secondary_color', 'accent_color'] as $key) {
-            $validated[$key] = ! empty($validated[$key])
-                ? '#'.strtolower(ltrim($validated[$key], '#'))
-                : null;
+        // Brand & theme is a Pro feature. Free tenants can't change the palette,
+        // so drop the colour keys entirely (leaving any stored values untouched)
+        // rather than trusting a directly-POSTed field.
+        if (\Laravel\Pennant\Feature::active('brand_theme')) {
+            foreach (['primary_color', 'secondary_color', 'accent_color'] as $key) {
+                $validated[$key] = ! empty($validated[$key])
+                    ? '#'.strtolower(ltrim($validated[$key], '#'))
+                    : null;
+            }
+            // primary_color column is NOT NULL — fall back to the platform default
+            // when the tenant clears it. secondary/accent stay nullable.
+            $validated['primary_color'] ??= \App\Models\Tenant::THEME_DEFAULTS['primary'];
+        } else {
+            unset(
+                $validated['primary_color'],
+                $validated['secondary_color'],
+                $validated['accent_color'],
+            );
         }
-        // primary_color column is NOT NULL — fall back to the platform default
-        // when the tenant clears it. secondary/accent stay nullable.
-        $validated['primary_color'] ??= \App\Models\Tenant::THEME_DEFAULTS['primary'];
 
         $oldSlug = $tenant->slug;
         $tenant->fill($validated)->save();
