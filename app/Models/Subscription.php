@@ -29,6 +29,7 @@ class Subscription extends Model
         'trial_ends_at', 'current_period_start', 'current_period_end', 'cancelled_at',
         'comped_at', 'grace_ends_at', 'trial_used_at',
         'auto_renew', 'card_id', 'card_token', 'card_last4', 'card_brand', 'card_status',
+        'stripe_customer_id', 'stripe_subscription_id', 'stripe_price_id',
         'meta',
     ];
 
@@ -57,6 +58,16 @@ class Subscription extends Model
             && $this->card_status === self::CARD_ACTIVE
             && filled($this->card_id)
             && filled($this->card_token);
+    }
+
+    /**
+     * Driven by Stripe (auto-charge + dunning happen on Stripe's side). These
+     * subs are excluded from the Billplz pay-link cron and the grace/downgrade
+     * lifecycle command — their state comes from Stripe webhooks instead.
+     */
+    public function isStripeManaged(): bool
+    {
+        return filled($this->stripe_subscription_id);
     }
 
     public function tenant(): BelongsTo

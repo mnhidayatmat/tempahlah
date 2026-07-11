@@ -269,9 +269,28 @@
                         disabled>
                         {{ $subscription?->isComped() ? __('Complimentary Pro') : __("You're on Pro") }}
                     </button>
+                    {{-- Stripe-managed subscription → the Customer Portal handles
+                         card updates + cancellation. Takes precedence over the
+                         (superseded) Billplz card panel. --}}
+                    @if ($stripeEnabled && $subscription?->isStripeManaged() && ! $subscription?->isComped())
+                        <div style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 22px;">
+                            <div style="display:flex; align-items:center; gap: 8px; font-size: 12.5px; color: var(--ink); margin-bottom: 10px;">
+                                <x-icon name="card" :size="13"/>
+                                <span>{{ __('Auto-renewing via Stripe') }}</span>
+                            </div>
+                            <form method="POST" action="{{ route('tenant.subscription.stripe.portal') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
+                                    {{ __('Manage subscription') }}
+                                </button>
+                            </form>
+                            <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-top: 6px;">
+                                {{ __('Update your card or cancel any time.') }}
+                            </div>
+                        </div>
                     {{-- Card on file / auto-renew panel. Only when Tokenization is
                          live AND this isn't a comped account (comped never pays). --}}
-                    @if ($tokenizationEnabled && ! $subscription?->isComped())
+                    @elseif ($tokenizationEnabled && ! $subscription?->isComped())
                         @if ($subscription?->card_status === \App\Models\Subscription::CARD_ACTIVE && $subscription?->card_id)
                             <div style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 22px;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap: 10px;">
@@ -315,6 +334,30 @@
                             {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
                         </button>
                     </form>
+                @elseif ($stripeEnabled)
+                    {{-- Stripe recurring is the primary path: card auto-renews
+                         every month with no further action. The Billplz one-off
+                         FPX pay-link stays as a fallback for bank-only tenants. --}}
+                    <form method="POST" action="{{ route('tenant.subscription.stripe.checkout') }}" style="margin-bottom: 8px;">
+                        @csrf
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
+                            background: var(--ink); color: var(--bg); border-color: transparent;">
+                            <x-icon name="card" :size="14"/>
+                            {{ __('Subscribe with auto-renew') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
+                        </button>
+                    </form>
+                    <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-bottom: 10px;">
+                        {{ __('Card auto-renews monthly. Cancel any time.') }}
+                    </div>
+                    @if ($billingConfigured)
+                        <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px; text-align:center;">
+                            @csrf
+                            <button type="submit" style="background:none; border:none; padding:0; cursor:pointer;
+                                font-size: 12px; color: var(--ink-3); text-decoration: underline;">
+                                {{ __('or pay once by FPX / online banking') }}
+                            </button>
+                        </form>
+                    @endif
                 @elseif ($tokenizationEnabled)
                     {{-- Card-first: auto-renew is the primary path, one manual FPX
                          payment stays available for bank users who can't tokenize. --}}

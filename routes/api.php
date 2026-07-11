@@ -85,6 +85,13 @@ Route::post('/webhooks/subscription-card', [\App\Http\Controllers\Tenant\Subscri
     ->middleware('throttle:webhook-subscription')
     ->name('subscription.card.callback');
 
+// Stripe subscription lifecycle. Authoritative source of Stripe-managed
+// subscription state (Stripe auto-charges + dunning). Signature-verified over
+// the raw body inside the controller; api group has no CSRF.
+Route::post('/webhooks/stripe', [\App\Http\Controllers\Webhooks\StripeWebhookController::class, 'handle'])
+    ->middleware('throttle:webhook-subscription')
+    ->name('webhooks.stripe');
+
 // SES bounce + complaint notifications, delivered via SNS (signature-verified
 // inside the controller). Keeps our sender reputation clean by suppressing dead
 // addresses so we never re-send to them.

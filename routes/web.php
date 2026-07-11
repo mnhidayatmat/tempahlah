@@ -50,6 +50,13 @@ Route::match(['get', 'post'], '/payments/return/{payment}', [\App\Http\Controlle
 Route::get('/subscription/billing/return', [\App\Http\Controllers\Tenant\SubscriptionCheckoutController::class, 'paymentReturn'])
     ->name('subscription.billing.return');
 
+// Where Stripe Checkout sends the tenant back. Informational only — the webhook
+// is authoritative. Registered outside the domain groups so it resolves on any
+// host, like the Billplz return above.
+Route::get('/subscription/stripe/return', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'return'])
+    ->middleware('auth')
+    ->name('subscription.stripe.return');
+
 // -----------------------------------------------------------------------------
 // Tenant public subdomain — acme.tempahlah.com → tenant `acme`'s booking page.
 // Resolved by the {tenant_slug} domain parameter via ResolveTenantFromSubdomain.
@@ -293,6 +300,12 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             ->name('subscription.card.enroll');
         Route::post('/subscription/auto-renew', [\App\Http\Controllers\Tenant\SubscriptionCardController::class, 'toggle'])
             ->name('subscription.card.toggle');
+        // Stripe recurring subscription — hosted Checkout + Customer Portal. The
+        // public return + webhook live in routes/api.php / below.
+        Route::post('/subscription/stripe/checkout', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'checkout'])
+            ->name('subscription.stripe.checkout');
+        Route::post('/subscription/stripe/portal', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'portal'])
+            ->name('subscription.stripe.portal');
         Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
         Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');

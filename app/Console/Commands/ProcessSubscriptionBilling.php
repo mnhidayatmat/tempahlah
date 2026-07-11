@@ -73,6 +73,7 @@ class ProcessSubscriptionBilling extends Command
 
         $subscriptions = Subscription::query()
             ->whereNull('comped_at')
+            ->whereNull('stripe_subscription_id') // Stripe drives its own subs via webhooks
             ->where('plan', Subscription::PLAN_PAID)
             ->where(function ($q) use ($horizon) {
                 $q->where(function ($q) use ($horizon) {
@@ -144,6 +145,7 @@ class ProcessSubscriptionBilling extends Command
 
         $subscriptions = Subscription::query()
             ->whereNull('comped_at')
+            ->whereNull('stripe_subscription_id') // Stripe drives its own subs via webhooks
             ->where('status', Subscription::STATUS_PAST_DUE)
             ->whereNotNull('grace_ends_at')
             ->where('grace_ends_at', '>', now())

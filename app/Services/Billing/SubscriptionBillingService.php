@@ -305,6 +305,126 @@ class SubscriptionBillingService
     }
 
     /**
+     * Apply a Stripe subscription object to the local subscription — the single
+     * owner of Stripe→local state, so the webhook events can't drift.
+     *
+     * Resolves the local row by stripe_subscription_id, then by the
+     * metadata.tenant_id we set at checkout (the first event, before we've stored
+     * the sub id). Idempotent, comped-safe.
+     *
+     * Stripe status map:
+     *   active | trialing            -> paid + active (auto-charge is on)
+     *   past_due | unpaid            -> past_due + grace window (isPaid stays true
+     *                                   inside grace so features don't cut off
+     *                                   mid-retry)
+     *   canceled | incomplete_expired-> downgrade to free
+     *   incomplete                   -> ignore (checkout not completed / unpaid)
+     *
+     * @param  array  $stripeSub  A Stripe Subscription object.
+     */
+    public function applyStripeSubscription(array $stripeSub): bool
+    {
+        $stripeId = (string) ($stripeSub['id'] ?? '');
+        if ($stripeId === '') {
+            return false;
+        }
+
+        $status = (string) ($stripeSub['status'] ?? '');
+        $tenantId = $stripeSub['metadata']['tenant_id'] ?? null;
+
+        return DB::transaction(function () use ($stripeSub, $stripeId, $status, $tenantId) {
+            $query = Subscription::query()->lockForUpdate();
+            $subscription = (clone $query)->where('stripe_subscription_id', $stripeId)->first();
+
+            if (! $subscription && $tenantId) {
+                $subscription = (clone $query)->where('tenant_id', $tenantId)->first();
+            }
+
+            if (! $subscription) {
+                Log::warning('Stripe event for unknown subscription', ['stripe_sub' => $stripeId, 'tenant_id' => $tenantId]);
+
+                return false;
+            }
+
+            // Checkout not completed yet — don't grant anything, but do remember
+            // the ids so the next event resolves directly.
+            if ($status === 'incomplete' || $status === '') {
+                $subscription->update([
+                    'stripe_subscription_id' => $stripeId,
+                    'stripe_customer_id' => $subscription->stripe_customer_id ?: ($stripeSub['customer'] ?? null),
+                ]);
+
+                return false;
+            }
+
+            $updates = [
+                'stripe_subscription_id' => $stripeId,
+                'stripe_customer_id' => $subscription->stripe_customer_id ?: ($stripeSub['customer'] ?? null),
+                'stripe_price_id' => $stripeSub['items']['data'][0]['price']['id'] ?? $subscription->stripe_price_id,
+                'billing_method' => 'stripe',
+            ];
+
+            $periodEnd = isset($stripeSub['current_period_end'])
+                ? Carbon::createFromTimestamp((int) $stripeSub['current_period_end'])
+                : null;
+
+            if (in_array($status, ['active', 'trialing'], true)) {
+                $updates = array_merge($updates, [
+                    'plan' => Subscription::PLAN_PAID,
+                    'status' => Subscription::STATUS_ACTIVE,
+                    'current_period_end' => $periodEnd ?? $subscription->current_period_end,
+                    'grace_ends_at' => null,
+                    'cancelled_at' => null,
+                    'trial_ends_at' => null,
+                ]);
+            } elseif (in_array($status, ['past_due', 'unpaid'], true)) {
+                $updates = array_merge($updates, [
+                    'plan' => Subscription::PLAN_PAID,
+                    'status' => Subscription::STATUS_PAST_DUE,
+                    // Keep features alive while Stripe retries the card.
+                    'grace_ends_at' => $subscription->grace_ends_at
+                        ?? now()->addDays(Subscription::graceDays()),
+                ]);
+            } elseif (in_array($status, ['canceled', 'incomplete_expired'], true)) {
+                $updates = array_merge($updates, [
+                    'plan' => Subscription::PLAN_FREE,
+                    'status' => Subscription::STATUS_ACTIVE,
+                    'monthly_amount' => 0,
+                    'cancelled_at' => now(),
+                    'grace_ends_at' => null,
+                    'current_period_start' => now(),
+                    'current_period_end' => now()->addYear(),
+                    // The subscription is gone at Stripe — clear it so this row is
+                    // no longer Stripe-managed and can re-subscribe cleanly.
+                    'stripe_subscription_id' => null,
+                ]);
+            }
+
+            // A comped account is an admin grant: record the Stripe ids but never
+            // flip the plan/status/comp.
+            if ($subscription->isComped()) {
+                $subscription->update([
+                    'stripe_subscription_id' => $status === 'canceled' || $status === 'incomplete_expired' ? null : $stripeId,
+                    'stripe_customer_id' => $subscription->stripe_customer_id ?: ($stripeSub['customer'] ?? null),
+                ]);
+
+                return true;
+            }
+
+            $subscription->update($updates);
+
+            Log::info('Stripe subscription applied', [
+                'tenant_id' => $subscription->tenant_id,
+                'stripe_status' => $status,
+                'local_status' => $subscription->status,
+                'plan' => $subscription->plan,
+            ]);
+
+            return true;
+        });
+    }
+
+    /**
      * Called when a subscription drops to free — an unpaid bill for a cycle the
      * tenant no longer has must not sit there being chased.
      */

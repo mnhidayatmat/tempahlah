@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Services\Billing\StripeBilling;
 use App\Services\Billing\SubscriptionBillingService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {
-    public function index(SubscriptionBillingService $billing)
+    public function index(SubscriptionBillingService $billing, StripeBilling $stripe)
     {
         $tenant = app(TenantContext::class)->current();
         $subscription = $tenant?->subscription;
@@ -30,6 +31,8 @@ class SubscriptionController extends Controller
             // Card auto-renew UI only shows when Billplz Tokenization is switched
             // on for the platform; otherwise the page is exactly as before.
             'tokenizationEnabled' => $billing->tokenizationEnabled(),
+            // Stripe recurring billing — the primary path when configured.
+            'stripeEnabled' => $stripe->enabled(),
             'openInvoice' => $subscription && ! $subscription->isComped()
                 ? $billing->openInvoiceFor($subscription)
                 : null,

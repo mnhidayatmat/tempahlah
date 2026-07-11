@@ -58,13 +58,24 @@ return [
         // How long a minted bill stays payable before the cycle is re-billed.
         'invoice_due_days' => env('SUBSCRIPTION_INVOICE_DUE_DAYS', 14),
 
-        // Master switch for Billplz card auto-renew (Tokenization). Even with
-        // credentials set, card enrollment/checkout stays hidden and the daily
-        // command never auto-charges until this is true — because Tokenization
-        // is off by default on Billplz's side (paid plan, request access from
-        // support@billplz.com; Visa/Mastercard only, FPX cannot be tokenized).
-        // Turn on only once Billplz has enabled it on the platform account and
-        // it's been sandbox-tested with a real card.
+        // Master switch for Billplz card auto-renew (Tokenization). SUPERSEDED
+        // by Stripe (below) for recurring — kept dormant. Even with credentials
+        // set, card enrollment/checkout stays hidden and the daily command never
+        // auto-charges until this is true.
         'tokenization' => (bool) env('BILLPLZ_TOKENIZATION', false),
+
+        // Stripe — the recurring-billing rail. Stripe auto-charges each cycle
+        // and runs its own dunning, so there is no daily charge command for
+        // Stripe-managed subscriptions. Platform-owned keys (Tempahlah charges
+        // its tenants), read from env per Stripe's own best-practices — never
+        // the DB. With no secret_key + price_id the Stripe UI is hidden and the
+        // webhook 409s, so the feature ships inert until these are set.
+        'stripe' => [
+            'secret_key' => env('STRIPE_SECRET_KEY'),
+            'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+            // The recurring MYR 49/mo Price created in the Stripe Dashboard.
+            'price_id' => env('STRIPE_PRICE_ID'),
+        ],
     ],
 ];
