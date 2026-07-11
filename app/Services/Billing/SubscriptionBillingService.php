@@ -205,6 +205,73 @@ class SubscriptionBillingService
     }
 
     /**
+     * Persist a tokenized card on the subscription after a checksum-VERIFIED
+     * enrollment callback. Never call this on an unverified callback — the token
+     * is the thing that charges money.
+     *
+     * @param  array{id?: string, token?: string, card_number?: string, provider?: string, status?: string}  $card
+     */
+    public function storeCard(Subscription $subscription, array $card): void
+    {
+        $subscription->update([
+            'card_id' => (string) ($card['id'] ?? ''),
+            'card_token' => (string) ($card['token'] ?? ''),
+            // Billplz sends the masked PAN; keep only the last 4 for display.
+            'card_last4' => substr(preg_replace('/\D/', '', (string) ($card['card_number'] ?? '')) ?: '', -4) ?: null,
+            'card_brand' => $card['provider'] ?? null,
+            'card_status' => (string) ($card['status'] ?? Subscription::CARD_ACTIVE),
+            'auto_renew' => true,
+        ]);
+    }
+
+    /**
+     * Charge an invoice against the subscription's saved card, then settle.
+     *
+     * Reuses the whole existing money path: payUrlFor() mints/reuses the bill,
+     * settle() is the sole owner of advancing the period. We charge, then
+     * reconcile server-side (getBill) rather than trusting the synchronous
+     * charge body, so a "success" that didn't actually clear can't advance a
+     * period. A declined charge returns false and leaves the invoice open — the
+     * daily command's dunning path then emails the pay-link as a fallback.
+     */
+    public function chargeSavedCard(SubscriptionInvoice $invoice, Subscription $subscription): bool
+    {
+        if ($invoice->isPaid()) {
+            return false;
+        }
+
+        if (! $subscription->hasChargeableCard()) {
+            throw new PlatformBillingException('Subscription has no chargeable card on file.');
+        }
+
+        // Ensure a live bill exists for this invoice (mints or reuses one).
+        $this->payUrlFor($invoice);
+        $invoice->refresh();
+
+        $charge = $this->billplz->chargeCard(
+            (string) $invoice->gateway_bill_id,
+            (string) $subscription->card_id,
+            (string) $subscription->card_token,
+        );
+
+        if (! $charge['success']) {
+            Log::warning('Subscription card charge declined', [
+                'invoice' => $invoice->number,
+                'tenant_id' => $invoice->tenant_id,
+                'status' => $charge['status'],
+                'http' => $charge['http_status'],
+            ]);
+
+            $invoice->update(['status' => SubscriptionInvoice::STATUS_FAILED]);
+
+            return false;
+        }
+
+        // Trust the gateway, not the charge body — confirm the bill really paid.
+        return $this->reconcile($invoice);
+    }
+
+    /**
      * Reconcile straight from Billplz. The trustworthy path — used by the return
      * page, and by any callback whose signature we could not verify.
      */

@@ -21,11 +21,14 @@ class Subscription extends Model
     public const STATUS_PAST_DUE = 'past_due';
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const CARD_ACTIVE = 'active';
+
     protected $fillable = [
         'tenant_id', 'plan', 'status', 'billing_method',
         'monthly_amount', 'currency',
         'trial_ends_at', 'current_period_start', 'current_period_end', 'cancelled_at',
         'comped_at', 'grace_ends_at', 'trial_used_at',
+        'auto_renew', 'card_id', 'card_token', 'card_last4', 'card_brand', 'card_status',
         'meta',
     ];
 
@@ -38,8 +41,23 @@ class Subscription extends Model
         'grace_ends_at' => 'datetime',
         'trial_used_at' => 'datetime',
         'monthly_amount' => 'decimal:2',
+        'auto_renew' => 'boolean',
+        // The token charges money — never store it in plaintext.
+        'card_token' => 'encrypted',
         'meta' => 'array',
     ];
+
+    /**
+     * A usable saved card the daily command can auto-charge: the tenant opted in,
+     * and Billplz reported the token active. `card_token` is decrypted lazily.
+     */
+    public function hasChargeableCard(): bool
+    {
+        return $this->auto_renew
+            && $this->card_status === self::CARD_ACTIVE
+            && filled($this->card_id)
+            && filled($this->card_token);
+    }
 
     public function tenant(): BelongsTo
     {

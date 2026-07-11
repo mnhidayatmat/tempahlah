@@ -27,6 +27,9 @@ class SubscriptionController extends Controller
             // Checkout only appears once Tempahlah's own Billplz account is
             // configured; until then the page tells the tenant to contact us.
             'billingConfigured' => $billing->configured(),
+            // Card auto-renew UI only shows when Billplz Tokenization is switched
+            // on for the platform; otherwise the page is exactly as before.
+            'tokenizationEnabled' => $billing->tokenizationEnabled(),
             'openInvoice' => $subscription && ! $subscription->isComped()
                 ? $billing->openInvoiceFor($subscription)
                 : null,

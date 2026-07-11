@@ -123,9 +123,9 @@
                 @if ($billingConfigured)
                     <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
                         @csrf
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <x-btn-submit class="btn btn-primary btn-sm">
                             {{ __('Pay now') }} — RM {{ number_format($openInvoice?->amount ?? config('homestay.paid_tier_price'), 2) }}
-                        </button>
+                        </x-btn-submit>
                     </form>
                 @endif
             </div>
@@ -143,7 +143,7 @@
                 </div>
                 <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-top: 12px;">
                     @csrf
-                    <button type="submit" class="btn btn-primary btn-sm">{{ __('Pay now') }}</button>
+                    <x-btn-submit class="btn btn-primary btn-sm">{{ __('Pay now') }}</x-btn-submit>
                 </form>
             </div>
         @endif
@@ -264,11 +264,47 @@
                     {{ __('≈ Less than one Garden Room booking. Cancel anytime.') }}
                 </div>
                 @if ($plan !== 'free')
-                    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 22px;
+                    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 14px;
                         background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5;"
                         disabled>
                         {{ $subscription?->isComped() ? __('Complimentary Pro') : __("You're on Pro") }}
                     </button>
+                    {{-- Card on file / auto-renew panel. Only when Tokenization is
+                         live AND this isn't a comped account (comped never pays). --}}
+                    @if ($tokenizationEnabled && ! $subscription?->isComped())
+                        @if ($subscription?->card_status === \App\Models\Subscription::CARD_ACTIVE && $subscription?->card_id)
+                            <div style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 22px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap: 10px;">
+                                    <div style="font-size: 12.5px; color: var(--ink);">
+                                        <x-icon name="card" :size="13"/>
+                                        {{ $subscription->card_brand ? ucfirst($subscription->card_brand) : __('Card') }}
+                                        •••• {{ $subscription->card_last4 ?: '····' }}
+                                    </div>
+                                    <span class="pill {{ $subscription->auto_renew ? 'pill-ok' : '' }}" style="height: 18px; font-size: 10.5px;">
+                                        <span class="pill-dot"></span>{{ $subscription->auto_renew ? __('Auto-renew on') : __('Auto-renew off') }}
+                                    </span>
+                                </div>
+                                <form method="POST" action="{{ route('tenant.subscription.card.toggle') }}" style="margin-top: 10px;">
+                                    @csrf
+                                    <input type="hidden" name="auto_renew" value="{{ $subscription->auto_renew ? '0' : '1' }}">
+                                    <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
+                                        {{ $subscription->auto_renew ? __('Turn auto-renew off') : __('Turn auto-renew on') }}
+                                    </button>
+                                </form>
+                            </div>
+                        @else
+                            {{-- Pro but no card yet (e.g. on trial) — offer to add one. --}}
+                            <form method="POST" action="{{ route('tenant.subscription.card.enroll') }}" style="margin-bottom: 22px;">
+                                @csrf
+                                <x-btn-submit class="btn btn-sm" style="width:100%; justify-content:center;">
+                                    <x-icon name="card" :size="13"/> {{ __('Add a card for auto-renew') }}
+                                </x-btn-submit>
+                                <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-top: 6px;">
+                                    {{ __('Visa / Mastercard. Charged automatically each month.') }}
+                                </div>
+                            </form>
+                        @endif
+                    @endif
                 @elseif ($canStartTrial)
                     <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
                         @csrf
@@ -279,14 +315,35 @@
                             {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
                         </button>
                     </form>
+                @elseif ($tokenizationEnabled)
+                    {{-- Card-first: auto-renew is the primary path, one manual FPX
+                         payment stays available for bank users who can't tokenize. --}}
+                    <form method="POST" action="{{ route('tenant.subscription.card.enroll') }}" style="margin-bottom: 8px;">
+                        @csrf
+                        <x-btn-submit class="btn" style="width:100%; justify-content:center;
+                            background: var(--ink); color: var(--bg); border-color: transparent;">
+                            <x-icon name="card" :size="14"/>
+                            {{ __('Subscribe with auto-renew') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
+                        </x-btn-submit>
+                    </form>
+                    <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-bottom: 10px;">
+                        {{ __('Visa / Mastercard — charged automatically each month.') }}
+                    </div>
+                    <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px; text-align:center;">
+                        @csrf
+                        <button type="submit" style="background:none; border:none; padding:0; cursor:pointer;
+                            font-size: 12px; color: var(--ink-3); text-decoration: underline;">
+                            {{ __('or pay once by FPX / online banking') }}
+                        </button>
+                    </form>
                 @elseif ($billingConfigured)
-                    {{-- Trial used (or declined) — pay for real. --}}
+                    {{-- Trial used (or declined) — pay for real (no card auto-renew). --}}
                     <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px;">
                         @csrf
-                        <button type="submit" class="btn" style="width:100%; justify-content:center;
+                        <x-btn-submit class="btn" style="width:100%; justify-content:center;
                             background: var(--ink); color: var(--bg); border-color: transparent;">
                             {{ __('Upgrade to Pro') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
-                        </button>
+                        </x-btn-submit>
                     </form>
                 @else
                     {{-- Trial used, and Tempahlah's own Billplz account isn't configured yet. --}}

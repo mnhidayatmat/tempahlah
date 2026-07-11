@@ -94,8 +94,11 @@ class ProcessSubscriptionBilling extends Command
             }
 
             $periodStart = $billing->nextPeriodStart($subscription);
+            $autoCharge = $subscription->hasChargeableCard();
 
-            $this->line("  tenant {$subscription->tenant_id}: issue bill for cycle starting {$periodStart->toDateString()}");
+            $this->line("  tenant {$subscription->tenant_id}: "
+                .($autoCharge ? 'auto-charge card' : 'issue bill')
+                ." for cycle starting {$periodStart->toDateString()}");
 
             if ($this->dryRun) {
                 $count++;
@@ -105,6 +108,17 @@ class ProcessSubscriptionBilling extends Command
 
             try {
                 $invoice = $billing->issueInvoice($subscription, $periodStart);
+
+                // Card on file → charge it silently. A decline falls through to
+                // the pay-link email below (chargeSavedCard leaves the invoice
+                // open), so no one is ever left uncharged AND un-notified.
+                if ($autoCharge && $billing->chargeSavedCard($invoice, $subscription)) {
+                    $this->line("    charged card for {$invoice->number}");
+                    $count++;
+
+                    continue;
+                }
+
                 $payUrl = $billing->payUrlFor($invoice);
                 $this->email($invoice, $payUrl, dunning: false);
                 $count++;

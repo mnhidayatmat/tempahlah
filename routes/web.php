@@ -287,6 +287,12 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/subscription/change', [SubscriptionController::class, 'change'])->name('subscription.change');
         Route::post('/subscription/checkout', [\App\Http\Controllers\Tenant\SubscriptionCheckoutController::class, 'checkout'])
             ->name('subscription.checkout');
+        // Billplz card auto-renew (Tokenization). Enroll → hosted 3DS → the
+        // public callback in routes/api.php stores the token + charges the cycle.
+        Route::post('/subscription/enroll-card', [\App\Http\Controllers\Tenant\SubscriptionCardController::class, 'enroll'])
+            ->name('subscription.card.enroll');
+        Route::post('/subscription/auto-renew', [\App\Http\Controllers\Tenant\SubscriptionCardController::class, 'toggle'])
+            ->name('subscription.card.toggle');
         Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
         Route::get('/integrations/{provider}',            [IntegrationController::class, 'show'])->name('integrations.show');
         Route::patch('/integrations/{provider}',          [IntegrationController::class, 'update'])->name('integrations.update');

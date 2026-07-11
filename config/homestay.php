@@ -57,5 +57,14 @@ return [
 
         // How long a minted bill stays payable before the cycle is re-billed.
         'invoice_due_days' => env('SUBSCRIPTION_INVOICE_DUE_DAYS', 14),
+
+        // Master switch for Billplz card auto-renew (Tokenization). Even with
+        // credentials set, card enrollment/checkout stays hidden and the daily
+        // command never auto-charges until this is true — because Tokenization
+        // is off by default on Billplz's side (paid plan, request access from
+        // support@billplz.com; Visa/Mastercard only, FPX cannot be tokenized).
+        // Turn on only once Billplz has enabled it on the platform account and
+        // it's been sandbox-tested with a real card.
+        'tokenization' => (bool) env('BILLPLZ_TOKENIZATION', false),
     ],
 ];

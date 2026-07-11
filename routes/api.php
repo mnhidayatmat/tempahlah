@@ -78,6 +78,13 @@ Route::post('/webhooks/subscription-billing', [SubscriptionBillingWebhookControl
     ->middleware('throttle:webhook-subscription')
     ->name('webhooks.subscription-billing');
 
+// Billplz card-tokenization callback: the tenant completed 3DS and Billplz is
+// posting back the saved-card token. Checksum-verified inside the controller;
+// api group has no CSRF, so no exemption needed (like the callback above).
+Route::post('/webhooks/subscription-card', [\App\Http\Controllers\Tenant\SubscriptionCardController::class, 'callback'])
+    ->middleware('throttle:webhook-subscription')
+    ->name('subscription.card.callback');
+
 // SES bounce + complaint notifications, delivered via SNS (signature-verified
 // inside the controller). Keeps our sender reputation clean by suppressing dead
 // addresses so we never re-send to them.

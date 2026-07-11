@@ -36,6 +36,19 @@ class PlatformBillplz
         return filled($this->config('api_key')) && filled($this->config('collection_id'));
     }
 
+    /**
+     * Card auto-renew (Tokenization) is a strict superset of configured(): it
+     * ALSO needs the platform-wide tokenization switch, because Billplz keeps
+     * Tokenization off by default (paid plan, Visa/MC only, no FPX). While this
+     * is false, card enrollment/checkout stays hidden and the daily command
+     * never auto-charges — so the feature ships inert.
+     */
+    public function tokenizationEnabled(): bool
+    {
+        return $this->configured()
+            && (bool) config('homestay.platform_billing.tokenization', false);
+    }
+
     public function sandbox(): bool
     {
         return (bool) $this->config('sandbox', true);
@@ -109,6 +122,106 @@ class PlatformBillplz
     }
 
     /**
+     * Begin card enrollment: create a Billplz card and return the hosted 3DS
+     * page the tenant is redirected to. Billplz POSTs the resulting token to
+     * $callbackUrl once the cardholder completes 3DS.
+     *
+     * @return array{card_id: string, redirect_url: string, response: array}
+     */
+    public function createCard(Tenant $tenant, string $callbackUrl): array
+    {
+        $this->assertTokenization();
+
+        // Cardholder contact. Tenant has no `email` column — it's business_email;
+        // the owner's address is the real billing contact. (createBill's
+        // `$tenant->email` fallback silently resolves null — don't copy it.)
+        $email = $tenant->owner?->email ?: $tenant->business_email ?: 'billing@tempahlah.com';
+
+        $payload = [
+            'name' => mb_substr((string) ($tenant->business_name ?: 'Tempahlah tenant'), 0, 255),
+            'email' => $email,
+            'callback_url' => $callbackUrl,
+        ];
+
+        $phone = $tenant->owner?->phone ?: $tenant->business_phone;
+        if (filled($phone)) {
+            $payload['phone'] = (string) $phone;
+        }
+
+        $response = Http::withBasicAuth((string) $this->config('api_key'), '')
+            ->asForm()
+            ->timeout(15)
+            ->connectTimeout(5)
+            ->retry(2, 500, throw: false)
+            ->post($this->baseUrl().'/v4/cards', $payload);
+
+        $json = $response->json();
+        $json = is_array($json) ? $json : [];
+
+        if (! $response->successful() || empty($json['id']) || empty($json['authentication_redirect_url'])) {
+            throw BillplzException::apiError(
+                $response->body() ?: 'createCard returned no authentication_redirect_url',
+                $json,
+                $response->status(),
+            );
+        }
+
+        return [
+            'card_id' => (string) $json['id'],
+            'redirect_url' => (string) $json['authentication_redirect_url'],
+            'response' => $json,
+        ];
+    }
+
+    /**
+     * Charge a tokenized card against an existing bill. Synchronous: Billplz
+     * returns success/failure in the response body. The caller must still
+     * reconcile via getBill before trusting it — never settle on this body alone.
+     *
+     * @return array{success: bool, status: string, reference_id: ?string, response: array, http_status: int}
+     */
+    public function chargeCard(string $billId, string $cardId, string $token): array
+    {
+        $this->assertTokenization();
+
+        $response = Http::withBasicAuth((string) $this->config('api_key'), '')
+            ->asForm()
+            ->timeout(20)
+            ->connectTimeout(5)
+            // No auto-retry: a charge is not idempotent on Billplz's side, and a
+            // network blip after they charged would double-bill on retry.
+            ->post($this->baseUrl().'/v4/bills/'.rawurlencode($billId).'/charge', [
+                'card_id' => $cardId,
+                'token' => $token,
+            ]);
+
+        $json = $response->json();
+        $json = is_array($json) ? $json : [];
+
+        $status = (string) ($json['status'] ?? '');
+
+        return [
+            'success' => $response->successful() && $status === 'success',
+            'status' => $status,
+            'reference_id' => isset($json['reference_id']) ? (string) $json['reference_id'] : null,
+            'response' => $json,
+            'http_status' => $response->status(),
+        ];
+    }
+
+    /**
+     * 'verified' | 'invalid' | 'missing' for a card-enrollment callback. Billplz
+     * signs the card callback with the SAME X-Signature algorithm as bill
+     * callbacks, so this delegates to the exact same verifier.
+     *
+     * @param  array  $params  All callback params EXCEPT x_signature.
+     */
+    public function cardCallbackSignatureStatus(array $params, ?string $signature): string
+    {
+        return $this->callbackSignatureStatus($params, $signature);
+    }
+
+    /**
      * Canonical server-side state of a bill. This is the trustworthy check —
      * used on the return page, and on any callback whose signature we could not
      * verify.
@@ -174,6 +287,13 @@ class PlatformBillplz
     private function assertConfigured(): void
     {
         if (! $this->configured()) {
+            throw PlatformBillingException::notConfigured();
+        }
+    }
+
+    private function assertTokenization(): void
+    {
+        if (! $this->tokenizationEnabled()) {
             throw PlatformBillingException::notConfigured();
         }
     }
