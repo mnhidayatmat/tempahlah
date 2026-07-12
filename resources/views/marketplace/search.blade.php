@@ -68,7 +68,7 @@ a{color:inherit;}
 .hero-sub{font-size:16px;color:var(--ink-2);max-width:500px;margin:15px auto 0;line-height:1.55;text-wrap:pretty;}
 
 /* search — slim, professional */
-.search{max-width:580px;margin:26px auto 0;background:var(--bg-elev);border:1px solid var(--line-2);border-radius:11px;box-shadow:0 12px 30px -18px rgba(23,39,47,.28),0 1px 3px rgba(23,39,47,.05);display:grid;grid-template-columns:1.7fr 1.2fr 1.4fr auto;padding:4px;gap:0;align-items:stretch;}
+.search{max-width:780px;margin:26px auto 0;background:var(--bg-elev);border:1px solid var(--line-2);border-radius:11px;box-shadow:0 12px 30px -18px rgba(23,39,47,.28),0 1px 3px rgba(23,39,47,.05);display:grid;grid-template-columns:1.3fr 1.3fr 1fr 1fr auto;padding:4px;gap:0;align-items:stretch;}
 .search-field{text-align:left;padding:4px 14px;border-radius:8px;display:flex;flex-direction:column;justify-content:center;gap:0;position:relative;transition:background .12s;cursor:text;}
 .search-field .lbl{line-height:1.15;}
 .search-field input,.search-field select{line-height:1.2;}
@@ -179,8 +179,10 @@ a{color:inherit;}
   .hero-sub{font-size:15px;}
   .search{grid-template-columns:1fr;padding:6px;gap:0;}
   .search-field + .search-field::before{display:none;}
-  .search-field{border-top:1px solid var(--line);border-radius:10px;}
+  .search-field{border-top:1px solid var(--line);border-radius:10px;padding:8px 14px;}
   .search-field:first-child{border-top:0;}
+  /* 16px stops iOS Safari zooming the page when a field is focused. */
+  .search-field input,.search-field select{font-size:16px;}
   .search-btn{margin:6px 0 0;padding:13px;}
   .reassure{display:none;}
   .dests-wrap{display:block;margin-top:22px;}
@@ -207,6 +209,11 @@ a{color:inherit;}
     $q = $filters['q'] ?? '';
 
     // Merge real listings (first) with showcase demos into one card list.
+    // Carry the chosen dates onto each listing link so the booking form prefills.
+    $carryDates = array_filter([
+        'check_in'  => $filters['check_in'] ?? null,
+        'check_out' => $filters['check_out'] ?? null,
+    ]);
     $cards = [];
     foreach ($listings as $l) {
         $cards[] = [
@@ -219,7 +226,7 @@ a{color:inherit;}
             'feat'   => (bool) $l->is_featured,
             'tag'    => $l->house_type === 'per_room' ? ($isBM ? 'Bilik' : 'Room') : ($isBM ? 'Seluruh rumah' : 'Whole house'),
             'img'    => $l->hero_photo_path ? Storage::url($l->hero_photo_path) : null,
-            'href'   => route('marketplace.show', $l),
+            'href'   => route('marketplace.show', ['listing' => $l] + $carryDates),
             'real'   => true,
         ];
     }
@@ -282,26 +289,68 @@ a{color:inherit;}
       <form class="search" method="GET" action="{{ route('marketplace.search') }}">
         <label class="search-field">
           <span class="lbl">{{ $isBM ? 'Di mana' : 'Where' }}</span>
-          <input name="city" value="{{ $filters['city'] ?? '' }}" placeholder="{{ $isBM ? 'Bandar atau kawasan' : 'Town or area' }}">
-        </label>
-        <label class="search-field">
-          <span class="lbl">{{ $isBM ? 'Negeri' : 'State' }}</span>
-          <select name="state">
-            <option value="">{{ $isBM ? 'Semua negeri' : 'Any state' }}</option>
+          <select name="state" id="mp-state">
+            <option value="">{{ $isBM ? 'Pilih negeri' : 'Select state' }}</option>
             @foreach ($states as $st)
               <option value="{{ $st }}" @selected(($filters['state'] ?? '') === $st)>{{ $st }}</option>
             @endforeach
           </select>
         </label>
         <label class="search-field">
-          <span class="lbl">{{ $isBM ? 'Kata kunci' : 'Keyword' }}</span>
-          <input name="q" value="{{ $q }}" placeholder="{{ $isBM ? 'Pantai, kampung, nama…' : 'Beach, kampung, name…' }}">
+          <span class="lbl">{{ $isBM ? 'Daerah' : 'District' }}</span>
+          <select name="district" id="mp-district">
+            <option value="">{{ $isBM ? 'Semua daerah' : 'All districts' }}</option>
+            @foreach (($districtsByState[$filters['state'] ?? ''] ?? []) as $d)
+              <option value="{{ $d }}" @selected(($filters['district'] ?? '') === $d)>{{ $d }}</option>
+            @endforeach
+          </select>
+        </label>
+        <label class="search-field">
+          <span class="lbl">{{ $isBM ? 'Daftar masuk' : 'Check-in' }}</span>
+          <input type="date" name="check_in" id="mp-checkin" value="{{ $filters['check_in'] ?? '' }}" min="{{ now()->toDateString() }}">
+        </label>
+        <label class="search-field">
+          <span class="lbl">{{ $isBM ? 'Daftar keluar' : 'Check-out' }}</span>
+          <input type="date" name="check_out" id="mp-checkout" value="{{ $filters['check_out'] ?? '' }}" min="{{ $filters['check_in'] ?? now()->toDateString() }}">
         </label>
         <button class="search-btn" type="submit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
           {{ $isBM ? 'Cari' : 'Search' }}
         </button>
       </form>
+      <script>
+        (function () {
+          var MAP = @json($districtsByState);
+          var st = document.getElementById('mp-state');
+          var di = document.getElementById('mp-district');
+          var ci = document.getElementById('mp-checkin');
+          var co = document.getElementById('mp-checkout');
+          var allLabel = @json($isBM ? 'Semua daerah' : 'All districts');
+          if (st && di) {
+            st.addEventListener('change', function () {
+              var list = MAP[st.value] || [];
+              var keep = di.value;
+              di.innerHTML = '';
+              var opt0 = document.createElement('option');
+              opt0.value = ''; opt0.textContent = allLabel; di.appendChild(opt0);
+              list.forEach(function (d) {
+                var o = document.createElement('option');
+                o.value = d; o.textContent = d;
+                if (d === keep) o.selected = true;
+                di.appendChild(o);
+              });
+            });
+          }
+          if (ci && co) {
+            ci.addEventListener('change', function () {
+              if (ci.value) {
+                co.min = ci.value;
+                if (co.value && co.value <= ci.value) co.value = '';
+              }
+            });
+          }
+        })();
+      </script>
 
       <div class="reassure">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>{{ $isBM ? 'Tuan rumah disahkan SSM' : 'SSM-verified hosts' }}</span>
@@ -334,7 +383,11 @@ a{color:inherit;}
 
   <div class="results-head">
     <div>
-      <h2 class="results-title">{{ ($filters['state'] ?? '') ? ($isBM ? 'Homestay di '.$filters['state'] : 'Homestays in '.$filters['state']) : ($isBM ? 'Penginapan di seluruh Malaysia' : 'Homestays across Malaysia') }}</h2>
+      @php
+          $locParts = array_filter([$filters['district'] ?? '', $filters['state'] ?? '']);
+          $locLabel = implode(', ', $locParts);
+      @endphp
+      <h2 class="results-title">{{ $locLabel ? ($isBM ? 'Homestay di '.$locLabel : 'Homestays in '.$locLabel) : ($isBM ? 'Penginapan di seluruh Malaysia' : 'Homestays across Malaysia') }}</h2>
       <div class="results-sub">{{ $displayCount }} {{ $isBM ? 'homestay sedia untuk ditempah' : 'homestays ready to book' }}</div>
     </div>
     <div class="sort">

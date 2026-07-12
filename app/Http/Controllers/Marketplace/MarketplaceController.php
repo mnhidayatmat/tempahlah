@@ -17,7 +17,15 @@ class MarketplaceController extends Controller
         // The bare homepage (no filters/pagination) shows a few showcase demo
         // homestays alongside the real listings so the grid always looks alive;
         // filtered / paginated requests show only real matches.
-        $isHome = ! $request->hasAny(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price', 'amenities', 'sort', 'page']);
+        $isHome = ! $request->hasAny(['city', 'state', 'district', 'check_in', 'check_out', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price', 'amenities', 'sort', 'page']);
+
+        // Dates are captured (not used to filter availability yet) and carried
+        // through to the listing so its booking form opens prefilled.
+        $checkIn = $this->cleanDate($request->query('check_in'));
+        $checkOut = $this->cleanDate($request->query('check_out'));
+        if ($checkOut && $checkIn && $checkOut <= $checkIn) {
+            $checkOut = null;
+        }
 
         $sort = in_array($request->input('sort'), ['price_low', 'rating'], true)
             ? $request->input('sort')
@@ -30,6 +38,9 @@ class MarketplaceController extends Controller
             ->published()
             ->when($request->input('city'), fn ($q, $v) => $q->where('city', 'like', "%$v%"))
             ->when($request->input('state'), fn ($q, $v) => $q->where('state', $v))
+            // District (daerah) resolves against the property's city — a listing
+            // in "Kluang" matches district=Kluang.
+            ->when($request->input('district'), fn ($q, $v) => $q->where('city', 'like', "%$v%"))
             ->when($request->input('q'), fn ($q, $v) => $q->where(function ($q) use ($v) {
                 $q->where('title_bm', 'like', "%$v%")
                     ->orWhere('title_en', 'like', "%$v%")
@@ -66,12 +77,30 @@ class MarketplaceController extends Controller
 
         return view('marketplace.search', [
             'listings' => $listings,
-            'filters' => $request->only(['city', 'state', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price'])
-                + ['sort' => $sort, 'amenities' => $amenityKeys],
+            'filters' => $request->only(['city', 'state', 'district', 'q', 'house_type', 'min_rooms', 'guests', 'min_price', 'max_price'])
+                + ['sort' => $sort, 'amenities' => $amenityKeys, 'check_in' => $checkIn, 'check_out' => $checkOut],
             'total' => MarketplaceListing::query()->published()->count(),
             'amenityList' => Amenity::orderBy('sort_order')->get(['key', 'label_bm', 'label_en', 'icon', 'category']),
             'demos' => $isHome ? $this->demoListings() : [],
+            // State → districts map drives the cascading daerah dropdown.
+            'districtsByState' => config('districts'),
         ]);
+    }
+
+    /** Strict Y-m-d only (rejects "2026-13-45"); returns the string or null. */
+    protected function cleanDate(?string $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            $d = \Carbon\Carbon::createFromFormat('Y-m-d', $value);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $d->format('Y-m-d') === $value ? $value : null;
     }
 
     /**
@@ -130,15 +159,47 @@ class MarketplaceController extends Controller
         // detail layout, which is itself responsive: squeezing a desktop browser
         // below 820px morphs it into a public-link-style mobile view via CSS —
         // no reload, so the transition is smooth.
+        // Dates chosen in marketplace search flow into the booking form.
+        [$checkIn, $checkOut] = $this->searchDates($request);
+
         if ($this->isMobile($request)) {
             $data = $builder->build($listing->tenant, collect([$listing->property]), $request);
             $data['marketplaceContext'] = true;
             $data['backUrl'] = route('marketplace.search');
 
+            if ($checkIn) {
+                $data['prefill'] = array_filter([
+                    'property_id' => $listing->property->id,
+                    'check_in' => $checkIn,
+                    'check_out' => $checkOut,
+                ], fn ($v) => $v !== null);
+            }
+
             return view('public-tenant.home', $data);
         }
 
-        return $this->showDetailDesktop($listing);
+        return $this->showDetailDesktop($listing, $checkIn, $checkOut);
+    }
+
+    /**
+     * Cleaned, ordered [check_in, check_out] from the request — check_in must be
+     * today or later, check_out strictly after it. Either may be null.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    protected function searchDates(Request $request): array
+    {
+        $checkIn = $this->cleanDate($request->query('check_in'));
+        $checkOut = $this->cleanDate($request->query('check_out'));
+
+        if ($checkIn && $checkIn < now()->toDateString()) {
+            $checkIn = null;
+        }
+        if (! $checkIn || ($checkOut && $checkOut <= $checkIn)) {
+            $checkOut = null;
+        }
+
+        return [$checkIn, $checkOut];
     }
 
     /**
@@ -146,7 +207,7 @@ class MarketplaceController extends Controller
      * widget. Booking still hands off to the host's own subdomain page,
      * carrying ?src=marketplace so a resulting booking is marketplace-sourced.
      */
-    protected function showDetailDesktop(MarketplaceListing $listing): View
+    protected function showDetailDesktop(MarketplaceListing $listing, ?string $checkIn = null, ?string $checkOut = null): View
     {
         $covers = ['beach', 'highland', 'kampung', 'heritage', 'city'];
         $coverKind = $covers[crc32((string) $listing->id) % count($covers)];
@@ -175,11 +236,15 @@ class MarketplaceController extends Controller
 
         // Click-through to the host's own booking page, carrying marketplace
         // attribution so a resulting booking is flagged as marketplace-sourced.
-        $bookUrl = $listing->tenant->publicUrl().'?'.http_build_query([
+        $bookUrl = $listing->tenant->publicUrl().'?'.http_build_query(array_filter([
             'src' => 'marketplace',
             'ref' => 'tempahlah_mp',
             'listing_id' => $listing->id,
-        ]);
+            // Carry the search dates so the host's booking page opens prefilled.
+            'property_id' => $checkIn ? $listing->property_id : null,
+            'check_in' => $checkIn,
+            'check_out' => $checkOut,
+        ], fn ($v) => $v !== null));
 
         return view('marketplace.show', [
             'listing' => $listing,
