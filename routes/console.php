@@ -50,12 +50,13 @@ Schedule::command('subscriptions:process-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
-// Auto-checkout — any still-active booking whose check-out date passed more
-// than a day ago is auto-transitioned to checked_out (so the host doesn't have
-// to click it), which also fires the post-checkout testimonial request. Daily
-// is enough — the trigger is date-based and each booking is acted on once.
+// Auto-checkout — any still-active booking whose scheduled check-out time
+// passed more than 24 hours ago is auto-transitioned to checked_out (so the
+// host doesn't have to click it), which also fires the post-checkout thank-you
+// + testimonial request. Hourly so the 24-hour mark is caught within the hour
+// regardless of the property's check-out time; each booking is acted on once.
 Schedule::command('bookings:auto-checkout')
-    ->dailyAt('03:00')
+    ->hourly()
     ->withoutOverlapping()
     ->onOneServer();
 
