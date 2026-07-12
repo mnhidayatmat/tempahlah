@@ -112,17 +112,8 @@
 
     <div style="max-width: 1100px; margin: 0 auto; display:flex; flex-direction:column; gap: 24px;">
 
-        @if (session('status'))
-            <div class="hauz-card" style="padding: 14px 16px; border-color: var(--ok); color: var(--ok);">
-                {{ session('status') }}
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="hauz-card" style="padding: 14px 16px; border-color: var(--err); color: var(--err);">
-                {{ session('error') }}
-            </div>
-        @endif
+        {{-- Flash messages are rendered globally by layouts/app.blade.php; a second
+             copy here caused the duplicate banner. --}}
 
         {{-- Past due: Pro is still on, but only until grace runs out. --}}
         @if ($subscription?->inGrace())

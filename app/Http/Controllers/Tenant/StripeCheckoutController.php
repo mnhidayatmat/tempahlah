@@ -59,7 +59,9 @@ class StripeCheckoutController extends Controller
             $session = $this->stripe->createCheckoutSession(
                 $tenant,
                 $customerId,
-                successUrl: route('subscription.stripe.return').'?status=success',
+                // Tell the return page whether this was a trial so it shows the
+                // right message (Stripe preserves our query params on success_url).
+                successUrl: route('subscription.stripe.return').'?status=success&trial='.($trialDays ? '1' : '0'),
                 cancelUrl: route('subscription.stripe.return').'?status=cancel',
                 trialDays: $trialDays,
             );
@@ -192,12 +194,18 @@ class StripeCheckoutController extends Controller
     public function return(Request $request)
     {
         $cancelled = $request->query('status') === 'cancel';
+        $isTrial = $request->query('trial') === '1';
 
-        return redirect()->route('tenant.subscription')->with(
-            $cancelled ? 'error' : 'status',
-            $cancelled
-                ? __('Subscription setup cancelled. You can try again any time.')
-                : __('Thanks! Your subscription is being activated — this can take a few seconds.'),
-        );
+        if ($cancelled) {
+            $message = __('Subscription setup cancelled. You can try again any time.');
+        } elseif ($isTrial) {
+            $message = __('You\'re all set — your :days-day free trial begins now. You won\'t be charged until it ends; cancel any time before then.', [
+                'days' => Subscription::trialDays(),
+            ]);
+        } else {
+            $message = __('Thanks! Your Pro subscription is being activated — this can take a few seconds.');
+        }
+
+        return redirect()->route('tenant.subscription')->with($cancelled ? 'error' : 'status', $message);
     }
 }
