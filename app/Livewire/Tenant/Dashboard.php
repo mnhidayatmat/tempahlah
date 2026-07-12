@@ -26,6 +26,30 @@ class Dashboard extends Component
         $this->range = in_array($range, ['30d', 'qtr', 'ytd'], true) ? $range : '30d';
     }
 
+    /**
+     * Mark the setup checklist's final step done: the host has shared their
+     * booking link. Server-side gated on the core steps genuinely being green
+     * (a crafted request can't skip setup). Re-rendering after this stamps the
+     * checklist complete, so the "Get set up" card removes itself.
+     */
+    public function shareBookingLink(): void
+    {
+        $tenant = app(TenantContext::class)->current();
+        if (! $tenant) {
+            return;
+        }
+
+        $checklist = app(SetupChecklist::class)->for($tenant);
+        $share = collect($checklist['steps'])->firstWhere('key', 'booking');
+
+        // Only allow it once the link step is actually unlocked.
+        if ($share && ($share['locked'] ?? false)) {
+            return;
+        }
+
+        $tenant->markBookingLinkShared();
+    }
+
     public function render()
     {
         $tenant = app(TenantContext::class)->current();

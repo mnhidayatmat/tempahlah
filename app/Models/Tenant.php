@@ -30,6 +30,7 @@ class Tenant extends Model
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
         'auto_housekeeping',
         'manual_payment_instructions',
+        'booking_link_shared_at',
     ];
 
     public const THEME_DEFAULTS = [
@@ -84,6 +85,7 @@ class Tenant extends Model
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
+        'booking_link_shared_at' => 'datetime',
     ];
 
     /** Platform default for the auto-housekeeping SOP master toggle. */
@@ -461,5 +463,19 @@ class Tenant extends Model
         }
 
         return $scheme.'://'.$domain.$portSuffix.'/'.$this->slug;
+    }
+
+    /** Has the host shared their booking link from the setup checklist? */
+    public function bookingLinkShared(): bool
+    {
+        return $this->booking_link_shared_at !== null;
+    }
+
+    /** Stamp the moment the host shared their booking link. Idempotent. */
+    public function markBookingLinkShared(): void
+    {
+        if ($this->booking_link_shared_at === null) {
+            $this->forceFill(['booking_link_shared_at' => now()])->save();
+        }
     }
 }

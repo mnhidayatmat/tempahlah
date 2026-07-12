@@ -28,13 +28,15 @@ class SetupChecklist
 {
     /**
      * @return array{
-     *   steps: list<array{key:string,title:string,body:string,done:bool,cta:?string,route:?string}>,
+     *   steps: list<array{key:string,title:string,body:string,done:bool,cta:?string,route:?string,locked:bool}>,
      *   done: int, total: int, complete: bool, public_url: string
      * }
      */
     public function for(Tenant $tenant): array
     {
-        $steps = [
+        // The "core" steps that must all be green before the host can share
+        // their link. Every one is derived from live state.
+        $core = [
             $this->addProperty(),
             $this->priceARoom(),
             $this->publishProperty(),
@@ -45,10 +47,16 @@ class SetupChecklist
         // isPaid). Free hosts can't use it, so it must not sit in their
         // "finish these to start taking bookings" list as an unreachable step.
         if ($tenant->isPaid()) {
-            $steps[] = $this->connectWhatsapp($tenant);
+            $core[] = $this->connectWhatsapp($tenant);
         }
 
-        $steps[] = $this->firstBooking($tenant);
+        $coreDone = ! in_array(false, array_column($core, 'done'), true);
+
+        // The final step: share the booking link. It only unlocks once every
+        // core step is green, and clicking it is what dismisses the whole card
+        // (a real booking also satisfies it — the honest proof the link works).
+        $steps = $core;
+        $steps[] = $this->shareBookingLink($tenant, $coreDone);
 
         $done = count(array_filter($steps, fn ($s) => $s['done']));
 
@@ -148,19 +156,26 @@ class SetupChecklist
     }
 
     /**
-     * Not a task the host performs in the app — it ticks itself the moment a
-     * real booking lands, which is the only honest proof the link works.
+     * The final step. Locked until every core step is green — there's no point
+     * sharing a link to a homestay that isn't published or priced. Once the
+     * host clicks it (or a real booking lands, the honest proof the link works)
+     * the step ticks and the whole "Get set up" card dismisses itself.
      */
-    private function firstBooking(Tenant $tenant): array
+    private function shareBookingLink(Tenant $tenant, bool $coreDone): array
     {
+        $done = $tenant->bookingLinkShared() || Booking::query()->exists();
+
         return [
             'key' => 'booking',
             'title' => __('Share your booking link'),
-            'body' => __('Send :url to your guests. This ticks itself on your first booking.', [
-                'url' => preg_replace('#^https?://#', '', $tenant->publicUrl()),
-            ]),
-            'done' => Booking::query()->exists(),
-            'cta' => __('Open booking page'),
+            'body' => $coreDone
+                ? __('You\'re ready. Send :url to your guests to start taking bookings.', [
+                    'url' => preg_replace('#^https?://#', '', $tenant->publicUrl()),
+                ])
+                : __('Finish the steps above first, then share your link with guests.'),
+            'done' => $done,
+            'locked' => ! $coreDone && ! $done,
+            'cta' => __('Share your booking link'),
             'route' => $tenant->publicUrl(),
         ];
     }

@@ -31,6 +31,12 @@
             .su-step-done .su-step-body { display:none; }
             .su-cta { flex:0 0 auto; font-size:12px; font-weight:500; color:var(--primary); text-decoration:none; white-space:nowrap; }
             .su-cta:hover { text-decoration:underline; }
+            .su-cta-btn { background:none; border:none; padding:0; cursor:pointer; font-family:inherit; }
+            .su-share { color:#fff; background:var(--primary); padding:7px 12px; border-radius:var(--r-md); }
+            .su-share:hover { text-decoration:none; background:var(--primary-hover, var(--primary)); }
+            .su-cta-locked { flex:0 0 auto; font-size:12px; color:var(--ink-3); white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+            .su-cta-locked svg { width:12px; height:12px; stroke:currentColor; stroke-width:2; fill:none; }
+            .su-step-locked .su-step-title { color:var(--ink-3); }
             .su-foot { margin-top:14px; padding-top:12px; border-top:.5px solid var(--line);
                        display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
             .su-replay { background:none; border:none; padding:0; cursor:pointer; font-size:12px; color:var(--ink-3); text-decoration:underline; }
@@ -62,7 +68,8 @@
 
         <ul class="su-list">
             @foreach ($checklist['steps'] as $step)
-                <li class="su-step {{ $step['done'] ? 'su-step-done' : '' }}">
+                @php $locked = $step['locked'] ?? false; @endphp
+                <li class="su-step {{ $step['done'] ? 'su-step-done' : '' }} {{ $locked ? 'su-step-locked' : '' }}">
                     <span class="su-tick">
                         @if ($step['done'])
                             <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -72,12 +79,29 @@
                         <div class="su-step-title">{{ $step['title'] }}</div>
                         <div class="su-step-body">{{ $step['body'] }}</div>
                     </div>
-                    @if (! $step['done'] && $step['route'])
-                        <a class="su-cta"
-                           href="{{ $step['route'] }}"
-                           @if ($step['key'] === 'booking') target="_blank" rel="noopener" @endif>
-                            {{ $step['cta'] }} →
-                        </a>
+
+                    @if (! $step['done'])
+                        @if ($step['key'] === 'booking')
+                            @if ($locked)
+                                {{-- Not shareable until the core steps are green. --}}
+                                <span class="su-cta-locked" aria-disabled="true">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                                    {{ __('Locked') }}
+                                </span>
+                            @else
+                                {{-- Open the public booking page in a new tab (user gesture,
+                                     so it isn't popup-blocked) AND record the share, which
+                                     re-renders and dismisses this whole card. --}}
+                                <button type="button"
+                                        class="su-cta su-cta-btn su-share"
+                                        x-data
+                                        @click="window.open(@js($checklist['public_url']), '_blank', 'noopener'); $wire.shareBookingLink()">
+                                    {{ $step['cta'] }} →
+                                </button>
+                            @endif
+                        @elseif ($step['route'])
+                            <a class="su-cta" href="{{ $step['route'] }}">{{ $step['cta'] }} →</a>
+                        @endif
                     @endif
                 </li>
             @endforeach
