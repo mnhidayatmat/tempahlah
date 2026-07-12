@@ -528,6 +528,7 @@ class BookingController extends Controller
         ]);
 
         $new = $validated['status'];
+        $wasCheckedOut = $booking->status === Booking::STATUS_CHECKED_OUT;
         $now = now();
         $updates = ['status' => $new];
 
@@ -553,6 +554,13 @@ class BookingController extends Controller
         }
 
         $booking->update($updates);
+
+        // Auto-request a testimonial the first time this transitions to
+        // checked-out. SendReviewRequest dedupes on review_requested_at, so the
+        // guest is asked at most once across every checkout path.
+        if ($new === Booking::STATUS_CHECKED_OUT && ! $wasCheckedOut) {
+            SendReviewRequest::dispatch($booking->id);
+        }
 
         // Reflect the status change on Google Calendar — the job creates,
         // updates, or removes the event based on the new status (e.g.
@@ -640,6 +648,7 @@ class BookingController extends Controller
         // updates (lifecycle status + payment timestamps).
         $statusUpdates = $booking->paymentStatusUpdates($validated['payment_status']);
         $resultingStatus = $statusUpdates['status'] ?? $booking->status;
+        $wasCheckedOut = $booking->status === Booking::STATUS_CHECKED_OUT;
 
         // Date-overlap guard — only for bookings that still hold the room
         // (pending/confirmed/checked-in). Past/cancelled bookings don't block.
@@ -711,6 +720,13 @@ class BookingController extends Controller
                 $guest->update($changes);
             }
         });
+
+        // Auto-request a testimonial the first time the edit transitions the
+        // booking to checked-out. Deduped by SendReviewRequest so the guest is
+        // asked at most once across every checkout path.
+        if ($resultingStatus === Booking::STATUS_CHECKED_OUT && ! $wasCheckedOut) {
+            SendReviewRequest::dispatch($booking->id);
+        }
 
         // Push the edit through to Google Calendar — the job patches the
         // existing event (or creates/removes one to match the new status +
@@ -934,7 +950,9 @@ class BookingController extends Controller
             return back()->with('error', __('No guest email or phone on file — cannot send the request.'));
         }
 
-        SendReviewRequest::dispatch($booking->id);
+        // force: this is an explicit host re-send, so it bypasses the once-only
+        // claim (but still no-ops above once a review exists).
+        SendReviewRequest::dispatch($booking->id, force: true);
 
         return back()->with('status', __('Testimonial request sent (email + WhatsApp where available).'));
     }
