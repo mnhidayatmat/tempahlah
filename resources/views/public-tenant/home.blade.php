@@ -775,11 +775,10 @@
                 <span>WhatsApp</span>
             </a>
         @else
-            {{-- No WA configured — keep grid columns balanced with a placeholder --}}
-            <span class="wf-botnav-item" style="opacity:0.4; pointer-events:none;" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-                <span>—</span>
-            </span>
+            {{-- No WhatsApp number on file — render an empty, invisible spacer
+                 so the raised "TEMPAH" pillar stays centred (3rd of 5 cells)
+                 instead of showing a broken circle-dash placeholder. --}}
+            <span class="wf-botnav-item" aria-hidden="true" style="visibility:hidden; pointer-events:none;"></span>
         @endif
     </nav>
 
