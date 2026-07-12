@@ -104,6 +104,13 @@ class StripeBilling
             'line_items[0][quantity]' => '1',
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
+            // Card only. A recurring subscription needs a REUSABLE payment method;
+            // FPX / bank debits (Malaysian online banking) are single-use and can't
+            // be saved for auto-renewal, so if they're enabled in the Stripe
+            // Dashboard they'd surface here and then fail with "unable to
+            // authenticate your payment method". Pinning to card avoids that.
+            // (Bank/FPX hosts use the one-off Billplz FPX pay-link fallback.)
+            'payment_method_types[0]' => 'card',
             // Correlation keys so the webhook can resolve the local subscription.
             'client_reference_id' => (string) $tenant->public_id,
             'subscription_data[metadata][tenant_id]' => (string) $tenant->id,
