@@ -39,9 +39,16 @@ class SetupChecklist
             $this->priceARoom(),
             $this->publishProperty(),
             $this->paymentSetUp($tenant),
-            $this->connectWhatsapp($tenant),
-            $this->firstBooking($tenant),
         ];
+
+        // WhatsApp connect is a paid-tier capability (whatsapp_business =
+        // isPaid). Free hosts can't use it, so it must not sit in their
+        // "finish these to start taking bookings" list as an unreachable step.
+        if ($tenant->isPaid()) {
+            $steps[] = $this->connectWhatsapp($tenant);
+        }
+
+        $steps[] = $this->firstBooking($tenant);
 
         $done = count(array_filter($steps, fn ($s) => $s['done']));
 

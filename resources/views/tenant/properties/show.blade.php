@@ -1150,7 +1150,7 @@
                                    display:flex; flex-direction:column; align-items:center; gap: 10px; color: var(--ink-3);">
                         <div style="font-size:36px; line-height:1;">📷</div>
                         <div style="font-size:14px; font-weight:600; color: var(--ink-2);">{{ __('Drop your first photo') }}</div>
-                        <div style="font-size:11.5px;">{{ __('JPG, PNG or WebP — up to 8 MB each. Resized to 2400 px wide on save.') }}</div>
+                        <div style="font-size:11.5px;">{{ __('JPG, PNG or WebP — up to :mb MB each. Resized to 2400 px wide on save.', ['mb' => intdiv(\App\Http\Controllers\Tenant\PropertyPhotoController::maxUploadKbFor($property), 1024)]) }}</div>
                     </button>
                 @else
                     @php

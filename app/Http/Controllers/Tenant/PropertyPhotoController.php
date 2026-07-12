@@ -18,8 +18,12 @@ class PropertyPhotoController extends Controller
     public const MAX_PHOTOS_PER_PROPERTY = 20;
     /** Free-tier cap — upgrade to Pro for the full :max. */
     public const MAX_PHOTOS_FREE = 7;
-    /** Max input file size (Laravel validator uses KB). */
+    /** Max input file size, paid tier (Laravel validator uses KB). */
     public const MAX_UPLOAD_KB = 8192; // 8MB raw — gets resized down
+    /** Max input file size, free tier. Every upload is downscaled to 2400px +
+     *  JPEG q82 anyway, so this only trims oversized raw/DSLR inputs — no
+     *  visible quality loss to guests. Most phone photos are 2–5MB. */
+    public const MAX_UPLOAD_KB_FREE = 5120; // 5MB
 
     /** Effective per-property photo cap for the property's tenant tier. */
     public static function photoCapFor(Property $property): int
@@ -29,11 +33,29 @@ class PropertyPhotoController extends Controller
             : self::MAX_PHOTOS_FREE;
     }
 
+    /** Effective per-image upload size limit (KB) for the property's tier. */
+    public static function maxUploadKbFor(Property $property): int
+    {
+        return $property->tenant?->isPaid()
+            ? self::MAX_UPLOAD_KB
+            : self::MAX_UPLOAD_KB_FREE;
+    }
+
     public function store(Request $request, Property $property)
     {
+        $maxKb = self::maxUploadKbFor($property);
+        $isFree = ! $property->tenant?->isPaid();
+
         $request->validate([
             'photos'   => 'required|array|min:1|max:10',
-            'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:'.self::MAX_UPLOAD_KB,
+            'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:'.$maxKb,
+        ], [
+            'photos.*.max' => $isFree
+                ? __('Each photo must be under :mb MB on the free plan. Upgrade to Pro for up to :promb MB.', [
+                    'mb' => intdiv($maxKb, 1024),
+                    'promb' => intdiv(self::MAX_UPLOAD_KB, 1024),
+                ])
+                : __('Each photo must be under :mb MB.', ['mb' => intdiv($maxKb, 1024)]),
         ]);
 
         $cap = self::photoCapFor($property);
