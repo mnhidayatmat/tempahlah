@@ -29,6 +29,113 @@ class PlatformAdminController extends Controller
     }
 
     /**
+     * Edit a single tenant's business details + plan. Tenant / Subscription carry
+     * no tenant global scope, so a platform admin can load any tenant.
+     */
+    public function editTenant(Tenant $tenant)
+    {
+        $tenant->loadMissing('subscription', 'owner');
+
+        return view('platform.tenant-edit', [
+            'tenant' => $tenant,
+            'subscription' => $tenant->subscription,
+            // Reflect actual access: comped / active / trialing / in-grace all read Pro.
+            'currentPlan' => $tenant->subscription?->isPaid() ? 'pro' : 'free',
+        ]);
+    }
+
+    public function updateTenant(Request $request, Tenant $tenant)
+    {
+        $validated = $request->validate([
+            'business_name'  => ['required', 'string', 'max:160'],
+            'business_email' => ['nullable', 'email', 'max:190'],
+            'business_phone' => ['nullable', 'string', 'max:40'],
+            'status'         => ['required', 'in:active,suspended'],
+            'plan'           => ['required', 'in:free,pro'],
+        ]);
+
+        $tenant->fill([
+            'business_name'  => $validated['business_name'],
+            // nullable rules drop an absent key from $validated, so coalesce.
+            'business_email' => ($validated['business_email'] ?? null) ?: null,
+            'business_phone' => ($validated['business_phone'] ?? null) ?: null,
+        ]);
+
+        // Suspension bookkeeping — stamp/clear suspended_at so the tenant-resolver
+        // middleware (which blocks suspended tenants) stays consistent.
+        if ($validated['status'] === 'suspended') {
+            if ($tenant->status !== 'suspended') {
+                $tenant->suspended_at = now();
+            }
+            $tenant->status = 'suspended';
+        } else {
+            $tenant->status = 'active';
+            $tenant->suspended_at = null;
+            $tenant->suspended_reason = null;
+        }
+
+        $tenant->save();
+
+        $this->applyPlan($tenant, $validated['plan']);
+
+        return redirect()->route('platform.overview')
+            ->with('status', __('Tenant ":name" updated.', ['name' => $tenant->business_name]));
+    }
+
+    /**
+     * Force a tenant onto free or Pro. "Pro" here is a COMPLIMENTARY grant
+     * (comped_at) — the designed way to hold every paid feature without running
+     * the billing flow (partner, offline payment, staff). Writing through the
+     * model fires SubscriptionObserver, which purges that tenant's cached Pennant
+     * flags so features flip immediately.
+     */
+    private function applyPlan(Tenant $tenant, string $plan): void
+    {
+        $subscription = $tenant->subscription()->firstOrCreate(
+            ['tenant_id' => $tenant->id],
+            [
+                'plan' => Subscription::PLAN_FREE,
+                'status' => Subscription::STATUS_ACTIVE,
+                'billing_method' => 'manual',
+                'monthly_amount' => 0,
+                'currency' => 'MYR',
+                'current_period_start' => now(),
+                'current_period_end' => now()->addYear(),
+            ],
+        );
+
+        if ($plan === 'pro') {
+            $subscription->update([
+                'plan' => Subscription::PLAN_PAID,
+                'status' => Subscription::STATUS_ACTIVE,
+                // Keep an existing comp date; otherwise stamp now.
+                'comped_at' => $subscription->comped_at ?? now(),
+                // 0 so this complimentary grant never inflates paying MRR.
+                'monthly_amount' => 0,
+                'grace_ends_at' => null,
+                'trial_ends_at' => null,
+                'cancelled_at' => null,
+                'current_period_start' => now(),
+                'current_period_end' => now()->addYear(),
+            ]);
+        } else {
+            $subscription->update([
+                'plan' => Subscription::PLAN_FREE,
+                'status' => Subscription::STATUS_ACTIVE,
+                // Clear the comp so paid features actually switch off. trial_used_at
+                // is deliberately preserved (no farming a fresh free trial).
+                'comped_at' => null,
+                'monthly_amount' => 0,
+                'grace_ends_at' => null,
+                'trial_ends_at' => null,
+                'cancelled_at' => now(),
+                'current_period_start' => now(),
+                'current_period_end' => now()->addYear(),
+            ]);
+        }
+    }
+
+    /**
      * Secret settings (Stripe keys, etc.). Never emit a stored secret back to the
      * page — show a masked hint (last 4) so the admin can tell one is set without
      * exposing it.

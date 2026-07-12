@@ -82,6 +82,10 @@ class StripeBilling
      * redirect the tenant to; Stripe collects the card + 3DS and sets up the
      * recurring subscription.
      *
+     * When $trialDays > 0 the card is still captured up front but no charge is
+     * taken until the trial ends — then Stripe auto-charges the recurring price.
+     * Cancelling before the trial ends (cancel_at_period_end) avoids the charge.
+     *
      * @return array{id: string, url: string}
      */
     public function createCheckoutSession(
@@ -89,10 +93,11 @@ class StripeBilling
         string $customerId,
         string $successUrl,
         string $cancelUrl,
+        ?int $trialDays = null,
     ): array {
         $this->assertEnabled();
 
-        $json = $this->post('/v1/checkout/sessions', [
+        $payload = [
             'mode' => 'subscription',
             'customer' => $customerId,
             'line_items[0][price]' => $this->priceId(),
@@ -102,13 +107,50 @@ class StripeBilling
             // Correlation keys so the webhook can resolve the local subscription.
             'client_reference_id' => (string) $tenant->public_id,
             'subscription_data[metadata][tenant_id]' => (string) $tenant->id,
-        ]);
+        ];
+
+        if ($trialDays !== null && $trialDays > 0) {
+            // Native Stripe trial: subscription-mode Checkout still collects the
+            // card (payment_method_collection defaults to `always`), so this is a
+            // card-required free trial.
+            $payload['subscription_data[trial_period_days]'] = (string) $trialDays;
+        }
+
+        $json = $this->post('/v1/checkout/sessions', $payload);
 
         if (empty($json['id']) || empty($json['url'])) {
             throw StripeException::apiError('createCheckoutSession returned no url', $json);
         }
 
         return ['id' => (string) $json['id'], 'url' => (string) $json['url']];
+    }
+
+    /**
+     * Schedule cancellation at the end of the current period. During a trial this
+     * means the tenant keeps Pro until the trial end date and is never charged;
+     * on an active subscription they keep Pro until the paid period they've
+     * already covered runs out. The webhook (customer.subscription.updated, then
+     * .deleted at period end) reconciles our local state either way.
+     */
+    public function cancelSubscription(string $subscriptionId): array
+    {
+        $this->assertEnabled();
+
+        return $this->post('/v1/subscriptions/'.rawurlencode($subscriptionId), [
+            'cancel_at_period_end' => 'true',
+        ]);
+    }
+
+    /**
+     * Undo a scheduled cancellation while the subscription is still live.
+     */
+    public function resumeSubscription(string $subscriptionId): array
+    {
+        $this->assertEnabled();
+
+        return $this->post('/v1/subscriptions/'.rawurlencode($subscriptionId), [
+            'cancel_at_period_end' => 'false',
+        ]);
     }
 
     /**

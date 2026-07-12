@@ -368,7 +368,26 @@ class SubscriptionBillingService
                 ? Carbon::createFromTimestamp((int) $stripeSub['current_period_end'])
                 : null;
 
-            if (in_array($status, ['active', 'trialing'], true)) {
+            // Whether the tenant has scheduled a cancel-at-period-end. Surfaced on
+            // the subscription page so they see "cancels on <date>" + a Resume.
+            $meta = array_merge($subscription->meta ?? [], [
+                'stripe_cancel_at_period_end' => (bool) ($stripeSub['cancel_at_period_end'] ?? false),
+            ]);
+
+            if ($status === 'trialing') {
+                // A live Stripe trial: keep it as a trial locally so the UI shows
+                // the countdown, and stamp trial_used_at so it can't be repeated.
+                $updates = array_merge($updates, [
+                    'plan' => Subscription::PLAN_PAID,
+                    'status' => Subscription::STATUS_TRIALING,
+                    'trial_ends_at' => $periodEnd ?? $subscription->trial_ends_at,
+                    'current_period_end' => $periodEnd ?? $subscription->current_period_end,
+                    'grace_ends_at' => null,
+                    'cancelled_at' => null,
+                    'trial_used_at' => $subscription->trial_used_at ?? now(),
+                    'meta' => $meta,
+                ]);
+            } elseif ($status === 'active') {
                 $updates = array_merge($updates, [
                     'plan' => Subscription::PLAN_PAID,
                     'status' => Subscription::STATUS_ACTIVE,
@@ -376,6 +395,8 @@ class SubscriptionBillingService
                     'grace_ends_at' => null,
                     'cancelled_at' => null,
                     'trial_ends_at' => null,
+                    'trial_used_at' => $subscription->trial_used_at ?? now(),
+                    'meta' => $meta,
                 ]);
             } elseif (in_array($status, ['past_due', 'unpaid'], true)) {
                 $updates = array_merge($updates, [
@@ -397,6 +418,8 @@ class SubscriptionBillingService
                     // The subscription is gone at Stripe — clear it so this row is
                     // no longer Stripe-managed and can re-subscribe cleanly.
                     'stripe_subscription_id' => null,
+                    // Cancellation carried out — drop the "cancels on <date>" flag.
+                    'meta' => array_merge($subscription->meta ?? [], ['stripe_cancel_at_period_end' => false]),
                 ]);
             }
 

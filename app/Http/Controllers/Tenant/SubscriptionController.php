@@ -84,6 +84,15 @@ class SubscriptionController extends Controller
      */
     private function startTrial(Subscription $subscription, string $billing)
     {
+        // When Stripe is live, a trial requires a card up front and can only be
+        // started via Stripe Checkout — never this card-less path. The UI hides
+        // the card-less button in that case; this blocks a crafted request too.
+        if (app(StripeBilling::class)->enabled()) {
+            return redirect()
+                ->route('tenant.subscription')
+                ->with('error', __('Please start your free trial with the card button on this page.'));
+        }
+
         if ($subscription->hasUsedTrial()) {
             return redirect()
                 ->route('tenant.subscription')

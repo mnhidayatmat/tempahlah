@@ -311,6 +311,12 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             ->name('subscription.stripe.checkout');
         Route::post('/subscription/stripe/portal', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'portal'])
             ->name('subscription.stripe.portal');
+        // In-app cancel / resume (cancel_at_period_end) — the tenant can stop the
+        // upcoming charge without leaving Tempahlah for the Stripe portal.
+        Route::post('/subscription/stripe/cancel', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'cancel'])
+            ->name('subscription.stripe.cancel');
+        Route::post('/subscription/stripe/resume', [\App\Http\Controllers\Tenant\StripeCheckoutController::class, 'resume'])
+            ->name('subscription.stripe.resume');
         Route::get('/integrations',                       [IntegrationController::class, 'index'])->name('integrations.index');
         // Channel sync (Airbnb + Booking.com iCal) — registered BEFORE the
         // generic /integrations/{provider} route so "channel-sync" isn't
@@ -337,6 +343,9 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         ->name('platform.')
         ->group(function () {
             Route::get('/', [\App\Http\Controllers\PlatformAdminController::class, 'overview'])->name('overview');
+            // Edit a tenant's business details + force free / complimentary-Pro.
+            Route::get('/tenants/{tenant}/edit', [\App\Http\Controllers\PlatformAdminController::class, 'editTenant'])->name('tenants.edit')->whereNumber('tenant');
+            Route::patch('/tenants/{tenant}', [\App\Http\Controllers\PlatformAdminController::class, 'updateTenant'])->name('tenants.update')->whereNumber('tenant');
             // Cross-tenant testimonial moderation — hide/show/delete guest reviews.
             Route::get('/testimonials', [\App\Http\Controllers\PlatformAdminController::class, 'testimonials'])->name('testimonials');
             Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');

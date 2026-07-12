@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Subscription;
 use App\Services\Billing\StripeBilling;
 use App\Services\Billing\StripeException;
 use App\Support\Tenancy\TenantContext;
@@ -45,6 +46,10 @@ class StripeCheckoutController extends Controller
                 ->with('error', __('Card subscriptions are not available yet.'));
         }
 
+        // A tenant who has never trialed gets the 7-day card-required trial; a
+        // returning one who already used it subscribes and is charged immediately.
+        $trialDays = $subscription->hasUsedTrial() ? null : Subscription::trialDays();
+
         try {
             $customerId = $this->stripe->ensureCustomer($tenant->loadMissing('owner'), $subscription);
 
@@ -53,6 +58,7 @@ class StripeCheckoutController extends Controller
                 $customerId,
                 successUrl: route('subscription.stripe.return').'?status=success',
                 cancelUrl: route('subscription.stripe.return').'?status=cancel',
+                trialDays: $trialDays,
             );
         } catch (StripeException $e) {
             Log::error('Stripe checkout failed', ['tenant_id' => $tenant->id, 'error' => $e->getMessage()]);
@@ -62,6 +68,85 @@ class StripeCheckoutController extends Controller
         }
 
         return redirect()->away($session['url']);
+    }
+
+    /**
+     * POST /dashboard/subscription/stripe/cancel
+     * Schedule cancellation at period end. During the trial this stops the
+     * upcoming first charge; Pro stays on until the trial / paid period ends.
+     */
+    public function cancel(Request $request)
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $subscription = $tenant->subscription;
+        abort_unless($subscription, 404, 'No subscription record');
+
+        if ($subscription->isComped()) {
+            return redirect()->route('tenant.subscription')
+                ->with('status', __('Your account has complimentary Pro access — there is nothing to cancel.'));
+        }
+
+        if (! $this->stripe->enabled() || blank($subscription->stripe_subscription_id)) {
+            return redirect()->route('tenant.subscription')
+                ->with('error', __('No active card subscription to cancel.'));
+        }
+
+        try {
+            $this->stripe->cancelSubscription((string) $subscription->stripe_subscription_id);
+        } catch (StripeException $e) {
+            Log::error('Stripe cancel failed', ['tenant_id' => $tenant->id, 'error' => $e->getMessage()]);
+
+            return redirect()->route('tenant.subscription')
+                ->with('error', __('We could not cancel the subscription. Please try again in a moment.'));
+        }
+
+        // Optimistic local flag so the page reflects it immediately; the webhook
+        // confirms the same state moments later.
+        $subscription->update([
+            'meta' => array_merge($subscription->meta ?? [], ['stripe_cancel_at_period_end' => true]),
+        ]);
+
+        $endsOn = ($subscription->onTrial() ? $subscription->trial_ends_at : $subscription->current_period_end)?->format('d M Y');
+
+        return redirect()->route('tenant.subscription')->with('status', $endsOn
+            ? __('Subscription cancelled. You keep Pro until :date and won\'t be charged again.', ['date' => $endsOn])
+            : __('Subscription cancelled. You won\'t be charged again.'));
+    }
+
+    /**
+     * POST /dashboard/subscription/stripe/resume
+     * Undo a scheduled cancellation while the subscription is still live.
+     */
+    public function resume(Request $request)
+    {
+        $tenant = app(TenantContext::class)->current();
+        abort_unless($tenant, 403, 'No tenant context');
+
+        $subscription = $tenant->subscription;
+        abort_unless($subscription, 404, 'No subscription record');
+
+        if (! $this->stripe->enabled() || blank($subscription->stripe_subscription_id)) {
+            return redirect()->route('tenant.subscription')
+                ->with('error', __('No subscription to resume.'));
+        }
+
+        try {
+            $this->stripe->resumeSubscription((string) $subscription->stripe_subscription_id);
+        } catch (StripeException $e) {
+            Log::error('Stripe resume failed', ['tenant_id' => $tenant->id, 'error' => $e->getMessage()]);
+
+            return redirect()->route('tenant.subscription')
+                ->with('error', __('We could not resume the subscription. Please try again in a moment.'));
+        }
+
+        $subscription->update([
+            'meta' => array_merge($subscription->meta ?? [], ['stripe_cancel_at_period_end' => false]),
+        ]);
+
+        return redirect()->route('tenant.subscription')
+            ->with('status', __('Subscription resumed — it will keep auto-renewing.'));
     }
 
     /**

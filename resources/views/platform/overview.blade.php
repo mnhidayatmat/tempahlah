@@ -77,7 +77,7 @@
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px;">
                     <thead>
                         <tr style="background: var(--bg-sunk);">
-                            @foreach ([__('Business'), __('Owner'), __('Plan'), __('Status'), __('Monthly'), __('Joined')] as $h)
+                            @foreach ([__('Business'), __('Owner'), __('Plan'), __('Status'), __('Monthly'), __('Joined'), ''] as $h)
                                 <th style="text-align: left; padding: 10px 16px; font-weight: 500; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em;">{{ $h }}</th>
                             @endforeach
                         </tr>
@@ -107,9 +107,12 @@
                                     {{ $t->subscription && (float) $t->subscription->monthly_amount > 0 ? 'RM '.number_format($t->subscription->monthly_amount, 0) : '—' }}
                                 </td>
                                 <td style="padding: 12px 16px; color: var(--ink-3);" class="mono">{{ $t->created_at?->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('M j, Y') }}</td>
+                                <td style="padding: 12px 16px; text-align: right;">
+                                    <a href="{{ route('platform.tenants.edit', $t->id) }}" class="btn btn-sm">{{ __('Edit') }}</a>
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" style="padding: 32px; text-align: center; color: var(--ink-3);">{{ __('No tenants match.') }}</td></tr>
+                            <tr><td colspan="7" style="padding: 32px; text-align: center; color: var(--ink-3);">{{ __('No tenants match.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

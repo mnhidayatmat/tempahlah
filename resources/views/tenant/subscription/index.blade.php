@@ -282,24 +282,54 @@
                         disabled>
                         {{ $subscription?->isComped() ? __('Complimentary Pro') : __("You're on Pro") }}
                     </button>
-                    {{-- Stripe-managed subscription → the Customer Portal handles
-                         card updates + cancellation. Takes precedence over the
-                         (superseded) Billplz card panel. --}}
+                    {{-- Stripe-managed subscription → in-app cancel / resume, plus
+                         the Customer Portal for card updates. Takes precedence over
+                         the (superseded) Billplz card panel. --}}
                     @if ($stripeEnabled && $subscription?->isStripeManaged() && ! $subscription?->isComped())
+                        @php
+                            $cancelScheduled = (bool) data_get($subscription->meta, 'stripe_cancel_at_period_end', false);
+                            $endsOn = ($subscription->onTrial() ? $subscription->trial_ends_at : $subscription->current_period_end);
+                        @endphp
                         <div style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 22px;">
-                            <div style="display:flex; align-items:center; gap: 8px; font-size: 12.5px; color: var(--ink); margin-bottom: 10px;">
-                                <x-icon name="card" :size="13"/>
-                                <span>{{ __('Auto-renewing via Stripe') }}</span>
-                            </div>
-                            <form method="POST" action="{{ route('tenant.subscription.stripe.portal') }}">
+                            {{-- Status line: trial countdown or renewal date --}}
+                            @if ($subscription->onTrial())
+                                <div style="display:flex; align-items:center; gap: 8px; font-size: 12.5px; color: var(--ink); margin-bottom: 8px;">
+                                    <x-icon name="sparkle" :size="13" style="color: var(--pro);"/>
+                                    <span>{{ __('Free trial — RM :price/mo starts :date', ['price' => number_format((float) config('homestay.paid_tier_price'), 0), 'date' => $endsOn?->format('d M Y')]) }}</span>
+                                </div>
+                            @else
+                                <div style="display:flex; align-items:center; gap: 8px; font-size: 12.5px; color: var(--ink); margin-bottom: 8px;">
+                                    <x-icon name="card" :size="13"/>
+                                    <span>{{ __('Auto-renewing via Stripe · renews :date', ['date' => $endsOn?->format('d M Y')]) }}</span>
+                                </div>
+                            @endif
+
+                            @if ($cancelScheduled)
+                                <div style="font-size: 12px; color: var(--warn); margin-bottom: 10px;">
+                                    {{ __('Set to cancel on :date — you won\'t be charged again.', ['date' => $endsOn?->format('d M Y')]) }}
+                                </div>
+                                <form method="POST" action="{{ route('tenant.subscription.stripe.resume') }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
+                                        {{ __('Resume subscription') }}
+                                    </button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('tenant.subscription.stripe.cancel') }}"
+                                      onsubmit="return confirm('{{ __('Cancel your subscription? You keep Pro until the date shown, then move to Free.') }}');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
+                                        {{ $subscription->onTrial() ? __('Cancel trial') : __('Cancel subscription') }}
+                                    </button>
+                                </form>
+                            @endif
+
+                            <form method="POST" action="{{ route('tenant.subscription.stripe.portal') }}" style="margin-top: 8px;">
                                 @csrf
-                                <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center;">
-                                    {{ __('Manage subscription') }}
+                                <button type="submit" class="btn btn-sm" style="width:100%; justify-content:center; background: transparent;">
+                                    {{ __('Update card / manage on Stripe') }}
                                 </button>
                             </form>
-                            <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-top: 6px;">
-                                {{ __('Update your card or cancel any time.') }}
-                            </div>
                         </div>
                     {{-- Card on file / auto-renew panel. Only when Tokenization is
                          live AND this isn't a comped account (comped never pays). --}}
@@ -337,30 +367,31 @@
                             </form>
                         @endif
                     @endif
-                @elseif ($canStartTrial)
-                    <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
-                        @csrf
-                        <input type="hidden" name="plan" value="paid">
-                        <input type="hidden" name="billing" value="{{ $billing }}">
-                        <button type="submit" class="btn" style="width:100%; justify-content:center;
-                            background: var(--ink); color: var(--bg); border-color: transparent;">
-                            {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
-                        </button>
-                    </form>
                 @elseif ($stripeEnabled)
-                    {{-- Stripe recurring is the primary path: card auto-renews
-                         every month with no further action. The Billplz one-off
-                         FPX pay-link stays as a fallback for bank-only tenants. --}}
+                    {{-- Stripe is the primary path. A tenant who has never trialed
+                         gets the card-required 7-day trial (no charge until day 7);
+                         a returning one subscribes and is charged now. Both go to
+                         the same checkout route — the controller picks trial vs not
+                         from hasUsedTrial(). The Billplz FPX pay-link stays as a
+                         fallback for bank-only tenants. --}}
                     <form method="POST" action="{{ route('tenant.subscription.stripe.checkout') }}" style="margin-bottom: 8px;">
                         @csrf
                         <button type="submit" class="btn" style="width:100%; justify-content:center;
                             background: var(--ink); color: var(--bg); border-color: transparent;">
                             <x-icon name="card" :size="14"/>
-                            {{ __('Subscribe with auto-renew') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
+                            @if ($canStartTrial)
+                                {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
+                            @else
+                                {{ __('Subscribe with auto-renew') }} — RM {{ number_format((float) config('homestay.paid_tier_price'), 2) }}/{{ __('mo') }}
+                            @endif
                         </button>
                     </form>
                     <div style="font-size: 11px; color: var(--ink-3); text-align:center; margin-bottom: 10px;">
-                        {{ __('Card auto-renews monthly. Cancel any time.') }}
+                        @if ($canStartTrial)
+                            {{ __('Card required — no charge for :days days, then RM :price/mo. Cancel any time before then.', ['days' => $trialDays, 'price' => number_format((float) config('homestay.paid_tier_price'), 0)]) }}
+                        @else
+                            {{ __('Card auto-renews monthly. Cancel any time.') }}
+                        @endif
                     </div>
                     @if ($billingConfigured)
                         <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px; text-align:center;">
@@ -371,6 +402,19 @@
                             </button>
                         </form>
                     @endif
+                @elseif ($canStartTrial)
+                    {{-- Fallback only when Stripe isn't configured yet: the legacy
+                         card-less trial. Once Stripe keys are set, the card-required
+                         trial above takes over and this branch is never reached. --}}
+                    <form method="POST" action="{{ route('tenant.subscription.change') }}" style="margin-bottom: 22px;">
+                        @csrf
+                        <input type="hidden" name="plan" value="paid">
+                        <input type="hidden" name="billing" value="{{ $billing }}">
+                        <button type="submit" class="btn" style="width:100%; justify-content:center;
+                            background: var(--ink); color: var(--bg); border-color: transparent;">
+                            {{ __('Start :days-day free trial', ['days' => $trialDays]) }}
+                        </button>
+                    </form>
                 @elseif ($tokenizationEnabled)
                     {{-- Card-first: auto-renew is the primary path, one manual FPX
                          payment stays available for bank users who can't tokenize. --}}
