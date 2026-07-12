@@ -166,6 +166,18 @@ class WhatsappWebhookController extends Controller
 
         if ($this->guestOptedOut($tenant, $fromPhone)) return;
 
+        // Never auto-reply to the host's own team — cleaners, laundry vendors,
+        // maintenance/technicians (from the Directory), or the host/handoff
+        // number. They message about jobs, not bookings; the AI answering them
+        // as if they were a guest would be wrong. No conversation row either.
+        if ($this->isInternalPhone($tenant, $fromPhone, $settings)) {
+            Log::info('Agent skipped: inbound is an internal/staff number', [
+                'tenant_id' => $tenant->id,
+            ]);
+
+            return;
+        }
+
         // Conversation (find-or-create), bookkeeping.
         $convo = AgentConversation::withoutGlobalScopes()
             ->firstOrNew(['tenant_id' => $tenant->id, 'guest_phone' => $fromPhone]);
@@ -209,6 +221,44 @@ class WhatsappWebhookController extends Controller
         if ($todayCount >= $perPhoneCap) return;
 
         ProcessAgentReply::dispatch($tenant->id, $convo->id, $inboundMsg->id);
+    }
+
+    /**
+     * True if the inbound number belongs to the host or one of their staff —
+     * a cleaner, laundry vendor, or maintenance person in the Directory, or the
+     * tenant's own business / handoff number. These are internal contacts, so
+     * the AI agent must never reply to them as if they were a guest.
+     *
+     * Directory models are BelongsToTenant; the webhook runs without tenant
+     * context, so query withoutGlobalScopes() and pin tenant_id explicitly.
+     */
+    protected function isInternalPhone(Tenant $tenant, string $fromPhone, AgentSettings $settings): bool
+    {
+        $target = PhoneNumber::normalize($fromPhone);
+        if ($target === null) {
+            return false; // can't normalize → let the normal guest flow decide
+        }
+
+        // Host's own numbers.
+        foreach ([$tenant->business_phone, $settings->handoffPhone] as $hostPhone) {
+            if (PhoneNumber::normalize($hostPhone) === $target) {
+                return true;
+            }
+        }
+
+        // Directory staff phones (cleaners, laundry vendors, maintenance persons).
+        $staffPhones = collect()
+            ->merge(\App\Models\Cleaner::withoutGlobalScopes()->where('tenant_id', $tenant->id)->whereNotNull('phone')->pluck('phone'))
+            ->merge(\App\Models\LaundryVendor::withoutGlobalScopes()->where('tenant_id', $tenant->id)->whereNotNull('phone')->pluck('phone'))
+            ->merge(\App\Models\MaintenancePerson::withoutGlobalScopes()->where('tenant_id', $tenant->id)->whereNotNull('phone')->pluck('phone'));
+
+        foreach ($staffPhones as $phone) {
+            if (PhoneNumber::normalize($phone) === $target) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function guestOptedOut(Tenant $tenant, string $phone): bool
