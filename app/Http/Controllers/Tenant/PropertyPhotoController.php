@@ -14,10 +14,20 @@ use Intervention\Image\ImageManager;
 
 class PropertyPhotoController extends Controller
 {
-    /** Hard cap so a single property can't balloon storage. */
+    /** Hard cap so a single property can't balloon storage (paid tier). */
     public const MAX_PHOTOS_PER_PROPERTY = 20;
+    /** Free-tier cap — upgrade to Pro for the full :max. */
+    public const MAX_PHOTOS_FREE = 7;
     /** Max input file size (Laravel validator uses KB). */
     public const MAX_UPLOAD_KB = 8192; // 8MB raw — gets resized down
+
+    /** Effective per-property photo cap for the property's tenant tier. */
+    public static function photoCapFor(Property $property): int
+    {
+        return $property->tenant?->isPaid()
+            ? self::MAX_PHOTOS_PER_PROPERTY
+            : self::MAX_PHOTOS_FREE;
+    }
 
     public function store(Request $request, Property $property)
     {
@@ -26,17 +36,29 @@ class PropertyPhotoController extends Controller
             'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:'.self::MAX_UPLOAD_KB,
         ]);
 
+        $cap = self::photoCapFor($property);
         $existing = $property->photos()->count();
         $incoming = count($request->file('photos', []));
-        if ($existing + $incoming > self::MAX_PHOTOS_PER_PROPERTY) {
-            return back()->with('error', __(
-                'Cap reached — you have :have photo(s), can add :remaining more (max :max per property).',
-                [
-                    'have' => $existing,
-                    'remaining' => max(0, self::MAX_PHOTOS_PER_PROPERTY - $existing),
-                    'max' => self::MAX_PHOTOS_PER_PROPERTY,
-                ],
-            ));
+        if ($existing + $incoming > $cap) {
+            $isFree = ! $property->tenant?->isPaid();
+
+            return back()->with('error', $isFree
+                ? __(
+                    'Photo limit reached — free accounts can upload up to :max photos per homestay (you have :have). Upgrade to Pro for up to :promax.',
+                    [
+                        'max' => $cap,
+                        'have' => $existing,
+                        'promax' => self::MAX_PHOTOS_PER_PROPERTY,
+                    ],
+                )
+                : __(
+                    'Cap reached — you have :have photo(s), can add :remaining more (max :max per property).',
+                    [
+                        'have' => $existing,
+                        'remaining' => max(0, $cap - $existing),
+                        'max' => $cap,
+                    ],
+                ));
         }
 
         $disk = config('filesystems.default', 'spaces');

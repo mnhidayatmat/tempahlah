@@ -1096,11 +1096,17 @@
                     </div>
                 @endif
 
+                @php
+                    $photoCap = \App\Http\Controllers\Tenant\PropertyPhotoController::photoCapFor($property);
+                    $photoTier = $property->tenant?->isPaid();
+                    $photoCount = $property->photos->count();
+                    $photoAtCap = $photoCount >= $photoCap;
+                @endphp
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px;">
                     <div>
                         <div style="font-size:13px; font-weight:600;">{{ __('Photos') }}</div>
                         <div style="font-size:11.5px; color: var(--ink-3); margin-top:2px;">
-                            {{ trans_choice('{0} No photos yet — upload your first one|{1} 1 photo|[2,*] :count photos', $property->photos->count(), ['count' => $property->photos->count()]) }}
+                            {{ __(':count of :max photos', ['count' => $photoCount, 'max' => $photoCap]) }}
                             @if ($property->photos->isNotEmpty()) · {{ __('Hover a photo to set as cover or delete.') }} @endif
                         </div>
                     </div>
@@ -1118,12 +1124,22 @@
                         <button type="button" class="btn btn-primary btn-sm"
                                 @click="pick()"
                                 :disabled="uploading"
+                                @disabled($photoAtCap)
                                 style="display:inline-flex; align-items:center; gap:6px;">
                             <x-icon name="plus" :size="13"/>
                             <span>{{ __('Upload photos') }}</span>
                         </button>
                     </form>
                 </div>
+
+                @if ($photoAtCap && ! $photoTier)
+                    {{-- Free tenant hit the 7-photo cap — nudge to Pro. --}}
+                    <div style="margin-bottom:14px; padding: 11px 14px; background: var(--warn-tint); color: var(--warn); border-radius: var(--r-md); font-size: 12px; line-height:1.5;">
+                        {{ __('You\'ve reached the free limit of :max photos per homestay.', ['max' => $photoCap]) }}
+                        <a href="{{ route('tenant.subscription') }}" style="color: var(--warn); font-weight:700; text-decoration: underline;">{{ __('Upgrade to Pro') }}</a>
+                        {{ __('to add up to :promax.', ['promax' => \App\Http\Controllers\Tenant\PropertyPhotoController::MAX_PHOTOS_PER_PROPERTY]) }}
+                    </div>
+                @endif
 
                 @if ($property->photos->isEmpty())
                     {{-- Empty state — click anywhere to open picker --}}
