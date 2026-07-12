@@ -220,11 +220,11 @@
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <label style="display:flex; flex-direction:column; gap: 4px;">
                     <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Greeting — Bahasa Malaysia') }}</span>
-                    <textarea class="input" rows="3" wire:model="greetingBm"></textarea>
+                    <textarea class="input autogrow" style="width:100%; min-height: 80px;" wire:model="greetingBm">{{ $greetingBm }}</textarea>
                 </label>
                 <label style="display:flex; flex-direction:column; gap: 4px;">
                     <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Greeting — English') }}</span>
-                    <textarea class="input" rows="3" wire:model="greetingEn"></textarea>
+                    <textarea class="input autogrow" style="width:100%; min-height: 80px;" wire:model="greetingEn">{{ $greetingEn }}</textarea>
                 </label>
             </div>
             <label style="display:flex; flex-direction:column; gap: 4px;">
@@ -254,11 +254,11 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <label style="display:flex; flex-direction:column; gap: 4px;">
                         <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Out-of-hours — BM') }}</span>
-                        <textarea class="input" rows="2" wire:model="outOfHoursBm"></textarea>
+                        <textarea class="input autogrow" style="width:100%; min-height: 80px;" wire:model="outOfHoursBm">{{ $outOfHoursBm }}</textarea>
                     </label>
                     <label style="display:flex; flex-direction:column; gap: 4px;">
                         <span style="font-size: 12.5px; color: var(--ink-3);">{{ __('Out-of-hours — EN') }}</span>
-                        <textarea class="input" rows="2" wire:model="outOfHoursEn"></textarea>
+                        <textarea class="input autogrow" style="width:100%; min-height: 80px;" wire:model="outOfHoursEn">{{ $outOfHoursEn }}</textarea>
                     </label>
                 </div>
             @endif
