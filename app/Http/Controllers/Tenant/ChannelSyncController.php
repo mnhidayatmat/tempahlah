@@ -42,6 +42,24 @@ class ChannelSyncController extends Controller
             ->with('error', __('Airbnb & Booking.com calendar sync is a Pro feature. Upgrade to keep your channels in sync automatically.'));
     }
 
+    /**
+     * Normalise a pasted calendar URL: trim, and rewrite a `webcal://` scheme
+     * (what many calendar UIs copy) to `https://` so it validates + fetches.
+     */
+    private function normaliseFeedUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return null;
+        }
+
+        if (stripos($url, 'webcal://') === 0) {
+            $url = 'https://'.substr($url, strlen('webcal://'));
+        }
+
+        return $url;
+    }
+
     public function index()
     {
         if ($redirect = $this->blocked()) {
@@ -77,12 +95,22 @@ class ChannelSyncController extends Controller
             return $redirect;
         }
 
+        // Calendar UIs often hand out a `webcal://` link (it's just http(s) with
+        // a different scheme so the OS opens a calendar app). Normalise it to
+        // https:// + trim so a host can paste whichever form they copied.
+        $request->merge([
+            'airbnb_url'  => $this->normaliseFeedUrl($request->input('airbnb_url')),
+            'booking_url' => $this->normaliseFeedUrl($request->input('booking_url')),
+        ]);
+
         $validated = $request->validate([
             'airbnb_url'  => ['nullable', 'url', 'max:2000', 'starts_with:https://,http://'],
             'booking_url' => ['nullable', 'url', 'max:2000', 'starts_with:https://,http://'],
         ], [
-            'airbnb_url.url'   => __('Enter a valid Airbnb calendar URL.'),
-            'booking_url.url'  => __('Enter a valid Booking.com calendar URL.'),
+            'airbnb_url.url'   => __('Enter a valid Airbnb calendar URL (the iCal export link).'),
+            'booking_url.url'  => __('Enter a valid Booking.com calendar URL (the iCal export link).'),
+            'airbnb_url.starts_with'  => __('Enter a valid Airbnb calendar URL (the iCal export link).'),
+            'booking_url.starts_with' => __('Enter a valid Booking.com calendar URL (the iCal export link).'),
         ]);
 
         $map = [

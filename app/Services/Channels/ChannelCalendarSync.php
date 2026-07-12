@@ -109,8 +109,13 @@ class ChannelCalendarSync
 
         try {
             $response = Http::timeout(20)
-                ->withOptions(['stream' => false])
-                ->withHeaders(['Accept' => 'text/calendar, text/plain, */*'])
+                ->withOptions(['stream' => false, 'allow_redirects' => true])
+                ->withHeaders([
+                    'Accept'     => 'text/calendar, text/plain, */*',
+                    // A real UA — some feed hosts reject requests with a blank
+                    // or default client agent.
+                    'User-Agent' => 'Tempahlah-Calendar-Sync/1.0 (+https://tempahlah.com)',
+                ])
                 ->get($url);
         } catch (Throwable $e) {
             Log::warning('channel iCal fetch failed', ['link' => $link->id, 'error' => $e->getMessage()]);
