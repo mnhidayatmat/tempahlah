@@ -34,6 +34,7 @@
             ['ok' => true, 'text' => __('Marketplace listing on tempahlah.com (3% commission)')],
             ['ok' => true, 'text' => __('Your own subdomain (your-name.tempahlah.com) + custom domain')],
             ['ok' => true, 'text' => __('Google Calendar 2-way sync')],
+            ['ok' => true, 'text' => __('Airbnb & Booking.com 2-way calendar sync — no double-bookings'), 'strong' => true],
             ['ok' => true, 'text' => __('Dynamic pricing (weekend, season, holiday)')],
             ['ok' => true, 'text' => __('Up to 5 staff accounts (manager, cleaner, laundry)')],
             ['ok' => true, 'text' => __('Unlimited reports + CSV / PDF export')],
@@ -64,7 +65,7 @@
             ]],
             ['title' => __('Calendar & channels'), 'rows' => [
                 [__('Google Calendar sync'), __('1-way'), __('2-way')],
-                [__('Airbnb / Booking.com iCal'), false, true],
+                [__('Airbnb & Booking.com sync'), false, __('2-way')],
                 [__('Drag-to-block date ranges'), true, true],
                 [__('Dynamic pricing rules'), false, true],
             ]],

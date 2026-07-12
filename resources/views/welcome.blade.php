@@ -997,12 +997,12 @@
                 </div>
             </article>
 
-            {{-- Feature 4: Calendar sync --}}
+            {{-- Feature 4: Calendar & channel sync --}}
             <article class="tm-feat">
                 <header>
                     <span class="tm-feat-num">04</span>
-                    <h3 class="tm-h3">{{ $isMs ? 'Sync Google Calendar' : 'Google Calendar sync' }}</h3>
-                    <p>{{ $isMs ? 'Dua arah. Block Airbnb, terus block sini. Tiada lagi double-booking.' : 'Two-way. Block on Airbnb, it blocks here. No more double-bookings.' }}</p>
+                    <h3 class="tm-h3">{{ $isMs ? 'Sync Airbnb, Booking.com & Google' : 'Airbnb, Booking.com & Google sync' }}</h3>
+                    <p>{{ $isMs ? 'Dua arah. Tempahan di Airbnb atau Booking.com terus block tarikh di sini — dan sebaliknya. Tiada lagi double-booking.' : 'Two-way. A booking on Airbnb or Booking.com blocks the dates here — and vice versa. No more double-bookings.' }}</p>
                 </header>
                 <div class="tm-feat-visual tm-feat-vis-cal">
                     <div class="tm-mini-cal">
