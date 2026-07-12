@@ -307,11 +307,11 @@ a{color:inherit;}
         </label>
         <label class="search-field">
           <span class="lbl">{{ $isBM ? 'Daftar masuk' : 'Check-in' }}</span>
-          <input type="date" name="check_in" id="mp-checkin" value="{{ $filters['check_in'] ?? '' }}" min="{{ now()->toDateString() }}">
+          <input type="date" name="check_in" id="mp-checkin" value="{{ $filters['check_in'] ?? '' }}" min="{{ now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->toDateString() }}">
         </label>
         <label class="search-field">
           <span class="lbl">{{ $isBM ? 'Daftar keluar' : 'Check-out' }}</span>
-          <input type="date" name="check_out" id="mp-checkout" value="{{ $filters['check_out'] ?? '' }}" min="{{ $filters['check_in'] ?? now()->toDateString() }}">
+          <input type="date" name="check_out" id="mp-checkout" value="{{ $filters['check_out'] ?? '' }}" min="{{ $filters['check_in'] ?? now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->toDateString() }}">
         </label>
         <button class="search-btn" type="submit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>

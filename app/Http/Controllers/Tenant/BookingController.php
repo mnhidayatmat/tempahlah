@@ -44,7 +44,10 @@ class BookingController extends Controller
             $filter = 'all';
         }
 
-        $today = Carbon::today();
+        // Malaysian calendar "today" — the app runs in UTC, so Carbon::today()
+        // is the previous day between 00:00–08:00 MYT (calendars would land on
+        // yesterday). Derive it in the display timezone instead.
+        $today = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
 
         $bookings = Booking::query()
             ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city'])
@@ -98,7 +101,10 @@ class BookingController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city', 'default_guests']);
 
-        $today = Carbon::today();
+        // Malaysian calendar "today" — the app runs in UTC, so Carbon::today()
+        // is the previous day between 00:00–08:00 MYT (calendars would land on
+        // yesterday). Derive it in the display timezone instead.
+        $today = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
 
         // Nights already occupied, so the host is warned before quoting a date
         // that is gone. Half-open [check_in, check_out) — the checkout morning
@@ -182,7 +188,10 @@ class BookingController extends Controller
         $firstRoomId = $rooms->first()?->id;
         $defaultGuests = $firstRoomId !== null ? ($roomGuests[$firstRoomId]['default'] ?? 1) : 1;
 
-        $today = Carbon::today();
+        // Malaysian calendar "today" — the app runs in UTC, so Carbon::today()
+        // is the previous day between 00:00–08:00 MYT (calendars would land on
+        // yesterday). Derive it in the display timezone instead.
+        $today = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
 
         // Occupied nights per room, so the booking form's availability calendar
         // can grey out dates that are already taken and stop the host from

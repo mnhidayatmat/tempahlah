@@ -60,8 +60,9 @@ class TenantHomeController extends Controller
         $checkIn = $this->parseDate($request->query('check_in'));
         $checkOut = $this->parseDate($request->query('check_out'));
 
-        // Never seed a range the calendar would reject.
-        if ($checkIn && $checkIn->lt(today())) {
+        // Never seed a range the calendar would reject. MYT "today" — the app is
+        // UTC, so today() is yesterday between 00:00–08:00 MYT.
+        if ($checkIn && $checkIn->lt(now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay())) {
             $checkIn = null;
         }
         if (! $checkIn || ($checkOut && $checkOut->lte($checkIn))) {

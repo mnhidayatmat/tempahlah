@@ -33,9 +33,12 @@ class PublicHomeBuilder
     public function build(Tenant $tenant, Collection $properties, Request $request): array
     {
         $covers = ['beach', 'highland', 'kampung', 'heritage', 'city'];
+        // MYT calendar days — the rate window must start on the Malaysian "today",
+        // not the UTC one (off by a day between 00:00–08:00 MYT).
+        $tz = config('homestay.timezone', 'Asia/Kuala_Lumpur');
         $window = CarbonPeriod::create(
-            now()->startOfDay(),
-            now()->addDays(self::RATE_WINDOW_DAYS - 1)->startOfDay(),
+            now($tz)->startOfDay(),
+            now($tz)->addDays(self::RATE_WINDOW_DAYS - 1)->startOfDay(),
         );
 
         foreach ($properties as $property) {
@@ -79,7 +82,7 @@ class PublicHomeBuilder
                 ->withoutGlobalScope(BelongsToTenantScope::class)
                 ->whereIn('property_id', $properties->pluck('id'))
                 ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_NO_SHOW])
-                ->where('check_out', '>=', now()->startOfDay())
+                ->where('check_out', '>=', now($tz)->startOfDay()->toDateString())
                 ->where(function ($q) {
                     $q->whereIn('status', [
                         Booking::STATUS_CONFIRMED,

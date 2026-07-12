@@ -135,8 +135,8 @@ class CalendarController extends Controller
             'monthLabel' => $cursor->format('F Y'),
             'prevCursor' => $cursor->copy()->subMonth()->format('Y-m'),
             'nextCursor' => $cursor->copy()->addMonth()->format('Y-m'),
-            'todayCursor' => Carbon::today()->format('Y-m'),
-            'todayIso' => Carbon::today()->toDateString(),
+            'todayCursor' => $this->today()->format('Y-m'),
+            'todayIso' => $this->today()->toDateString(),
             'selectedDay' => $selectedDay,
             'occupancyPct' => $occupancyPct,
             'monthRevenue' => $revenue,
@@ -148,13 +148,23 @@ class CalendarController extends Controller
     protected function parseCursor(?string $raw): Carbon
     {
         if (! $raw) {
-            return Carbon::today()->startOfMonth();
+            return $this->today()->startOfMonth();
         }
         try {
             return Carbon::createFromFormat('Y-m', $raw)->startOfMonth();
         } catch (\Throwable) {
-            return Carbon::today()->startOfMonth();
+            return $this->today()->startOfMonth();
         }
+    }
+
+    /**
+     * Malaysian calendar "today". The app runs in UTC, so Carbon::today() is the
+     * previous day between 00:00–08:00 MYT — the calendar would highlight and
+     * open on yesterday. Derive it in the display timezone instead.
+     */
+    protected function today(): Carbon
+    {
+        return now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
     }
 
     protected function parseDay(?string $raw, Carbon $monthStart, Carbon $monthEnd): ?string

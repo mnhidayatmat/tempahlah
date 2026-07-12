@@ -232,7 +232,9 @@ class MarketplaceController extends Controller
         $checkIn = $this->cleanDate($request->query('check_in'));
         $checkOut = $this->cleanDate($request->query('check_out'));
 
-        if ($checkIn && $checkIn < now()->toDateString()) {
+        // MYT calendar date — the app runs in UTC, so now()->toDateString() is
+        // yesterday between 00:00–08:00 MYT and would reject a valid today date.
+        if ($checkIn && $checkIn < now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->toDateString()) {
             $checkIn = null;
         }
         if (! $checkIn || ($checkOut && $checkOut <= $checkIn)) {
