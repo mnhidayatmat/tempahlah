@@ -51,9 +51,11 @@
                     <input class="input" type="text" name="address_line1" value="{{ old('address_line1') }}" required maxlength="160" placeholder="{{ __('e.g. 12 Jalan Kelanang') }}">
                 </div>
 
-                <div>
-                    <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('City') }}</label>
-                    <input class="input" type="text" name="city" value="{{ old('city') }}" maxlength="80" placeholder="{{ __('e.g. Port Dickson') }}">
+                <x-location-picker />
+                <div style="font-size: 11px; color: var(--ink-3);">
+                    {{ app()->getLocale() === 'ms'
+                        ? 'Pilih negeri & daerah supaya homestay anda muncul bila tetamu cari di marketplace.'
+                        : 'Pick your state & district so your homestay shows up when guests search the marketplace.' }}
                 </div>
             </div>
 

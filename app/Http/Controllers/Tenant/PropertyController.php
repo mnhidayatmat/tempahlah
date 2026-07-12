@@ -11,6 +11,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PropertyController extends Controller
 {
@@ -45,10 +46,15 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
+        // District (daerah) is submitted as `city` and must belong to the chosen
+        // state — so the stored state/city always match the marketplace filter.
+        $stateForRule = (string) $request->input('state');
         $validated = $request->validate([
             'name' => 'required|string|max:120',
-            'city' => 'nullable|string|max:80',
             'address_line1' => 'required|string|max:160',
+            'state' => ['required', 'string', Rule::in(array_keys(config('districts')))],
+            'city' => ['required', 'string', 'max:80', Rule::in(config('districts.'.$stateForRule, []))],
+            'postcode' => ['required', 'digits:5'],
             'pricing_mode' => 'nullable|in:whole_house,per_room',
             'bedrooms'   => 'required|integer|min:1|max:50',
             'bathrooms'  => 'nullable|integer|min:0|max:50',
@@ -97,9 +103,9 @@ class PropertyController extends Controller
                 'slug' => $this->uniqueSlug($validated['name'], $tenant->id),
                 'name' => $validated['name'],
                 'address_line1' => $validated['address_line1'],
-                'city' => $validated['city'] ?? '',
-                'state' => '',
-                'postcode' => '',
+                'city' => $validated['city'],
+                'state' => $validated['state'],
+                'postcode' => $validated['postcode'],
                 'country' => 'MY',
                 'bathrooms'    => (int) ($validated['bathrooms'] ?? 0),
                 'toilets'      => (int) ($validated['toilets'] ?? 0),
@@ -254,11 +260,13 @@ class PropertyController extends Controller
 
     public function update(Request $request, Property $property)
     {
+        // District (daerah) → `city`, must belong to the chosen state (see store()).
+        $stateForRule = (string) $request->input('state');
         $validated = $request->validate([
             'name'           => 'required|string|max:120',
-            'city'           => 'nullable|string|max:80',
-            'state'          => 'nullable|string|max:80',
-            'postcode'       => 'nullable|string|max:16',
+            'state'          => ['required', 'string', Rule::in(array_keys(config('districts')))],
+            'city'           => ['required', 'string', 'max:80', Rule::in(config('districts.'.$stateForRule, []))],
+            'postcode'       => ['required', 'digits:5'],
             'address_line1'  => 'required|string|max:160',
             'address_line2'  => 'nullable|string|max:160',
             // Optional pre-pinned map URL. Accept the common public-share

@@ -77,19 +77,11 @@
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Address line 2') }}</label>
                         <input class="input" type="text" name="address_line2" value="{{ old('address_line2', $property->address_line2) }}" maxlength="160">
                     </div>
-                    <div class="pe-grid-221">
-                        <div>
-                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('City') }}</label>
-                            <input class="input" type="text" name="city" value="{{ old('city', $property->city) }}" maxlength="80">
-                        </div>
-                        <div>
-                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('State') }}</label>
-                            <input class="input" type="text" name="state" value="{{ old('state', $property->state) }}" maxlength="80">
-                        </div>
-                        <div>
-                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Postcode') }}</label>
-                            <input class="input" type="text" name="postcode" value="{{ old('postcode', $property->postcode) }}" maxlength="16">
-                        </div>
+                    <x-location-picker :state="$property->state" :district="$property->city" :postcode="$property->postcode" />
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 8px;">
+                        {{ app()->getLocale() === 'ms'
+                            ? 'Pilih negeri & daerah supaya homestay anda muncul bila tetamu cari di marketplace.'
+                            : 'Pick your state & district so your homestay shows up when guests search the marketplace.' }}
                     </div>
 
                     {{-- Optional pre-pinned Google Maps URL.
