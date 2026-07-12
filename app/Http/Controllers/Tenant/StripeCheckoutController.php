@@ -48,7 +48,10 @@ class StripeCheckoutController extends Controller
 
         // A tenant who has never trialed gets the 7-day card-required trial; a
         // returning one who already used it subscribes and is charged immediately.
-        $trialDays = $subscription->hasUsedTrial() ? null : Subscription::trialDays();
+        // A fresh tenant can also opt to skip the trial and pay today ("buy now")
+        // via skip_trial — e.g. they'd rather start their paid month right away.
+        $skipTrial = $request->boolean('skip_trial');
+        $trialDays = ($subscription->hasUsedTrial() || $skipTrial) ? null : Subscription::trialDays();
 
         try {
             $customerId = $this->stripe->ensureCustomer($tenant->loadMissing('owner'), $subscription);

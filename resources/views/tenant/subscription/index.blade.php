@@ -393,6 +393,18 @@
                             {{ __('Card auto-renews monthly. Cancel any time.') }}
                         @endif
                     </div>
+                    @if ($canStartTrial)
+                        {{-- Direct purchase: skip the trial and start paying today. Same
+                             checkout route + skip_trial=1 so the controller omits the trial. --}}
+                        <form method="POST" action="{{ route('tenant.subscription.stripe.checkout') }}" style="margin-bottom: 22px; text-align:center;">
+                            @csrf
+                            <input type="hidden" name="skip_trial" value="1">
+                            <button type="submit" style="background:none; border:none; padding:0; cursor:pointer;
+                                font-size: 12px; color: var(--ink-3); text-decoration: underline;">
+                                {{ __('or subscribe now and pay today — skip the free trial') }}
+                            </button>
+                        </form>
+                    @endif
                     @if ($billingConfigured)
                         <form method="POST" action="{{ route('tenant.subscription.checkout') }}" style="margin-bottom: 22px; text-align:center;">
                             @csrf
