@@ -13,6 +13,66 @@
     {{-- Ships the .bs-spinner styles used by the wire:loading states below. --}}
     <x-busy-ui />
 
+    <style>
+        /* Auto-growing textareas so long training answers show in full without
+           dragging the corner. field-sizing handles it natively (Chrome/Safari/
+           Edge); the Alpine fallback below covers browsers without it. */
+        .autogrow {
+            field-sizing: content;
+            min-height: 104px;
+            max-height: 420px;
+            overflow-y: auto;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        .qa-card {
+            border: 1px solid var(--line);
+            border-radius: var(--r-md);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--bg-elev);
+        }
+        .qa-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; border-radius: 999px;
+            background: var(--bg-sunk); color: var(--ink-2);
+            font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .qa-field-label { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+    </style>
+
+    {{-- Grow any .autogrow textarea to fit its content. Runs on load, on input,
+         and after every Livewire DOM update (covers Refresh / Add). No-op where
+         the browser already supports CSS field-sizing. --}}
+    <script>
+        (function () {
+            if (window.__qaAutogrow) return;
+            window.__qaAutogrow = true;
+            var native = window.CSS && CSS.supports && CSS.supports('field-sizing', 'content');
+            function fit(el) {
+                if (native) return;
+                el.style.height = 'auto';
+                el.style.height = Math.min(el.scrollHeight, 420) + 'px';
+            }
+            window.__qaFitAll = function () {
+                document.querySelectorAll('textarea.autogrow').forEach(fit);
+            };
+            document.addEventListener('input', function (e) {
+                if (e.target.matches && e.target.matches('textarea.autogrow')) fit(e.target);
+            });
+            document.addEventListener('DOMContentLoaded', window.__qaFitAll);
+            document.addEventListener('livewire:initialized', function () {
+                window.__qaFitAll();
+                if (window.Livewire && Livewire.hook) {
+                    Livewire.hook('morph.updated', function () { setTimeout(window.__qaFitAll, 0); });
+                }
+            });
+            setTimeout(window.__qaFitAll, 0);
+        })();
+    </script>
+
     {{-- Pro gate ----------------------------------------------------- --}}
     @if (! $unlocked)
         <x-pro-lock
@@ -225,7 +285,8 @@
             <p style="margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5;">
                 {{ __('Free-text notes the AI will use verbatim — e.g. parking instructions, halal certification, surau location, late check-in policy. Keep it under 4,000 characters.') }}
             </p>
-            <textarea class="input" rows="5" wire:model="customKnowledge" maxlength="4000"></textarea>
+            <textarea class="input autogrow" style="width:100%; min-height: 140px;" wire:model="customKnowledge"
+                      maxlength="4000">{{ $customKnowledge }}</textarea>
         </div>
 
         {{-- Training Q&A ------------------------------------------------ --}}
@@ -254,9 +315,9 @@
             @else
                 <div style="display:flex; flex-direction:column; gap: 12px;">
                     @foreach ($trainingQa as $i => $pair)
-                        <div wire:key="qa-{{ $i }}"
-                             style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; display:flex; flex-direction:column; gap: 8px; background: var(--bg-elev);">
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
+                        <div wire:key="qa-{{ $i }}" class="qa-card">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <span class="qa-num">{{ $i + 1 }}</span>
                                 @if (($pair['source'] ?? 'auto') === 'custom')
                                     <x-pill variant="info">{{ __('Edited') }}</x-pill>
                                 @else
@@ -264,18 +325,22 @@
                                 @endif
                                 <button type="button" class="btn btn-sm"
                                         wire:click="removeQa({{ $i }})"
-                                        style="color: var(--err); padding: 2px 8px;"
-                                        title="{{ __('Remove') }}">✕</button>
+                                        style="color: var(--err); padding: 2px 8px; margin-left: auto;"
+                                        title="{{ __('Remove') }}">✕ {{ __('Remove') }}</button>
                             </div>
                             <label style="display:flex; flex-direction:column; gap: 4px;">
-                                <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Question guests ask') }}</span>
-                                <input class="input" type="text" wire:model.blur="trainingQa.{{ $i }}.q"
+                                <span class="qa-field-label">{{ __('Question guests ask') }}</span>
+                                <input class="input" type="text" style="width:100%;" wire:model.blur="trainingQa.{{ $i }}.q"
                                        maxlength="400" placeholder="{{ __('e.g. What time is check-in?') }}">
                             </label>
                             <label style="display:flex; flex-direction:column; gap: 4px;">
-                                <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Answer the AI should give') }}</span>
-                                <textarea class="input" rows="2" wire:model.blur="trainingQa.{{ $i }}.a"
-                                          maxlength="2000"></textarea>
+                                <span class="qa-field-label">{{ __('Answer the AI should give') }}</span>
+                                <textarea class="input autogrow" style="width:100%;" wire:model.blur="trainingQa.{{ $i }}.a"
+                                          maxlength="2000"
+                                          placeholder="{{ __('Type the full answer here — it grows as you write.') }}">{{ $pair['a'] ?? '' }}</textarea>
+                                <span style="font-size: 10.5px; color: var(--ink-4); text-align: right;">
+                                    {{ mb_strlen((string) ($pair['a'] ?? '')) }} / 2000
+                                </span>
                             </label>
                         </div>
                     @endforeach
