@@ -18,7 +18,11 @@ class SystemPromptBuilder
         $localeLine = match ($settings->replyLanguages) {
             'ms'    => 'Always reply in Bahasa Malaysia regardless of the guest\'s language.',
             'en'    => 'Always reply in English regardless of the guest\'s language.',
-            default => 'Detect the guest\'s language from their latest message and reply in the same language (Bahasa Malaysia or English).',
+            default => 'LANGUAGE MIRRORING (important): Reply in the SAME language the guest used in their latest message. '
+                .'If they write in Malay/Bahasa Malaysia, reply entirely in Malay. If they write in English, reply entirely in English. '
+                .'Re-check every message and switch if they switch — never lock onto one language for the whole chat. '
+                .'Do not mix languages in one reply unless the guest mixed them first (rojak). If a message is too short to tell '
+                .'(e.g. just "ok" or a number), keep using the language of the previous guest message.',
         };
 
         $properties = Property::query()
