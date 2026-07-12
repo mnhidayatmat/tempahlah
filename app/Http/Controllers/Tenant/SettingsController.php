@@ -110,6 +110,7 @@ class SettingsController extends Controller
                 Tenant::CANCEL_BALANCE_CHECK_IN,
             ])],
             'auto_cancel_unpaid_balance' => 'nullable|boolean',
+            'deposit_is_security'      => 'nullable|boolean',
             'manual_payment_instructions' => 'nullable|string|max:2000',
             'refund_policy'            => 'nullable|string|max:2000',
             'checkout_reminder_enabled' => 'nullable|boolean',
@@ -145,6 +146,7 @@ class SettingsController extends Controller
 
         $validated['sst_registered'] = $request->boolean('sst_registered');
         $validated['auto_cancel_unpaid_balance'] = $request->boolean('auto_cancel_unpaid_balance');
+        $validated['deposit_is_security'] = $request->boolean('deposit_is_security');
         if ($canAutoRemind) {
             $validated['checkout_reminder_enabled'] = $request->boolean('checkout_reminder_enabled');
         } else {

@@ -152,7 +152,7 @@ class ProcessPaymentLifecycle extends Command
             ->orderBy('id')
             ->chunkById(200, function ($bookings) use (&$count, $createBill) {
                 foreach ($bookings as $booking) {
-                    if ($booking->balanceDue() <= 0) {
+                    if ($booking->reminderAmountDue() <= 0) {
                         // Nothing owed (e.g. paid in full already) — stamp so we
                         // stop re-evaluating it.
                         $booking->forceFill(['full_payment_reminder_sent_at' => now()])->saveQuietly();
@@ -278,7 +278,10 @@ class ProcessPaymentLifecycle extends Command
      */
     protected function mintBalancePayUrl(Booking $booking, CreateGatewayBill $createBill): ?string
     {
-        $balance = $booking->balanceDue();
+        // Respects the tenant's deposit-is-security policy: when the deposit is
+        // a separate refundable security deposit, this is the FULL total; else
+        // the remaining balance (total − deposit).
+        $balance = $booking->reminderAmountDue();
         if ($balance <= 0) {
             return null;
         }

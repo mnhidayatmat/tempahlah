@@ -375,6 +375,31 @@ class Booking extends Model
     }
 
     /**
+     * Amount to request in the "pay before check-in" reminder.
+     *
+     * Normally this is the outstanding balance (total − everything paid,
+     * i.e. balanceDue). But when the tenant treats the deposit as a separate
+     * refundable security deposit (Tenant::depositIsSecurity), the deposit is
+     * NOT credited toward the stay — the guest pays the FULL total, and the
+     * host refunds the deposit after check-out. In that mode we credit only
+     * balance/full payments (never the deposit), so the reminder asks for the
+     * full total the first time and drops to zero once it's paid.
+     */
+    public function reminderAmountDue(): float
+    {
+        if ($this->tenant?->depositIsSecurity()) {
+            $paidTowardStay = (float) ($this->payments()
+                ->where('status', 'succeeded')
+                ->whereIn('type', [\App\Models\Payment::TYPE_BALANCE, \App\Models\Payment::TYPE_FULL])
+                ->sum('amount') ?? 0);
+
+            return round((float) $this->total_amount - $paidTowardStay, 2);
+        }
+
+        return $this->balanceDue();
+    }
+
+    /**
      * Signed magic-link URL to the guest-facing booking detail page on the
      * tenant's own subdomain (e.g. wafahomestay.tempahlah.com/booking/{ulid}).
      *

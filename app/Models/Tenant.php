@@ -26,7 +26,7 @@ class Tenant extends Model
         'primary_color', 'secondary_color', 'accent_color',
         'default_locale', 'suspended_at', 'suspended_reason',
         'full_payment_days_before', 'fee_payment_hours', 'cancel_balance_on',
-        'auto_cancel_unpaid_balance', 'refund_policy',
+        'auto_cancel_unpaid_balance', 'deposit_is_security', 'refund_policy',
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
         'auto_housekeeping',
         'manual_payment_instructions',
@@ -47,6 +47,11 @@ class Tenant extends Model
         // homestay model, so a deposit-paid booking is never auto-cancelled
         // for an unpaid balance unless the host explicitly opts in.
         'auto_cancel_unpaid_balance' => false,
+        // OFF by default — the deposit is credited toward the total and the
+        // balance reminder chases (total − deposit). When ON, the deposit is a
+        // separate refundable security deposit: the guest pays the FULL total,
+        // and the host refunds the deposit after check-out.
+        'deposit_is_security' => false,
     ];
 
     public const CANCEL_BALANCE_DUE_DATE = 'due_date';
@@ -74,6 +79,7 @@ class Tenant extends Model
         'full_payment_days_before' => 'integer',
         'fee_payment_hours' => 'integer',
         'auto_cancel_unpaid_balance' => 'boolean',
+        'deposit_is_security' => 'boolean',
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
@@ -129,6 +135,25 @@ class Tenant extends Model
         return $this->auto_cancel_unpaid_balance !== null
             ? (bool) $this->auto_cancel_unpaid_balance
             : self::PAYMENT_POLICY_DEFAULTS['auto_cancel_unpaid_balance'];
+    }
+
+    /**
+     * Whether the deposit / booking fee is treated as a separate refundable
+     * security deposit rather than a part-payment of the total.
+     *
+     * ON  → the balance reminder asks the guest to pay the FULL stay total
+     *       (the deposit is NOT credited); the host refunds the deposit after
+     *       a satisfactory check-out. This matches the platform's default
+     *       invoice terms ("Full payment must be made before check-in. The
+     *       deposit is refunded after a satisfactory check-out.").
+     * OFF → legacy behaviour: the deposit is credited and the reminder chases
+     *       the remaining balance (total − deposit).
+     */
+    public function depositIsSecurity(): bool
+    {
+        return $this->deposit_is_security !== null
+            ? (bool) $this->deposit_is_security
+            : self::PAYMENT_POLICY_DEFAULTS['deposit_is_security'];
     }
 
     /**

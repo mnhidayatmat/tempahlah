@@ -289,6 +289,18 @@
                     </span>
                 </label>
 
+                <label style="display:flex; align-items:flex-start; gap: 10px; margin-top: 16px; cursor: pointer;">
+                    <input type="hidden" name="deposit_is_security" value="0">
+                    <input type="checkbox" name="deposit_is_security" value="1" style="margin-top: 2px;"
+                           {{ old('deposit_is_security', $tenant->depositIsSecurity()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Deposit is a refundable security deposit') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('When ON, the guest is asked to pay the FULL stay total before check-in (the deposit is not deducted), and you refund the deposit after check-out. Example: total RM 1,600 with an RM 100 deposit already paid — the payment reminder asks for RM 1,600, not RM 1,500. Leave OFF to have the reminder chase only the remaining balance (total minus deposit).') }}
+                        </span>
+                    </span>
+                </label>
+
                 <div style="margin-top: 16px;">
                     <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Refund / return policy') }}</label>
                     <div style="margin-bottom: 8px; padding: 10px 12px; background: var(--bg-sunk); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2);">

@@ -72,7 +72,7 @@ class MessageTemplates
         $locale = $booking->tenant?->default_locale ?? app()->getLocale();
         $name = $booking->guest?->name ?? '';
         $business = $booking->tenant?->business_name ?? config('app.name');
-        $balance = self::rm($booking->total_amount - ($booking->deposit_amount ?? 0));
+        $balance = self::rm($booking->reminderAmountDue());
         $ci = Carbon::parse($booking->check_in)->translatedFormat('D, j M Y');
 
         if ($locale === 'ms') {

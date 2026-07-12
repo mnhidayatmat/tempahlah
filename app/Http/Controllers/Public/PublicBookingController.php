@@ -287,7 +287,7 @@ class PublicBookingController extends Controller
             'booking'     => $bookingModel,
             'leadGuest'   => $bookingModel->bookingGuests->firstWhere('is_lead', true)
                               ?? $bookingModel->bookingGuests->first(),
-            'balanceDue'  => $bookingModel->balanceDue(),
+            'balanceDue'  => $bookingModel->reminderAmountDue(),
             'openPayUrl'  => is_array($openPayment?->meta) ? ($openPayment->meta['payment_url'] ?? null) : null,
             'contactPhone'=> preg_replace('/\D/', '', $tenant->business_phone ?? ''),
         ]);
