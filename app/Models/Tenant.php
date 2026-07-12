@@ -47,11 +47,12 @@ class Tenant extends Model
         // homestay model, so a deposit-paid booking is never auto-cancelled
         // for an unpaid balance unless the host explicitly opts in.
         'auto_cancel_unpaid_balance' => false,
-        // OFF by default — the deposit is credited toward the total and the
-        // balance reminder chases (total − deposit). When ON, the deposit is a
-        // separate refundable security deposit: the guest pays the FULL total,
-        // and the host refunds the deposit after check-out.
-        'deposit_is_security' => false,
+        // ON by default — the deposit is a separate refundable security
+        // deposit: the guest pays the FULL total before check-in, and the host
+        // refunds the deposit after check-out (matches the default invoice
+        // terms). Set to false to credit the deposit toward the total and have
+        // the balance reminder chase only (total − deposit).
+        'deposit_is_security' => true,
     ];
 
     public const CANCEL_BALANCE_DUE_DATE = 'due_date';
