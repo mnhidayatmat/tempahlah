@@ -32,6 +32,23 @@
             <x-icon name="arrow-left" :size="12"/> {{ __('All properties') }}
         </a>
 
+        {{-- Upload feedback: the hero "Add a cover photo" uploader returns here
+             (back() → default tab). The Photos tab renders its own copy, so only
+             surface it on the other tabs to avoid a duplicate banner. --}}
+        @if ($tab !== 'photos')
+            @if (session('status'))
+                <div style="padding: 10px 14px; background: var(--ok-tint); color: var(--ok); border-radius: var(--r-md); font-size: 12.5px;">{{ session('status') }}</div>
+            @endif
+            @if (session('error'))
+                <div style="padding: 10px 14px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">{{ session('error') }}</div>
+            @endif
+            @if ($errors->any())
+                <div style="padding: 10px 14px; background: var(--err-tint); color: var(--err); border-radius: var(--r-md); font-size: 12.5px;">
+                    @foreach ($errors->all() as $msg)<div>• {{ $msg }}</div>@endforeach
+                </div>
+            @endif
+        @endif
+
         {{-- ───────────────────────────── HERO ─────────────────────────────
              Uses the real cover photo (is_hero) if uploaded, otherwise the
              first photo, otherwise a generated gradient with a friendly
@@ -50,7 +67,42 @@
             $tenantUrl  = $property->tenant?->publicUrl();
         @endphp
 
-        <div class="card" style="padding:0; overflow:hidden; border: 1px solid var(--line);">
+        <div class="card" style="padding:0; overflow:hidden; border: 1px solid var(--line);"
+             x-data="{
+                uploading: false,
+                pickCover() { this.$refs.coverPicker.click(); },
+                onCoverPicked(e) {
+                    if (e.target.files && e.target.files.length) {
+                        this.uploading = true;
+                        this.$refs.coverForm.submit();
+                    }
+                },
+             }">
+            {{-- Hidden uploader so the hero "Add a cover photo" button opens the
+                 file picker directly. It used to be an <a> to the Photos tab,
+                 which just reloaded the page and left the host hunting for a
+                 second upload button. Same endpoint as the Photos-tab uploader. --}}
+            <form method="POST"
+                  action="{{ route('tenant.properties.photos.store', ['property' => $property->public_id]) }}"
+                  enctype="multipart/form-data" style="display:none;" x-ref="coverForm">
+                @csrf
+                <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp"
+                       x-ref="coverPicker" @change="onCoverPicked($event)">
+            </form>
+
+            {{-- Uploading overlay (viewport-fixed so overflow:hidden can't clip it). --}}
+            <div x-show="uploading" x-cloak
+                 style="position:fixed; inset:0; z-index:9999;
+                        background: rgba(15,25,40,0.55);
+                        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                        display:flex; align-items:center; justify-content:center;">
+                <div style="background: var(--bg); border-radius: var(--r-xl);
+                            padding: 26px 34px; box-shadow: 0 24px 64px -12px rgba(0,0,0,0.4);
+                            font-size: 15px; font-weight: 700; color: var(--ink); text-align:center;">
+                    {{ __('Uploading your cover photo…') }}
+                </div>
+            </div>
+
             {{-- ===== Photo / gradient cover ===== --}}
             <div style="position:relative; height: 320px;
                         @if ($cover)
@@ -81,17 +133,19 @@
                         {{ $statusLabel }}
                     </span>
 
-                    <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => 'photos']) }}"
-                       style="display:inline-flex; align-items:center; gap:6px;
-                              padding: 5px 11px;
-                              background: rgba(255,255,255,0.95);
-                              color: var(--ink);
-                              border-radius: var(--r-pill);
-                              font-size: 11px; font-weight: 700;
-                              text-decoration: none;
-                              box-shadow: 0 2px 8px rgba(0,0,0,0.18);">
-                        📷 {{ trans_choice('{0} Add photos|{1} 1 photo|[2,*] :count photos', $photoCount, ['count' => $photoCount]) }}
-                    </a>
+                    @php $chipStyle = 'display:inline-flex; align-items:center; gap:6px; padding: 5px 11px; background: rgba(255,255,255,0.95); color: var(--ink); border-radius: var(--r-pill); font-size: 11px; font-weight: 700; text-decoration: none; border:0; cursor:pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.18);'; @endphp
+                    @if ($photoCount === 0)
+                        {{-- No photos yet → open the picker directly. --}}
+                        <button type="button" @click="pickCover()" style="{{ $chipStyle }}">
+                            📷 {{ __('Add photos') }}
+                        </button>
+                    @else
+                        {{-- Has photos → go to the Photos tab to manage them. --}}
+                        <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => 'photos']) }}"
+                           style="{{ $chipStyle }}">
+                            📷 {{ trans_choice('{1} 1 photo|[2,*] :count photos', $photoCount, ['count' => $photoCount]) }}
+                        </a>
+                    @endif
                 </div>
 
                 {{-- Bottom-left: location + name --}}
@@ -123,17 +177,18 @@
                     </div>
                 </div>
 
-                {{-- "Add cover photo" CTA when there's no photo at all --}}
+                {{-- "Add cover photo" CTA when there's no photo at all — opens the
+                     file picker directly (no page reload). --}}
                 @if (! $cover)
-                    <a href="{{ route('tenant.properties.show', ['id' => $property->id, 'tab' => 'photos']) }}"
+                    <button type="button" @click="pickCover()"
                        style="position:absolute; top:50%; left:50%; transform: translate(-50%, -50%);
                               padding: 10px 18px; border-radius: var(--r-pill);
                               background: rgba(255,255,255,0.95); color: var(--ink);
-                              font-size: 13px; font-weight: 700; text-decoration: none;
+                              font-size: 13px; font-weight: 700; border: 0; cursor: pointer;
                               display:inline-flex; align-items:center; gap:8px;
                               box-shadow: 0 6px 24px rgba(0,0,0,0.3);">
                         📷 {{ __('Add a cover photo') }}
-                    </a>
+                    </button>
                 @endif
             </div>
 
