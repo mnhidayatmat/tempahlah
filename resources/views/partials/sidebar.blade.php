@@ -123,17 +123,4 @@
             </div>
         @endforeach
     </nav>
-
-    {{-- Beta access card --}}
-    <div style="padding: 12px;">
-        <div style="padding: 12px 14px; border: 1px solid var(--primary-edge); background: var(--primary-tint); border-radius: var(--r-lg);">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                <x-icon name="sparkle" :size="12" style="color: var(--primary);"/>
-                <span class="cm-eyebrow-primary">{{ __('Beta access') }}</span>
-            </div>
-            <div style="font-size:11.5px; color: var(--ink-2); line-height:1.45;">
-                {{ __('All features free while we improve. Help us shape Tempahlah.') }}
-            </div>
-        </div>
-    </div>
 </aside>
