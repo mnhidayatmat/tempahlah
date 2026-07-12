@@ -344,8 +344,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         ->group(function () {
             Route::get('/', [\App\Http\Controllers\PlatformAdminController::class, 'overview'])->name('overview');
             // Edit a tenant's business details + force free / complimentary-Pro.
-            Route::get('/tenants/{tenant}/edit', [\App\Http\Controllers\PlatformAdminController::class, 'editTenant'])->name('tenants.edit')->whereNumber('tenant');
-            Route::patch('/tenants/{tenant}', [\App\Http\Controllers\PlatformAdminController::class, 'updateTenant'])->name('tenants.update')->whereNumber('tenant');
+            // Bind by {tenant:id} — Tenant's route key is public_id (ULID) via the
+            // HasUlidPublicId trait, so a plain {tenant} would 404 on a numeric id.
+            Route::get('/tenants/{tenant:id}/edit', [\App\Http\Controllers\PlatformAdminController::class, 'editTenant'])->name('tenants.edit')->whereNumber('tenant');
+            Route::patch('/tenants/{tenant:id}', [\App\Http\Controllers\PlatformAdminController::class, 'updateTenant'])->name('tenants.update')->whereNumber('tenant');
             // Cross-tenant testimonial moderation — hide/show/delete guest reviews.
             Route::get('/testimonials', [\App\Http\Controllers\PlatformAdminController::class, 'testimonials'])->name('testimonials');
             Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');
