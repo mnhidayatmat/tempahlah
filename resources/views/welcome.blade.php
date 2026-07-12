@@ -980,17 +980,22 @@
                 </div>
             </article>
 
-            {{-- Feature 3: Subdomain --}}
+            {{-- Feature 3: Private booking page (free path link, Pro subdomain) --}}
             <article class="tm-feat">
                 <header>
                     <span class="tm-feat-num">03</span>
                     <h3 class="tm-h3">{{ $isMs ? 'Laman tempahan peribadi' : 'Private booking page' }}</h3>
-                    <p>{{ $isMs ? 'Alamat anda sendiri. Tiada iklan pesaing, tiada potongan.' : 'Your own address. No competitor ads, no commission cut.' }}</p>
+                    <p>{{ $isMs ? 'Percuma dapat pautan sendiri. Naik taraf Pro untuk subdomain pendek + domain sendiri. Tiada iklan pesaing, tiada potongan.' : 'Free gets your own link. Upgrade to Pro for a shorter subdomain + your own domain. No competitor ads, no commission cut.' }}</p>
                 </header>
                 <div class="tm-feat-visual tm-feat-vis-url">
                     <div class="tm-url-mock">
                         <span class="dots"><i></i><i></i><i></i></span>
                         <span class="url">
+                            <span class="url-tag">{{ $isMs ? 'Percuma' : 'Free' }}</span>
+                            <span class="proto">https://</span><span class="dom">tempahlah.com/</span><span class="slug">wafahomestay</span>
+                        </span>
+                        <span class="url url-pro">
+                            <span class="url-tag url-tag-pro">★ Pro</span>
                             <span class="proto">https://</span><span class="slug">wafahomestay</span><span class="dom">.tempahlah.com</span>
                         </span>
                     </div>
@@ -1222,6 +1227,9 @@
 .tm-url-mock .dots i:nth-child(2) { background: #ffbd2e; }
 .tm-url-mock .dots i:nth-child(3) { background: #28ca42; }
 .tm-url-mock .url { display: block; padding: 14px 16px; font-family: var(--font-mono); font-size: 13px; word-break: break-all; }
+.tm-url-mock .url-pro { border-top: 1px solid var(--line); }
+.tm-url-mock .url-tag { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 999px; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: .02em; background: var(--bg-warm); color: var(--ink-3); vertical-align: middle; }
+.tm-url-mock .url-tag-pro { background: var(--primary); color: #fff; }
 .tm-url-mock .proto { color: var(--ink-4); }
 .tm-url-mock .slug { color: var(--primary-deep); font-weight: 600; }
 .tm-url-mock .dom { color: var(--ink-2); }
