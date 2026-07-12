@@ -228,6 +228,68 @@
             <textarea class="input" rows="5" wire:model="customKnowledge" maxlength="4000"></textarea>
         </div>
 
+        {{-- Training Q&A ------------------------------------------------ --}}
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; flex-wrap: wrap;">
+                <div style="flex:1; min-width: 0;">
+                    <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Training Q&A') }}</h4>
+                    <p style="margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5; max-width: 620px;">
+                        {{ __('These are the exact answers the AI gives to common guest questions. We auto-generated a starter set from your homestay info — refine any answer, add your own, or remove what you don\'t need. Edited or hand-written answers are marked "Edited" and are kept when you refresh the defaults.') }}
+                    </p>
+                </div>
+                <button type="button" class="btn btn-sm" wire:click="regenerateQa"
+                        wire:loading.attr="disabled" wire:target="regenerateQa"
+                        wire:confirm="{{ __('Refresh the default answers from your latest homestay info? Your edited questions will be kept.') }}">
+                    <span wire:loading.remove wire:target="regenerateQa">↻ {{ __('Refresh from my info') }}</span>
+                    <span wire:loading wire:target="regenerateQa">
+                        <span class="bs-spinner bs-spinner--inline" aria-hidden="true"></span>{{ __('Refreshing…') }}
+                    </span>
+                </button>
+            </div>
+
+            @if (empty($trainingQa))
+                <div style="padding: 16px; text-align:center; color: var(--ink-3); font-size: 13px; background: var(--bg-sunk); border-radius: var(--r-md);">
+                    {{ __('No trained answers yet. Add one below, or refresh from your info.') }}
+                </div>
+            @else
+                <div style="display:flex; flex-direction:column; gap: 12px;">
+                    @foreach ($trainingQa as $i => $pair)
+                        <div wire:key="qa-{{ $i }}"
+                             style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; display:flex; flex-direction:column; gap: 8px; background: var(--bg-elev);">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
+                                @if (($pair['source'] ?? 'auto') === 'custom')
+                                    <x-pill variant="info">{{ __('Edited') }}</x-pill>
+                                @else
+                                    <x-pill>{{ __('Auto') }}</x-pill>
+                                @endif
+                                <button type="button" class="btn btn-sm"
+                                        wire:click="removeQa({{ $i }})"
+                                        style="color: var(--err); padding: 2px 8px;"
+                                        title="{{ __('Remove') }}">✕</button>
+                            </div>
+                            <label style="display:flex; flex-direction:column; gap: 4px;">
+                                <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Question guests ask') }}</span>
+                                <input class="input" type="text" wire:model.blur="trainingQa.{{ $i }}.q"
+                                       maxlength="400" placeholder="{{ __('e.g. What time is check-in?') }}">
+                            </label>
+                            <label style="display:flex; flex-direction:column; gap: 4px;">
+                                <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('Answer the AI should give') }}</span>
+                                <textarea class="input" rows="2" wire:model.blur="trainingQa.{{ $i }}.a"
+                                          maxlength="2000"></textarea>
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div>
+                <button type="button" class="btn btn-sm" wire:click="addQa">+ {{ __('Add question') }}</button>
+                <span style="font-size: 11.5px; color: var(--ink-3); margin-left: 8px;">
+                    {{ count($trainingQa) }} / {{ \App\Services\Agent\TrainingQaGenerator::MAX_PAIRS }}
+                </span>
+            </div>
+        </div>
+
         {{-- Limits --}}
         <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
             <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Safety') }}</h4>

@@ -47,6 +47,21 @@ class SystemPromptBuilder
             ? "\n\n=== Owner's notes (use these verbatim if relevant) ===\n{$settings->customKnowledge}"
             : '';
 
+        $trainedFaq = '';
+        if (! empty($settings->trainingQa)) {
+            $rows = collect($settings->trainingQa)
+                ->map(fn ($p) => "Q: {$p['q']}\nA: {$p['a']}")
+                ->implode("\n\n");
+            $trainedFaq = <<<FAQ
+
+
+=== Trained answers (FAQ) ===
+The owner has pre-approved these answers. When a guest asks something covered here, base your reply on the matching answer — keep the facts (prices, times, policies) EXACTLY as written, but rephrase naturally in the guest's language and your persona. If a live tool (availability, quote) can give a more precise answer, prefer the tool. These are the source of truth over any assumption:
+
+{$rows}
+FAQ;
+        }
+
         return <<<PROMPT
 You are the booking assistant for {$bizName} on WhatsApp. You help prospective guests find a room, check dates, see photos, and answer common questions. You are an AI, not a human.
 
@@ -105,7 +120,7 @@ You are the booking assistant for {$bizName} on WhatsApp. You help prospective g
 2. Once you have dates + property, call check_availability.
 3. Once available, call get_quote to give a clear total.
 4. Offer to share photos / location.
-5. To actually book, tell them the owner will confirm — DO NOT invent booking IDs.{$knowledge}
+5. To actually book, tell them the owner will confirm — DO NOT invent booking IDs.{$knowledge}{$trainedFaq}
 
 # Refusal
 You are scoped to homestay booking enquiries for {$bizName} only. Politely redirect anything else.

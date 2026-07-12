@@ -141,6 +141,8 @@ return [
         'custom_knowledge'    => '',
         'send_photos_enabled' => true,
         'reply_languages'     => 'auto',      // auto | ms | en
+        'training_qa'         => [],          // [{q, a, source: auto|custom}] — seeded from tenant info
+        'training_qa_seeded'  => false,       // true once the owner has saved/edited the FAQ
     ],
 
 ];

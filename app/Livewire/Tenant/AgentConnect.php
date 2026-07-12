@@ -9,6 +9,7 @@ use App\Models\TenantIntegration;
 use App\Models\WhatsappSession;
 use App\Services\Agent\AgentService;
 use App\Services\Agent\AgentSettings;
+use App\Services\Agent\TrainingQaGenerator;
 use App\Services\Agent\Llm\LlmClientFactory;
 use App\Support\Tenancy\TenantContext;
 use Laravel\Pennant\Feature;
@@ -41,6 +42,17 @@ class AgentConnect extends Component
     public string $customKnowledge = '';
     public bool $sendPhotosEnabled = true;
     public string $replyLanguages = 'auto';
+
+    /**
+     * Training Q&A — the agent's editable FAQ knowledge base.
+     * Each row: ['q' => ..., 'a' => ..., 'source' => 'auto'|'custom'].
+     * Seeded from live tenant info; the owner can tune, add or delete.
+     *
+     * @var array<int, array{q:string, a:string, source:string}>
+     */
+    public array $trainingQa = [];
+    public bool $trainingQaSeeded = false;
+
     public bool $useBusinessHours = false;
     public string $businessHoursStart = '09:00';
     public string $businessHoursEnd = '21:00';
@@ -76,6 +88,16 @@ class AgentConnect extends Component
         $this->customKnowledge    = $s->customKnowledge;
         $this->sendPhotosEnabled  = $s->sendPhotosEnabled;
         $this->replyLanguages     = $s->replyLanguages;
+        $this->trainingQaSeeded   = $s->trainingQaSeeded;
+
+        // Seed the FAQ from the tenant's live info the first time (or if it's
+        // still empty and was never explicitly cleared) so a host always has a
+        // useful default set to refine. Persisted once they hit Save.
+        if (! empty($s->trainingQa)) {
+            $this->trainingQa = $s->trainingQa;
+        } elseif (! $s->trainingQaSeeded) {
+            $this->trainingQa = app(TrainingQaGenerator::class)->generate($tenant);
+        }
 
         if ($s->businessHours) {
             $this->useBusinessHours = true;
@@ -180,6 +202,55 @@ class AgentConnect extends Component
         $this->flashOk($value ? __('AI agent turned on.') : __('AI agent turned off.'));
     }
 
+    /**
+     * When the owner edits a seeded ('auto') pair, promote it to 'custom' so a
+     * later "Regenerate from my info" never overwrites their refinement.
+     * Livewire passes the dotted key, e.g. "trainingQa.2.a".
+     */
+    public function updatedTrainingQa(mixed $value, ?string $key = null): void
+    {
+        if (! $key) return;
+        $idx = (int) explode('.', $key)[0];
+        if (isset($this->trainingQa[$idx]) && ($this->trainingQa[$idx]['source'] ?? '') === 'auto') {
+            $this->trainingQa[$idx]['source'] = 'custom';
+        }
+    }
+
+    public function addQa(): void
+    {
+        if (count($this->trainingQa) >= TrainingQaGenerator::MAX_PAIRS) {
+            $this->flashErr(__('You can add up to :n questions.', ['n' => TrainingQaGenerator::MAX_PAIRS]));
+            return;
+        }
+        $this->trainingQa[] = ['q' => '', 'a' => '', 'source' => 'custom'];
+    }
+
+    public function removeQa(int $index): void
+    {
+        if (isset($this->trainingQa[$index])) {
+            unset($this->trainingQa[$index]);
+            $this->trainingQa = array_values($this->trainingQa);
+        }
+    }
+
+    /**
+     * Rebuild the auto pairs from the tenant's current info while KEEPING every
+     * question the owner has hand-written or refined (source='custom').
+     */
+    public function regenerateQa(TrainingQaGenerator $generator): void
+    {
+        $tenant = $this->tenant();
+        if (! $tenant) return;
+
+        $custom = array_values(array_filter(
+            $this->trainingQa,
+            fn ($p) => ($p['source'] ?? '') === 'custom',
+        ));
+
+        $this->trainingQa = array_merge($generator->generate($tenant), $custom);
+        $this->flashOk(__('Refreshed the default answers from your latest info. Your edited questions were kept.'));
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -197,7 +268,23 @@ class AgentConnect extends Component
             'replyLanguages'  => 'required|in:auto,ms,en',
             'businessHoursStart' => 'required|date_format:H:i',
             'businessHoursEnd'   => 'required|date_format:H:i',
+            'trainingQa'         => 'array|max:'.TrainingQaGenerator::MAX_PAIRS,
+            'trainingQa.*.q'     => 'nullable|string|max:400',
+            'trainingQa.*.a'     => 'nullable|string|max:2000',
         ]);
+
+        // Drop blank rows; keep only complete Q&A pairs.
+        $trainingQa = array_values(array_filter(array_map(function ($p) {
+            $q = trim((string) ($p['q'] ?? ''));
+            $a = trim((string) ($p['a'] ?? ''));
+            if ($q === '' || $a === '') return null;
+            return [
+                'q'      => $q,
+                'a'      => $a,
+                'source' => ($p['source'] ?? '') === 'custom' ? 'custom' : 'auto',
+            ];
+        }, $this->trainingQa)));
+        $this->trainingQa = $trainingQa;
 
         $businessHours = null;
         if ($this->useBusinessHours) {
@@ -230,7 +317,10 @@ class AgentConnect extends Component
             'custom_knowledge'    => $this->customKnowledge,
             'send_photos_enabled' => $this->sendPhotosEnabled,
             'reply_languages'     => $this->replyLanguages,
+            'training_qa'         => $trainingQa,
+            'training_qa_seeded'  => true,
         ];
+        $this->trainingQaSeeded = true;
 
         $row = TenantIntegration::withoutGlobalScopes()
             ->where('tenant_id', $this->tenantId)
