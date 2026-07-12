@@ -50,6 +50,15 @@ Schedule::command('subscriptions:process-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Auto-checkout — any still-active booking whose check-out date passed more
+// than a day ago is auto-transitioned to checked_out (so the host doesn't have
+// to click it), which also fires the post-checkout testimonial request. Daily
+// is enough — the trigger is date-based and each booking is acted on once.
+Schedule::command('bookings:auto-checkout')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Channel calendar sync — pull Airbnb / Booking.com iCal reservations into
 // availability blocks so cross-platform bookings can't double-book. Pro-gated
 // per tenant inside the command; no-ops when a tenant has no import links.

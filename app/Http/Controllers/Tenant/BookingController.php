@@ -904,63 +904,12 @@ class BookingController extends Controller
      * doesn't create duplicate refunds (we check for any open refund
      * row first).
      */
-    public function checkOut(Request $request, $id)
+    public function checkOut(Request $request, $id, \App\Actions\Booking\CheckOutBooking $checkOutBooking)
     {
         $booking = Booking::findOrFail($id);
 
-        $allowedFrom = [Booking::STATUS_CONFIRMED, Booking::STATUS_CHECKED_IN];
-        if (! in_array($booking->status, $allowedFrom, true)) {
+        if (! $checkOutBooking->execute($booking)) {
             return back()->with('error', __('Cannot check out — booking status is :s.', ['s' => $booking->status]));
-        }
-
-        DB::transaction(function () use ($booking) {
-            $booking->update([
-                'status'          => Booking::STATUS_CHECKED_OUT,
-                'checked_out_at'  => now(),
-                // If they never explicitly checked-in, stamp it now too
-                // so the timeline isn't missing a step.
-                'checked_in_at'   => $booking->checked_in_at ?? now(),
-            ]);
-
-            // Auto-create the refund record. Only when a deposit was
-            // actually paid AND there's no existing open refund row.
-            $depositPaid = (float) ($booking->deposit_amount ?? 0);
-            if ($depositPaid > 0 && $booking->deposit_paid_at) {
-                $hasOpen = \App\Models\Refund::where('booking_id', $booking->id)
-                    ->whereIn('status', [
-                        \App\Models\Refund::STATUS_PENDING,
-                        \App\Models\Refund::STATUS_PROCESSING,
-                        \App\Models\Refund::STATUS_COMPLETED,
-                    ])->exists();
-
-                if (! $hasOpen) {
-                    // Match the deposit payment row (typically the booking
-                    // fee) so the refund is traceable to the original txn.
-                    $depositPayment = $booking->payments
-                        ->where('status', 'succeeded')
-                        ->where('type', \App\Models\Payment::TYPE_DEPOSIT)
-                        ->first();
-
-                    \App\Models\Refund::create([
-                        'public_id'    => (string) \Illuminate\Support\Str::ulid(),
-                        'tenant_id'    => $booking->tenant_id,
-                        'booking_id'   => $booking->id,
-                        'payment_id'   => $depositPayment?->id,
-                        'amount'       => $depositPaid,
-                        'currency'     => $booking->currency ?? 'MYR',
-                        'reason'       => \App\Models\Refund::REASON_CHECKOUT_COMPLETE,
-                        'status'       => \App\Models\Refund::STATUS_PENDING,
-                        'requested_at' => now(),
-                    ]);
-                }
-            }
-        });
-
-        // Auto-request a testimonial once, right after checkout. Guarded by
-        // review_requested_at so a re-checkout (or a status flip back and forth)
-        // never nags the guest twice.
-        if (! $booking->review_requested_at) {
-            SendReviewRequest::dispatch($booking->id);
         }
 
         return back()->with('status', __('Guest checked out. Refund prepared.'));
