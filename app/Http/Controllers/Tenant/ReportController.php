@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Services\Reports\StatisticsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Laravel\Pennant\Feature;
 
 class ReportController extends Controller
 {
@@ -15,11 +16,18 @@ class ReportController extends Controller
 
     public function index()
     {
+        // Reports & analytics is a Pro feature — free tenants get an upsell.
+        if (! Feature::active('reports')) {
+            return view('tenant.reports.locked');
+        }
+
         return view('tenant.reports.index', $this->buildReportData());
     }
 
     public function exportPdf()
     {
+        abort_unless(Feature::active('reports'), 403, __('Reports are a Pro feature.'));
+
         $data = $this->buildReportData();
         $data['tenant'] = app(\App\Support\Tenancy\TenantContext::class)->current();
         $data['generatedAt'] = now();

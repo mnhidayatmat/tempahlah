@@ -62,6 +62,10 @@ class FeatureServiceProvider extends ServiceProvider
 
         Feature::define('staff_accounts', fn (Tenant $tenant) => $tenant->isPaid() ? 5 : 1);
 
+        // Reports & analytics dashboard (incl. PDF export) — Pro only. Free
+        // tenants see an upgrade prompt in place of the reports page.
+        Feature::define('reports', fn (Tenant $tenant) => $tenant->isPaid());
+
         Feature::define('reports_history_days', fn (Tenant $tenant) => $tenant->isPaid() ? null : 30);
 
         Feature::define('export_reports', fn (Tenant $tenant) => $tenant->isPaid());
