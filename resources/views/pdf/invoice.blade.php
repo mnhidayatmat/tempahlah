@@ -312,7 +312,7 @@
                     </tr>
                     <tr>
                         <td class="label">{{ $L['date'] }}</td>
-                        <td class="r">{{ optional($invoice->issued_on)->format('d.m.Y') ?? now()->format('d.m.Y') }}</td>
+                        <td class="r">{{ optional($invoice->issued_on)->format('d.m.Y') ?? now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('d.m.Y') }}</td>
                     </tr>
                     <tr>
                         <td class="label">{{ $L['ref'] }}</td>
@@ -418,7 +418,7 @@
                 @if ($isReceipt)
                     <div class="sectionhead">{{ $L['paid'] }} ✓</div>
                     @if ($payMethod)<div class="payv">{{ $L['method'] }}: {{ $payMethod }}</div>@endif
-                    @if ($payment && $payment->paid_at)<div class="payv">{{ $L['paid_on'] }}: {{ optional($payment->paid_at)->format('d M Y') }}</div>@endif
+                    @if ($payment && $payment->paid_at)<div class="payv">{{ $L['paid_on'] }}: {{ optional($payment->paid_at)->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('d M Y') }}</div>@endif
                 @elseif ($tenant->hasBankDetails())
                     <table style="border-collapse:collapse;">
                         <tr>

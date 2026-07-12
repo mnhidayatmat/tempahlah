@@ -1,6 +1,12 @@
 <?php
 
 return [
+    // Business/display timezone. The app stores absolute timestamps in UTC
+    // (config/app.php), but Malaysian *calendar dates* — invoice/receipt dates,
+    // document numbers, booking references — must be stamped and shown in MYT,
+    // otherwise dates generated between 00:00–08:00 MYT land on the previous day.
+    'timezone' => env('APP_DISPLAY_TIMEZONE', 'Asia/Kuala_Lumpur'),
+
     'sst_rate' => env('SST_RATE', 0.08),
     'tourism_tax_per_night_foreigner' => env('TOURISM_TAX_PER_NIGHT_FOREIGNER', 10.00),
     'marketplace_commission_rate' => env('MARKETPLACE_COMMISSION_RATE', 0.03),

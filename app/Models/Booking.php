@@ -236,7 +236,7 @@ class Booking extends Model
     {
         static::creating(function (self $b) {
             if (empty($b->reference)) {
-                $b->reference = 'BK-'.now()->format('ymd').'-'.strtoupper(Str::random(5));
+                $b->reference = 'BK-'.now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('ymd').'-'.strtoupper(Str::random(5));
             }
         });
     }

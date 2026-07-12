@@ -304,7 +304,7 @@
                                     <div>
                                         <div style="font-weight: 500;">{{ ucfirst($p->type) }} · {{ ucfirst($p->method) }}</div>
                                         <div style="font-size: 11.5px; color: var(--ink-3);" class="mono">
-                                            {{ $p->created_at->format('d M Y · H:i') }}
+                                            {{ $p->created_at->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('d M Y · H:i') }}
                                         </div>
                                     </div>
                                     <div style="text-align:right;">

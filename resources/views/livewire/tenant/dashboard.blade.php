@@ -265,7 +265,7 @@
                                 <span class="dash-shelf-city">{{ $p->city ?? $p->state ?? __('Listed') }}</span>
                                 <span class="dash-shelf-status">{{ ucfirst($p->status ?? 'active') }}</span>
                                 <span class="dash-shelf-published">
-                                    {{ __('Published') }}: {{ optional($p->created_at)->format('d M Y') ?? '—' }}
+                                    {{ __('Published') }}: {{ optional($p->created_at)->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('d M Y') ?? '—' }}
                                 </span>
                             </div>
                             <div class="dash-shelf-name">{{ $p->name }}</div>

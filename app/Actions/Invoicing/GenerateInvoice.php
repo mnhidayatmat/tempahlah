@@ -86,7 +86,7 @@ class GenerateInvoice
             'total' => $booking->total_amount,
             'currency' => $booking->currency,
             'status' => Invoice::STATUS_ISSUED,
-            'issued_on' => now()->toDateString(),
+            'issued_on' => now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->toDateString(),
         ]);
 
         $pdf = Pdf::loadView('pdf.invoice', [

@@ -106,7 +106,7 @@
                                 <td style="padding: 12px 16px;" class="mono">
                                     {{ $t->subscription && (float) $t->subscription->monthly_amount > 0 ? 'RM '.number_format($t->subscription->monthly_amount, 0) : '—' }}
                                 </td>
-                                <td style="padding: 12px 16px; color: var(--ink-3);" class="mono">{{ $t->created_at?->format('M j, Y') }}</td>
+                                <td style="padding: 12px 16px; color: var(--ink-3);" class="mono">{{ $t->created_at?->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('M j, Y') }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" style="padding: 32px; text-align: center; color: var(--ink-3);">{{ __('No tenants match.') }}</td></tr>

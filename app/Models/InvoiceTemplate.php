@@ -34,6 +34,6 @@ class InvoiceTemplate extends Model
     {
         $number = $this->next_number;
         $this->increment('next_number');
-        return sprintf('%s-%s-%04d', $this->number_prefix, now()->format('y'), $number);
+        return sprintf('%s-%s-%04d', $this->number_prefix, now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('y'), $number);
     }
 }

@@ -77,7 +77,7 @@ class SubscriptionInvoice extends Model
      */
     public static function nextNumber(): string
     {
-        $year = now()->format('y');
+        $year = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('y');
         $prefix = "TPL-SUB-{$year}-";
 
         $last = static::query()

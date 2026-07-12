@@ -50,7 +50,7 @@
                                 <p style="margin: 7px 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.55;">"{{ $review->comment }}"</p>
                             @endif
                             <div class="mono" style="margin-top: 7px; font-size: 11px; color: var(--ink-3);">
-                                {{ $review->tenant?->business_name }} · {{ $review->subject?->name }} · {{ $review->created_at?->format('M j, Y') }}
+                                {{ $review->tenant?->business_name }} · {{ $review->subject?->name }} · {{ $review->created_at?->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('M j, Y') }}
                             </div>
                         </div>
                         <div style="display:flex; gap: 6px; flex-shrink:0;">

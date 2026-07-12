@@ -88,7 +88,7 @@
                         @forelse ($payments as $p)
                             @php $sp = $statusPill($p->status); @endphp
                             <tr style="border-top: .5px solid var(--line);">
-                                <td style="padding: 12px 14px;" class="mono">{{ $p->created_at->format('M j') }}</td>
+                                <td style="padding: 12px 14px;" class="mono">{{ $p->created_at->timezone(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->format('M j') }}</td>
                                 <td style="padding: 12px 14px;" class="mono">{{ $p->booking?->reference ?? '—' }}</td>
                                 <td style="padding: 12px 14px; font-weight: 500;">{{ $p->booking?->guest?->name ?? '—' }}</td>
                                 <td style="padding: 12px 14px; color: var(--ink-2);">{{ $p->booking?->property?->name ?? '—' }}</td>

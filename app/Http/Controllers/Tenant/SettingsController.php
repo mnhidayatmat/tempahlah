@@ -341,7 +341,7 @@ class SettingsController extends Controller
             'invoice_number'     => $type === \App\Models\Invoice::TYPE_RECEIPT ? 'SAMPLE-RCP-14' : 'SAMPLE-INV-14',
             'document_type'      => $type,
             'locale'             => $tenant->default_locale,
-            'issued_on'          => now(),
+            'issued_on'          => now(config('homestay.timezone', 'Asia/Kuala_Lumpur')),
             'billed_to'          => ['name' => 'EPIC Society', 'email' => 'guest@example.com', 'phone' => '011-2624 1887'],
             'line_items'         => [[
                 'description' => __('Homestay for :n night', ['n' => 1]),
