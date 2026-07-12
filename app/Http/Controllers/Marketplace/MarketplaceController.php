@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\MarketplaceListing;
 use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class MarketplaceController extends Controller
@@ -58,6 +59,45 @@ class MarketplaceController extends Controller
                 foreach ($amenityKeys as $key) {
                     $q->whereHas('property.amenities', fn ($q2) => $q2->where('amenities.key', $key));
                 }
+            })
+            // Availability: with both dates set, keep only listings whose property
+            // has at least one room free for the range. Raw correlated subqueries
+            // (not whereHas) so tenant/soft-delete global scopes never apply — the
+            // marketplace is cross-tenant and may be browsed by a logged-in host.
+            // Overlap logic mirrors AvailabilityService exactly (half-open range;
+            // pending/confirmed/checked_in bookings + room-or-property blocks).
+            ->when($checkIn && $checkOut, function ($q) use ($checkIn, $checkOut) {
+                $q->whereExists(function ($room) use ($checkIn, $checkOut) {
+                    $room->select(DB::raw(1))
+                        ->from('rooms')
+                        ->whereColumn('rooms.property_id', 'marketplace_listings.property_id')
+                        ->whereNull('rooms.deleted_at')
+                        ->whereNotExists(function ($b) use ($checkIn, $checkOut) {
+                            $b->select(DB::raw(1))
+                                ->from('bookings')
+                                ->whereColumn('bookings.room_id', 'rooms.id')
+                                ->whereIn('bookings.status', [
+                                    Booking::STATUS_PENDING,
+                                    Booking::STATUS_CONFIRMED,
+                                    Booking::STATUS_CHECKED_IN,
+                                ])
+                                ->where('bookings.check_in', '<', $checkOut)
+                                ->where('bookings.check_out', '>', $checkIn);
+                        })
+                        ->whereNotExists(function ($blk) use ($checkIn, $checkOut) {
+                            $blk->select(DB::raw(1))
+                                ->from('calendar_blocks')
+                                ->where('calendar_blocks.starts_on', '<', $checkOut)
+                                ->where('calendar_blocks.ends_on', '>', $checkIn)
+                                ->where(function ($w) {
+                                    $w->whereColumn('calendar_blocks.room_id', 'rooms.id')
+                                        ->orWhere(function ($w2) {
+                                            $w2->whereNull('calendar_blocks.room_id')
+                                                ->whereColumn('calendar_blocks.property_id', 'rooms.property_id');
+                                        });
+                                });
+                        });
+                });
             });
 
         if ($sort === 'price_low') {
