@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\Mail;
  * series step whose day_offset has been reached, and send it — at most ONE
  * step per tenant per run, so a tenant is never dogpiled.
  *
+ * The very first step (day_offset = 0) is normally sent IMMEDIATELY at
+ * signup by SendOnboardingWelcomeEmail (dispatched from
+ * CreateTenantAndOwner), not by this daily batch — so a new host doesn't
+ * wait until the next scheduled run for their welcome email. This command
+ * still owns day 0 as a fallback (nothing recorded yet for that tenant if
+ * the immediate send failed) and owns every subsequent step regardless.
+ *
+
  * Guards:
  *  - a unique (step, tenant) send row = never sent twice
  *  - the step must sit inside [day_offset, day_offset + SEND_WINDOW_DAYS] of

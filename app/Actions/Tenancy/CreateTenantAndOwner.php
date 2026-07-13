@@ -13,7 +13,7 @@ class CreateTenantAndOwner
 {
     public function execute(array $data): Tenant
     {
-        return DB::transaction(function () use ($data) {
+        $tenant = DB::transaction(function () use ($data) {
             $user = User::firstOrCreate(
                 ['email' => $data['email']],
                 [
@@ -66,8 +66,63 @@ class CreateTenantAndOwner
 
             $user->assignRole('owner');
 
+            $this->attributeAffiliate($tenant, $user);
+
             return $tenant->fresh(['subscription', 'owner']);
         });
+
+        // Fired after the transaction commits (not from inside it) so the
+        // queue worker never races a not-yet-committed tenant row. Sends the
+        // day-0 onboarding email right away instead of waiting for the next
+        // daily batch — see SendOnboardingWelcomeEmail for the fallback story
+        // if this particular send fails.
+        \App\Jobs\SendOnboardingWelcomeEmail::dispatch($tenant->id);
+
+        return $tenant;
+    }
+
+    /**
+     * Affiliate attribution: if the signup carried a referral cookie
+     * (tph_ref, set by an affiliate link), bind this tenant to that affiliate
+     * — permanently (affiliate_referrals.tenant_id is unique). Best-effort:
+     * a failure here must never break a signup. Self-referrals (an affiliate
+     * signing up their own new workspace) are skipped.
+     */
+    protected function attributeAffiliate(Tenant $tenant, User $user): void
+    {
+        try {
+            // In console/seeder contexts request() is an empty Request → no
+            // cookie → no-op, so no explicit console guard is needed.
+            $code = \App\Support\Affiliate\ReferralAttribution::code(request());
+
+            if (! $code) {
+                return;
+            }
+
+            $affiliate = \App\Models\Affiliate::query()
+                ->where('code', $code)
+                ->where('status', \App\Models\Affiliate::STATUS_ACTIVE)
+                ->first();
+
+            if (! $affiliate) {
+                return;
+            }
+
+            // Self-referral guard: referring yourself earns nothing.
+            if ((int) $affiliate->user_id === (int) $user->id
+                || ($affiliate->email && strcasecmp($affiliate->email, (string) $user->email) === 0)) {
+                return;
+            }
+
+            \App\Models\AffiliateReferral::query()->firstOrCreate(
+                ['tenant_id' => $tenant->id],
+                ['affiliate_id' => $affiliate->id],
+            );
+
+            \App\Support\Affiliate\ReferralAttribution::clear();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     protected const RESERVED_SLUGS = [
