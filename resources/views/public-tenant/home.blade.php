@@ -647,6 +647,27 @@
                     <textarea name="special_requests" rows="2" maxlength="500" placeholder="{{ $isBM ? 'cth: masuk lewat sikit' : 'e.g. checking in a little late' }}">{{ old('special_requests') }}</textarea>
                 </label>
 
+                {{-- Marketing insight only — never affects price or commission. --}}
+                @php
+                    $referralOptions = [
+                        'instagram' => $isBM ? 'Instagram' : 'Instagram',
+                        'facebook'  => $isBM ? 'Facebook / WhatsApp' : 'Facebook / WhatsApp',
+                        'friend'    => $isBM ? 'Kawan atau keluarga' : 'Friend or family',
+                        'google'    => $isBM ? 'Carian Google' : 'Google search',
+                        'repeat'    => $isBM ? 'Tetamu ulangan' : 'Repeat guest',
+                        'other'     => $isBM ? 'Lain-lain' : 'Other',
+                    ];
+                @endphp
+                <label class="wf-book-field">
+                    <span class="wf-book-label">{{ $isBM ? 'Bagaimana anda tahu tentang kami? (pilihan)' : 'How did you hear about us? (optional)' }}</span>
+                    <select name="referral_source">
+                        <option value="">{{ $isBM ? '— Pilih —' : '— Select —' }}</option>
+                        @foreach ($referralOptions as $key => $label)
+                            <option value="{{ $key }}" @selected(old('referral_source') === $key)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
                 @error('guest_email') <div class="wf-book-err">{{ $message }}</div> @enderror
                 @error('guest_phone') <div class="wf-book-err">{{ $message }}</div> @enderror
 

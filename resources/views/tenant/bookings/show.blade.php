@@ -356,6 +356,24 @@
                             WhatsApp →
                         </a>
                     @endif
+
+                    @php
+                        $referralLabels = [
+                            'instagram' => 'Instagram',
+                            'facebook'  => 'Facebook / WhatsApp',
+                            'friend'    => __('Friend or family'),
+                            'google'    => __('Google search'),
+                            'repeat'    => __('Repeat guest'),
+                            'other'     => __('Other'),
+                        ];
+                        $referral = data_get($booking->meta, 'referral_source');
+                    @endphp
+                    @if ($referral && isset($referralLabels[$referral]))
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: .5px solid var(--line);">
+                            <div style="font-size: 11px; color: var(--ink-3); margin-bottom: 3px;">{{ __('How they found us') }}</div>
+                            <div style="font-size: 13px;">{{ $referralLabels[$referral] }}</div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

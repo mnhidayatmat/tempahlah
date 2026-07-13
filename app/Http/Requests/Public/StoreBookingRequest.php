@@ -42,9 +42,20 @@ class StoreBookingRequest extends FormRequest
 
     public const COUNTRIES = ['MY', 'SG', 'ID', 'TH', 'CN', 'JP', 'AU', 'GB', 'US', 'OT'];
 
+    /** "How did you hear about us?" — a marketing-insight field, optional. */
+    public const REFERRAL_SOURCES = ['instagram', 'facebook', 'friend', 'google', 'repeat', 'other'];
+
     public function authorize(): bool
     {
         return $this->attributes->get('subdomain_tenant') !== null;
+    }
+
+    /** The referral source if it's one of the known options, else null. */
+    public function referralSource(): ?string
+    {
+        $v = strtolower(trim((string) $this->input('referral_source', '')));
+
+        return in_array($v, self::REFERRAL_SOURCES, true) ? $v : null;
     }
 
     /**
@@ -82,6 +93,9 @@ class StoreBookingRequest extends FormRequest
             // matching the previous behaviour rather than over-charging.
             'guest_country'    => ['nullable', 'string', 'size:2', Rule::in(self::COUNTRIES)],
             'special_requests' => ['nullable', 'string', 'max:500'],
+            // Optional "how did you hear about us?" — marketing insight only,
+            // never affects pricing/commission. Unknown values are dropped.
+            'referral_source'  => ['nullable', 'string', Rule::in(self::REFERRAL_SOURCES)],
             // How the guest chose to pay. Null / absent defaults to the
             // online gateway in the controller.
             'payment_method'   => ['nullable', Rule::in(['gateway', 'manual'])],

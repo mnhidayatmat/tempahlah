@@ -109,6 +109,13 @@ class PublicBookingController extends Controller
                 ->with('booking_error', __('Sorry, these dates were just taken — please pick different dates.'));
         }
 
+        // "How did you hear about us?" — optional marketing insight for the host.
+        if ($ref = $request->referralSource()) {
+            $booking->update(['meta' => array_merge($booking->meta ?? [], [
+                'referral_source' => $ref,
+            ])]);
+        }
+
         // Record the marketplace referral on the booking + clear it so a later
         // direct booking in the same session isn't mis-attributed.
         if ($attribution) {
