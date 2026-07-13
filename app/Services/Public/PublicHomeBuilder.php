@@ -122,11 +122,16 @@ class PublicHomeBuilder
                 ->whereIn('subject_id', $properties->pluck('id'))
                 ->where('is_published', true)
                 ->with(['booking:id,check_out,guest_id', 'booking.guest:id,name'])
-                // Highest rating first (leftmost in the horizontal scroll),
-                // down to the lowest as you scroll right; newest wins ties.
-                ->orderByDesc('rating_overall')
-                ->latest()
-                ->get();
+                ->get()
+                // Order for the horizontal scroll (leftmost = shown first):
+                //   1) highest rating, 2) longer / more detailed comment,
+                //   3) newest. So among equal 5-star reviews the wordier ones
+                // lead on the left. mb_strlen keeps multibyte (Malay) accurate.
+                ->sort(function ($a, $b) {
+                    return [$b->rating_overall, mb_strlen((string) $b->comment), $b->created_at?->getTimestamp() ?? 0]
+                        <=> [$a->rating_overall, mb_strlen((string) $a->comment), $a->created_at?->getTimestamp() ?? 0];
+                })
+                ->values();
 
             foreach ($reviews as $r) {
                 $reviewsByProperty[$r->subject_id][] = [
