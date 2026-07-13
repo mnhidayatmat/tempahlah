@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\URL;
  *   {name}           the recipient's name (owner name / business name)
  *   {business_name}  the tenant's business name
  *   {upgrade_url}    the in-app subscription page
+ *   {booking_url}    the tenant's public booking page
  * Every send carries a signed unsubscribe link (PDPA) in the footer.
  */
 class MarketingCampaignMail extends Mailable
@@ -29,6 +30,7 @@ class MarketingCampaignMail extends Mailable
         public string $businessName,
         public int $tenantId,
         public bool $isTest = false,
+        public string $bookingUrl = '',
     ) {}
 
     public function envelope(): Envelope
@@ -56,6 +58,7 @@ class MarketingCampaignMail extends Mailable
             '{name}' => $this->recipientName,
             '{business_name}' => $this->businessName,
             '{upgrade_url}' => rtrim((string) config('app.url'), '/').'/dashboard/subscription',
+            '{booking_url}' => $this->bookingUrl,
         ]);
     }
 }

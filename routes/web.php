@@ -372,6 +372,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::post('/marketing/{campaign}/send', [\App\Http\Controllers\PlatformMarketingController::class, 'send'])->name('marketing.send')->whereNumber('campaign');
             Route::post('/marketing/{campaign}/cancel', [\App\Http\Controllers\PlatformMarketingController::class, 'cancel'])->name('marketing.cancel')->whereNumber('campaign');
             Route::delete('/marketing/{campaign}', [\App\Http\Controllers\PlatformMarketingController::class, 'destroy'])->name('marketing.destroy')->whereNumber('campaign');
+
+            // Onboarding series — the automated new-host drip (editable steps).
+            Route::get('/marketing/onboarding/{step}/edit', [\App\Http\Controllers\PlatformMarketingController::class, 'editOnboarding'])->name('marketing.onboarding.edit')->whereNumber('step');
+            Route::patch('/marketing/onboarding/{step}', [\App\Http\Controllers\PlatformMarketingController::class, 'updateOnboarding'])->name('marketing.onboarding.update')->whereNumber('step');
+            Route::post('/marketing/onboarding/{step}/test', [\App\Http\Controllers\PlatformMarketingController::class, 'testOnboarding'])->name('marketing.onboarding.test')->whereNumber('step');
         });
 
     // Public, signed marketing opt-out — clicked from the campaign email, no

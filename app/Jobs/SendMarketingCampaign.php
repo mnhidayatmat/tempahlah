@@ -89,6 +89,7 @@ class SendMarketingCampaign implements ShouldQueue
                 recipientName: $recipient->name ?: ($recipient->tenant?->business_name ?? ''),
                 businessName: $recipient->tenant?->business_name ?? '',
                 tenantId: $recipient->tenant_id,
+                bookingUrl: $recipient->tenant?->publicUrl() ?? '',
             ));
 
             $recipient->update(['status' => MarketingCampaignRecipient::STATUS_SENT, 'sent_at' => now(), 'error' => null]);

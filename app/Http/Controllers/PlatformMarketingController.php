@@ -52,7 +52,69 @@ MD;
     {
         return view('platform.marketing.index', [
             'campaigns' => MarketingCampaign::query()->latestFirst()->paginate(15),
+            // The automated new-host drip, with per-step delivery counts.
+            'onboardingSteps' => \App\Models\OnboardingEmail::query()
+                ->withCount([
+                    'sends as sent_total' => fn ($q) => $q->where('status', 'sent'),
+                    'sends as skipped_total' => fn ($q) => $q->where('status', 'skipped'),
+                    'sends as failed_total' => fn ($q) => $q->where('status', 'failed'),
+                ])
+                ->orderBy('day_offset')
+                ->get(),
         ]);
+    }
+
+    /* ── Onboarding series (automated new-host drip) ─────────────────────── */
+
+    public function editOnboarding(\App\Models\OnboardingEmail $step)
+    {
+        return view('platform.marketing.onboarding-edit', ['step' => $step]);
+    }
+
+    public function updateOnboarding(Request $request, \App\Models\OnboardingEmail $step)
+    {
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:200'],
+            'body_md' => ['required', 'string', 'max:20000'],
+            'day_offset' => ['required', 'integer', 'min:0', 'max:60'],
+            'enabled' => ['nullable', 'boolean'],
+            'skip_if_paid' => ['nullable', 'boolean'],
+        ]);
+
+        $step->update([
+            'subject' => $validated['subject'],
+            'body_md' => $validated['body_md'],
+            'day_offset' => $validated['day_offset'],
+            'enabled' => $request->boolean('enabled'),
+            'skip_if_paid' => $request->boolean('skip_if_paid'),
+        ]);
+
+        return redirect()->route('platform.marketing.index')
+            ->with('status', __('Onboarding step :n updated.', ['n' => $step->step_no]));
+    }
+
+    /** Send one onboarding step to the signed-in admin only. */
+    public function testOnboarding(Request $request, \App\Models\OnboardingEmail $step)
+    {
+        $admin = $request->user();
+        $sampleTenant = Tenant::query()->with('owner')->first();
+
+        if (! $sampleTenant) {
+            return back()->with('error', __('No tenant exists to sample the tokens from.'));
+        }
+
+        try {
+            Mail::to($admin->email)->send(new \App\Mail\OnboardingEmailMail(
+                step: $step,
+                tenant: $sampleTenant,
+                recipientName: $admin->name ?? 'Admin',
+                isTest: true,
+            ));
+        } catch (\Throwable $e) {
+            return back()->with('error', __('Test send failed: :err', ['err' => mb_substr($e->getMessage(), 0, 200)]));
+        }
+
+        return back()->with('status', __('Test of step :n sent to :email.', ['n' => $step->step_no, 'email' => $admin->email]));
     }
 
     public function create()
@@ -125,6 +187,7 @@ MD;
                 // test renders; the admin obviously shouldn't click it.
                 tenantId: (int) (Tenant::value('id') ?? 0),
                 isTest: true,
+                bookingUrl: rtrim((string) config('app.url'), '/').'/contoh-homestay',
             ));
         } catch (\Throwable $e) {
             return back()->with('error', __('Test send failed: :err', ['err' => mb_substr($e->getMessage(), 0, 200)]));

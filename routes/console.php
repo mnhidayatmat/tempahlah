@@ -60,6 +60,15 @@ Schedule::command('bookings:auto-checkout')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Onboarding email drip — each new host gets the welcome/activation/upgrade
+// series by signup age (one step per tenant per day; opt-outs, suppression
+// and already-paid tenants honoured inside the command). 01:30 UTC = 09:30
+// MYT so the email lands in the Malaysian morning.
+Schedule::command('marketing:send-onboarding')
+    ->dailyAt('01:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Channel calendar sync — pull Airbnb / Booking.com iCal reservations into
 // availability blocks so cross-platform bookings can't double-book. Pro-gated
 // per tenant inside the command; no-ops when a tenant has no import links.
