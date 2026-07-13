@@ -75,7 +75,11 @@
                                 <x-icon name="lock" :size="12"/> {{ __('Upgrade') }}
                             </a>
                         @elseif (! empty($it['route']))
-                            <a href="{{ route($it['route']) }}" class="btn btn-primary btn-sm">{{ __('Set up') }}</a>
+                            {{-- Route-based tiles (channel sync, Google Calendar) manage on
+                                 their own page — label flips to "Manage" once connected. --}}
+                            <a href="{{ route($it['route']) }}" class="btn btn-sm {{ $connected ? '' : 'btn-primary' }}">
+                                {{ $connected ? __('Manage') : __('Set up') }}
+                            </a>
                         @elseif ($connected)
                             <a href="{{ route('tenant.integrations.show', $it['key']) }}" class="btn btn-sm">{{ __('Manage') }}</a>
                         @else

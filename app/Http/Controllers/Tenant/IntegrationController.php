@@ -59,6 +59,25 @@ class IntegrationController extends Controller
             ]);
         }
 
+        // Airbnb/Booking.com iCal sync lives in its OWN channel_integrations
+        // table (per room, per channel), not tenant_integrations — so the index
+        // tile never lit up. Synthesize a `channel_sync` record when the tenant
+        // has pasted at least one OTA import URL, so the tile flips to
+        // "Connected" / "Manage" instead of staying on "Set up" forever.
+        $firstChannel = \App\Models\ChannelIntegration::query()
+            ->where('mode', \App\Models\ChannelIntegration::MODE_ICAL)
+            ->where('active', true)
+            ->whereNotNull('ical_import_url')
+            ->orderBy('created_at')
+            ->first();
+        if ($firstChannel) {
+            $records['channel_sync'] = new TenantIntegration([
+                'provider'     => 'channel_sync',
+                'enabled'      => true,
+                'connected_at' => $firstChannel->last_synced_at ?? $firstChannel->created_at,
+            ]);
+        }
+
         return view('tenant.integrations.index', [
             'tenant' => $tenant,
             'records' => $records,
