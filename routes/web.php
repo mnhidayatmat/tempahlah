@@ -349,6 +349,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             // HasUlidPublicId trait, so a plain {tenant} would 404 on a numeric id.
             Route::get('/tenants/{tenant:id}/edit', [\App\Http\Controllers\PlatformAdminController::class, 'editTenant'])->name('tenants.edit')->whereNumber('tenant');
             Route::patch('/tenants/{tenant:id}', [\App\Http\Controllers\PlatformAdminController::class, 'updateTenant'])->name('tenants.update')->whereNumber('tenant');
+            Route::delete('/tenants/{tenant:id}', [\App\Http\Controllers\PlatformAdminController::class, 'destroyTenant'])->name('tenants.destroy')->whereNumber('tenant');
             // Cross-tenant testimonial moderation — hide/show/delete guest reviews.
             Route::get('/testimonials', [\App\Http\Controllers\PlatformAdminController::class, 'testimonials'])->name('testimonials');
             Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');

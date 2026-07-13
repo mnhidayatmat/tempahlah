@@ -84,6 +84,27 @@ class PlatformAdminController extends Controller
     }
 
     /**
+     * Delete a tenant. Soft delete (Tenant uses SoftDeletes) — it drops off the
+     * platform list and its public booking page stops resolving, but the data
+     * is retained and can be restored, so an accidental click isn't catastrophic.
+     * Refuses to delete the tenant the admin is currently signed in as (that
+     * would break their own session).
+     */
+    public function destroyTenant(Request $request, Tenant $tenant)
+    {
+        $current = app(\App\Support\Tenancy\TenantContext::class)->current();
+        if ($current && $current->id === $tenant->id) {
+            return back()->with('error', __('You can\'t delete the homestay you\'re currently signed in as.'));
+        }
+
+        $name = $tenant->business_name;
+        $tenant->delete();
+
+        return redirect()->route('platform.overview')
+            ->with('status', __('Tenant ":name" deleted.', ['name' => $name]));
+    }
+
+    /**
      * Force a tenant onto free or Pro. "Pro" here is a COMPLIMENTARY grant
      * (comped_at) — the designed way to hold every paid feature without running
      * the billing flow (partner, offline payment, staff). Writing through the

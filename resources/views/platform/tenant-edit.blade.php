@@ -20,6 +20,11 @@
                 {{ $errors->first() }}
             </div>
         @endif
+        @if (session('error'))
+            <div class="hauz-card" style="padding: 14px 16px; border-color: var(--err); background: var(--err-tint); color: var(--err);">
+                {{ session('error') }}
+            </div>
+        @endif
 
         {{-- Stripe-managed warning: an override here won't stop Stripe billing. --}}
         @if ($subscription?->isStripeManaged())
@@ -116,5 +121,21 @@
                 <button type="submit" class="btn btn-primary">{{ __('Save changes') }}</button>
             </div>
         </form>
+
+        {{-- Danger zone: delete tenant (soft delete — reversible by support). --}}
+        <div class="hauz-card" style="padding: 18px 20px; border-color: var(--err);">
+            <div style="font-weight: 600; color: var(--err); margin-bottom: 4px;">{{ __('Danger zone') }}</div>
+            <div style="font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-bottom: 12px;">
+                {{ __('Deleting removes this homestay from the platform and takes its public booking page offline. Its data is retained and can be restored by support if needed.') }}
+            </div>
+            <form method="POST" action="{{ route('platform.tenants.destroy', $tenant->id) }}"
+                  onsubmit="return prompt(@js(__('Type the homestay name to confirm deletion:'))) === @js($tenant->business_name);">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-sm" style="color: var(--err); border-color: var(--err);">
+                    {{ __('Delete this homestay') }}
+                </button>
+            </form>
+        </div>
     </div>
 </x-app-layout>
