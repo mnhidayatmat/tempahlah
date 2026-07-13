@@ -12,7 +12,13 @@
             'repair'     => 'var(--warn)',
             'utility'    => 'var(--ink-3)',
             'other'      => 'var(--ink-3)',
+            // Operational task costs (read-only, from Housekeeping)
+            'cleaning'    => 'var(--info)',
+            'laundry'     => 'var(--accent)',
+            'maintenance' => 'var(--warn)',
         ];
+        // Labels for every category incl. the operational ones (from controller).
+        $catLabels = $categoryLabels ?? $categories;
     @endphp
 
     @once
@@ -53,7 +59,7 @@
                 <div class="kicker">{{ __('Manage') }}</div>
                 <div class="display-2" style="margin-top: 4px;">{{ __('Expenses') }}</div>
                 <div style="margin-top: 6px; color: var(--ink-3); font-size: 14px;">
-                    {{ __('Track renovation, upgrades, and house supplies. These roll into your monthly operating cost.') }}
+                    {{ __('All your spend in one place — renovation, upgrades and supplies you add here, plus cleaning, laundry and maintenance costs pulled in from Housekeeping. Together they make up your monthly operating cost.') }}
                 </div>
             </div>
         </div>
@@ -82,7 +88,7 @@
             </div>
             @foreach (array_slice($byCategory, 0, 2, true) as $cat => $sum)
                 <div class="hauz-card" style="padding: 16px;">
-                    <div style="font-size: 11.5px; color: var(--ink-3); text-transform:uppercase; letter-spacing:.4px;">{{ __($categories[$cat] ?? $cat) }}</div>
+                    <div style="font-size: 11.5px; color: var(--ink-3); text-transform:uppercase; letter-spacing:.4px;">{{ __($catLabels[$cat] ?? $cat) }}</div>
                     <div style="font-size: 22px; font-weight: 700; margin-top: 6px; color: {{ $catColor[$cat] ?? 'var(--ink)' }}; font-variant-numeric:tabular-nums;">RM {{ number_format($sum, 2) }}</div>
                 </div>
             @endforeach
@@ -165,7 +171,7 @@
                             <a href="{{ route('tenant.expenses.index', array_filter(['month' => $selectedMonth, 'category' => $cat])) }}"
                                class="ex-chip {{ $selectedCategory === $cat ? 'is-active' : '' }}">
                                 <span style="width:7px; height:7px; border-radius:50%; background: {{ $catColor[$cat] ?? 'var(--ink-3)' }};"></span>
-                                {{ __($categories[$cat] ?? $cat) }}
+                                {{ __($catLabels[$cat] ?? $cat) }}
                             </a>
                         @endforeach
                     </div>
@@ -206,22 +212,27 @@
                             </td>
                             <td>
                                 <span class="ex-tag" style="background: color-mix(in srgb, {{ $catColor[$e->category] ?? 'var(--ink-3)' }} 14%, transparent); color: {{ $catColor[$e->category] ?? 'var(--ink-3)' }};">
-                                    {{ __($categories[$e->category] ?? $e->category) }}
+                                    {{ $e->category_label }}
                                 </span>
                             </td>
-                            <td style="color:var(--ink-3);">{{ $e->property?->name ?? '—' }}</td>
+                            <td style="color:var(--ink-3);">{{ $e->property_name ?? '—' }}</td>
                             <td class="ex-num ex-cost">RM {{ number_format((float) $e->amount, 2) }}</td>
                             <td class="ex-num" style="width:1%;">
-                                <div class="ex-actions">
-                                    <button type="button" class="ex-iconbtn" @click="editing = true" title="{{ __('Edit') }}"><x-icon name="pencil" :size="14"/></button>
-                                    <form method="POST" action="{{ route('tenant.expenses.destroy', $e->id) }}" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="ex-iconbtn" title="{{ __('Delete') }}" style="color:var(--err);"><x-icon name="trash" :size="14"/></button>
-                                    </form>
-                                </div>
+                                @if ($e->editable)
+                                    <div class="ex-actions">
+                                        <button type="button" class="ex-iconbtn" @click="editing = true" title="{{ __('Edit') }}"><x-icon name="pencil" :size="14"/></button>
+                                        <form method="POST" action="{{ route('tenant.expenses.destroy', $e->id) }}" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="ex-iconbtn" title="{{ __('Delete') }}" style="color:var(--err);"><x-icon name="trash" :size="14"/></button>
+                                        </form>
+                                    </div>
+                                @else
+                                    <span class="ex-tag" style="background: var(--bg-sunk); color: var(--ink-3);" title="{{ __('Edit this in Housekeeping') }}">{{ __('Housekeeping') }}</span>
+                                @endif
                             </td>
                         </tr>
-                        {{-- Edit row --}}
+                        {{-- Edit row (manual expenses only) --}}
+                        @if ($e->editable)
                         <tr x-show="editing" x-cloak>
                             <td colspan="6" style="background: var(--bg-sunk);">
                                 <form method="POST" action="{{ route('tenant.expenses.update', $e->id) }}">
@@ -272,6 +283,7 @@
                                 </form>
                             </td>
                         </tr>
+                        @endif
                     </tbody>
                 @empty
                     <tbody><tr><td colspan="6" class="ex-empty">
