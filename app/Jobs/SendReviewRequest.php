@@ -4,26 +4,25 @@ namespace App\Jobs;
 
 use App\Mail\ReviewRequestMail;
 use App\Models\Booking;
-use App\Services\WhatsApp\WhatsappMessenger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Sends the post-checkout "leave a testimonial" request over email + WhatsApp.
+ * Sends the post-checkout "leave a testimonial" request by EMAIL only.
  * Dispatched automatically whenever a booking becomes checked-out — via the
- * manual "Check out guest" button, the daily auto-checkout command, or a status
+ * manual "Check out guest" button, the 24h auto-checkout command, or a status
  * change to "Checked out" from the inline dropdown / edit form — and manually
  * from the booking page's "Request testimonial" button.
  *
  * ONCE-ONLY guarantee: the automatic path atomically claims review_requested_at
  * with a single conditional UPDATE, so even if several of those triggers fire
  * for the same booking, only the first one to run actually sends — the guest
- * never gets a duplicate testimonial email/WhatsApp. The manual button passes
- * force=true to deliberately re-send (a no-op once the guest has reviewed).
+ * never gets a duplicate testimonial email. The manual button passes force=true
+ * to deliberately re-send (a no-op once the guest has reviewed).
  *
- * The signed review link is minted here (Booking::reviewUrl) so the same URL
- * goes to both channels.
+ * The signed review link is minted here (Booking::reviewUrl). Testimonials are
+ * intentionally email-only (host preference); the WhatsApp arm was removed.
  */
 class SendReviewRequest implements ShouldQueue
 {
@@ -67,9 +66,9 @@ class SendReviewRequest implements ShouldQueue
 
         $url = $booking->reviewUrl();
 
-        // Email arm — isolated so an SES rejection can't abort the WhatsApp arm.
-        // (Guest email currently only lands once SES leaves sandbox; WhatsApp is
-        // the channel that actually reaches guests today.)
+        // Email only. Wrapped in try/catch so a delivery hiccup can't bubble up
+        // and fail the queued job (which would leave review_requested_at stamped
+        // but retry uselessly). A guest with no email on file simply isn't asked.
         $email = $booking->guestEmail();
         if ($email) {
             try {
@@ -77,14 +76,6 @@ class SendReviewRequest implements ShouldQueue
             } catch (\Throwable $e) {
                 report($e);
             }
-        }
-
-        // WhatsApp arm — Messenger handles all gating (connected session,
-        // auto_review pref, guest opt-out, recipient guard).
-        try {
-            WhatsappMessenger::dispatchReviewRequest($booking, $url);
-        } catch (\Throwable $e) {
-            report($e);
         }
 
         // For the force path (manual re-send) the flag may still be null on the
