@@ -86,6 +86,7 @@ class Tenant extends Model
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
         'booking_link_shared_at' => 'datetime',
+        'marketing_opt_out_at' => 'datetime',
     ];
 
     /** Platform default for the auto-housekeeping SOP master toggle. */

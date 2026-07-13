@@ -15,6 +15,7 @@
         ['title' => __('Platform'), 'items' => [
             ['key' => 'platform.overview', 'label' => __('Subscribers'), 'icon' => 'chart', 'route' => 'platform.overview'],
             ['key' => 'platform.testimonials', 'label' => __('Testimonials'), 'icon' => 'star', 'route' => 'platform.testimonials'],
+            ['key' => 'platform.marketing', 'label' => __('Email marketing'), 'icon' => 'mail', 'route' => 'platform.marketing.index'],
             ['key' => 'platform.settings', 'label' => __('Settings'), 'icon' => 'cog', 'route' => 'platform.settings'],
         ]],
     ];

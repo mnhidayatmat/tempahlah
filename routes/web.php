@@ -359,7 +359,27 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
             Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');
             Route::post('/settings/test-stripe', [\App\Http\Controllers\PlatformAdminController::class, 'testStripe'])->name('settings.test-stripe');
+
+            // Email marketing — campaigns to hosts (free → Pro pitches etc.),
+            // with a per-recipient delivery log + PDPA unsubscribe.
+            Route::get('/marketing', [\App\Http\Controllers\PlatformMarketingController::class, 'index'])->name('marketing.index');
+            Route::get('/marketing/create', [\App\Http\Controllers\PlatformMarketingController::class, 'create'])->name('marketing.create');
+            Route::post('/marketing', [\App\Http\Controllers\PlatformMarketingController::class, 'store'])->name('marketing.store');
+            Route::get('/marketing/{campaign}', [\App\Http\Controllers\PlatformMarketingController::class, 'show'])->name('marketing.show')->whereNumber('campaign');
+            Route::get('/marketing/{campaign}/edit', [\App\Http\Controllers\PlatformMarketingController::class, 'edit'])->name('marketing.edit')->whereNumber('campaign');
+            Route::patch('/marketing/{campaign}', [\App\Http\Controllers\PlatformMarketingController::class, 'update'])->name('marketing.update')->whereNumber('campaign');
+            Route::post('/marketing/{campaign}/test', [\App\Http\Controllers\PlatformMarketingController::class, 'sendTest'])->name('marketing.test')->whereNumber('campaign');
+            Route::post('/marketing/{campaign}/send', [\App\Http\Controllers\PlatformMarketingController::class, 'send'])->name('marketing.send')->whereNumber('campaign');
+            Route::post('/marketing/{campaign}/cancel', [\App\Http\Controllers\PlatformMarketingController::class, 'cancel'])->name('marketing.cancel')->whereNumber('campaign');
+            Route::delete('/marketing/{campaign}', [\App\Http\Controllers\PlatformMarketingController::class, 'destroy'])->name('marketing.destroy')->whereNumber('campaign');
         });
+
+    // Public, signed marketing opt-out — clicked from the campaign email, no
+    // login. {tenant:id} because Tenant's route key is public_id (ULID) and
+    // the signed link carries the numeric id.
+    Route::get('/marketing/unsubscribe/{tenant:id}', [\App\Http\Controllers\PlatformMarketingController::class, 'unsubscribe'])
+        ->name('marketing.unsubscribe')
+        ->whereNumber('tenant');
 
     require __DIR__.'/auth-extra.php';
 });
