@@ -852,17 +852,22 @@ class HousekeepingController extends Controller
         }
 
         $resolution = $request->input('resolution_notes');
-        $cost = $request->input('cost');
-        $cost = ($cost === null || $cost === '') ? null : (float) $cost;
+
+        // Only touch cost when the resolve form actually carries a value — the
+        // inline "Cost RM" box is blank by default (it has a placeholder, no
+        // pre-filled value), so writing it unconditionally would WIPE a repair
+        // cost the host already entered when they created the ticket. If they do
+        // type a figure here, it wins (they're setting/correcting it at resolve).
+        $costInput = $request->input('cost');
+        $costProvided = $costInput !== null && $costInput !== '';
 
         match ($action) {
             'start' => $ticket->update(['status' => MaintenanceTicket::STATUS_IN_PROGRESS]),
-            'resolve' => $ticket->update([
+            'resolve' => $ticket->update(array_merge([
                 'status' => MaintenanceTicket::STATUS_RESOLVED,
                 'resolved_at' => now(),
                 'resolution_notes' => $resolution,
-                'cost' => $cost,
-            ]),
+            ], $costProvided ? ['cost' => (float) $costInput] : [])),
             'close' => $ticket->update(['status' => MaintenanceTicket::STATUS_CLOSED]),
         };
 
