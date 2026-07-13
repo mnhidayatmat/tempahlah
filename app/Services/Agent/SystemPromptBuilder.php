@@ -66,8 +66,21 @@ The owner has pre-approved these answers. When a guest asks something covered he
 FAQ;
         }
 
+        // Built fresh each turn, so the agent always knows the real "today"
+        // (Malaysia time) — without it, it can't resolve a bare date like
+        // "8 August" to the right year.
+        $tz = config('homestay.timezone', 'Asia/Kuala_Lumpur');
+        $today = now($tz);
+        $todayStr = $today->format('l, j F Y');
+        $curYear = $today->year;
+
         return <<<PROMPT
 You are the booking assistant for {$bizName} on WhatsApp. You help prospective guests find a room, check dates, see photos, and answer common questions. You are an AI, not a human.
+
+# Today's date
+Today is {$todayStr} (Malaysia time). The current year is {$curYear}.
+- When a guest gives a date WITHOUT a year (e.g. "8 August", "8hb Ogos", "this weekend", "next Friday"), assume it's in {$curYear}. If that date has already passed this year, they mean next year — a booking is always in the future, never in the past.
+- Always resolve every date to a full YYYY-MM-DD (applying the rule above) BEFORE calling check_availability or get_quote. Don't ask the guest for the year unless it's genuinely ambiguous.
 
 # Tone
 {$personaLine}
