@@ -1417,6 +1417,41 @@
                 <div class="tm-quote-stars" aria-label="5 stars">★★★★★</div>
             </footer>
         </div>
+
+        {{-- Real guest reviews, verbatim, from the platform's moderated
+             testimonial flow (Review model, is_published) — never invent
+             quotes here; swap/add cards only from genuine published reviews. --}}
+        <div class="tm-guest-reviews-head">
+            {{ $isMs
+                ? 'Dan apa kata tetamu di homestay yang guna Tempahlah — ulasan sebenar, dikutip melalui borang testimoni selepas daftar keluar:'
+                : 'And what guests say at homestays running on Tempahlah — real reviews, collected through the post-checkout testimonial form:' }}
+        </div>
+        <div class="tm-guest-reviews">
+            <figure class="tm-greview">
+                <div class="tm-greview-stars" aria-label="5 stars">★★★★★</div>
+                <blockquote>Ruang tamu dia luas gila! Kami buat majlis tunang indoor, pasang pelamin pun masih selesa. Semua orang puji tempat cantik dan selesa.</blockquote>
+                <figcaption>
+                    <span class="tm-greview-avatar">N</span>
+                    <span><strong>Nadia</strong> · Selangor</span>
+                </figcaption>
+            </figure>
+            <figure class="tm-greview">
+                <div class="tm-greview-stars" aria-label="5 stars">★★★★★</div>
+                <blockquote>Majlis sanding kami buat outdoor + indoor, sangat puas hati! Tuan rumah pun sangat membantu dari awal sampai akhir.</blockquote>
+                <figcaption>
+                    <span class="tm-greview-avatar">A</span>
+                    <span><strong>Ain & Hafiz</strong> · Melaka</span>
+                </figcaption>
+            </figure>
+            <figure class="tm-greview">
+                <div class="tm-greview-stars" aria-label="5 stars">★★★★★</div>
+                <blockquote>Terbaik tuan.. semua nya complete and selesa.. inshallah.. kalau saya dtg kluang lg.. memang sy akan repeat menginap sini.</blockquote>
+                <figcaption>
+                    <span class="tm-greview-avatar">A</span>
+                    <span><strong>Amirul Hakim</strong> · Kluang</span>
+                </figcaption>
+            </figure>
+        </div>
     </div>
 </section>
 
@@ -1788,6 +1823,58 @@
 
 /* ========== TESTIMONIAL ========== */
 .tm-testimonial { padding: 96px 0; background: var(--bg-warm); }
+.tm-guest-reviews-head {
+    max-width: 720px;
+    margin: 48px auto 20px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+.tm-guest-reviews {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+@media (min-width: 840px) { .tm-guest-reviews { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; } }
+.tm-greview {
+    margin: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    padding: 22px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.tm-greview-stars { color: #e8b94a; font-size: 14px; letter-spacing: 2px; }
+.tm-greview blockquote {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink);
+    flex: 1;
+}
+.tm-greview figcaption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-2);
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+.tm-greview figcaption strong { color: var(--ink); }
+.tm-greview-avatar {
+    width: 30px; height: 30px;
+    border-radius: 999px;
+    background: var(--primary-tint, #e4f2f8);
+    color: var(--primary, #2596c6);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+    flex-shrink: 0;
+}
 .tm-testimonial-card {
     max-width: 820px;
     margin: 0 auto;
