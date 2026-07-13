@@ -49,15 +49,20 @@ class BookingController extends Controller
         // yesterday). Derive it in the display timezone instead.
         $today = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
 
+        // Compare date columns against a plain Y-m-d string, not a Carbon
+        // datetime — otherwise "today" gets bound as "...00:00:00" and a
+        // check_in that IS today is wrongly treated as before it.
+        $todayStr = $today->toDateString();
+
         $bookings = Booking::query()
             ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'payments'])
             ->when($filter === 'upcoming', fn ($q) => $q
                 ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED])
-                ->where('check_in', '>=', $today))
+                ->where('check_in', '>=', $todayStr))
             ->when($filter === 'checked-in', fn ($q) => $q
                 ->where('status', Booking::STATUS_CHECKED_IN))
             ->when($filter === 'past', fn ($q) => $q
-                ->where('check_out', '<', $today))
+                ->where('check_out', '<', $todayStr))
             // Mirrors the dashboard "Action queue" deposit-due item exactly:
             // confirmed/pending bookings whose deposit is unpaid and whose
             // check-in falls within the next 7 days. Clicking that item lands here.
@@ -65,15 +70,20 @@ class BookingController extends Controller
                 ->whereIn('status', [Booking::STATUS_CONFIRMED, Booking::STATUS_PENDING])
                 ->whereNull('deposit_paid_at')
                 ->whereBetween('check_in', [now(), now()->addDays(7)]))
-            // Deposit-due: soonest check-in first (nearest deadline to chase).
-            // Everything else: most recently booked first — the latest customer
-            // sits at the top, far-future ("upcoming long") reservations sink to
-            // the bottom, instead of a 2027 stay heading the list.
-            ->when(
-                $filter === 'deposit-due',
-                fn ($q) => $q->orderBy('check_in'),
-                fn ($q) => $q->orderByDesc('created_at'),
-            )
+            // Ordering:
+            //   • deposit-due → soonest check-in first (nearest deadline to chase).
+            //   • past        → most recent stay first (history reads newest-down).
+            //   • all/upcoming/checked-in → current & upcoming first, sorted by
+            //     check-in ASC so TODAY sits at the top and far-future stays sink
+            //     to the bottom; any past bookings fall below the upcoming ones.
+            ->when($filter === 'deposit-due', fn ($q) => $q->orderBy('check_in'))
+            ->when($filter === 'past', fn ($q) => $q->orderByDesc('check_in'))
+            ->when(! in_array($filter, ['deposit-due', 'past'], true), fn ($q) => $q
+                // 1) current & upcoming before past; 2) past recent-first;
+                // 3) upcoming nearest-first (today at the very top).
+                ->orderByRaw('CASE WHEN check_out < ? THEN 1 ELSE 0 END', [$todayStr])
+                ->orderByRaw('CASE WHEN check_out < ? THEN check_in END DESC', [$todayStr])
+                ->orderBy('check_in'))
             ->paginate(20)
             ->withQueryString();
 
