@@ -100,6 +100,13 @@ class PlatformAdminController extends Controller
         $name = $tenant->business_name;
         $tenant->delete();
 
+        // Release the slug so the same homestay name can be registered again.
+        // The tenants.slug unique index still counts soft-deleted rows, so a
+        // deleted tenant holding "demo-homestay" would otherwise block a new
+        // "demo-homestay" INSERT (duplicate-key 500). Suffix with the id to stay
+        // unique; the row is still recoverable, just under a parked slug.
+        $tenant->forceFill(['slug' => $tenant->slug.'-del-'.$tenant->id])->saveQuietly();
+
         return redirect()->route('platform.overview')
             ->with('status', __('Tenant ":name" deleted.', ['name' => $name]));
     }

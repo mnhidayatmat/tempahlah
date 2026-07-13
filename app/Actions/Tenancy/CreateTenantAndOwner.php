@@ -91,7 +91,10 @@ class CreateTenantAndOwner
         $slug = in_array($base, self::RESERVED_SLUGS, true) ? $base.'-1' : $base;
         $i = 0;
 
-        while (Tenant::where('slug', $slug)->exists() || in_array($slug, self::RESERVED_SLUGS, true)) {
+        // withTrashed: the tenants.slug unique index still counts soft-deleted
+        // rows, so a slug held by a deleted tenant must be treated as taken —
+        // otherwise the INSERT here hits a duplicate-key error (500).
+        while (Tenant::withTrashed()->where('slug', $slug)->exists() || in_array($slug, self::RESERVED_SLUGS, true)) {
             $i++;
             $slug = $base.'-'.$i;
         }
