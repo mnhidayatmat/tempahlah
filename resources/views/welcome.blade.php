@@ -1420,11 +1420,16 @@
 
         {{-- Real guest reviews, verbatim, from the platform's moderated
              testimonial flow (Review model, is_published) — never invent
-             quotes here; swap/add cards only from genuine published reviews. --}}
+             quotes here; swap/add cards only from genuine published reviews.
+             Framed as guest-side proof for the host pitch: happy guests =
+             repeat bookings, which is what a host is buying. --}}
         <div class="tm-guest-reviews-head">
-            {{ $isMs
-                ? 'Dan apa kata tetamu di homestay yang guna Tempahlah — ulasan sebenar, dikutip melalui borang testimoni selepas daftar keluar:'
-                : 'And what guests say at homestays running on Tempahlah — real reviews, collected through the post-checkout testimonial form:' }}
+            <h3 class="tm-h3">{{ $isMs ? 'Tetamu pun perasan bezanya.' : 'Guests notice the difference too.' }}</h3>
+            <p>
+                {{ $isMs
+                    ? 'Ulasan sebenar tetamu di homestay yang guna Tempahlah — dikutip automatik melalui borang testimoni selepas daftar keluar. Tetamu gembira macam ini yang jadi tempahan ulangan anda.'
+                    : 'Real guest reviews at homestays running on Tempahlah — collected automatically through the post-checkout testimonial form. Happy guests like these become your repeat bookings.' }}
+            </p>
         </div>
         <div class="tm-guest-reviews">
             <figure class="tm-greview">
@@ -1825,9 +1830,14 @@
 .tm-testimonial { padding: 96px 0; background: var(--bg-warm); }
 .tm-guest-reviews-head {
     max-width: 720px;
-    margin: 48px auto 20px;
+    margin: 56px auto 24px;
     text-align: center;
+}
+.tm-guest-reviews-head h3 { margin: 0 0 8px; }
+.tm-guest-reviews-head p {
+    margin: 0;
     font-size: 14px;
+    line-height: 1.6;
     color: var(--ink-2);
 }
 .tm-guest-reviews {
