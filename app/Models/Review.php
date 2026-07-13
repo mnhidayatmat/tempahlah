@@ -19,18 +19,41 @@ class Review extends Model
     public const REVIEWER_GUEST = 'guest';
     public const REVIEWER_TENANT = 'tenant';
 
+    // Appeal workflow: a tenant asks the super admin to hide a testimonial.
+    public const APPEAL_PENDING = 'pending';
+    public const APPEAL_APPROVED = 'approved';   // admin agreed -> review hidden
+    public const APPEAL_REJECTED = 'rejected';   // admin declined -> stays visible
+
     protected $fillable = [
         'tenant_id', 'public_id', 'booking_id',
         'reviewer_type', 'subject_type', 'subject_id',
         'rating_overall', 'rating_breakdown',
         'comment', 'guest_name', 'public_reply', 'replied_at', 'is_published',
+        'appeal_status', 'appeal_reason', 'appealed_at', 'appeal_reviewed_at', 'appeal_admin_note',
     ];
 
     protected $casts = [
         'rating_breakdown' => 'array',
         'replied_at' => 'datetime',
         'is_published' => 'boolean',
+        'appealed_at' => 'datetime',
+        'appeal_reviewed_at' => 'datetime',
     ];
+
+    public function isAppealPending(): bool
+    {
+        return $this->appeal_status === self::APPEAL_PENDING;
+    }
+
+    public function appealStatusLabel(): ?string
+    {
+        return match ($this->appeal_status) {
+            self::APPEAL_PENDING  => __('Appeal pending review'),
+            self::APPEAL_APPROVED => __('Appeal approved — hidden'),
+            self::APPEAL_REJECTED => __('Appeal declined'),
+            default               => null,
+        };
+    }
 
     public function booking(): BelongsTo
     {

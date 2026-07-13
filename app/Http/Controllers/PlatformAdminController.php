@@ -206,7 +206,7 @@ class PlatformAdminController extends Controller
      */
     public function testimonials(Request $request)
     {
-        $filter = in_array($request->query('show'), ['published', 'hidden'], true)
+        $filter = in_array($request->query('show'), ['published', 'hidden', 'appealed'], true)
             ? $request->query('show')
             : null;
         $q = trim((string) $request->query('q', ''));
@@ -217,21 +217,61 @@ class PlatformAdminController extends Controller
             ->with(['tenant:id,business_name,slug', 'subject:id,name', 'booking:id,check_out,guest_id', 'booking.guest:id,name'])
             ->when($filter === 'published', fn ($query) => $query->where('is_published', true))
             ->when($filter === 'hidden', fn ($query) => $query->where('is_published', false))
+            ->when($filter === 'appealed', fn ($query) => $query->where('appeal_status', Review::APPEAL_PENDING))
             ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
                 ->where('comment', 'like', "%{$q}%")
                 ->orWhere('guest_name', 'like', "%{$q}%")))
+            // Pending appeals surface first so the admin sees what needs a decision.
+            ->orderByRaw("CASE WHEN appeal_status = '".Review::APPEAL_PENDING."' THEN 0 ELSE 1 END")
             ->latest()
             ->paginate(25)
             ->withQueryString();
 
-        $publishedTotal = Review::query()->withoutGlobalScope(BelongsToTenantScope::class)->guestTestimonials()->where('is_published', true)->count();
-        $hiddenTotal = Review::query()->withoutGlobalScope(BelongsToTenantScope::class)->guestTestimonials()->where('is_published', false)->count();
+        $base = fn () => Review::query()->withoutGlobalScope(BelongsToTenantScope::class)->guestTestimonials();
+        $publishedTotal = $base()->where('is_published', true)->count();
+        $hiddenTotal = $base()->where('is_published', false)->count();
+        $appealedTotal = $base()->where('appeal_status', Review::APPEAL_PENDING)->count();
 
         return view('platform.testimonials', [
             'reviews'        => $reviews,
             'publishedTotal' => $publishedTotal,
             'hiddenTotal'    => $hiddenTotal,
+            'appealedTotal'  => $appealedTotal,
         ]);
+    }
+
+    /** Resolve a tenant's appeal to hide a testimonial: approve (hide) or reject. */
+    public function resolveAppeal(Request $request, int $id)
+    {
+        $review = Review::query()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
+            ->findOrFail($id);
+
+        $data = $request->validate([
+            'decision'   => 'required|in:approve,reject',
+            'admin_note' => 'nullable|string|max:1000',
+        ]);
+
+        $note = trim((string) ($data['admin_note'] ?? '')) ?: null;
+
+        if ($data['decision'] === 'approve') {
+            $review->update([
+                'is_published'       => false,
+                'appeal_status'      => Review::APPEAL_APPROVED,
+                'appeal_reviewed_at' => now(),
+                'appeal_admin_note'  => $note,
+            ]);
+
+            return back()->with('status', __('Appeal approved — testimonial is now hidden from the homestay page.'));
+        }
+
+        $review->update([
+            'appeal_status'      => Review::APPEAL_REJECTED,
+            'appeal_reviewed_at' => now(),
+            'appeal_admin_note'  => $note,
+        ]);
+
+        return back()->with('status', __('Appeal declined — testimonial stays visible.'));
     }
 
     /** Hide/show a testimonial (flip is_published). */

@@ -252,6 +252,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
         Route::get('/testimonials',         [\App\Http\Controllers\Tenant\TestimonialController::class, 'index'])->name('testimonials.index');
+        Route::post('/testimonials/{id}/appeal', [\App\Http\Controllers\Tenant\TestimonialController::class, 'appeal'])->name('testimonials.appeal')->whereNumber('id');
         Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
         Route::get('/housekeeping/print.pdf',          [HousekeepingController::class, 'printRunSheet'])->name('housekeeping.print');
         Route::post('/housekeeping/auto-toggle',       [HousekeepingController::class, 'toggleAutoGenerate'])->name('housekeeping.auto-toggle');
@@ -352,6 +353,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::get('/testimonials', [\App\Http\Controllers\PlatformAdminController::class, 'testimonials'])->name('testimonials');
             Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');
             Route::delete('/testimonials/{id}', [\App\Http\Controllers\PlatformAdminController::class, 'deleteTestimonial'])->name('testimonials.delete')->whereNumber('id');
+            Route::post('/testimonials/{id}/appeal/resolve', [\App\Http\Controllers\PlatformAdminController::class, 'resolveAppeal'])->name('testimonials.appeal.resolve')->whereNumber('id');
             // Platform settings — Stripe keys etc. (encrypted in platform_settings).
             Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
             Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');
