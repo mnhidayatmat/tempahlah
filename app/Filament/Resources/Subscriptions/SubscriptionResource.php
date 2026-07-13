@@ -44,7 +44,8 @@ class SubscriptionResource extends Resource
                         Select::make('plan')
                             ->options([
                                 Subscription::PLAN_FREE => 'Free',
-                                Subscription::PLAN_PAID => 'Paid (RM 49/mo)',
+                                Subscription::PLAN_PRO => 'Pro (RM 49/mo)',
+                                Subscription::PLAN_ULTRA => 'Ultra (RM 89/mo)',
                             ])
                             ->default(Subscription::PLAN_FREE)
                             ->required(),
@@ -77,7 +78,7 @@ class SubscriptionResource extends Resource
                             ->helperText('While set and in the future, a past_due tenant keeps its paid features.'),
                         DateTimePicker::make('cancelled_at'),
                         DateTimePicker::make('comped_at')
-                            ->helperText('Complimentary Pro. Never billed, never downgraded, excluded from MRR.'),
+                            ->helperText('Complimentary access (holds the tier on the plan column; free plan + comp = Ultra). Never billed, never downgraded, excluded from MRR.'),
                     ]),
             ]);
     }
@@ -95,7 +96,8 @@ class SubscriptionResource extends Resource
                     ->badge()
                     ->colors([
                         'gray' => Subscription::PLAN_FREE,
-                        'success' => Subscription::PLAN_PAID,
+                        'success' => Subscription::PLAN_PRO,
+                        'warning' => Subscription::PLAN_ULTRA,
                     ])
                     ->sortable(),
                 TextColumn::make('status')
@@ -119,7 +121,8 @@ class SubscriptionResource extends Resource
             ->filters([
                 SelectFilter::make('plan')->options([
                     Subscription::PLAN_FREE => 'Free',
-                    Subscription::PLAN_PAID => 'Paid',
+                    Subscription::PLAN_PRO => 'Pro',
+                    Subscription::PLAN_ULTRA => 'Ultra',
                 ]),
                 SelectFilter::make('status')->options([
                     Subscription::STATUS_TRIALING => 'Trialing',

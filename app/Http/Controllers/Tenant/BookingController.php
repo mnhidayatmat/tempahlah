@@ -394,7 +394,7 @@ class BookingController extends Controller
             return back()
                 ->withInput()
                 ->with('error', __('You\'ve reached your Free plan limit of :n bookings this month. Upgrade to Pro for unlimited bookings.', [
-                    'n' => \App\Support\Billing\PlanLimits::maxBookingsPerMonth(),
+                    'n' => \App\Support\Billing\PlanLimits::maxBookingsPerMonth($tenant),
                 ]));
         }
 

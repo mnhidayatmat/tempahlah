@@ -24,7 +24,7 @@ class MarketplaceListing extends Model
         'house_type', 'rooms_count', 'max_guests',
         'base_price_min', 'base_price_max',
         'rating_avg', 'review_count',
-        'is_featured', 'featured_until', 'published_at', 'status',
+        'is_featured', 'featured_until', 'published_at', 'status', 'showcase_rank',
     ];
 
     protected $casts = [

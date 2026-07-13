@@ -27,7 +27,7 @@ class RunMonthlyCommissionPayout implements ShouldQueue
             ? \Carbon\CarbonImmutable::parse($this->periodEnd)
             : now()->subMonth()->endOfMonth();
 
-        $tenants = Tenant::whereHas('subscription', fn ($q) => $q->where('plan', 'paid'))->get();
+        $tenants = Tenant::whereHas('subscription', fn ($q) => $q->whereIn('plan', \App\Models\Subscription::PAID_PLANS))->get();
 
         foreach ($tenants as $tenant) {
             DB::transaction(function () use ($tenant, $start, $end) {

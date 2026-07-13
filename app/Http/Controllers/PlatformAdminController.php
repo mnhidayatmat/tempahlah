@@ -39,8 +39,9 @@ class PlatformAdminController extends Controller
         return view('platform.tenant-edit', [
             'tenant' => $tenant,
             'subscription' => $tenant->subscription,
-            // Reflect actual access: comped / active / trialing / in-grace all read Pro.
-            'currentPlan' => $tenant->subscription?->isPaid() ? 'pro' : 'free',
+            // Reflect actual access (comped / active / trialing / in-grace):
+            // the effective tier — free, pro or ultra.
+            'currentPlan' => $tenant->planKey(),
         ]);
     }
 
@@ -51,7 +52,7 @@ class PlatformAdminController extends Controller
             'business_email' => ['nullable', 'email', 'max:190'],
             'business_phone' => ['nullable', 'string', 'max:40'],
             'status'         => ['required', 'in:active,suspended'],
-            'plan'           => ['required', 'in:free,pro'],
+            'plan'           => ['required', 'in:free,pro,ultra'],
         ]);
 
         $tenant->fill([
@@ -104,9 +105,11 @@ class PlatformAdminController extends Controller
             ],
         );
 
-        if ($plan === 'pro') {
+        if (in_array($plan, Subscription::PAID_PLANS, true)) {
             $subscription->update([
-                'plan' => Subscription::PLAN_PAID,
+                // The comp holds the tier on the plan column — a Pro comp and
+                // an Ultra comp grant different feature sets.
+                'plan' => $plan,
                 'status' => Subscription::STATUS_ACTIVE,
                 // Keep an existing comp date; otherwise stamp now.
                 'comped_at' => $subscription->comped_at ?? now(),
@@ -149,6 +152,7 @@ class PlatformAdminController extends Controller
                 // Non-secret — safe to show in full.
                 'publishable_key' => (string) PlatformSetting::get('stripe.publishable_key', ''),
                 'price_id' => (string) PlatformSetting::get('stripe.price_id', ''),
+                'price_id_ultra' => (string) PlatformSetting::get('stripe.price_id_ultra', ''),
             ],
             'stripeEnabled' => $stripe->enabled(),
             'webhookUrl' => url('/api/webhooks/stripe'),
@@ -162,6 +166,7 @@ class PlatformAdminController extends Controller
             'stripe_publishable_key' => ['nullable', 'string', 'max:255'],
             'stripe_webhook_secret' => ['nullable', 'string', 'max:255'],
             'stripe_price_id' => ['nullable', 'string', 'max:120'],
+            'stripe_price_id_ultra' => ['nullable', 'string', 'max:120'],
         ]);
 
         // Secrets: only overwrite when a NEW value is typed (the field renders
@@ -176,6 +181,7 @@ class PlatformAdminController extends Controller
         // Non-secret: always set (empty clears them).
         PlatformSetting::put('stripe.publishable_key', trim((string) ($validated['stripe_publishable_key'] ?? '')));
         PlatformSetting::put('stripe.price_id', trim((string) ($validated['stripe_price_id'] ?? '')));
+        PlatformSetting::put('stripe.price_id_ultra', trim((string) ($validated['stripe_price_id_ultra'] ?? '')));
 
         return redirect()->route('platform.settings')->with('status', __('Stripe settings saved.'));
     }
@@ -330,13 +336,14 @@ class PlatformAdminController extends Controller
 
         $totalTenants = Tenant::query()->count();
         $free       = $count(Subscription::PLAN_FREE);
-        $paidActive = $count(Subscription::PLAN_PAID, Subscription::STATUS_ACTIVE);
+        $paidActive = $count(Subscription::PLAN_PRO, Subscription::STATUS_ACTIVE)
+            + $count(Subscription::PLAN_ULTRA, Subscription::STATUS_ACTIVE);
         $trialing   = $count(null, Subscription::STATUS_TRIALING);
         $pastDue    = $count(null, Subscription::STATUS_PAST_DUE);
         $cancelled  = $count(null, Subscription::STATUS_CANCELLED);
 
         $mrr = (float) $rows
-            ->where('plan', Subscription::PLAN_PAID)
+            ->whereIn('plan', Subscription::PAID_PLANS)
             ->where('status', Subscription::STATUS_ACTIVE)
             ->sum('amt');
 
@@ -358,7 +365,7 @@ class PlatformAdminController extends Controller
      */
     protected function tenantList(Request $request)
     {
-        $plan = in_array($request->query('plan'), [Subscription::PLAN_FREE, Subscription::PLAN_PAID], true)
+        $plan = in_array($request->query('plan'), [Subscription::PLAN_FREE, Subscription::PLAN_PRO, Subscription::PLAN_ULTRA], true)
             ? $request->query('plan')
             : null;
         $q = trim((string) $request->query('q', ''));

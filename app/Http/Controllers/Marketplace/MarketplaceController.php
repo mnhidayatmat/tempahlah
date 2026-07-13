@@ -105,7 +105,9 @@ class MarketplaceController extends Controller
         } elseif ($sort === 'rating') {
             $query->orderByDesc('rating_avg')->orderByDesc('published_at');
         } else {
-            $query->orderByDesc('is_featured')->orderByDesc('rating_avg')->orderByDesc('published_at');
+            // Showcase band first (Ultra featured > Pro priority > Free
+            // standard), then relevance/recency within each band.
+            $query->orderByDesc('showcase_rank')->orderByDesc('is_featured')->orderByDesc('rating_avg')->orderByDesc('published_at');
         }
 
         $listings = $query->paginate(12)->withQueryString();

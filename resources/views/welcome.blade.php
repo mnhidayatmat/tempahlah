@@ -985,7 +985,7 @@
                 <header>
                     <span class="tm-feat-num">03</span>
                     <h3 class="tm-h3">{{ $isMs ? 'Laman tempahan peribadi' : 'Private booking page' }}</h3>
-                    <p>{{ $isMs ? 'Percuma dapat pautan sendiri. Naik taraf Pro untuk subdomain pendek + domain sendiri. Tiada iklan pesaing, tiada potongan.' : 'Free gets your own link. Upgrade to Pro for a shorter subdomain + your own domain. No competitor ads, no commission cut.' }}</p>
+                    <p>{{ $isMs ? 'Percuma dapat pautan sendiri. Naik taraf Pro untuk subdomain pendek anda sendiri. Tiada iklan pesaing, tiada komisen.' : 'Free gets your own link. Upgrade to Pro for your own short subdomain. No competitor ads, no commission.' }}</p>
                 </header>
                 <div class="tm-feat-visual tm-feat-vis-url">
                     <div class="tm-url-mock">
@@ -1061,7 +1061,6 @@
                 $isMs ? 'Tugasan housekeeping' : 'Housekeeping tasks',
                 $isMs ? 'Senarai inventori' : 'Inventory',
                 $isMs ? 'Laporan kewangan' : 'Financial reports',
-                $isMs ? 'Domain peribadi' : 'Custom domain',
                 $isMs ? 'API access' : 'API access',
             ] as $f)
                 <span class="tm-tag">{{ $f }}</span>
@@ -1434,14 +1433,14 @@
                 @endif
             </h2>
             <p class="tm-lead tm-center" style="margin-left:auto;margin-right:auto;">
-                {{ $isMs ? 'Tiada kontrak. Tiada kad kredit untuk percubaan. Berhenti bila-bila.' : 'No contracts. No credit card for the trial. Cancel any time.' }}
+                {{ $isMs ? 'Bulanan sahaja. 0% komisen. Tiada kontrak — berhenti bila-bila.' : 'Monthly only. 0% commission. No contracts — cancel any time.' }}
             </p>
         </div>
 
         <div class="tm-price-grid">
             <article class="tm-pcard">
                 <header>
-                    <h3 class="tm-h3">{{ $isMs ? 'Asas' : 'Starter' }}</h3>
+                    <h3 class="tm-h3">{{ $isMs ? 'Percuma' : 'Free' }}</h3>
                     <p class="tm-pcard-sub">{{ $isMs ? 'Untuk satu homestay, baru mula.' : 'For a single property, just getting started.' }}</p>
                 </header>
                 <div class="tm-pcard-price">
@@ -1451,12 +1450,12 @@
                 </div>
                 <a href="{{ route('register') }}" class="tm-btn tm-btn-ghost tm-btn-lg tm-btn-full">{{ $isMs ? 'Mula sekarang' : 'Start now' }}</a>
                 <ul class="tm-pcard-list">
-                    <li><span class="ck">✓</span> {{ $isMs ? '1 homestay, 3 bilik' : '1 property, 3 rooms' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? '1 homestay, 4 bilik' : '1 property, 4 rooms' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? '20 tempahan / bulan' : '20 bookings / month' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Subdomain peribadi' : 'Private subdomain' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Halaman tempahan sendiri (tempahlah.com/nama-anda)' : 'Your own booking page (tempahlah.com/your-name)' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Bayaran manual (bank transfer / tunai)' : 'Manual payment (bank transfer / cash)' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Penyenaraian marketplace' : 'Marketplace listing' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'WhatsApp click-to-chat' : 'WhatsApp click-to-chat' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Google Calendar (1-arah)' : 'Google Calendar (1-way)' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Invois ringkas' : 'Basic invoices' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'Penilaian & blacklist' : 'Reviews & blacklist' }}</li>
                 </ul>
             </article>
@@ -1466,7 +1465,7 @@
                     <span>★ {{ $isMs ? 'PALING POPULAR' : 'MOST POPULAR' }}</span>
                 </div>
                 <header>
-                    <h3 class="tm-h3">{{ $isMs ? 'Pro' : 'Pro' }}</h3>
+                    <h3 class="tm-h3">Pro</h3>
                     <p class="tm-pcard-sub">{{ $isMs ? 'Untuk yang serius nak membesar.' : 'For hosts ready to scale.' }}</p>
                 </header>
                 <div class="tm-pcard-price">
@@ -1478,26 +1477,52 @@
                     {{ $isMs ? 'Cuba 7 hari percuma' : 'Try 7 days free' }}
                     <span class="tm-arrow">→</span>
                 </a>
-                <p class="tm-pcard-fine">{{ $isMs ? 'Tiada kad kredit diperlukan' : 'No credit card required' }}</p>
+                <p class="tm-pcard-fine">{{ $isMs ? '7 hari percuma · 0% komisen' : '7 days free · 0% commission' }}</p>
                 <ul class="tm-pcard-list">
-                    <li class="all"><strong>{{ $isMs ? 'Semua dalam Asas, +' : 'Everything in Starter, +' }}</strong></li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Homestay, bilik, tempahan — tanpa had' : 'Unlimited properties, rooms, bookings' }}</li>
+                    <li class="all"><strong>{{ $isMs ? 'Semua dalam Percuma, +' : 'Everything in Free, +' }}</strong></li>
+                    <li><span class="ck">✓</span> {{ $isMs ? '3 homestay · bilik & tempahan tanpa had' : '3 properties · unlimited rooms & bookings' }}</li>
                     <li><span class="ck is-pro">★</span> {{ $isMs ? 'AI Agent WhatsApp 24/7' : 'AI WhatsApp Agent 24/7' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Toyyibpay auto-bayar' : 'Toyyibpay auto-payment' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Gateway bayaran — SecurePay, Toyyibpay, Billplz' : 'Payment gateway — SecurePay, Toyyibpay, Billplz' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Subdomain sendiri (nama-anda.tempahlah.com)' : 'Your own subdomain (your-name.tempahlah.com)' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'Google Calendar 2-arah' : 'Google Calendar 2-way' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Sync kalendar Airbnb & Booking.com' : 'Airbnb & Booking.com calendar sync' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'Harga dinamik' : 'Dynamic pricing' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'Invois & email berjenama' : 'Branded invoices & email' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? '5 akaun pekerja' : '5 staff seats' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'Domain peribadi (yourhomestay.com)' : 'Custom domain (yourhomestay.com)' }}</li>
-                    <li><span class="ck">✓</span> {{ $isMs ? 'API access' : 'API access' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Laporan & analitik' : 'Reports & analytics' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Keutamaan di marketplace' : 'Priority marketplace placement' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? '3 akaun pekerja' : '3 staff seats' }}</li>
                     <li><span class="ck">✓</span> {{ $isMs ? 'Sokongan WhatsApp keutamaan' : 'Priority WhatsApp support' }}</li>
+                </ul>
+            </article>
+
+            <article class="tm-pcard">
+                <header>
+                    <h3 class="tm-h3">Ultra</h3>
+                    <p class="tm-pcard-sub">{{ $isMs ? 'Untuk jenama berbilang homestay.' : 'For multi-property brands.' }}</p>
+                </header>
+                <div class="tm-pcard-price">
+                    <span class="rm">RM</span>
+                    <span class="num">89</span>
+                    <span class="per">/ {{ $isMs ? 'bulan' : 'mo' }}</span>
+                </div>
+                <a href="{{ route('register') }}" class="tm-btn tm-btn-ghost tm-btn-lg tm-btn-full">
+                    {{ $isMs ? 'Cuba 7 hari percuma' : 'Try 7 days free' }}
+                </a>
+                <p class="tm-pcard-fine">{{ $isMs ? '7 hari percuma · 0% komisen' : '7 days free · 0% commission' }}</p>
+                <ul class="tm-pcard-list">
+                    <li class="all"><strong>{{ $isMs ? 'Semua dalam Pro, +' : 'Everything in Pro, +' }}</strong></li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Homestay & pekerja tanpa had' : 'Unlimited properties & staff' }}</li>
+                    <li><span class="ck is-pro">★</span> {{ $isMs ? 'White-label — tiada "Powered by Tempahlah"' : 'White-label — no "Powered by Tempahlah"' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Tempat teratas (featured) di marketplace' : 'Featured (top) marketplace placement' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Laporan lanjutan berbilang homestay' : 'Advanced multi-property reports' }}</li>
+                    <li><span class="ck">✓</span> {{ $isMs ? 'Sokongan khas' : 'Dedicated support' }}</li>
                 </ul>
             </article>
         </div>
 
         <div class="tm-pricing-foot">
             <p>
-                {{ $isMs ? 'Marketplace tempahlah.com mengambil 3% komisen hanya untuk tempahan yang datang dari kami — bukan tempahan terus anda.' : 'The tempahlah.com marketplace charges 3% commission only on bookings sourced through us — never on your direct bookings.' }}
+                {{ $isMs ? 'Sifar komisen — termasuk tempahan dari marketplace tempahlah.com. Setiap sen masuk terus ke akaun anda.' : 'Zero commission — including bookings from the tempahlah.com marketplace. Every ringgit lands in your own account.' }}
             </p>
         </div>
     </div>
@@ -1514,20 +1539,20 @@
             @php
                 $faqs = $isMs ? [
                     ['Saya tak biasa pakai teknologi. Boleh ke?', 'Boleh. Setup ambil 5 minit. Jika anda boleh guna WhatsApp, anda boleh guna Tempahlah. Kami ada sokongan dalam Bahasa Melayu setiap hari.'],
-                    ['Saya guna Airbnb sekarang. Boleh sambung sekali?', 'Boleh. Sync calendar 2-arah dengan Google Calendar (semua iCal compatible) — bila Airbnb tempah, slot di sini terus block. Pelan Pro juga akan support iCal Airbnb terus dalam v1.5.'],
-                    ['Bagaimana pelanggan bayar?', 'Pelan Asas: anda hantar link bayaran manual atau guna bank transfer. Pelan Pro: integrasi Toyyibpay — FPX, kad kredit, e-wallet, semua auto. Duit terus masuk akaun bank anda.'],
+                    ['Saya guna Airbnb sekarang. Boleh sambung sekali?', 'Boleh. Pelan Pro & Ultra sync 2-arah dengan Google Calendar serta iCal Airbnb & Booking.com — bila Airbnb tempah, slot di sini terus block. Tiada double-booking.'],
+                    ['Bagaimana pelanggan bayar?', 'Pelan Percuma: bayaran manual (bank transfer / tunai) dengan arahan. Pelan Pro & Ultra: gateway anda sendiri — SecurePay, Toyyibpay atau Billplz — FPX, kad, e-wallet, semua auto. Duit terus masuk akaun bank anda, 0% komisen.'],
                     ['AI tu betul-betul faham Bahasa Melayu?', 'Ya. Ia jawab dalam bahasa pelanggan — BM, English, atau campur. Ia tahu konteks Malaysia (SST 8%, cuti sekolah, tourism tax untuk warga asing). Ia tidak pernah cipta harga atau tarikh palsu.'],
                     ['Berapa lama kontrak?', 'Tiada kontrak. Bayar bulanan, hentikan bila-bila masa. Data anda boleh export sebagai CSV pada bila-bila masa.'],
                     ['Adakah data saya selamat?', 'Ya. Hosting di Singapura (Digital Ocean), backup harian, semua maklumat sulit (bank account, MyKad) di-encrypt. Patuh PDPA Malaysia.'],
-                    ['Ada percubaan untuk Pro?', '7 hari percuma, tiada kad kredit. Lepas 7 hari, automatik turun ke Asas (tiada caj) jika anda tidak upgrade.'],
+                    ['Ada percubaan?', 'Pro dan Ultra: 7 hari percuma. Batal bila-bila sebelum hari ke-7 — tiada caj. Jika tidak diteruskan, akaun turun ke pelan Percuma tanpa hilang data.'],
                 ] : [
                     ['I\'m not techy. Can I still use this?', 'Yes. Setup takes 5 minutes. If you can use WhatsApp, you can use Tempahlah. We provide BM-language support every day.'],
-                    ['I use Airbnb already. Can I connect both?', 'Yes. Two-way Google Calendar sync (compatible with all iCal feeds) — when Airbnb books a date, it blocks here too. Direct Airbnb iCal sync is coming in v1.5.'],
-                    ['How do guests pay?', 'Starter: send a payment link manually or accept bank transfer. Pro: Toyyibpay integration — FPX, cards, e-wallets, all automatic. Funds settle directly into your bank account.'],
+                    ['I use Airbnb already. Can I connect both?', 'Yes. Pro & Ultra sync two-way with Google Calendar plus Airbnb & Booking.com iCal — when Airbnb books a date, it blocks here too. No double-bookings.'],
+                    ['How do guests pay?', 'Free: manual payment (bank transfer / cash) with instructions. Pro & Ultra: your own gateway — SecurePay, Toyyibpay or Billplz — FPX, cards, e-wallets, all automatic. Funds settle directly into your bank account, 0% commission.'],
                     ['Does the AI really understand Bahasa Melayu?', 'Yes. It replies in the guest\'s language — BM, English, or a mix. It knows Malaysian context (SST 8%, school holidays, tourism tax for foreign guests). It never invents prices or dates.'],
                     ['How long is the contract?', 'No contracts. Pay monthly, cancel any time. Your data can be exported as CSV whenever you like.'],
                     ['Is my data safe?', 'Yes. Hosted in Singapore (Digital Ocean), daily backups, all sensitive data (bank account, MyKad) encrypted. Compliant with Malaysian PDPA.'],
-                    ['Is there a free trial for Pro?', '7 days free, no credit card. After 7 days, you automatically downgrade to Starter (no charge) if you don\'t upgrade.'],
+                    ['Is there a free trial?', 'Pro and Ultra: 7 days free. Cancel any time before day 7 — no charge. If you don\'t continue, your account moves to the Free plan with no data loss.'],
                 ];
             @endphp
             @foreach ($faqs as $i => $f)
@@ -1832,7 +1857,7 @@
     max-width: 920px;
     margin: 0 auto;
 }
-@media (min-width: 840px) { .tm-price-grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+@media (min-width: 840px) { .tm-price-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; max-width: 1100px; } }
 .tm-pcard {
     background: #fff;
     border: 1px solid var(--line);

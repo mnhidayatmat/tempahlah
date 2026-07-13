@@ -82,14 +82,21 @@
                         <input type="radio" name="plan" value="free" @checked($plan === 'free') style="margin-top: 2px;">
                         <span>
                             <span style="font-weight: 600; font-size: 13px;">{{ __('Free (Starter)') }}</span>
-                            <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('1 homestay · 3 rooms · manual payment only. Pro features switch off.') }}</span>
+                            <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('1 homestay · 4 rooms · 20 bookings/month · manual payment only. Paid features switch off.') }}</span>
                         </span>
                     </label>
                     <label style="display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid {{ $plan === 'pro' ? 'var(--primary)' : 'var(--line)' }}; border-radius: var(--r-md); cursor:pointer;">
                         <input type="radio" name="plan" value="pro" @checked($plan === 'pro') style="margin-top: 2px;">
                         <span>
                             <span style="font-weight: 600; font-size: 13px;">{{ __('Pro (complimentary)') }}</span>
-                            <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Unlimited everything, payment gateway, invoices, AI assistant, marketplace. Granted free, excluded from MRR.') }}</span>
+                            <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('3 homestays · payment gateway, invoices, AI assistant, calendar sync, priority marketplace. Granted free, excluded from MRR.') }}</span>
+                        </span>
+                    </label>
+                    <label style="display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid {{ $plan === 'ultra' ? 'var(--primary)' : 'var(--line)' }}; border-radius: var(--r-md); cursor:pointer;">
+                        <input type="radio" name="plan" value="ultra" @checked($plan === 'ultra') style="margin-top: 2px;">
+                        <span>
+                            <span style="font-weight: 600; font-size: 13px;">{{ __('Ultra (complimentary)') }}</span>
+                            <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Everything in Pro, unlimited homestays + staff, white-label, featured marketplace. Granted free, excluded from MRR.') }}</span>
                         </span>
                     </label>
                 </div>

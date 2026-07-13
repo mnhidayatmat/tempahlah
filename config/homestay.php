@@ -9,22 +9,102 @@ return [
 
     'sst_rate' => env('SST_RATE', 0.08),
     'tourism_tax_per_night_foreigner' => env('TOURISM_TAX_PER_NIGHT_FOREIGNER', 10.00),
-    'marketplace_commission_rate' => env('MARKETPLACE_COMMISSION_RATE', 0.03),
+    // 0% on every tier — the 3-tier pricing model charges subscriptions, not
+    // commissions. At 0 no Commission record is created (CreateBooking).
+    'marketplace_commission_rate' => env('MARKETPLACE_COMMISSION_RATE', 0.0),
     'marketplace_trial_days' => env('MARKETPLACE_TRIAL_DAYS', 7),
 
-    'free_tier_limits' => [
-        'properties' => 1,
-        'rooms_per_property' => 3,
-        'bookings_per_month' => 20,
-        'staff' => 1,
-        'reports_history_days' => 30,
+    /*
+    |---------------------------------------------------------------------------
+    | Plans — the single source of truth for the 3-tier pricing model
+    |---------------------------------------------------------------------------
+    | free / pro / ultra. Read through App\Support\Billing\Plans, never directly:
+    | `features` are ADDITIVE up the ladder (each plan lists only what it adds on
+    | top of `inherits`; Plans::features() resolves the chain), and a `null`
+    | limit means unlimited. Feature keys are the existing Pennant flag names —
+    | FeatureServiceProvider defines one flag per key via Tenant::hasFeature().
+    | Billing is monthly only: no yearly price exists on any plan.
+    */
+    'plans' => [
+        'free' => [
+            'name' => 'Free',
+            'price_monthly' => 0.0,
+            'trial_days' => 0,
+            'limits' => [
+                'properties' => 1,
+                'rooms_per_property' => 4,
+                'bookings_per_month' => 20,
+                'staff' => 1,
+            ],
+            'features' => [
+                // Standard marketplace showcase — listing is open to every
+                // host (PublishListing has never had a paywall); paid tiers
+                // add ranking via marketplace_priority / marketplace_featured.
+                'marketplace_listing',
+            ],
+        ],
+
+        'pro' => [
+            'name' => 'Pro',
+            'price_monthly' => (float) env('PAID_TIER_PRICE', 49.00),
+            'trial_days' => (int) env('PAID_TRIAL_DAYS', 7),
+            'inherits' => 'free',
+            'limits' => [
+                'properties' => 3,
+                'rooms_per_property' => null,
+                'bookings_per_month' => null,
+                'staff' => 3,
+            ],
+            'features' => [
+                'multiple_properties',
+                'payment_gateway',
+                'invoice_documents',
+                'auto_reminders',
+                'whatsapp_business',
+                'tenant_branded_emails',
+                'brand_theme',
+                'custom_invoice_template',
+                'marketplace_priority',
+                'dynamic_pricing',
+                'reports',
+                'export_reports',
+                'api_access',
+                'two_way_calendar_sync',
+                'ical_channel_sync',
+                'auto_operational_tasks',
+                'inventory_alerts',
+                'refund_handling',
+                'ai_agent',
+                'subdomain_booking_page',
+            ],
+        ],
+
+        'ultra' => [
+            'name' => 'Ultra',
+            'price_monthly' => (float) env('ULTRA_TIER_PRICE', 89.00),
+            'trial_days' => (int) env('PAID_TRIAL_DAYS', 7),
+            'inherits' => 'pro',
+            'limits' => [
+                'properties' => null,
+                'rooms_per_property' => null,
+                'bookings_per_month' => null,
+                'staff' => null,
+            ],
+            'features' => [
+                'white_label',
+                'advanced_reports',
+                'marketplace_featured',
+                'dedicated_support',
+            ],
+        ],
     ],
 
-    'paid_tier_limits' => [
-        'staff' => 5,
-        'reports_history_days' => null,
-    ],
+    // The per-tenant guest payment gateways a paid host can connect. Provider
+    // precedence for billing lives in CreateGatewayBill::PRECEDENCE.
+    'payment_gateways' => ['securepay', 'toyyibpay', 'billplz'],
 
+    // Deprecated aliases of plans.pro — still read by the platform-billing
+    // service; new code should use Plans::price() / Plans::trialDays().
     'paid_tier_price' => env('PAID_TIER_PRICE', 49.00),
     'paid_trial_days' => env('PAID_TRIAL_DAYS', 7),
 
@@ -80,8 +160,11 @@ return [
             'secret_key' => env('STRIPE_SECRET_KEY'),
             'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
-            // The recurring MYR 49/mo Price created in the Stripe Dashboard.
+            // The recurring MYR 49/mo Pro Price created in the Stripe Dashboard.
             'price_id' => env('STRIPE_PRICE_ID'),
+            // The recurring MYR 89/mo Ultra Price. With this unset, Ultra
+            // checkout is unavailable (the page shows Pro checkout only).
+            'price_id_ultra' => env('STRIPE_PRICE_ID_ULTRA'),
         ],
     ],
 ];

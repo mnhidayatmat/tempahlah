@@ -68,7 +68,7 @@ class ProcessSubscriptionLifecycle extends Command
         $subscriptions = Subscription::query()
             ->whereNull('comped_at')
             ->whereNull('stripe_subscription_id') // Stripe drives its own subs via webhooks
-            ->where('plan', Subscription::PLAN_PAID)
+            ->whereIn('plan', Subscription::PAID_PLANS)
             ->where('status', Subscription::STATUS_TRIALING)
             ->whereNotNull('trial_ends_at')
             ->where('trial_ends_at', '<=', $now)
@@ -92,7 +92,7 @@ class ProcessSubscriptionLifecycle extends Command
         $subscriptions = Subscription::query()
             ->whereNull('comped_at')
             ->whereNull('stripe_subscription_id') // Stripe drives its own subs via webhooks
-            ->where('plan', Subscription::PLAN_PAID)
+            ->whereIn('plan', Subscription::PAID_PLANS)
             ->where('status', Subscription::STATUS_ACTIVE)
             ->whereNotNull('current_period_end')
             ->where('current_period_end', '<=', $now)

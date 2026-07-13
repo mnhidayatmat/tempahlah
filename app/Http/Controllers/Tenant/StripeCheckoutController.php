@@ -46,6 +46,20 @@ class StripeCheckoutController extends Controller
                 ->with('error', __('Card subscriptions are not available yet.'));
         }
 
+        // Which paid tier is being bought. Defaults to pro (every pre-3-tier
+        // form posts no plan); ultra additionally needs its own Stripe Price.
+        $plan = Subscription::normalizePlanKey($request->input('plan', Subscription::PLAN_PRO));
+        if (! in_array($plan, Subscription::PAID_PLANS, true)) {
+            $plan = Subscription::PLAN_PRO;
+        }
+
+        if (! $this->stripe->planAvailable($plan)) {
+            return redirect()->route('tenant.subscription')
+                ->with('error', __(':plan checkout is not available yet — please contact us.', [
+                    'plan' => \App\Support\Billing\Plans::name($plan),
+                ]));
+        }
+
         // A tenant who has never trialed gets the 7-day card-required trial; a
         // returning one who already used it subscribes and is charged immediately.
         // A fresh tenant can also opt to skip the trial and pay today ("buy now")
@@ -64,6 +78,7 @@ class StripeCheckoutController extends Controller
                 successUrl: route('subscription.stripe.return').'?status=success&trial='.($trialDays ? '1' : '0'),
                 cancelUrl: route('subscription.stripe.return').'?status=cancel',
                 trialDays: $trialDays,
+                plan: $plan,
             );
         } catch (StripeException $e) {
             Log::error('Stripe checkout failed', ['tenant_id' => $tenant->id, 'error' => $e->getMessage()]);

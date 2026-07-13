@@ -72,13 +72,14 @@ class PropertyController extends Controller
         $mode = $validated['pricing_mode'] ?? Property::PRICING_WHOLE_HOUSE;
         $bedrooms = (int) $validated['bedrooms'];
 
-        // Free-tier caps (config/homestay.php → free_tier_limits). Paid /
-        // trialing tenants are never limited.
+        // Plan property caps (config/homestay.php → plans): free 1, pro 3,
+        // ultra unlimited.
         if (! PlanLimits::canAddProperty($tenant)) {
             return redirect()
                 ->route('tenant.properties.index')
-                ->with('error', __('Your Free plan includes :n homestay. Upgrade to Pro for unlimited homestays.', [
-                    'n' => PlanLimits::maxProperties(),
+                ->with('error', __('Your :plan plan includes :n homestay(s). Upgrade for more homestays.', [
+                    'plan' => \App\Support\Billing\Plans::name($tenant->planKey()),
+                    'n' => PlanLimits::maxProperties($tenant),
                 ]));
         }
 
@@ -89,8 +90,9 @@ class PropertyController extends Controller
         if (! PlanLimits::roomsAllowed($tenant, $requestedRooms)) {
             return back()
                 ->withInput()
-                ->with('error', __('Your Free plan allows up to :n rooms per homestay. Upgrade to Pro for unlimited rooms.', [
-                    'n' => PlanLimits::maxRoomsPerProperty(),
+                ->with('error', __('Your :plan plan allows up to :n rooms per homestay. Upgrade to Pro for unlimited rooms.', [
+                    'plan' => \App\Support\Billing\Plans::name($tenant->planKey()),
+                    'n' => PlanLimits::maxRoomsPerProperty($tenant),
                 ]));
         }
         // Sensible default for whole-house capacity: 2 guests per bedroom.

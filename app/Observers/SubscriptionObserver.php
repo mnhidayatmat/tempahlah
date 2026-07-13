@@ -43,6 +43,20 @@ class SubscriptionObserver
         // Drop this tenant's cached rows only — never other tenants'.
         Feature::for($tenant)->forget(Feature::defined());
 
+        // Marketplace showcase band follows the tier (Ultra > Pro > Free) —
+        // keep the tenant's listings' persisted rank current. Never let this
+        // break the subscription save itself (e.g. mid-deploy before the
+        // showcase_rank migration has run).
+        try {
+            \App\Models\MarketplaceListing::where('tenant_id', $tenant->id)->update([
+                'showcase_rank' => \App\Support\Billing\Plans::rank($subscription->effectivePlanKey()),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('showcase_rank refresh failed', [
+                'tenant_id' => $tenant->id, 'error' => $e->getMessage(),
+            ]);
+        }
+
         // Pennant also memoizes within the request; the observer can fire mid-request
         // (e.g. the upgrade POST) and the very next Feature::active() would otherwise
         // read the stale in-memory value.

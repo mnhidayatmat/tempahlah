@@ -14,7 +14,19 @@ class Subscription extends Model
     use HasFactory;
 
     public const PLAN_FREE = 'free';
-    public const PLAN_PAID = 'paid';
+    public const PLAN_PRO = 'pro';
+    public const PLAN_ULTRA = 'ultra';
+
+    /**
+     * @deprecated The 2-tier era's paid plan. Rows were data-migrated to 'pro'
+     * (2026_07_13 migration) and the constant now aliases PLAN_PRO so every
+     * legacy `plan === PLAN_PAID` comparison and write keeps working. The raw
+     * string 'paid' only survives as request input — see normalizePlanKey().
+     */
+    public const PLAN_PAID = self::PLAN_PRO;
+
+    /** Plan values that hold paid features. */
+    public const PAID_PLANS = [self::PLAN_PRO, self::PLAN_ULTRA];
 
     public const STATUS_TRIALING = 'trialing';
     public const STATUS_ACTIVE = 'active';
@@ -106,21 +118,84 @@ class Subscription extends Model
      */
     public function isPaid(): bool
     {
+        return $this->tierRank() >= 1;
+    }
+
+    /**
+     * Normalize any plan input (request params, legacy DB values) to a
+     * canonical plan key. The legacy 'paid' value maps to 'pro'; anything
+     * unrecognized degrades to 'free' — never accidentally upward.
+     */
+    public static function normalizePlanKey(?string $plan): string
+    {
+        return match ($plan) {
+            self::PLAN_PRO, 'paid' => self::PLAN_PRO,
+            self::PLAN_ULTRA => self::PLAN_ULTRA,
+            default => self::PLAN_FREE,
+        };
+    }
+
+    /**
+     * The plan the tenant signed up for (the intent recorded in the plan
+     * column) — regardless of whether it is currently lapsed.
+     */
+    public function planKey(): string
+    {
+        return self::normalizePlanKey($this->plan);
+    }
+
+    /**
+     * The plan whose features the tenant actually holds right now.
+     *
+     * Comped accounts hold everything (ultra). A lapsed trial holds nothing
+     * beyond free. A lapsed paid period keeps its tier until its grace window
+     * closes, so a failed payment doesn't instantly break the tenant's live
+     * guest booking flow. The grace window is derived from current_period_end
+     * rather than read from grace_ends_at alone, so a tenant is never wrongly
+     * cut off just because the daily lifecycle command hasn't run yet.
+     */
+    public function effectivePlanKey(): string
+    {
         if ($this->isComped()) {
-            return true;
+            // A comp holds the tier on the plan column (an admin can grant a
+            // Pro comp or an Ultra comp). Legacy comps sitting on the free
+            // plan get everything — generous by design.
+            $plan = $this->planKey();
+
+            return $plan === self::PLAN_FREE ? self::PLAN_ULTRA : $plan;
         }
 
-        if ($this->plan !== self::PLAN_PAID) {
-            return false;
+        $plan = $this->planKey();
+
+        if ($plan === self::PLAN_FREE) {
+            return self::PLAN_FREE;
         }
 
-        return match ($this->status) {
+        $holdsTier = match ($this->status) {
             self::STATUS_TRIALING => (bool) $this->trial_ends_at?->isFuture(),
             self::STATUS_ACTIVE => $this->current_period_end === null
                 || now()->lessThanOrEqualTo($this->current_period_end->copy()->addDays(self::graceDays())),
             self::STATUS_PAST_DUE => (bool) $this->grace_ends_at?->isFuture(),
             default => false,
         };
+
+        return $holdsTier ? $plan : self::PLAN_FREE;
+    }
+
+    /** 0 = free, 1 = pro, 2 = ultra — for "at least Pro" checks. */
+    public function tierRank(): int
+    {
+        return \App\Support\Billing\Plans::rank($this->effectivePlanKey());
+    }
+
+    public function isPro(): bool
+    {
+        return $this->effectivePlanKey() === self::PLAN_PRO;
+    }
+
+    public function isUltra(): bool
+    {
+        return $this->effectivePlanKey() === self::PLAN_ULTRA;
     }
 
     public function isFree(): bool
@@ -165,6 +240,6 @@ class Subscription extends Model
         }
 
         return $this->status === self::STATUS_PAST_DUE
-            || ($this->plan === self::PLAN_PAID && (bool) $this->current_period_end?->isPast());
+            || (in_array($this->plan, self::PAID_PLANS, true) && (bool) $this->current_period_end?->isPast());
     }
 }

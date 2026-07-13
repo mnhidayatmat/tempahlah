@@ -42,8 +42,10 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
         $totalTenants = Tenant::query()->count();
         $withSub      = (int) $rows->sum('c');
 
-        $free      = $count(Subscription::PLAN_FREE);
-        $paidActive = $count(Subscription::PLAN_PAID, Subscription::STATUS_ACTIVE);
+        $free       = $count(Subscription::PLAN_FREE);
+        $proActive  = $count(Subscription::PLAN_PRO, Subscription::STATUS_ACTIVE);
+        $ultraActive = $count(Subscription::PLAN_ULTRA, Subscription::STATUS_ACTIVE);
+        $paidActive = $proActive + $ultraActive;
         $trialing  = $count(null, Subscription::STATUS_TRIALING);
         $pastDue   = $count(null, Subscription::STATUS_PAST_DUE);
         $cancelled = $count(null, Subscription::STATUS_CANCELLED);
@@ -52,7 +54,7 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
 
         // MRR = actively-billing paid subs only (trials and comped accounts pay nothing).
         $mrr = (float) $rows
-            ->where('plan', Subscription::PLAN_PAID)
+            ->whereIn('plan', Subscription::PAID_PLANS)
             ->where('status', Subscription::STATUS_ACTIVE)
             ->sum('paying_amt');
 
@@ -76,7 +78,8 @@ class SubscriptionStatsOverview extends StatsOverviewWidget
 
             Stat::make('Subscribed (Paid)', $subscribed)
                 ->description(collect([
-                    "{$paidActive} active",
+                    "{$proActive} pro",
+                    $ultraActive > 0 ? "{$ultraActive} ultra" : null,
                     $trialing > 0 ? "{$trialing} on trial" : null,
                     $comped > 0 ? "{$comped} comped" : null,
                 ])->filter()->implode(' · '))

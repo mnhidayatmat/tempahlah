@@ -273,6 +273,29 @@ class Tenant extends Model
         return $this->subscription?->isPaid() ?? false;
     }
 
+    /**
+     * The plan whose features this tenant currently holds — free|pro|ultra.
+     * Comped / trialing / in-grace resolution lives in Subscription.
+     */
+    public function planKey(): string
+    {
+        return $this->subscription?->effectivePlanKey() ?? Subscription::PLAN_FREE;
+    }
+
+    public function planConfig(): array
+    {
+        return \App\Support\Billing\Plans::config($this->planKey());
+    }
+
+    /**
+     * Does the current plan include a feature key (additive inheritance —
+     * ultra holds everything pro holds)? Pennant flags resolve through here.
+     */
+    public function hasFeature(string $feature): bool
+    {
+        return \App\Support\Billing\Plans::hasFeature($this->planKey(), $feature);
+    }
+
     public function isOnTrial(): bool
     {
         return $this->subscription?->onTrial() ?? false;
@@ -455,10 +478,10 @@ class Tenant extends Model
         $portSuffix = $port && ! in_array((int) $port, [80, 443], true) ? ':'.$port : '';
         $domain = config('app.tenant_domain');
 
-        // Pro perk: a clean subdomain (slug.tempahlah.com). Free tenants publish
-        // under the apex path (tempahlah.com/slug) — and their subdomain 404s,
-        // enforced in ResolveTenantFromSubdomain.
-        if ($this->isPaid()) {
+        // Pro/Ultra perk: a clean subdomain (slug.tempahlah.com). Free tenants
+        // publish under the apex path (tempahlah.com/slug) — and their subdomain
+        // 404s, enforced in ResolveTenantFromSubdomain.
+        if ($this->hasFeature('subdomain_booking_page')) {
             return $scheme.'://'.$this->slug.'.'.$domain.$portSuffix;
         }
 

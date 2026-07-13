@@ -39,7 +39,8 @@ class PlanBreakdownChart extends ChartWidget
 
         $segments = [
             ['Free',       $count(Subscription::PLAN_FREE, null),                    '#9ca3af'],
-            ['Active paid', $count(Subscription::PLAN_PAID, Subscription::STATUS_ACTIVE), '#3f8b6a'],
+            ['Active Pro',   $count(Subscription::PLAN_PRO, Subscription::STATUS_ACTIVE),   '#3f8b6a'],
+            ['Active Ultra', $count(Subscription::PLAN_ULTRA, Subscription::STATUS_ACTIVE), '#a8401e'],
             ['On trial',   $count(null, Subscription::STATUS_TRIALING),             '#2cb8c4'],
             ['Past due',   $count(null, Subscription::STATUS_PAST_DUE),             '#e8b94a'],
             ['Cancelled',  $count(null, Subscription::STATUS_CANCELLED),            '#b94a3a'],

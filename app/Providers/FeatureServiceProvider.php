@@ -3,11 +3,48 @@
 namespace App\Providers;
 
 use App\Models\Tenant;
+use App\Support\Billing\Plans;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Pennant\Feature;
 
 class FeatureServiceProvider extends ServiceProvider
 {
+    /**
+     * One Pennant flag per plan feature key. Which plans hold which key lives
+     * in config/homestay.php → plans (additive up the ladder); each flag here
+     * resolves through Tenant::hasFeature(), so a plan change flips every
+     * flag at once (SubscriptionObserver purges the tenant's cached rows).
+     */
+    protected const PLAN_FEATURE_FLAGS = [
+        'multiple_properties',
+        'payment_gateway',       // Online gateways (SecurePay/Toyyibpay/Billplz).
+                                 // Free = manual payments only, enforced at the
+                                 // choke point CreateGatewayBill::resolveProvider().
+        'invoice_documents',     // Invoice/receipt records + branded PDF + send actions.
+        'auto_reminders',
+        'whatsapp_business',
+        'tenant_branded_emails',
+        'brand_theme',           // Dashboard + public-page colour palette.
+        'custom_invoice_template',
+        'marketplace_listing',
+        'marketplace_priority',  // Pro+: listings rank above standard in search.
+        'marketplace_featured',  // Ultra: top / featured placement.
+        'dynamic_pricing',
+        'reports',               // Reports dashboard incl. PDF export.
+        'advanced_reports',      // Ultra: multi-property consolidated reports.
+        'export_reports',
+        'api_access',
+        'two_way_calendar_sync',
+        'ical_channel_sync',     // Airbnb + Booking.com iCal.
+        'auto_operational_tasks',
+        'inventory_alerts',
+        'refund_handling',
+        'ai_agent',
+        'subdomain_booking_page', // {slug}.tempahlah.com; free = apex path URL.
+        'white_label',           // Ultra: no "Powered by Tempahlah" on public pages/invoices.
+        'dedicated_support',
+    ];
+
     public function register(): void
     {
         //
@@ -24,64 +61,24 @@ class FeatureServiceProvider extends ServiceProvider
 
     protected function defineTenantFeatures(): void
     {
+        foreach (self::PLAN_FEATURE_FLAGS as $flag) {
+            Feature::define($flag, fn (Tenant $tenant) => $tenant->hasFeature($flag));
+        }
+
+        // Backward-compatible alias: "any paid tier" (pro or ultra).
         Feature::define('paid_tier', fn (Tenant $tenant) => $tenant->isPaid());
 
-        Feature::define('multiple_properties', fn (Tenant $tenant) => $tenant->isPaid());
+        // Superseded by 'payment_gateway' — predates Billplz + SecurePay and was
+        // never enforced anywhere. Kept so any stored flag row stays resolvable.
+        Feature::define('toyyibpay_payment', fn (Tenant $tenant) => $tenant->hasFeature('payment_gateway'));
 
-        // Online payment gateways (Toyyibpay / Billplz / SecurePay). Free tenants
-        // take manual payments only — bank transfer or cash, recorded by the host.
-        // Enforced at the single choke point, CreateGatewayBill::resolveProvider().
-        Feature::define('payment_gateway', fn (Tenant $tenant) => $tenant->isPaid());
+        // Retired: custom domains are not offered on any tier of the 3-tier
+        // model. The flag stays defined so stored rows resolve, always off.
+        Feature::define('custom_domain', fn () => false);
 
-        // Superseded by 'payment_gateway' — this predates Billplz + SecurePay and
-        // was never enforced anywhere. Kept so any stored flag row stays resolvable.
-        Feature::define('toyyibpay_payment', fn (Tenant $tenant) => $tenant->isPaid());
+        // Numeric flags read straight from the plan limits (null = unlimited).
+        Feature::define('staff_accounts', fn (Tenant $tenant) => Plans::limit($tenant->planKey(), 'staff'));
 
-        // Invoice + receipt documents: the Invoice record, the branded PDF, the
-        // View/Email/WhatsApp actions, and the invoice branding settings. Free
-        // tenants' guests still get a plain booking email — see SendBookingInstructions.
-        Feature::define('invoice_documents', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('auto_reminders', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('whatsapp_business', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('custom_domain', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('tenant_branded_emails', fn (Tenant $tenant) => $tenant->isPaid());
-
-        // Brand & theme: the dashboard + public booking page colour palette
-        // (primary/secondary/accent). Free tenants keep the platform default.
-        Feature::define('brand_theme', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('custom_invoice_template', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('marketplace_listing', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('dynamic_pricing', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('staff_accounts', fn (Tenant $tenant) => $tenant->isPaid() ? 5 : 1);
-
-        // Reports & analytics dashboard (incl. PDF export) — Pro only. Free
-        // tenants see an upgrade prompt in place of the reports page.
-        Feature::define('reports', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('reports_history_days', fn (Tenant $tenant) => $tenant->isPaid() ? null : 30);
-
-        Feature::define('export_reports', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('api_access', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('two_way_calendar_sync', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('ical_channel_sync', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('auto_operational_tasks', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('inventory_alerts', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('refund_handling', fn (Tenant $tenant) => $tenant->isPaid());
-
-        Feature::define('ai_agent', fn (Tenant $tenant) => $tenant->isPaid());
+        Feature::define('reports_history_days', fn (Tenant $tenant) => $tenant->hasFeature('reports') ? null : 30);
     }
 }

@@ -19,6 +19,9 @@ class SubscriptionController extends Controller
 
         return view('tenant.subscription.index', [
             'plan' => $plan,
+            // The tier whose features the tenant actually holds right now
+            // (free|pro|ultra — comped/trial/grace resolved).
+            'planKey' => $subscription?->effectivePlanKey() ?? Subscription::PLAN_FREE,
             'tenant' => $tenant,
             'subscription' => $subscription,
             'trialDays' => Subscription::trialDays(),
@@ -42,9 +45,13 @@ class SubscriptionController extends Controller
     public function change(Request $request)
     {
         $validated = $request->validate([
-            'plan' => 'required|in:free,paid',
+            // 'paid' is the legacy 2-tier value some cached forms still post —
+            // normalizePlanKey() maps it to 'pro'.
+            'plan' => 'required|in:free,pro,ultra,paid',
             'billing' => 'nullable|in:monthly,yearly',
         ]);
+
+        $targetPlan = Subscription::normalizePlanKey($validated['plan']);
 
         $tenant = app(TenantContext::class)->current();
         abort_unless($tenant, 403, 'No tenant context');
@@ -57,15 +64,25 @@ class SubscriptionController extends Controller
         if ($subscription->isComped()) {
             return redirect()
                 ->route('tenant.subscription')
-                ->with('status', __('Your account has complimentary Pro access — there is nothing to change.'));
+                ->with('status', __('Your account has complimentary access — there is nothing to change.'));
         }
 
-        if ($validated['plan'] === Subscription::PLAN_PAID && $subscription->isFree()) {
-            return $this->startTrial($subscription, $validated['billing'] ?? 'monthly');
+        if (in_array($targetPlan, Subscription::PAID_PLANS, true) && $subscription->isFree()) {
+            return $this->startTrial($subscription, $validated['billing'] ?? 'monthly', $targetPlan);
         }
 
-        if ($validated['plan'] === Subscription::PLAN_FREE && ! $subscription->isFree()) {
+        if ($targetPlan === Subscription::PLAN_FREE && ! $subscription->isFree()) {
             return $this->downgrade($subscription);
+        }
+
+        // Pro ⇄ Ultra switching changes what we charge, so it happens through
+        // checkout (Stripe), not this card-less path.
+        if (in_array($targetPlan, Subscription::PAID_PLANS, true)
+            && ! $subscription->isFree()
+            && $subscription->planKey() !== $targetPlan) {
+            return redirect()
+                ->route('tenant.subscription')
+                ->with('error', __('Plan switching is handled through checkout — please use the upgrade button, or contact us.'));
         }
 
         return redirect()
@@ -82,7 +99,7 @@ class SubscriptionController extends Controller
      * exists, a tenant who has already used their trial cannot reach the paid
      * plan from here at all.
      */
-    private function startTrial(Subscription $subscription, string $billing)
+    private function startTrial(Subscription $subscription, string $billing, string $plan = Subscription::PLAN_PRO)
     {
         // When Stripe is live, a trial requires a card up front and can only be
         // started via Stripe Checkout — never this card-less path. The UI hides
@@ -99,15 +116,15 @@ class SubscriptionController extends Controller
                 ->with('error', __('You have already used your free trial. Paid billing is opening soon — please contact us to upgrade.'));
         }
 
-        $trialEndsAt = now()->addDays(Subscription::trialDays());
+        $trialEndsAt = now()->addDays(\App\Support\Billing\Plans::trialDays($plan) ?: Subscription::trialDays());
 
         $subscription->update([
-            'plan' => Subscription::PLAN_PAID,
+            'plan' => $plan,
             'status' => Subscription::STATUS_TRIALING,
             'billing_method' => 'manual',
-            // The monthly/yearly cadence is only decided at checkout, so record
-            // the tenant's intent and price the subscription at the standard rate.
-            'monthly_amount' => (float) config('homestay.paid_tier_price', 49.00),
+            // The cadence is only decided at checkout, so record the tenant's
+            // intent and price the subscription at the plan's standard rate.
+            'monthly_amount' => \App\Support\Billing\Plans::price($plan),
             'currency' => 'MYR',
             'trial_ends_at' => $trialEndsAt,
             'trial_used_at' => now(),
@@ -120,8 +137,9 @@ class SubscriptionController extends Controller
 
         return redirect()
             ->route('tenant.subscription')
-            ->with('status', __('Welcome to Pro! Your :days-day trial has started — full access until :date.', [
-                'days' => Subscription::trialDays(),
+            ->with('status', __('Welcome to :plan! Your :days-day trial has started — full access until :date.', [
+                'plan' => \App\Support\Billing\Plans::name($plan),
+                'days' => \App\Support\Billing\Plans::trialDays($plan) ?: Subscription::trialDays(),
                 'date' => $trialEndsAt->format('d M Y'),
             ]));
     }

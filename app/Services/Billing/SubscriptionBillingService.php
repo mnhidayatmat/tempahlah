@@ -40,9 +40,13 @@ class SubscriptionBillingService
         return $this->billplz->tokenizationEnabled();
     }
 
-    public function price(): float
+    public function price(?Subscription $subscription = null): float
     {
-        return (float) config('homestay.paid_tier_price', 49.00);
+        $plan = $subscription && in_array($subscription->planKey(), Subscription::PAID_PLANS, true)
+            ? $subscription->planKey()
+            : Subscription::PLAN_PRO;
+
+        return \App\Support\Billing\Plans::price($plan);
     }
 
     public function invoiceDueDays(): int
@@ -99,7 +103,7 @@ class SubscriptionBillingService
                 'subscription_id' => $subscription->id,
                 'number' => SubscriptionInvoice::nextNumber(),
                 'status' => SubscriptionInvoice::STATUS_PENDING,
-                'amount' => $this->price(),
+                'amount' => $this->price($subscription),
                 'currency' => 'MYR',
                 'period_start' => $start,
                 'period_end' => $end,
@@ -190,7 +194,11 @@ class SubscriptionBillingService
             // take the money but leave the comp alone.
             if (! $subscription->isComped()) {
                 $subscription->update([
-                    'plan' => Subscription::PLAN_PAID,
+                    // Keep the tier the tenant is on — an Ultra tenant settling a
+                    // pay-link invoice must not be demoted to Pro by the settle.
+                    'plan' => in_array($subscription->planKey(), Subscription::PAID_PLANS, true)
+                        ? $subscription->planKey()
+                        : Subscription::PLAN_PRO,
                     'status' => Subscription::STATUS_ACTIVE,
                     'billing_method' => 'billplz',
                     'monthly_amount' => $fresh->amount,
@@ -364,6 +372,11 @@ class SubscriptionBillingService
                 'billing_method' => 'stripe',
             ];
 
+            // Which local tier this Stripe subscription buys — the price id is
+            // the source of truth (pro RM49 price vs ultra RM89 price).
+            $paidPlan = app(StripeBilling::class)->planForPriceId($updates['stripe_price_id']);
+            $paidAmount = \App\Support\Billing\Plans::price($paidPlan);
+
             $periodEnd = isset($stripeSub['current_period_end'])
                 ? Carbon::createFromTimestamp((int) $stripeSub['current_period_end'])
                 : null;
@@ -378,7 +391,8 @@ class SubscriptionBillingService
                 // A live Stripe trial: keep it as a trial locally so the UI shows
                 // the countdown, and stamp trial_used_at so it can't be repeated.
                 $updates = array_merge($updates, [
-                    'plan' => Subscription::PLAN_PAID,
+                    'plan' => $paidPlan,
+                    'monthly_amount' => $paidAmount,
                     'status' => Subscription::STATUS_TRIALING,
                     'trial_ends_at' => $periodEnd ?? $subscription->trial_ends_at,
                     'current_period_end' => $periodEnd ?? $subscription->current_period_end,
@@ -389,7 +403,8 @@ class SubscriptionBillingService
                 ]);
             } elseif ($status === 'active') {
                 $updates = array_merge($updates, [
-                    'plan' => Subscription::PLAN_PAID,
+                    'plan' => $paidPlan,
+                    'monthly_amount' => $paidAmount,
                     'status' => Subscription::STATUS_ACTIVE,
                     'current_period_end' => $periodEnd ?? $subscription->current_period_end,
                     'grace_ends_at' => null,
@@ -400,7 +415,7 @@ class SubscriptionBillingService
                 ]);
             } elseif (in_array($status, ['past_due', 'unpaid'], true)) {
                 $updates = array_merge($updates, [
-                    'plan' => Subscription::PLAN_PAID,
+                    'plan' => $paidPlan,
                     'status' => Subscription::STATUS_PAST_DUE,
                     // Keep features alive while Stripe retries the card.
                     'grace_ends_at' => $subscription->grace_ends_at

@@ -112,8 +112,10 @@ class CreateBooking
             }
 
             $channel = $data['channel'] ?? Booking::CHANNEL_DIRECT;
+            // 0% on every tier by default (3-tier pricing charges subscriptions,
+            // not commissions) — the rate stays configurable as an escape hatch.
             $commissionAmt = $channel === Booking::CHANNEL_MARKETPLACE
-                ? round($accommodation * (float) config('homestay.marketplace_commission_rate', 0.03), 2)
+                ? round($accommodation * (float) config('homestay.marketplace_commission_rate', 0.0), 2)
                 : 0;
 
             // Payment-lifecycle deadlines, driven by the tenant's policy:
@@ -182,12 +184,15 @@ class CreateBooking
                 'is_foreigner' => $isForeigner,
             ]);
 
-            if ($channel === Booking::CHANNEL_MARKETPLACE) {
+            // Only record a commission when one is actually charged — at the
+            // standard 0% rate marketplace bookings create no Commission row,
+            // so payouts/settlement never imply a fee.
+            if ($channel === Booking::CHANNEL_MARKETPLACE && $commissionAmt > 0) {
                 Commission::create([
                     'tenant_id' => $room->tenant_id,
                     'booking_id' => $booking->id,
                     'gross_amount' => $accommodation,
-                    'commission_rate' => (float) config('homestay.marketplace_commission_rate', 0.03),
+                    'commission_rate' => (float) config('homestay.marketplace_commission_rate', 0.0),
                     'commission_amount' => $commissionAmt,
                     'payout_amount' => round($accommodation - $commissionAmt, 2),
                     'status' => Commission::STATUS_PENDING,

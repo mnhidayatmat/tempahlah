@@ -69,11 +69,14 @@ class PublishListing
      */
     protected function syncData(Property $property): array
     {
-        $property->loadMissing('rooms');
+        $property->loadMissing(['rooms', 'tenant.subscription']);
 
         $capacity = (int) $property->rooms->sum(fn ($r) => (int) $r->max_adults + (int) $r->max_children);
 
         return [
+            // Showcase band: Ultra (featured) 2 > Pro (priority) 1 > Free 0.
+            // SubscriptionObserver keeps this current on plan changes.
+            'showcase_rank' => \App\Support\Billing\Plans::rank($property->tenant?->planKey() ?? 'free'),
             'title_bm' => $property->name,
             'title_en' => $property->name,
             'hero_photo_path' => $property->hero_photo_path,

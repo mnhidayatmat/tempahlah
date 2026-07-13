@@ -30,11 +30,11 @@ class ResolveTenantFromSubdomain
             abort(404);
         }
 
-        // The clean subdomain (slug.tempahlah.com) is a Pro perk. Free tenants
-        // publish at the canonical path tempahlah.com/slug instead, so their
-        // subdomain 404s — matching Tenant::publicUrl(), which only hands a
-        // subdomain URL to paid tenants.
-        if (! $tenant->isPaid()) {
+        // The clean subdomain (slug.tempahlah.com) is a Pro/Ultra perk. Free
+        // tenants publish at the canonical path tempahlah.com/slug instead, so
+        // their subdomain 404s — matching Tenant::publicUrl(), which only hands
+        // a subdomain URL to plans holding the feature.
+        if (! $tenant->hasFeature('subdomain_booking_page')) {
             abort(404);
         }
 

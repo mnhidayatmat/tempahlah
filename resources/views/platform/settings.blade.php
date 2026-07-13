@@ -68,12 +68,18 @@
                     </div>
                 </div>
 
-                {{-- Price id --}}
+                {{-- Price ids --}}
                 <div>
-                    <label class="kicker" style="display:block; margin-bottom: 6px;">{{ __('Recurring price ID') }}</label>
+                    <label class="kicker" style="display:block; margin-bottom: 6px;">{{ __('Pro recurring price ID') }}</label>
                     <input class="input" type="text" name="stripe_price_id" value="{{ old('stripe_price_id', $stripe['price_id']) }}"
                            placeholder="price_…">
-                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('The monthly RM 49 recurring price from your Stripe product.') }}</div>
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('The monthly RM 49 recurring Pro price from your Stripe product.') }}</div>
+                </div>
+                <div>
+                    <label class="kicker" style="display:block; margin-bottom: 6px;">{{ __('Ultra recurring price ID') }}</label>
+                    <input class="input" type="text" name="stripe_price_id_ultra" value="{{ old('stripe_price_id_ultra', $stripe['price_id_ultra']) }}"
+                           placeholder="price_…">
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('The monthly RM 89 recurring Ultra price. Leave blank to keep Ultra checkout unavailable.') }}</div>
                 </div>
 
                 <div style="display:flex; justify-content:flex-end; gap: 8px; padding-top: 6px;">

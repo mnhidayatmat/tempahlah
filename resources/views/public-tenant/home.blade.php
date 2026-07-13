@@ -722,6 +722,14 @@
          Sits in the scrolling page (above the fixed bottom nav) so
          it never competes with the customer CTAs above the fold. --}}
     <div class="wf-owner-area">
+        {{-- Platform attribution — hidden for Ultra (white-label) tenants. --}}
+        @unless ($tenant->hasFeature('white_label'))
+            <div class="wf-powered-by">
+                <a href="{{ $apexUrl }}" rel="noopener">
+                    {{ $isBM ? 'Dikuasakan oleh' : 'Powered by' }} Tempahlah
+                </a>
+            </div>
+        @endunless
         @if ($ownerCanAccess)
             <a href="{{ $apexUrl }}/dashboard" rel="noopener">
                 {{ $isBM ? 'Buka papan pemuka' : 'Open dashboard' }} →
@@ -1562,6 +1570,13 @@
         color: var(--primary-deep);
         border-bottom-color: var(--primary);
         outline: none;
+    }
+    .wf-powered-by {
+        margin-bottom: 10px;
+    }
+    .wf-powered-by a {
+        color: var(--ink-4);
+        border-bottom: none;
     }
 
     .wf-bottom {

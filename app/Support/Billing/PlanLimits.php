@@ -8,42 +8,46 @@ use App\Models\Tenant;
 use App\Support\Tenancy\BelongsToTenantScope;
 
 /**
- * Free-tier quota enforcement. The advertised Free plan caps
- * (config/homestay.php → free_tier_limits) were defined but enforced
- * nowhere — a free tenant could create unlimited properties, rooms and
- * bookings. This is the single source of truth for those checks.
- *
- * Paid tenants (including trialing / comped / in-grace — anything
- * Tenant::isPaid() returns true for) are never limited.
+ * Numeric plan-quota enforcement — the single source of truth for "can this
+ * tenant add another X". Caps come from config/homestay.php → plans via
+ * Plans::limit() (null = unlimited): free 1 property / 4 rooms / 20 bookings
+ * per month / 1 staff, pro 3 properties / 3 staff, ultra unlimited.
  *
  * Counts are queried withoutGlobalScope + explicit tenant_id so they are
  * correct in every context: the dashboard (current tenant), the public
- * booking page (the resolved subdomain tenant), or a background job.
+ * booking page (the resolved subdomain/path tenant), or a background job.
  */
 class PlanLimits
 {
-    public static function maxProperties(): int
+    /** null = unlimited on the tenant's current plan. */
+    public static function maxProperties(Tenant $tenant): ?int
     {
-        return (int) config('homestay.free_tier_limits.properties', 1);
+        return Plans::limit($tenant->planKey(), 'properties');
     }
 
-    public static function maxRoomsPerProperty(): int
+    /** null = unlimited on the tenant's current plan. */
+    public static function maxRoomsPerProperty(Tenant $tenant): ?int
     {
-        return (int) config('homestay.free_tier_limits.rooms_per_property', 3);
+        return Plans::limit($tenant->planKey(), 'rooms_per_property');
     }
 
-    public static function maxBookingsPerMonth(): int
+    /** null = unlimited on the tenant's current plan. */
+    public static function maxBookingsPerMonth(Tenant $tenant): ?int
     {
-        return (int) config('homestay.free_tier_limits.bookings_per_month', 20);
+        return Plans::limit($tenant->planKey(), 'bookings_per_month');
+    }
+
+    /** null = unlimited on the tenant's current plan. */
+    public static function maxStaff(Tenant $tenant): ?int
+    {
+        return Plans::limit($tenant->planKey(), 'staff');
     }
 
     public static function canAddProperty(Tenant $tenant): bool
     {
-        if ($tenant->isPaid()) {
-            return true;
-        }
+        $max = self::maxProperties($tenant);
 
-        return self::propertyCount($tenant) < self::maxProperties();
+        return $max === null || self::propertyCount($tenant) < $max;
     }
 
     public static function propertyCount(Tenant $tenant): int
@@ -61,20 +65,16 @@ class PlanLimits
      */
     public static function roomsAllowed(Tenant $tenant, int $requestedRooms): bool
     {
-        if ($tenant->isPaid()) {
-            return true;
-        }
+        $max = self::maxRoomsPerProperty($tenant);
 
-        return $requestedRooms <= self::maxRoomsPerProperty();
+        return $max === null || $requestedRooms <= $max;
     }
 
     public static function canAddBooking(Tenant $tenant): bool
     {
-        if ($tenant->isPaid()) {
-            return true;
-        }
+        $max = self::maxBookingsPerMonth($tenant);
 
-        return self::bookingsThisMonth($tenant) < self::maxBookingsPerMonth();
+        return $max === null || self::bookingsThisMonth($tenant) < $max;
     }
 
     /**

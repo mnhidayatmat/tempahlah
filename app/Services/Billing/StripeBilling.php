@@ -39,9 +39,34 @@ class StripeBilling
         return filled($this->config('secret_key')) && filled($this->config('price_id'));
     }
 
-    public function priceId(): string
+    public function priceId(string $plan = Subscription::PLAN_PRO): string
     {
-        return (string) $this->config('price_id');
+        return (string) ($plan === Subscription::PLAN_ULTRA
+            ? $this->config('price_id_ultra')
+            : $this->config('price_id'));
+    }
+
+    /**
+     * Can this plan be checked out? Ultra needs its own Stripe Price
+     * (STRIPE_PRICE_ID_ULTRA) on top of the base Stripe keys.
+     */
+    public function planAvailable(string $plan): bool
+    {
+        return $this->enabled() && filled($this->priceId($plan));
+    }
+
+    /**
+     * Which local plan a Stripe subscription's price represents. Defaults to
+     * pro for the base price and anything unrecognized — an operator swapping
+     * prices in the Stripe Dashboard must never accidentally grant Ultra.
+     */
+    public function planForPriceId(?string $priceId): string
+    {
+        $ultra = (string) $this->config('price_id_ultra');
+
+        return filled($ultra) && $priceId === $ultra
+            ? Subscription::PLAN_ULTRA
+            : Subscription::PLAN_PRO;
     }
 
     /**
@@ -94,13 +119,14 @@ class StripeBilling
         string $successUrl,
         string $cancelUrl,
         ?int $trialDays = null,
+        string $plan = Subscription::PLAN_PRO,
     ): array {
         $this->assertEnabled();
 
         $payload = [
             'mode' => 'subscription',
             'customer' => $customerId,
-            'line_items[0][price]' => $this->priceId(),
+            'line_items[0][price]' => $this->priceId($plan),
             'line_items[0][quantity]' => '1',
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
