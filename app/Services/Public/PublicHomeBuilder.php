@@ -122,6 +122,9 @@ class PublicHomeBuilder
                 ->whereIn('subject_id', $properties->pluck('id'))
                 ->where('is_published', true)
                 ->with(['booking:id,check_out,guest_id', 'booking.guest:id,name'])
+                // Highest rating first (leftmost in the horizontal scroll),
+                // down to the lowest as you scroll right; newest wins ties.
+                ->orderByDesc('rating_overall')
                 ->latest()
                 ->get();
 
