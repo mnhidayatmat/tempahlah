@@ -38,10 +38,12 @@ class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $filter = $request->query('status', 'all');
+        // Default to "Upcoming" so the host lands on the bookings that need
+        // attention (arriving guests) rather than the full historical list.
+        $filter = $request->query('status', 'upcoming');
         $valid = ['all', 'upcoming', 'checked-in', 'past', 'deposit-due'];
         if (! in_array($filter, $valid, true)) {
-            $filter = 'all';
+            $filter = 'upcoming';
         }
 
         // Malaysian calendar "today" — the app runs in UTC, so Carbon::today()

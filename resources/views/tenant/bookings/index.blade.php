@@ -71,7 +71,7 @@
                     @endphp
                     @foreach ($filterPills as $key => $label)
                         @php $active = $filter === $key; @endphp
-                        <a href="{{ route('tenant.bookings.index', $key === 'all' ? [] : ['status' => $key]) }}"
+                        <a href="{{ route('tenant.bookings.index', ['status' => $key]) }}"
                            class="btn btn-sm"
                            style="border:0; text-decoration:none; border-radius:999px; white-space:nowrap;
                                   background: {{ $active ? 'var(--primary)' : 'transparent' }};
