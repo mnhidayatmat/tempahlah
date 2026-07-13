@@ -218,7 +218,7 @@ class StripeCheckoutController extends Controller
                 'days' => Subscription::trialDays(),
             ]);
         } else {
-            $message = __('Thanks! Your Pro subscription is being activated — this can take a few seconds.');
+            $message = __('Thanks! Your subscription is being activated — this can take a few seconds.');
         }
 
         return redirect()->route('tenant.subscription')->with($cancelled ? 'error' : 'status', $message);

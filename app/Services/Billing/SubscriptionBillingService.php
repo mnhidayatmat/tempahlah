@@ -377,9 +377,21 @@ class SubscriptionBillingService
             $paidPlan = app(StripeBilling::class)->planForPriceId($updates['stripe_price_id']);
             $paidAmount = \App\Support\Billing\Plans::price($paidPlan);
 
-            $periodEnd = isset($stripeSub['current_period_end'])
-                ? Carbon::createFromTimestamp((int) $stripeSub['current_period_end'])
+            // current_period_end moved from the Subscription object to its line
+            // items in Stripe API 2025-03-31+ (this account defaults to a newer
+            // version). Read whichever is present so renewal/trial dates are
+            // correct regardless of the API version the webhook/retrieve returns.
+            $periodEndTs = $stripeSub['current_period_end']
+                ?? ($stripeSub['items']['data'][0]['current_period_end'] ?? null);
+            $periodEnd = $periodEndTs
+                ? Carbon::createFromTimestamp((int) $periodEndTs)
                 : null;
+
+            // Trial end is still a subscription-level field; prefer it for the
+            // trial branch (falls back to the period end when not trialing).
+            $trialEnd = isset($stripeSub['trial_end'])
+                ? Carbon::createFromTimestamp((int) $stripeSub['trial_end'])
+                : $periodEnd;
 
             // Whether the tenant has scheduled a cancel-at-period-end. Surfaced on
             // the subscription page so they see "cancels on <date>" + a Resume.
@@ -394,7 +406,7 @@ class SubscriptionBillingService
                     'plan' => $paidPlan,
                     'monthly_amount' => $paidAmount,
                     'status' => Subscription::STATUS_TRIALING,
-                    'trial_ends_at' => $periodEnd ?? $subscription->trial_ends_at,
+                    'trial_ends_at' => $trialEnd ?? $subscription->trial_ends_at,
                     'current_period_end' => $periodEnd ?? $subscription->current_period_end,
                     'grace_ends_at' => null,
                     'cancelled_at' => null,
