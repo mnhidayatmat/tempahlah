@@ -167,7 +167,7 @@ class SubscriptionBillingService
      */
     public function settle(SubscriptionInvoice $invoice, array $bill = []): bool
     {
-        return DB::transaction(function () use ($invoice, $bill) {
+        $settled = DB::transaction(function () use ($invoice, $bill) {
             /** @var SubscriptionInvoice $fresh */
             $fresh = SubscriptionInvoice::query()->lockForUpdate()->find($invoice->id);
 
@@ -220,6 +220,25 @@ class SubscriptionBillingService
 
             return true;
         });
+
+        // Affiliate commission on the real money that just arrived. settle()
+        // returns true exactly once per invoice, and the service is idempotent
+        // on its source key — so a webhook/return-page race can't double-pay.
+        // Best-effort: a commission failure must never break a settlement.
+        if ($settled) {
+            try {
+                app(\App\Services\Affiliate\AffiliateCommissionService::class)->recordSubscriptionPayment(
+                    (int) $invoice->tenant_id,
+                    (float) $invoice->amount,
+                    'subinv:'.$invoice->id,
+                    'Subscription invoice '.$invoice->number,
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $settled;
     }
 
     /**

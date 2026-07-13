@@ -114,6 +114,23 @@ return [
 
     /*
     |---------------------------------------------------------------------------
+    | Affiliate / referral program
+    |---------------------------------------------------------------------------
+    | Affiliates share tempahlah.com/r/{code}; new host signups are attributed
+    | via a cookie and the affiliate earns default_rate % of every subscription
+    | payment for duration_months after the tenant's first paid conversion.
+    | Commissions sit `pending` for hold_days (refund protection) before they
+    | become payable. Per-affiliate rate/duration overrides live on the row.
+    */
+    'affiliate' => [
+        'default_rate' => (float) env('AFFILIATE_DEFAULT_RATE', 20),
+        'duration_months' => (int) env('AFFILIATE_DURATION_MONTHS', 12),
+        'cookie_days' => (int) env('AFFILIATE_COOKIE_DAYS', 60),
+        'hold_days' => (int) env('AFFILIATE_HOLD_DAYS', 30),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
     | Platform subscription billing
     |---------------------------------------------------------------------------
     | Tempahlah's OWN Billplz merchant account, used to charge tenants the

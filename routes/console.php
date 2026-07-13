@@ -50,6 +50,14 @@ Schedule::command('subscriptions:process-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Affiliate commissions — promote pending commissions to approved (payable)
+// once they clear the refund-protection hold. Daily is enough: the hold is
+// measured in days. Accrual itself happens at the payment webhooks.
+Schedule::command('affiliates:process')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Auto-checkout — any still-active booking whose scheduled check-out time
 // passed more than 24 hours ago is auto-transitioned to checked_out (so the
 // host doesn't have to click it), which also fires the post-checkout thank-you

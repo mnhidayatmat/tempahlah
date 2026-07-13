@@ -98,6 +98,17 @@ Route::domain(config('app.tenant_domain'))->group(function () {
     // Host-acquisition page (the former landing) now lives at /hosts.
     Route::get('/hosts', fn () => view('welcome'))->name('hosts');
 
+    // Affiliate short link — tempahlah.com/r/{code}. Captures the referral
+    // cookie (60 days, last click wins) + counts the click, then lands the
+    // prospect on the host-acquisition page. ?ref={code} on any web page does
+    // the same via the CaptureReferralCode middleware.
+    Route::get('/r/{code}', function (\Illuminate\Http\Request $request, string $code) {
+        $request->query->set('ref', $code);
+        \App\Support\Affiliate\ReferralAttribution::capture($request);
+
+        return redirect()->route('hosts');
+    })->where('code', '[A-Za-z0-9\-]{3,24}')->name('affiliate.visit');
+
     // Public legal pages linked from the register form + footers. Bilingual
     // via the app locale; static content, so plain view routes.
     Route::view('/terms', 'legal.terms')->name('legal.terms');
@@ -286,6 +297,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/expenses',            [ExpenseController::class, 'store'])->name('expenses.store');
         Route::patch('/expenses/{id}',      [ExpenseController::class, 'update'])->name('expenses.update')->whereNumber('id');
         Route::delete('/expenses/{id}',     [ExpenseController::class, 'destroy'])->name('expenses.destroy')->whereNumber('id');
+        // Refer & Earn — the host's affiliate link, stats + commission
+        // statement, and payout bank details. Available on every tier.
+        Route::get('/referrals',            [\App\Http\Controllers\Tenant\ReferralController::class, 'index'])->name('referrals.index');
+        Route::post('/referrals/bank',      [\App\Http\Controllers\Tenant\ReferralController::class, 'updateBank'])->name('referrals.bank');
+
         Route::post('/onboarding/complete', [\App\Http\Controllers\Tenant\OnboardingController::class, 'complete'])->name('onboarding.complete');
         Route::post('/onboarding/finish',   [\App\Http\Controllers\Tenant\OnboardingController::class, 'finish'])->name('onboarding.finish');
         Route::post('/onboarding/replay',   [\App\Http\Controllers\Tenant\OnboardingController::class, 'replay'])->name('onboarding.replay');
@@ -372,6 +388,15 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::post('/marketing/{campaign}/send', [\App\Http\Controllers\PlatformMarketingController::class, 'send'])->name('marketing.send')->whereNumber('campaign');
             Route::post('/marketing/{campaign}/cancel', [\App\Http\Controllers\PlatformMarketingController::class, 'cancel'])->name('marketing.cancel')->whereNumber('campaign');
             Route::delete('/marketing/{campaign}', [\App\Http\Controllers\PlatformMarketingController::class, 'destroy'])->name('marketing.destroy')->whereNumber('campaign');
+
+            // Affiliates — referral-program management: external affiliates,
+            // per-affiliate rate/status, commission review + manual payouts.
+            Route::get('/affiliates', [\App\Http\Controllers\PlatformAffiliateController::class, 'index'])->name('affiliates.index');
+            Route::post('/affiliates', [\App\Http\Controllers\PlatformAffiliateController::class, 'store'])->name('affiliates.store');
+            Route::get('/affiliates/{affiliate}', [\App\Http\Controllers\PlatformAffiliateController::class, 'show'])->name('affiliates.show')->whereNumber('affiliate');
+            Route::patch('/affiliates/{affiliate}', [\App\Http\Controllers\PlatformAffiliateController::class, 'update'])->name('affiliates.update')->whereNumber('affiliate');
+            Route::post('/affiliates/{affiliate}/mark-paid', [\App\Http\Controllers\PlatformAffiliateController::class, 'markPaid'])->name('affiliates.mark-paid')->whereNumber('affiliate');
+            Route::post('/affiliates/{affiliate}/commissions/{commission}/void', [\App\Http\Controllers\PlatformAffiliateController::class, 'voidCommission'])->name('affiliates.void')->whereNumber('affiliate')->whereNumber('commission');
 
             // Onboarding series — the automated new-host drip (editable steps).
             Route::get('/marketing/onboarding/{step}/edit', [\App\Http\Controllers\PlatformMarketingController::class, 'editOnboarding'])->name('marketing.onboarding.edit')->whereNumber('step');

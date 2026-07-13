@@ -32,6 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             SetLocale::class,
             SetTenantContext::class,
+            // Affiliate referral capture — no-ops unless ?ref= is present.
+            \App\Http\Middleware\CaptureReferralCode::class,
         ]);
 
         $middleware->api(append: [

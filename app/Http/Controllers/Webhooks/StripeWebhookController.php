@@ -95,11 +95,51 @@ class StripeWebhookController extends Controller
             'customer.subscription.deleted' => $this->billing->applyStripeSubscription($object),
 
             'checkout.session.completed',
-            'invoice.paid',
             'invoice.payment_failed' => $this->applyFromSubscriptionId($object),
+
+            // Real money received — sync state AND accrue any affiliate
+            // commission on the paid amount.
+            'invoice.paid' => $this->handleInvoicePaid($object),
 
             default => false,
         };
+    }
+
+    /**
+     * invoice.paid: apply the subscription state as usual, then record an
+     * affiliate commission for the amount actually charged. The invoice id is
+     * the idempotency key (`stripe:{id}`), and amount_paid is 0 on the
+     * trial-start invoice, so trials accrue nothing. Best-effort: a commission
+     * failure never fails the webhook.
+     */
+    private function handleInvoicePaid(array $object): bool
+    {
+        $handled = $this->applyFromSubscriptionId($object);
+
+        try {
+            $amountPaid = (int) ($object['amount_paid'] ?? 0);
+            $invoiceId = (string) ($object['id'] ?? '');
+            $subId = $object['subscription'] ?? null;
+
+            if ($amountPaid > 0 && $invoiceId !== '' && is_string($subId)) {
+                $subscription = \App\Models\Subscription::query()
+                    ->where('stripe_subscription_id', $subId)
+                    ->first();
+
+                if ($subscription) {
+                    app(\App\Services\Affiliate\AffiliateCommissionService::class)->recordSubscriptionPayment(
+                        (int) $subscription->tenant_id,
+                        $amountPaid / 100,
+                        'stripe:'.$invoiceId,
+                        'Stripe invoice '.($object['number'] ?? $invoiceId),
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $handled;
     }
 
     /**
