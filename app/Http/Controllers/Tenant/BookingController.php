@@ -50,7 +50,7 @@ class BookingController extends Controller
         $today = now(config('homestay.timezone', 'Asia/Kuala_Lumpur'))->startOfDay();
 
         $bookings = Booking::query()
-            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city'])
+            ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'payments'])
             ->when($filter === 'upcoming', fn ($q) => $q
                 ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED])
                 ->where('check_in', '>=', $today))
@@ -66,11 +66,13 @@ class BookingController extends Controller
                 ->whereNull('deposit_paid_at')
                 ->whereBetween('check_in', [now(), now()->addDays(7)]))
             // Deposit-due: soonest check-in first (nearest deadline to chase).
-            // Everything else: most recent check-in first.
+            // Everything else: most recently booked first — the latest customer
+            // sits at the top, far-future ("upcoming long") reservations sink to
+            // the bottom, instead of a 2027 stay heading the list.
             ->when(
                 $filter === 'deposit-due',
                 fn ($q) => $q->orderBy('check_in'),
-                fn ($q) => $q->orderByDesc('check_in'),
+                fn ($q) => $q->orderByDesc('created_at'),
             )
             ->paginate(20)
             ->withQueryString();

@@ -33,7 +33,19 @@
         .bk-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; }
         .bk-card-row .lbl { color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; font-weight: 500; }
         .bk-card-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        /* Payment-method indicator (how they paid) — distinct from the Channel
+           column (where the booking came from). */
+        .pay-method { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600;
+                      padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .pay-method[data-online="1"] { background: var(--info-tint); color: var(--info); }
+        .pay-method[data-online="0"] { background: var(--bg-sunk); color: var(--ink-2); }
+        .pay-method svg { width: 11px; height: 11px; }
     </style>
+    @php
+        // Icon markup reused for both desktop + mobile payment-method badges.
+        $mIconOnline = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>';
+        $mIconManual = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 10h16"/><path d="M12 3 2 8h20L12 3z"/><path d="M5 10v8"/><path d="M19 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/></svg>';
+    @endphp
 
     <div style="display:flex; flex-direction:column; gap: 20px;">
         <div class="bk-head" style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; flex-wrap: wrap;">
@@ -125,6 +137,14 @@
                                     </td>
                                     <td style="padding: 12px 14px;">
                                         <x-pill :variant="$b->paymentStatusVariant()" :dot="true">{{ $b->paymentStatusLabel() }}</x-pill>
+                                        @php $pm = $b->paymentMethodBadge(); @endphp
+                                        @if ($pm)
+                                            <div style="margin-top: 5px;">
+                                                <span class="pay-method" data-online="{{ $pm['online'] ? '1' : '0' }}">
+                                                    {!! $pm['online'] ? $mIconOnline : $mIconManual !!}{{ $pm['label'] }}
+                                                </span>
+                                            </div>
+                                        @endif
                                     </td>
                                     <td style="padding: 12px 14px;">
                                         <x-pill>{{ ucfirst((string) ($b->channel ?? 'direct')) }}</x-pill>
@@ -165,6 +185,12 @@
 
                         <div class="bk-card-pills">
                             <x-pill :variant="$b->paymentStatusVariant()" :dot="true">{{ $b->paymentStatusLabel() }}</x-pill>
+                            @php $pm = $b->paymentMethodBadge(); @endphp
+                            @if ($pm)
+                                <span class="pay-method" data-online="{{ $pm['online'] ? '1' : '0' }}">
+                                    {!! $pm['online'] ? $mIconOnline : $mIconManual !!}{{ $pm['label'] }}
+                                </span>
+                            @endif
                             <x-pill>{{ ucfirst((string) ($b->channel ?? 'direct')) }}</x-pill>
                         </div>
                     </a>

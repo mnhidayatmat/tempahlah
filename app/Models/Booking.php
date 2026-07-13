@@ -348,6 +348,47 @@ class Booking extends Model
         return $this->hasMany(Payment::class);
     }
 
+    /**
+     * "How did they pay" descriptor for the bookings list — derived from the
+     * booking's actual Payment rows, NOT the channel (which is the booking
+     * source: direct / marketplace / walk-in). Online means a gateway settled
+     * the charge; Manual means bank transfer / cash the host recorded. Returns
+     * null when there's no charge payment on file yet (still unpaid).
+     *
+     * @return array{label: string, online: bool}|null
+     */
+    public function paymentMethodBadge(): ?array
+    {
+        $payments = $this->relationLoaded('payments') ? $this->payments : $this->payments()->get();
+
+        $charges = $payments->whereIn('type', [
+            \App\Models\Payment::TYPE_DEPOSIT,
+            \App\Models\Payment::TYPE_BALANCE,
+            \App\Models\Payment::TYPE_FULL,
+        ]);
+
+        // Prefer a settled charge; otherwise the latest attempt (shows intent).
+        $payment = $charges->where('status', \App\Models\Payment::STATUS_SUCCEEDED)->sortByDesc('paid_at')->first()
+            ?? $charges->sortByDesc('created_at')->first();
+
+        if (! $payment) {
+            return null;
+        }
+
+        if ($payment->method === \App\Models\Payment::METHOD_MANUAL) {
+            return ['label' => __('Manual'), 'online' => false];
+        }
+
+        $providers = [
+            \App\Models\Payment::METHOD_TOYYIBPAY => 'Toyyibpay',
+            \App\Models\Payment::METHOD_BILLPLZ   => 'Billplz',
+            \App\Models\Payment::METHOD_SECUREPAY => 'SecurePay',
+        ];
+        $name = $providers[$payment->method] ?? ucfirst((string) ($payment->method ?? 'Online'));
+
+        return ['label' => __('Online').' · '.$name, 'online' => true];
+    }
+
     public function refunds(): HasMany
     {
         return $this->hasMany(Refund::class)->orderByDesc('created_at');
