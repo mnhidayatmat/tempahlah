@@ -52,8 +52,8 @@
         .field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
         .field-input {
             display: block; width: 100%; padding: 12px 14px; border: 1.5px solid var(--line-2);
-            border-radius: 9px; background: #fff; font-family: 'Geist', sans-serif; font-size: 15px;
-            font-weight: 500; color: var(--ink); outline: none; transition: border-color .15s, box-shadow .15s;
+            border-radius: 9px; background: #fff; font-family: 'Geist', sans-serif; font-size: 16px; /* >=16px stops mobile browsers auto-zooming on focus */
+            font-weight: 500; color: var(--ink); outline: none; touch-action: manipulation; transition: border-color .15s, box-shadow .15s;
         }
         .field-input::placeholder { color: var(--ink-3); font-weight: 400; }
         .field-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 14%, transparent); }

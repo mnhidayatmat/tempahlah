@@ -456,11 +456,12 @@
             border-radius: 8px;
             background: #fff;
             font-family: 'Geist', sans-serif;
-            font-size: 15px;
+            font-size: 16px; /* >=16px stops mobile browsers auto-zooming on focus */
             font-weight: 500;
             line-height: 1.4;
             color: var(--ink);
             outline: none;
+            touch-action: manipulation;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .field-input::placeholder {
