@@ -137,7 +137,7 @@
 
     {{-- The popover card --}}
     <div class="ob-card"
-         :class="{ 'is-center': !targeted }"
+         :class="{ 'is-center': !targeted, 'is-dock-bottom': targeted && dock === 'bottom', 'is-dock-top': targeted && dock === 'top' }"
          :style="cardStyle"
          x-show="ready || !targeted"
          x-transition:enter="ob-anim-in"
@@ -397,11 +397,35 @@
     /* Mobile — keep card readable, dock at viewport bottom for targeted
        steps so it never sits on top of the spotlighted nav item. */
     @media (max-width: 768px) {
-        .ob-card        { width: calc(100vw - 24px); max-width: 420px; padding: 16px; }
+        .ob-card        { width: calc(100vw - 24px); max-width: 420px; padding: 16px; box-sizing: border-box; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; }
         .ob-card.is-center { width: calc(100vw - 24px); }
+        /* Docked cards: CSS owns the geometry so the card's REAL height
+           and the iOS safe-area are respected — no JS height estimate,
+           so the card can never overflow the viewport or slide under
+           the bottom nav. */
+        .ob-card.is-dock-bottom {
+            top: auto !important; left: 12px !important; right: 12px;
+            bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+            width: auto; max-width: none;
+        }
+        .ob-card.is-dock-top {
+            top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+            left: 12px !important; right: 12px;
+            width: auto; max-width: none;
+        }
+        .ob-head        { padding-right: 24px; } /* clear the ✕ close button */
         .ob-title       { font-size: 16px; }
-        .ob-text        { font-size: 14px; }
-        .ob-cta         { font-size: 14px; min-height: 40px; padding: 10px 16px; }
+        .ob-text        { font-size: 14px; margin-bottom: 14px; }
+        .ob-cta         { font-size: 14px; min-height: 44px; padding: 10px 18px; }
+        .ob-skip        { min-height: 44px; }
+        /* Footer stacks on phones: progress dots centred on their own row,
+           buttons on the row below — the single desktop row overflowed the
+           card width with the BM labels (Langkau / Seterusnya). */
+        .ob-foot    { flex-direction: column; align-items: stretch; gap: 12px; }
+        .ob-dots    { justify-content: center; }
+        .ob-actions { justify-content: space-between; }
+        .ob-actions form { flex: 1; display: flex; }
+        .ob-actions form .ob-cta { width: 100%; } /* lone finish CTA fills the row */
         /* >=16px on actual inputs is the iOS auto-zoom rule; buttons are exempt. */
     }
 
@@ -428,6 +452,7 @@
             lang: 'ms',
             ready: false,
             targeted: false,
+            dock: null,
             spotStyle: '',
             cardStyle: '',
 
@@ -462,6 +487,7 @@
                     // Centered step — no spotlight, hide drawer if we
                     // opened it for a previous targeted step on mobile.
                     if (this.isMobile()) this.setSidebar(false);
+                    this.dock = null;
                     this.spotStyle = '';
                     this.cardStyle = '';
                     this.ready = true;
@@ -481,6 +507,7 @@
                     // Fallback: target missing (e.g., sidebar not rendered)
                     // — degrade to centered card without spotlight.
                     this.targeted = false;
+                    this.dock = null;
                     this.spotStyle = '';
                     this.cardStyle = '';
                     this.ready = true;
@@ -508,19 +535,19 @@
                 let top, left;
 
                 if (this.isMobile()) {
-                    // Dock card at bottom of viewport so it never
-                    // overlaps the spotlight. Bottom-nav is ~64px tall
-                    // on mobile, plus safe-area, plus our own margin.
-                    left = Math.max(12, (vw - cardW) / 2);
-                    top = vh - cardH - 84;
-                    // If target is in the lower half, place card at TOP
-                    // of viewport instead — keeps spotlight visible.
-                    if (rect.top > vh / 2) {
-                        top = 16;
-                    }
+                    // Dock via the is-dock-* CSS classes so the card's real
+                    // rendered height + iOS safe-area are respected — a JS
+                    // height estimate overflowed the viewport on long steps.
+                    // Target in the lower half → dock at TOP so the
+                    // spotlight stays visible; otherwise dock at bottom.
+                    this.dock = rect.top > vh / 2 ? 'top' : 'bottom';
+                    this.cardStyle = '';
+                    this.ready = true;
+                    return;
                 } else {
                     // Desktop: try placing card to the RIGHT of the
                     // sidebar item, vertically centered on it.
+                    this.dock = null;
                     left = rect.right + margin;
                     top  = rect.top + (rect.height / 2) - (cardH / 2);
 
