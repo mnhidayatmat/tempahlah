@@ -11,6 +11,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -41,6 +42,15 @@ class AppServiceProvider extends ServiceProvider
         // complaint. One listener on the framework's send event covers every
         // mailable — see App\Listeners\HaltMailToSuppressed.
         Event::listen(MessageSending::class, [HaltMailToSuppressed::class, 'handle']);
+
+        // Brevo transactional-email transport (HTTP API). Registered here so
+        // MAIL_MAILER=brevo resolves without a composer package. The API key
+        // comes from the mailer config (config/mail.php → env BREVO_API_KEY).
+        Mail::extend('brevo', function (array $config) {
+            return new \App\Mail\Transport\BrevoApiTransport(
+                (string) ($config['key'] ?? env('BREVO_API_KEY', '')),
+            );
+        });
     }
 
     protected function configureRateLimiters(): void

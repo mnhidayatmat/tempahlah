@@ -53,6 +53,13 @@ return [
             'transport' => 'ses',
         ],
 
+        // Brevo transactional email via HTTP API (custom transport registered
+        // in AppServiceProvider). Uses the account's xkeysib-… API key.
+        'brevo' => [
+            'transport' => 'brevo',
+            'key' => env('BREVO_API_KEY'),
+        ],
+
         'postmark' => [
             'transport' => 'postmark',
             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
