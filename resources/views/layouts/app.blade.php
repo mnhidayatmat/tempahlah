@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    {{-- Theme init — runs BEFORE first paint to set html[data-theme]
-         from persisted preference (localStorage) or system pref. No
-         flash-of-light-then-dark on page load. Must stay inline + run
-         synchronously, hence the top-of-head placement and IIFE. --}}
+    {{-- Theme init — runs BEFORE first paint to set html[data-theme].
+         New users default to LIGHT mode regardless of their OS theme; a user
+         who toggles dark keeps that choice (persisted in localStorage), so only
+         the default for someone who hasn't chosen is light. No flash on load.
+         Must stay inline + run synchronously, hence the top-of-head IIFE. --}}
     <script>
         (function () {
             try {
                 var saved = localStorage.getItem('tempahlah-theme');
-                var sysDark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
-                var theme = saved || (sysDark ? 'dark' : 'light');
+                var theme = saved || 'light';
                 document.documentElement.setAttribute('data-theme', theme);
             } catch (e) { /* localStorage may be blocked in some contexts; default = light */ }
         })();
