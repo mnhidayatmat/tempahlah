@@ -115,7 +115,7 @@
                         </div>
                         <div>
                             <label style="display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px;">{{ __('Code') }}</label>
-                            <input class="input" type="text" name="code" required minlength="3" maxlength="24" pattern="[A-Za-z0-9\-]+" value="{{ old('code', $affiliate->code) }}" style="font-family:var(--font-mono, monospace); text-transform:uppercase;">
+                            <input class="input" type="text" name="code" required minlength="1" maxlength="24" pattern="[A-Za-z0-9\-]+" value="{{ old('code', $affiliate->code) }}" style="font-family:var(--font-mono, monospace); text-transform:uppercase;">
                             <div style="font-size:10.5px; color:var(--ink-4); margin-top:3px;">{{ __('Changing it breaks links already shared under the old code.') }}</div>
                         </div>
                         <div>
