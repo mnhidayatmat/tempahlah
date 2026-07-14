@@ -130,7 +130,7 @@ class CreateTenantAndOwner
         'marketplace', 'dashboard', 'support', 'help', 'blog', 'docs',
         'dev', 'staging', 'test', 'cdn', 'static', 'assets', 'media',
         'tempahlah', 'homestaymy', 'homestay', 'about', 'contact', 'pricing', 'login',
-        'register', 'onboard', 'auth', 'oauth', 'webhook', 'webhooks',
+        'register', 'onboard', 'auth', 'oauth', 'webhook', 'webhooks', 'affiliate', 'r',
         'status', 'health', 'localhost', 'ftp', 'smtp', 'imap', 'pop',
     ];
 

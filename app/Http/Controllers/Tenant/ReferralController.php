@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Affiliate;
-use App\Models\AffiliateCommission;
-use App\Models\AffiliateReferral;
-use App\Models\AffiliateVisit;
 use Illuminate\Http\Request;
 
 /**
@@ -22,37 +19,11 @@ class ReferralController extends Controller
     {
         $affiliate = $this->affiliateFor($request);
 
-        $referrals = AffiliateReferral::query()
-            ->where('affiliate_id', $affiliate->id)
-            ->with('tenant:id,business_name,created_at')
-            ->orderByDesc('id')
-            ->get();
-
-        $commissions = AffiliateCommission::query()
-            ->where('affiliate_id', $affiliate->id)
-            ->with('tenant:id,business_name')
-            ->orderByDesc('id')
-            ->limit(100)
-            ->get();
-
-        $sums = AffiliateCommission::query()
-            ->where('affiliate_id', $affiliate->id)
-            ->selectRaw('status, SUM(amount) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
-        return view('tenant.referrals.index', [
+        return view('tenant.referrals.index', array_merge($affiliate->statementData(), [
             'affiliate' => $affiliate,
             'referralUrl' => $affiliate->referralUrl(),
-            'clicks' => (int) AffiliateVisit::query()->where('affiliate_id', $affiliate->id)->sum('clicks'),
-            'referrals' => $referrals,
-            'convertedCount' => $referrals->whereNotNull('converted_at')->count(),
-            'commissions' => $commissions,
-            'pendingTotal' => (float) ($sums[AffiliateCommission::STATUS_PENDING] ?? 0),
-            'approvedTotal' => (float) ($sums[AffiliateCommission::STATUS_APPROVED] ?? 0),
-            'paidTotal' => (float) ($sums[AffiliateCommission::STATUS_PAID] ?? 0),
             'holdDays' => (int) config('homestay.affiliate.hold_days', 30),
-        ]);
+        ]));
     }
 
     /** Save the payout bank details on the host's own affiliate row. */

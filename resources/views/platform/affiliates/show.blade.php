@@ -37,6 +37,23 @@
             </div>
         @endif
 
+        {{-- Private statement link — send this to the affiliate (esp. externals
+             with no login) so they can watch their own earnings + set payout details. --}}
+        <div class="hauz-card" style="padding: 16px 18px;" x-data="{ copied:false }">
+            <div style="font-weight:700; font-size:13.5px; color:var(--ink); margin-bottom:4px;">{{ __('Affiliate statement link') }}</div>
+            <div style="font-size:12px; color:var(--ink-3); margin-bottom:10px;">
+                {{ __('A private, login-free page where this affiliate sees their earnings and enters payout details. Send it to them — anyone with the link can view it.') }}
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <input class="input" type="text" readonly x-ref="stmt" value="{{ $affiliate->statementUrl() }}" style="flex:1; min-width:240px; font-family:var(--font-mono, monospace); font-size:12.5px;">
+                <button type="button" class="btn btn-sm" @click="navigator.clipboard.writeText($refs.stmt.value).then(()=>{copied=true;setTimeout(()=>copied=false,2000)})">
+                    <span x-show="!copied">{{ __('Copy link') }}</span>
+                    <span x-show="copied" x-cloak>✓ {{ __('Copied!') }}</span>
+                </button>
+                <a class="btn btn-sm" href="{{ $affiliate->statementUrl() }}" target="_blank" rel="noopener">{{ __('Open') }}</a>
+            </div>
+        </div>
+
         {{-- Stats --}}
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
             @foreach ([

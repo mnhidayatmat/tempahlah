@@ -104,6 +104,19 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         return redirect()->route('hosts');
     })->where('code', '[A-Za-z0-9\-]{3,24}')->name('affiliate.visit');
 
+    // Private affiliate earnings statement — how an EXTERNAL affiliate (no
+    // homestay login) sees their own commissions + sets payout bank details.
+    // The token is the credential (unguessable); no auth. Throttled so the
+    // token space can't be probed and the bank form can't be hammered.
+    Route::get('/affiliate/{token}', [\App\Http\Controllers\Public\AffiliateStatementController::class, 'show'])
+        ->where('token', '[A-Za-z0-9]+')
+        ->middleware('throttle:60,1')
+        ->name('affiliate.statement');
+    Route::post('/affiliate/{token}/bank', [\App\Http\Controllers\Public\AffiliateStatementController::class, 'updateBank'])
+        ->where('token', '[A-Za-z0-9]+')
+        ->middleware('throttle:20,1')
+        ->name('affiliate.statement.bank');
+
     // Public legal pages linked from the register form + footers. Bilingual
     // via the app locale; static content, so plain view routes.
     Route::view('/terms', 'legal.terms')->name('legal.terms');

@@ -18,7 +18,7 @@ class Affiliate extends Model
     public const STATUS_SUSPENDED = 'suspended';
 
     protected $fillable = [
-        'user_id', 'name', 'email', 'phone', 'code', 'rate', 'duration_months',
+        'user_id', 'name', 'email', 'phone', 'code', 'statement_token', 'rate', 'duration_months',
         'status', 'bank_name', 'bank_account_holder', 'bank_account_no', 'notes',
     ];
 
@@ -58,6 +58,62 @@ class Affiliate extends Model
     public function referralUrl(): string
     {
         return route('affiliate.visit', ['code' => $this->code]);
+    }
+
+    /**
+     * Private, unguessable earnings-statement link. Chiefly for external
+     * affiliates (no login) to see their own commissions + set payout details.
+     * Lazily generated so pre-existing rows self-heal on first access.
+     */
+    public function ensureStatementToken(): string
+    {
+        if (empty($this->statement_token)) {
+            $this->forceFill(['statement_token' => (string) Str::ulid().Str::lower(Str::random(12))])->save();
+        }
+
+        return $this->statement_token;
+    }
+
+    /** URL of the private statement page (tempahlah.com/affiliate/{token}). */
+    public function statementUrl(): string
+    {
+        return route('affiliate.statement', ['token' => $this->ensureStatementToken()]);
+    }
+
+    /**
+     * The read-only stats shown on both the host "Refer & Earn" dashboard and
+     * the external affiliate's private statement page — one source of truth so
+     * the two surfaces can never disagree.
+     *
+     * @return array{clicks:int, referrals:\Illuminate\Support\Collection, convertedCount:int, commissions:\Illuminate\Support\Collection, pendingTotal:float, approvedTotal:float, paidTotal:float}
+     */
+    public function statementData(int $commissionLimit = 100): array
+    {
+        $referrals = $this->referrals()
+            ->with('tenant:id,business_name,created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $commissions = $this->commissions()
+            ->with('tenant:id,business_name')
+            ->orderByDesc('id')
+            ->limit($commissionLimit)
+            ->get();
+
+        $sums = $this->commissions()
+            ->selectRaw('status, SUM(amount) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'clicks' => (int) $this->visits()->sum('clicks'),
+            'referrals' => $referrals,
+            'convertedCount' => $referrals->whereNotNull('converted_at')->count(),
+            'commissions' => $commissions,
+            'pendingTotal' => (float) ($sums[AffiliateCommission::STATUS_PENDING] ?? 0),
+            'approvedTotal' => (float) ($sums[AffiliateCommission::STATUS_APPROVED] ?? 0),
+            'paidTotal' => (float) ($sums[AffiliateCommission::STATUS_PAID] ?? 0),
+        ];
     }
 
     /**
