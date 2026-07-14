@@ -74,6 +74,48 @@
         </div>
 
         <div class="dash-hero-actions">
+            @if ($publicUrl)
+                {{-- Small, always-visible share button. Copies / opens / WhatsApps the
+                     public booking page so the host can post it on social media.
+                     Stamps the onboarding "shared" step on first use. --}}
+                <div class="dash-share" x-data="{
+                        open: false,
+                        copied: false,
+                        url: @js($publicUrl),
+                        stamp() { @this.call('shareBookingLink'); },
+                        copy() {
+                            navigator.clipboard.writeText(this.url).then(() => {
+                                this.copied = true; this.stamp();
+                                setTimeout(() => this.copied = false, 1800);
+                            });
+                        },
+                     }" @click.outside="open = false" style="position:relative;">
+                    <button type="button" class="btn" @click="open = !open">
+                        <x-icon name="link" :size="13"/> {{ __('Share booking link') }}
+                    </button>
+                    <div x-show="open" x-cloak x-transition.origin.top
+                         style="position:absolute; top:calc(100% + 6px); right:0; z-index:40; width:280px;
+                                background: var(--bg-elev); border:1px solid var(--line); border-radius: var(--r-md);
+                                box-shadow: var(--sh-pop, 0 10px 30px rgba(0,0,0,.14)); padding:12px;">
+                        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:6px;">
+                            {{ __('Your public booking page') }}
+                        </div>
+                        <div style="font-family:var(--font-mono, monospace); font-size:12px; color:var(--ink); background:var(--bg-sunk);
+                                    border:.5px solid var(--line); border-radius: var(--r-sm); padding:8px 10px; margin-bottom:10px;
+                                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ preg_replace('#^https?://#', '', $publicUrl) }}</div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" class="btn btn-sm" style="flex:1; justify-content:center;" @click="copy()">
+                                <span x-show="!copied">{{ __('Copy') }}</span>
+                                <span x-show="copied" x-cloak>✓ {{ __('Copied!') }}</span>
+                            </button>
+                            <a class="btn btn-sm" style="flex:1; justify-content:center;" :href="url" target="_blank" rel="noopener" @click="stamp()">{{ __('Open') }}</a>
+                            <a class="btn btn-sm btn-primary" style="flex:1; justify-content:center;" target="_blank" rel="noopener"
+                               :href="'https://wa.me/?text=' + encodeURIComponent(@js(__('Book our homestay directly 👉')) + ' ' + url)"
+                               @click="stamp()"><x-icon name="message" :size="12"/></a>
+                        </div>
+                    </div>
+                </div>
+            @endif
             <a href="{{ route('tenant.settings.index') }}" class="btn">{{ __('Profile Settings') }}</a>
             <a href="{{ route('tenant.properties.create') }}" class="btn btn-primary">
                 <x-icon name="plus" :size="13"/> {{ __('Add homestay') }}

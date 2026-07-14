@@ -73,6 +73,7 @@ class Dashboard extends Component
 
         return view('livewire.tenant.dashboard', [
             'tenant' => $tenant,
+            'publicUrl' => $tenant?->publicUrl(),
             'stats' => $stats,
             'series' => $series,
             'transactions' => $transactions,

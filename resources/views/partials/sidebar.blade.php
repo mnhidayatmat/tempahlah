@@ -27,7 +27,6 @@
             ['key' => 'tenant.dashboard',       'label' => __('Dashboard'),   'icon' => 'home',     'route' => 'tenant.dashboard',           'tour' => 'dashboard'],
             ['key' => 'tenant.calendar',        'label' => __('Calendar'),    'icon' => 'calendar', 'route' => 'tenant.calendar',            'tour' => 'calendar'],
             ['key' => 'tenant.bookings.*',      'label' => __('Bookings'),    'icon' => 'receipt',  'route' => 'tenant.bookings.index',      'badge' => $pendingBookings ?: null, 'tour' => 'bookings'],
-            ['key' => 'tenant.booking-link.*',  'label' => __('Booking link'),'icon' => 'link',     'route' => 'tenant.booking-link.index'],
             ['key' => 'tenant.guests.*',        'label' => __('Guests'),      'icon' => 'users',    'route' => 'tenant.guests.index',        'tour' => 'guests'],
             ['key' => 'tenant.testimonials.*',  'label' => __('Testimonials'),'icon' => 'star',     'route' => 'tenant.testimonials.index'],
             ['key' => 'tenant.housekeeping.*',  'label' => __('Housekeeping'),'icon' => 'sparkle',  'route' => 'tenant.housekeeping.index',  'badge' => $openCleaning ?: null, 'tour' => 'housekeeping'],
