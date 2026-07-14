@@ -156,7 +156,7 @@
                     <div style="margin-top:6px; color:var(--ink-2);">{{ __('On file: :bank •••• :last4', ['bank' => $affiliate->bank_name ?: '—', 'last4' => $last4]) }}</div>
                 @endif
             </div>
-            <form method="POST" action="{{ route('affiliate.statement.bank', ['token' => $affiliate->statement_token]) }}">
+            <form method="POST" action="{{ route('affiliate.statement.bank', ['token' => $affiliate->code]) }}">
                 @csrf
                 <div class="as-form-grid">
                     <div class="as-field">

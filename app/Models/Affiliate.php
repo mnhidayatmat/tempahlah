@@ -61,8 +61,8 @@ class Affiliate extends Model
     }
 
     /**
-     * Private, unguessable earnings-statement link. Chiefly for external
-     * affiliates (no login) to see their own commissions + set payout details.
+     * Unguessable statement token — kept as a legacy fallback identifier so any
+     * statement link shared before the switch to code-based URLs still resolves.
      * Lazily generated so pre-existing rows self-heal on first access.
      */
     public function ensureStatementToken(): string
@@ -74,10 +74,14 @@ class Affiliate extends Model
         return $this->statement_token;
     }
 
-    /** URL of the private statement page (tempahlah.com/affiliate/{token}). */
+    /**
+     * URL of the earnings statement page (tempahlah.com/affiliate/{code}). Uses
+     * the referral code so it's the same short handle the affiliate already
+     * shares — see AffiliateStatementController for the (owner-accepted) tradeoff.
+     */
     public function statementUrl(): string
     {
-        return route('affiliate.statement', ['token' => $this->ensureStatementToken()]);
+        return route('affiliate.statement', ['token' => $this->code]);
     }
 
     /**

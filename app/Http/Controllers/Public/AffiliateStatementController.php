@@ -7,18 +7,23 @@ use App\Models\Affiliate;
 use Illuminate\Http\Request;
 
 /**
- * Private, login-free earnings statement for an affiliate, addressed by an
- * unguessable token (tempahlah.com/affiliate/{token}). This is how an EXTERNAL
- * affiliate — an influencer/agency with no homestay account — sees their own
- * clicks, referrals and commissions, grabs their share link, and submits their
- * payout bank details. Same trust model as the iCal export token + guest
- * magic-links: the token IS the credential.
+ * Login-free earnings statement for an affiliate, addressed by their referral
+ * CODE (tempahlah.com/affiliate/{code}). This is how an EXTERNAL affiliate — an
+ * influencer/agency with no homestay account — sees their own clicks, referrals
+ * and commissions, grabs their share link, and submits their payout bank
+ * details.
+ *
+ * NOTE: the code is public (affiliates post /r/{code} in their marketing), so
+ * this page is effectively public — by the owner's explicit choice, so an
+ * affiliate can reach it with the same short code they already share. The
+ * unguessable statement_token still resolves too, for any link shared before
+ * the switch to code.
  */
 class AffiliateStatementController extends Controller
 {
-    public function show(string $token)
+    public function show(string $ident)
     {
-        $affiliate = $this->resolve($token);
+        $affiliate = $this->resolve($ident);
 
         return view('affiliate.statement', array_merge($affiliate->statementData(), [
             'affiliate' => $affiliate,
@@ -30,9 +35,9 @@ class AffiliateStatementController extends Controller
     }
 
     /** Affiliate submits/updates their payout bank details from the statement page. */
-    public function updateBank(Request $request, string $token)
+    public function updateBank(Request $request, string $ident)
     {
-        $affiliate = $this->resolve($token);
+        $affiliate = $this->resolve($ident);
 
         $validated = $request->validate([
             'bank_name' => 'nullable|string|max:120',
@@ -43,13 +48,16 @@ class AffiliateStatementController extends Controller
         $affiliate->update($validated);
 
         return redirect()
-            ->route('affiliate.statement', ['token' => $affiliate->statement_token])
+            ->route('affiliate.statement', ['token' => $affiliate->code])
             ->with('status', __('Payout details saved.'));
     }
 
-    /** Resolve the affiliate by token, or 404 (unguessable → not enumerable). */
-    protected function resolve(string $token): Affiliate
+    /** Resolve by referral code (primary) or the legacy statement token, else 404. */
+    protected function resolve(string $ident): Affiliate
     {
-        return Affiliate::query()->where('statement_token', $token)->firstOrFail();
+        return Affiliate::query()
+            ->where('code', $ident)
+            ->orWhere('statement_token', $ident)
+            ->firstOrFail();
     }
 }

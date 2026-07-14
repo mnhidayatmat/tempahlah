@@ -52,7 +52,7 @@ class PlatformAffiliateController extends Controller
             'name' => 'required|string|max:160',
             'email' => 'nullable|email|max:190',
             'phone' => 'nullable|string|max:40',
-            'code' => ['nullable', 'string', 'min:3', 'max:24', 'regex:/^[A-Za-z0-9\-]+$/', Rule::unique('affiliates', 'code')],
+            'code' => ['nullable', 'string', 'min:1', 'max:24', 'regex:/^[A-Za-z0-9\-]+$/', Rule::unique('affiliates', 'code')],
             'rate' => 'required|numeric|min:0|max:50',
             'duration_months' => 'required|integer|min:1|max:60',
         ]);
@@ -96,7 +96,7 @@ class PlatformAffiliateController extends Controller
             'name' => 'required|string|max:160',
             'email' => 'nullable|email|max:190',
             'phone' => 'nullable|string|max:40',
-            'code' => ['required', 'string', 'min:3', 'max:24', 'regex:/^[A-Za-z0-9\-]+$/', Rule::unique('affiliates', 'code')->ignore($affiliate->id)],
+            'code' => ['required', 'string', 'min:1', 'max:24', 'regex:/^[A-Za-z0-9\-]+$/', Rule::unique('affiliates', 'code')->ignore($affiliate->id)],
             'rate' => 'required|numeric|min:0|max:50',
             'duration_months' => 'required|integer|min:1|max:60',
             'status' => ['required', Rule::in([Affiliate::STATUS_ACTIVE, Affiliate::STATUS_SUSPENDED])],

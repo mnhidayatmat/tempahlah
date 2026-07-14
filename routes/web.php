@@ -102,18 +102,18 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         \App\Support\Affiliate\ReferralAttribution::capture($request);
 
         return redirect()->route('hosts');
-    })->where('code', '[A-Za-z0-9\-]{3,24}')->name('affiliate.visit');
+    })->where('code', '[A-Za-z0-9\-]{1,24}')->name('affiliate.visit');
 
-    // Private affiliate earnings statement — how an EXTERNAL affiliate (no
-    // homestay login) sees their own commissions + sets payout bank details.
-    // The token is the credential (unguessable); no auth. Throttled so the
-    // token space can't be probed and the bank form can't be hammered.
+    // Affiliate earnings statement — an EXTERNAL affiliate (no homestay login)
+    // sees their own commissions + sets payout bank details. Addressed by the
+    // referral CODE (their public share handle), with the legacy statement token
+    // still accepted. No auth; throttled so the form can't be hammered.
     Route::get('/affiliate/{token}', [\App\Http\Controllers\Public\AffiliateStatementController::class, 'show'])
-        ->where('token', '[A-Za-z0-9]+')
+        ->where('token', '[A-Za-z0-9\-]+')
         ->middleware('throttle:60,1')
         ->name('affiliate.statement');
     Route::post('/affiliate/{token}/bank', [\App\Http\Controllers\Public\AffiliateStatementController::class, 'updateBank'])
-        ->where('token', '[A-Za-z0-9]+')
+        ->where('token', '[A-Za-z0-9\-]+')
         ->middleware('throttle:20,1')
         ->name('affiliate.statement.bank');
 
