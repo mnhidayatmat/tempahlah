@@ -3,30 +3,38 @@
     $propertyCount = $shelf->count() ?: ($stats['properties'] ?? 0);
     $first = $shelf->first();
 
-    // Build the SVG path for the income chart
+    // Income chart geometry — one smoothed cubic path per homestay series.
     $W = 720; $H = 240; $PAD_T = 20; $PAD_B = 40;
     $innerW = $W; $innerH = $H - $PAD_T - $PAD_B;
-    $vals = $series['values'];
-    $max = max(1, ...$vals);
-    $count = count($vals);
-    $step = $count > 1 ? $innerW / ($count - 1) : 0;
-    $pts = [];
-    foreach ($vals as $i => $v) {
-        $pts[] = [round($i * $step, 1), round($PAD_T + $innerH - ($v / $max) * $innerH, 1)];
-    }
-    $pathD = '';
-    foreach ($pts as $i => $p) {
-        if ($i === 0) {
-            $pathD .= 'M'.$p[0].','.$p[1];
-        } else {
-            $prev = $pts[$i - 1];
-            $cx1 = round($prev[0] + ($p[0] - $prev[0]) * 0.5, 1);
-            $cx2 = round($p[0] - ($p[0] - $prev[0]) * 0.5, 1);
-            $pathD .= ' C'.$cx1.','.$prev[1].' '.$cx2.','.$p[1].' '.$p[0].','.$p[1];
+    $chartSeries = $series['series'] ?? [];
+    $labels = $series['labels'] ?? [];
+    $max = max(1, $series['max'] ?? 1);
+    $n = max(count($labels), 1);
+    $step = $n > 1 ? $innerW / ($n - 1) : 0;
+    $singleSeries = count($chartSeries) === 1;
+
+    // Returns [pathD, points[]] for a series' value array.
+    $buildPath = function (array $vals) use ($step, $PAD_T, $innerH, $max) {
+        $pts = [];
+        foreach ($vals as $i => $v) {
+            $pts[] = [round($i * $step, 1), round($PAD_T + $innerH - ($v / $max) * $innerH, 1)];
         }
-    }
-    $fillD = $pathD . ' L'.end($pts)[0].','.($PAD_T + $innerH).' L'.$pts[0][0].','.($PAD_T + $innerH).' Z';
-    $lastPt = end($pts);
+        if (empty($pts)) {
+            return ['', []];
+        }
+        $d = '';
+        foreach ($pts as $i => $p) {
+            if ($i === 0) {
+                $d .= 'M'.$p[0].','.$p[1];
+            } else {
+                $prev = $pts[$i - 1];
+                $cx1 = round($prev[0] + ($p[0] - $prev[0]) * 0.5, 1);
+                $cx2 = round($p[0] - ($p[0] - $prev[0]) * 0.5, 1);
+                $d .= ' C'.$cx1.','.$prev[1].' '.$cx2.','.$p[1].' '.$p[0].','.$p[1];
+            }
+        }
+        return [$d, $pts];
+    };
 @endphp
 
 <div wire:poll.60s class="dash-root">
@@ -122,7 +130,11 @@
                     <div class="cm-eyebrow-primary" style="margin-bottom:6px;">{{ __('Weekly Metrics Rhythm') }}</div>
                     <h3 style="margin:0; font-size:18px; font-weight:700; letter-spacing:-.02em;">{{ __('Booking Income Stream') }}</h3>
                     <div class="dash-chart-desc" style="font-size:12.5px; color: var(--ink-3); margin-top:4px;">
-                        {{ __('Track your net earnings split. Showing direct booking velocity.') }}
+                        @if ($singleSeries)
+                            {{ __('Cumulative booking income across the period.') }}
+                        @else
+                            {{ __('Cumulative income per homestay — one line each.') }}
+                        @endif
                     </div>
                 </div>
                 <div class="dash-chart-range">
@@ -136,7 +148,7 @@
                 </div>
             </div>
 
-            {{-- SVG income chart --}}
+            {{-- SVG income chart — one line per homestay --}}
             <div style="width:100%; overflow:hidden;">
                 <svg class="dash-chart-svg" viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="none">
                     <defs>
@@ -145,16 +157,36 @@
                             <stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/>
                         </linearGradient>
                     </defs>
-                    <path d="{{ $fillD }}" fill="url(#dash-income-fill)"/>
-                    <path d="{{ $pathD }}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="{{ $lastPt[0] }}" cy="{{ $lastPt[1] }}" r="6" fill="var(--primary)" opacity="0.2"/>
-                    <circle cx="{{ $lastPt[0] }}" cy="{{ $lastPt[1] }}" r="3.5" fill="var(--primary)"/>
+                    @foreach ($chartSeries as $s)
+                        @php [$d, $pts] = $buildPath($s['values']); @endphp
+                        @if ($d !== '')
+                            @if ($singleSeries)
+                                {{-- Soft area fill only when there's a single line, else it'd muddy the graph. --}}
+                                <path d="{{ $d.' L'.end($pts)[0].','.($PAD_T + $innerH).' L'.$pts[0][0].','.($PAD_T + $innerH).' Z' }}" fill="url(#dash-income-fill)"/>
+                            @endif
+                            <path d="{{ $d }}" fill="none" stroke="{{ $s['color'] }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            @php $lp = end($pts); @endphp
+                            <circle cx="{{ $lp[0] }}" cy="{{ $lp[1] }}" r="3.5" fill="{{ $s['color'] }}"/>
+                        @endif
+                    @endforeach
                 </svg>
                 <div style="display:flex; justify-content:space-between; font-size:11px; color: var(--ink-3); padding: 0 4px;">
-                    @foreach ($series['labels'] as $i => $l)
+                    @foreach ($labels as $i => $l)
                         @if ($i % 2 === 0)<span>{{ $l }}</span>@endif
                     @endforeach
                 </div>
+
+                {{-- Legend (only when more than one homestay) --}}
+                @if (count($chartSeries) > 1)
+                    <div style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+                        @foreach ($chartSeries as $s)
+                            <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color: var(--ink-2);">
+                                <span style="width:11px; height:11px; border-radius:3px; background: {{ $s['color'] }}; flex-shrink:0;"></span>
+                                {{ $s['name'] }}
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -200,6 +232,58 @@
             </div>
         </div>
     </div>
+
+    {{-- === PER-HOMESTAY BREAKDOWN ===
+         Only for a multi-property host (empty otherwise). The stat cards above
+         stay the grand totals; this splits them per homestay, with a totals row
+         that reconciles to the cards. --}}
+    @if (!empty($breakdown))
+        @php $sumCost = collect($breakdown)->sum('cost'); $sharedCost = round($stats['month_cost'] - $sumCost, 2); @endphp
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div style="padding:18px 20px; border-bottom:1px solid var(--line);">
+                <div class="cm-eyebrow">{{ __('Per-homestay') }}</div>
+                <h3 style="margin:3px 0 0; font-size:16px; font-weight:700; letter-spacing:-.01em;">{{ __('Earnings by homestay') }}</h3>
+            </div>
+            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                <table style="width:100%; border-collapse:collapse; min-width:600px;">
+                    <thead>
+                        <tr style="font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); background:var(--bg-sunk);">
+                            <th style="text-align:left; padding:10px 20px; font-weight:600;">{{ __('Homestay') }}</th>
+                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('Total earnings') }}</th>
+                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('This month') }}</th>
+                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('Expected') }}</th>
+                            <th style="text-align:right; padding:10px 20px; font-weight:600;">{{ __('Month cost') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($breakdown as $b)
+                            <tr style="border-top:1px solid var(--line); font-size:13px;">
+                                <td style="padding:12px 20px; font-weight:600;">
+                                    <a href="{{ route('tenant.properties.show', $b['id']) }}" style="color:var(--ink); text-decoration:none;">{{ $b['name'] }}</a>
+                                </td>
+                                <td class="mono" style="text-align:right; padding:12px 12px; color:var(--primary); font-weight:700;">RM {{ number_format($b['earnings'], 2) }}</td>
+                                <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($b['month'], 2) }}</td>
+                                <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($b['expected'], 2) }}</td>
+                                <td class="mono" style="text-align:right; padding:12px 20px;">RM {{ number_format($b['cost'], 2) }}</td>
+                            </tr>
+                        @endforeach
+                        <tr style="border-top:2px solid var(--line); font-size:13px; font-weight:700; background:var(--bg-sunk);">
+                            <td style="padding:12px 20px;">{{ __('All homestays') }}</td>
+                            <td class="mono" style="text-align:right; padding:12px 12px; color:var(--primary);">RM {{ number_format($stats['cumulative'], 2) }}</td>
+                            <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($stats['month_revenue'], 2) }}</td>
+                            <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($stats['expected'], 2) }}</td>
+                            <td class="mono" style="text-align:right; padding:12px 20px;">RM {{ number_format($stats['month_cost'], 2) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            @if ($sharedCost > 0)
+                <div style="padding:10px 20px; font-size:11.5px; color:var(--ink-3); border-top:1px solid var(--line);">
+                    {{ __('Note: RM :amt of this month\'s cost is shared / not tied to one homestay.', ['amt' => number_format($sharedCost, 2)]) }}
+                </div>
+            @endif
+        </div>
+    @endif
 
     {{-- === ACTION QUEUE === --}}
     @if (!empty($actions))

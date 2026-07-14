@@ -53,11 +53,14 @@ MD;
         return view('platform.marketing.index', [
             'campaigns' => MarketingCampaign::query()->latestFirst()->paginate(15),
             // The automated new-host drip, with per-step delivery counts.
+            // whereHas('tenant') applies Tenant's SoftDeletes global scope so send
+            // rows belonging to deleted homestays stop inflating the counts (a
+            // deleted tenant's welcome email must not still count as "sent").
             'onboardingSteps' => \App\Models\OnboardingEmail::query()
                 ->withCount([
-                    'sends as sent_total' => fn ($q) => $q->where('status', 'sent'),
-                    'sends as skipped_total' => fn ($q) => $q->where('status', 'skipped'),
-                    'sends as failed_total' => fn ($q) => $q->where('status', 'failed'),
+                    'sends as sent_total' => fn ($q) => $q->where('status', 'sent')->whereHas('tenant'),
+                    'sends as skipped_total' => fn ($q) => $q->where('status', 'skipped')->whereHas('tenant'),
+                    'sends as failed_total' => fn ($q) => $q->where('status', 'failed')->whereHas('tenant'),
                 ])
                 ->orderBy('day_offset')
                 ->get(),

@@ -61,6 +61,9 @@ class Dashboard extends Component
         $transactions = $this->recentTransactions();
         $shelf = $this->propertyShelf();
         $actions = $this->actionQueueFor($tenant);
+        // Per-homestay financial split (empty for a single-property tenant —
+        // the grand-total stat cards already ARE that one homestay).
+        $breakdown = $this->perHomestayBreakdown();
 
         $plan = $tenant?->subscription?->plan ?? 'free';
 
@@ -75,6 +78,7 @@ class Dashboard extends Component
             'transactions' => $transactions,
             'shelf' => $shelf,
             'actions' => $actions,
+            'breakdown' => $breakdown,
             'plan' => $plan,
             'isPro' => $plan !== 'free',
             'checklist' => $checklist,
@@ -153,25 +157,73 @@ class Dashboard extends Component
      * by when it was resolved (the point the host records the repair cost), and
      * expenses by the host-entered incurred date.
      */
-    protected function monthlyOperatingCost(Carbon $monthStart, Carbon $monthEnd): float
+    protected function monthlyOperatingCost(Carbon $monthStart, Carbon $monthEnd, ?int $propertyId = null): float
     {
-        $cleaning = (float) CleaningTask::query()
+        $forProperty = fn ($q) => $q->when($propertyId, fn ($qq) => $qq->where('property_id', $propertyId));
+
+        $cleaning = (float) CleaningTask::query()->tap($forProperty)
             ->whereBetween('scheduled_at', [$monthStart, $monthEnd])
             ->sum('cost');
 
-        $laundry = (float) LaundryTask::query()
+        $laundry = (float) LaundryTask::query()->tap($forProperty)
             ->whereBetween('pickup_at', [$monthStart, $monthEnd])
             ->sum('cost');
 
-        $maintenance = (float) MaintenanceTicket::query()
+        $maintenance = (float) MaintenanceTicket::query()->tap($forProperty)
             ->whereBetween('resolved_at', [$monthStart, $monthEnd])
             ->sum('cost');
 
-        $expenses = (float) Expense::query()
+        // Expenses may be unassigned (nullable property_id) — a per-property
+        // total excludes those, so the sum of homestay costs can be less than
+        // the tenant-wide total. The dashboard surfaces that gap as a note.
+        $expenses = (float) Expense::query()->tap($forProperty)
             ->whereBetween('incurred_at', [$monthStart, $monthEnd])
             ->sum('amount');
 
         return round($cleaning + $laundry + $maintenance + $expenses, 2);
+    }
+
+    /**
+     * Per-homestay financial split: each of the tenant's properties with its
+     * all-time earnings, this-month earnings, expected (outstanding) payments,
+     * and this-month operating cost. Returns [] for a single-property tenant —
+     * the grand-total stat cards already represent that one homestay, so the
+     * breakdown table is redundant and the view skips it.
+     *
+     * Reuses StatisticsService::revenue()'s per-property filter (same booking
+     * set + check-in dating as the grand-total cards), so summing the earnings
+     * / this-month / expected columns reconciles exactly to the totals. Cost is
+     * the one column that can under-sum, by design (see monthlyOperatingCost).
+     *
+     * @return list<array{id:int, name:string, earnings:float, month:float, expected:float, expected_count:int, cost:float}>
+     */
+    protected function perHomestayBreakdown(): array
+    {
+        $properties = Property::query()->orderBy('name')->get(['id', 'name']);
+        if ($properties->count() <= 1) {
+            return [];
+        }
+
+        $svc = app(StatisticsService::class);
+        $now = Carbon::now();
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
+        $farPast = Carbon::create(2000, 1, 1)->startOfDay();
+        $nowEnd = $now->copy()->endOfDay();
+
+        return $properties->map(function (Property $p) use ($svc, $farPast, $nowEnd, $monthStart, $monthEnd) {
+            [$expAmount, $expCount] = $this->expectedPayments($p->id);
+
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'earnings' => (float) $svc->revenue($farPast, $nowEnd, $p->id),
+                'month' => (float) $svc->revenue($monthStart, $monthEnd, $p->id),
+                'expected' => $expAmount,
+                'expected_count' => $expCount,
+                'cost' => $this->monthlyOperatingCost($monthStart, $monthEnd, $p->id),
+            ];
+        })->all();
     }
 
     /**
@@ -193,9 +245,10 @@ class Dashboard extends Component
      *
      * @return array{0: float, 1: int} [total outstanding, booking count]
      */
-    protected function expectedPayments(): array
+    protected function expectedPayments(?int $propertyId = null): array
     {
         $rows = Booking::query()
+            ->when($propertyId, fn ($q) => $q->where('property_id', $propertyId))
             ->whereNull('balance_paid_at')
             ->where(function ($q) {
                 $q->where('status', Booking::STATUS_CONFIRMED)
@@ -223,41 +276,88 @@ class Dashboard extends Component
         return [round($amount, 2), $count];
     }
 
+    /**
+     * Cumulative income over the range as ONE SERIES PER HOMESTAY, so a
+     * multi-property host sees each homestay's velocity as its own line in a
+     * single graph. A single-property tenant gets one line (visually the same
+     * as before). Payments carry no property_id, so each is attributed to a
+     * property via its booking.
+     */
     protected function revenueSeries(Carbon $start, Carbon $end): array
     {
-        // 11 evenly-spaced sample points across the range
+        // 11 evenly-spaced, contiguous, non-overlapping buckets across the range.
         $points = 11;
         $span = max(1, $start->diffInDays($end));
         $step = (int) ceil($span / ($points - 1));
 
         $labels = [];
-        $values = [];
-
+        $buckets = [];
         $cursor = $start->copy();
-        $running = 0.0;
         for ($i = 0; $i < $points; $i++) {
             $bucketEnd = $cursor->copy()->addDays($step)->min($end);
-            $bucketRevenue = (float) Payment::query()
-                ->where('status', 'succeeded')
-                ->whereBetween('paid_at', [$cursor, $bucketEnd])
-                ->sum('amount');
-            $running += $bucketRevenue;
+            $buckets[] = [$cursor->copy(), $bucketEnd->copy()];
             $labels[] = $cursor->format('M d');
-            $values[] = (int) round($running);
             $cursor = $bucketEnd->copy()->addSecond();
-            if ($cursor->greaterThanOrEqualTo($end)) break;
+            if ($cursor->greaterThanOrEqualTo($end)) {
+                break;
+            }
+        }
+        // At least 2 points so the chart can draw a line.
+        while (count($labels) < 2) {
+            $labels[] = $end->format('M d');
+            $buckets[] = [$end->copy(), $end->copy()];
         }
 
-        // Pad to at least 2 points so the chart can draw
-        while (count($values) < 2) {
-            $values[] = end($values) ?: 0;
-            $labels[] = $end->format('M d');
+        $properties = Property::query()->orderBy('name')->get(['id', 'name']);
+
+        // All succeeded payments in range with their booking's property_id.
+        $payments = Payment::query()
+            ->where('status', 'succeeded')
+            ->whereNotNull('paid_at')
+            ->whereBetween('paid_at', [$start, $end])
+            ->with('booking:id,property_id')
+            ->get(['id', 'booking_id', 'amount', 'paid_at']);
+
+        // Sum each payment into [property_id][bucketIndex].
+        $matrix = [];
+        foreach ($payments as $pay) {
+            $pid = $pay->booking?->property_id;
+            if ($pid === null || $pay->paid_at === null) {
+                continue;
+            }
+            foreach ($buckets as $bi => [$bStart, $bEnd]) {
+                if ($pay->paid_at->betweenIncluded($bStart, $bEnd)) {
+                    $matrix[$pid][$bi] = ($matrix[$pid][$bi] ?? 0.0) + (float) $pay->amount;
+                    break;
+                }
+            }
+        }
+
+        // A calm, distinct palette; the first line stays the brand colour.
+        $palette = ['var(--primary)', '#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#ef4444'];
+
+        $seriesList = [];
+        $globalMax = 1;
+        foreach ($properties->values() as $idx => $p) {
+            $running = 0.0;
+            $values = [];
+            foreach ($buckets as $bi => $b) {
+                $running += (float) ($matrix[$p->id][$bi] ?? 0.0);
+                $values[] = (int) round($running);
+            }
+            $globalMax = max($globalMax, max($values ?: [0]));
+            $seriesList[] = [
+                'id' => $p->id,
+                'name' => $p->name,
+                'color' => $palette[$idx % count($palette)],
+                'values' => $values,
+            ];
         }
 
         return [
             'labels' => $labels,
-            'values' => $values,
-            'max' => max(1, max($values)),
+            'series' => $seriesList,
+            'max' => $globalMax,
         ];
     }
 
@@ -286,10 +386,10 @@ class Dashboard extends Component
 
     protected function propertyShelf()
     {
+        // No cap — a multi-property host should see every homestay here.
         return Property::query()
             ->withCount('rooms')
             ->orderByDesc('id')
-            ->limit(3)
             ->get()
             ->map(function (Property $p) {
                 $revenue = (float) Booking::query()

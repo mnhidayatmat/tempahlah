@@ -308,6 +308,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::post('/expenses',            [ExpenseController::class, 'store'])->name('expenses.store');
         Route::patch('/expenses/{id}',      [ExpenseController::class, 'update'])->name('expenses.update')->whereNumber('id');
         Route::delete('/expenses/{id}',     [ExpenseController::class, 'destroy'])->name('expenses.destroy')->whereNumber('id');
+        // Booking link — grab + share the public booking page on social media.
+        Route::get('/booking-link',         [\App\Http\Controllers\Tenant\BookingLinkController::class, 'index'])->name('booking-link.index');
+        Route::post('/booking-link/shared', [\App\Http\Controllers\Tenant\BookingLinkController::class, 'markShared'])->name('booking-link.shared');
+
         // Refer & Earn — the host's affiliate link, stats + commission
         // statement, and payout bank details. Available on every tier.
         Route::get('/referrals',            [\App\Http\Controllers\Tenant\ReferralController::class, 'index'])->name('referrals.index');
