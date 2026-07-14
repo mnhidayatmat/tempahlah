@@ -33,7 +33,7 @@
     <table class="kpis">
         <tr>
             <td>
-                <div class="kpi-label">Total revenue</div>
+                <div class="kpi-label">Gross sales</div>
                 <div class="kpi-value">RM {{ number_format($totalRevenue, 0) }}</div>
                 <div class="kpi-delta">{{ $revDelta !== null ? (($revDelta >= 0 ? '+' : '').round($revDelta * 100).'%').' vs prior 12 mo' : 'no prior data' }}</div>
             </td>
@@ -55,19 +55,38 @@
         </tr>
     </table>
 
-    <h2>Monthly revenue</h2>
+    <h2>Monthly profit &amp; loss</h2>
+    <p style="color:#888; font-size:9pt; margin-top:-4px;">Sales = billed to guests · Revenue = sales − SST &amp; tourism tax · Profit = revenue − expenses (RM).</p>
     <table class="data">
         <thead>
-            <tr><th>Month</th><th class="num">Revenue (RM)</th><th class="num">Occupancy</th></tr>
+            <tr>
+                <th>Month</th>
+                <th class="num">Sales</th>
+                <th class="num">Revenue</th>
+                <th class="num">Expenses</th>
+                <th class="num">Profit</th>
+                <th class="num">Occupancy</th>
+            </tr>
         </thead>
         <tbody>
             @foreach ($monthly as $m)
                 <tr>
                     <td>{{ $m['label'] }}</td>
-                    <td class="num">{{ number_format($m['revenue'], 0) }}</td>
+                    <td class="num">{{ number_format($m['sales'], 0) }}</td>
+                    <td class="num">{{ number_format($m['netRevenue'], 0) }}</td>
+                    <td class="num">{{ number_format($m['expenses'], 0) }}</td>
+                    <td class="num">{{ number_format($m['profit'], 0) }}</td>
                     <td class="num">{{ number_format($m['occupancy'] * 100, 0) }}%</td>
                 </tr>
             @endforeach
+            <tr style="font-weight:bold; border-top:2px solid #ccc;">
+                <td>Total</td>
+                <td class="num">{{ number_format($totalRevenue, 0) }}</td>
+                <td class="num">{{ number_format($totalNetRevenue, 0) }}</td>
+                <td class="num">{{ number_format($totalExpenses, 0) }}</td>
+                <td class="num">{{ number_format($totalProfit, 0) }}</td>
+                <td class="num">{{ number_format($occupancyAvg * 100, 0) }}%</td>
+            </tr>
         </tbody>
     </table>
 
