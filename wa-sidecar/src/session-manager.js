@@ -317,6 +317,27 @@ class SessionManager {
       if (type !== 'notify') return;
       for (const m of messages) {
         if (m.key.fromMe) continue;
+
+        // HARD GUARD: only ever act on a genuine 1:1 customer DM. WhatsApp
+        // delivers status/story updates, group chatter, channel posts and
+        // broadcast-list messages through this SAME `messages.upsert`
+        // 'notify' event. A text STATUS/STORY in particular arrives with
+        // remoteJid = 'status@broadcast' and the poster's phone JID in
+        // key.senderPn — which resolvePhoneNumberJid() below would happily
+        // return, so the sidecar forwarded it as a normal inbound and the AI
+        // agent replied to the person's story out of nowhere. Drop anything
+        // that isn't a direct chat right here, before it can reach Laravel.
+        // Real DMs use @s.whatsapp.net or (LID-routed) @lid; everything else
+        // (status@broadcast, @g.us groups, @newsletter channels, @broadcast
+        // lists) is NOT a customer messaging us.
+        if (!isDirectChat(m.key.remoteJid)) {
+          childLogger.info(
+            { remoteJid: m.key.remoteJid },
+            'skipping non-DM inbound (status/story, group, channel or broadcast) — the agent only replies to direct customer chats',
+          );
+          continue;
+        }
+
         const text =
           m.message?.conversation ??
           m.message?.extendedTextMessage?.text ??
@@ -391,6 +412,24 @@ function toJid(phone) {
   const digits = String(phone).replace(/[^0-9]/g, '');
   if (!digits) throw new Error('Invalid phone');
   return `${digits}@s.whatsapp.net`;
+}
+
+/**
+ * True only for a genuine 1:1 direct-message chat — the ONLY context the AI
+ * agent is allowed to auto-reply into. WhatsApp routes several non-customer
+ * message types through the same messages.upsert 'notify' event:
+ *   - status@broadcast   → someone's status / story update
+ *   - <id>@g.us          → group chat
+ *   - <id>@newsletter    → channel post
+ *   - <id>@broadcast     → broadcast-list message
+ * A real DM ends in @s.whatsapp.net, or @lid when WhatsApp's multi-device
+ * protocol routes the sender through an anonymized Linked-Identity JID.
+ * Anything else must be dropped before it can trigger a reply.
+ */
+function isDirectChat(jid) {
+  if (typeof jid !== 'string' || jid === '') return false;
+  if (jid === 'status@broadcast') return false;
+  return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid');
 }
 
 /**
