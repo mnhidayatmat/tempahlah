@@ -87,6 +87,20 @@ class Property extends Model
     }
 
     /**
+     * Bedroom count as the host entered it. A whole-house property has a
+     * single synthetic "Whole house" Room whose `beds` column carries the
+     * bedroom count — so `rooms->count()` is always 1 and must NOT be used
+     * for display. A per-room property has one Room per bedroom, so the row
+     * count is the bedroom count. Requires the `rooms` relation to be loaded.
+     */
+    public function bedroomCount(): int
+    {
+        return $this->isWholeHousePricing()
+            ? (int) ($this->rooms->first()?->beds ?? 0)
+            : $this->rooms->count();
+    }
+
+    /**
      * Starting nightly rate to show on cards / search results.
      * Whole-house properties: the single price.
      * Per-room properties:   the cheapest room (so guests see "from RM X").

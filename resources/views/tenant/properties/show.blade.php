@@ -166,8 +166,13 @@
                                text-shadow: 0 2px 16px rgba(0,0,0,0.4);">
                         {{ $property->name }}
                     </h1>
+                    @php $bedroomCount = $property->bedroomCount(); @endphp
                     <div style="margin-top: 10px; display:flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: rgba(255,255,255,0.92);">
-                        <span>🛏️ {{ trans_choice('{0} no rooms|{1} 1 room|[2,*] :count rooms', $property->rooms->count(), ['count' => $property->rooms->count()]) }}</span>
+                        <span>🛏️
+                            {{ $property->isWholeHousePricing()
+                                ? trans_choice('{0} no bedrooms|{1} 1 bedroom|[2,*] :count bedrooms', $bedroomCount, ['count' => $bedroomCount])
+                                : trans_choice('{0} no rooms|{1} 1 room|[2,*] :count rooms', $bedroomCount, ['count' => $bedroomCount]) }}
+                        </span>
                         @if (($property->bathrooms ?? 0) > 0)
                             <span>🚿 {{ trans_choice('{1} 1 bathroom|[2,*] :count bathrooms', $property->bathrooms, ['count' => $property->bathrooms]) }}</span>
                         @endif
@@ -900,8 +905,12 @@
                     <a href="{{ route('tenant.properties.edit', ['property' => $property->public_id]) }}" class="btn btn-sm">{{ __('Edit facilities') }}</a>
                 </div>
 
-                {{-- Bathroom + toilet counts --}}
-                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:18px;">
+                {{-- Bedroom + bathroom + toilet counts (all from what the host entered) --}}
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:18px;">
+                    <div style="padding: 12px 14px; background: var(--bg-elev); border-radius: var(--r-md); border: 1px solid var(--line);">
+                        <div style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:3px;">🛏️ {{ $property->isWholeHousePricing() ? __('Bedrooms') : __('Rooms') }}</div>
+                        <div style="font-size:20px; font-weight:700; color: var(--ink); font-family: var(--font-mono);">{{ $property->bedroomCount() }}</div>
+                    </div>
                     <div style="padding: 12px 14px; background: var(--bg-elev); border-radius: var(--r-md); border: 1px solid var(--line);">
                         <div style="font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:3px;">🚿 {{ __('Bathrooms') }}</div>
                         <div style="font-size:20px; font-weight:700; color: var(--ink); font-family: var(--font-mono);">{{ $property->bathrooms ?? 0 }}</div>
