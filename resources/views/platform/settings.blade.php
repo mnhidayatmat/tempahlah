@@ -7,7 +7,7 @@
                 <div class="kicker" style="color: var(--primary);">{{ __('Platform admin') }}</div>
                 <div class="display-2" style="margin-top: 4px;">{{ __('Settings') }}</div>
                 <div style="margin-top: 6px; color: var(--ink-3); font-size: 14px;">
-                    {{ __('Platform-wide payment keys. Secrets are encrypted at rest.') }}
+                    {{ __('Platform-wide payment keys & marketing tags. Secrets are encrypted at rest.') }}
                 </div>
             </div>
             <a href="{{ route('platform.overview') }}" class="btn btn-sm">
@@ -93,6 +93,34 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap: wrap;">
                     <div style="font-size: 12px; color: var(--ink-3);">{{ __('Verify the saved key authenticates + the price is recurring.') }}</div>
                     <button type="submit" class="btn btn-sm">{{ __('Test connection') }}</button>
+                </div>
+            </form>
+        </div>
+
+        {{-- Meta (Facebook) Pixel --}}
+        <div class="hauz-card" style="padding: 22px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px; margin-bottom: 4px;">
+                <div class="kicker">{{ __('Meta (Facebook) Pixel — ad tracking') }}</div>
+                <span class="pill {{ $facebookPixelActive ? 'pill-ok' : '' }}" style="height: 20px; font-size: 11px;">
+                    <span class="pill-dot"></span>{{ $facebookPixelActive ? __('Active') : __('Not configured') }}
+                </span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--ink-3); margin-bottom: 18px;">
+                {{ __('Tracks PageView on the landing + signup pages, and a CompleteRegistration conversion when a host signs up. Leave blank to turn tracking off.') }}
+            </div>
+
+            <form method="POST" action="{{ route('platform.settings.marketing') }}" style="display:flex; flex-direction:column; gap: 16px;">
+                @csrf
+                <div>
+                    <label class="kicker" style="display:block; margin-bottom: 6px;">{{ __('Pixel ID') }}</label>
+                    <input class="input" type="text" name="facebook_pixel_id" inputmode="numeric" autocomplete="off"
+                           value="{{ old('facebook_pixel_id', $facebookPixelId) }}" placeholder="e.g. 1234567890123456">
+                    <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">
+                        {{ __('From Meta Events Manager → your Pixel (the 15–16 digit ID). Public value — safe to expose. Overrides FACEBOOK_PIXEL_ID in .env.') }}
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap: 8px; padding-top: 6px;">
+                    <button type="submit" class="btn btn-primary">{{ __('Save marketing settings') }}</button>
                 </div>
             </form>
         </div>

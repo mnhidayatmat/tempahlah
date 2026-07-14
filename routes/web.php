@@ -386,6 +386,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
             Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');
             Route::post('/settings/test-stripe', [\App\Http\Controllers\PlatformAdminController::class, 'testStripe'])->name('settings.test-stripe');
+            Route::post('/settings/marketing', [\App\Http\Controllers\PlatformAdminController::class, 'updateMarketing'])->name('settings.marketing');
 
             // Email marketing — campaigns to hosts (free → Pro pitches etc.),
             // with a per-recipient delivery log + PDPA unsubscribe.

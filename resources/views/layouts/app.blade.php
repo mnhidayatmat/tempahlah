@@ -25,6 +25,12 @@
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <meta name="theme-color" content="#2596c6">
     @include('partials.pwa')
+    {{-- Meta Pixel fires ONLY on the post-signup landing (flashed by the register
+         controllers) — so the private dashboard isn't tracked on every view.
+         Inert until FACEBOOK_PIXEL_ID is set; renders nothing otherwise. --}}
+    @if (session('fb_track'))
+        @include('partials.facebook-pixel', ['fbEvent' => session('fb_track')])
+    @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">

@@ -184,7 +184,29 @@ class PlatformAdminController extends Controller
             ],
             'stripeEnabled' => $stripe->enabled(),
             'webhookUrl' => url('/api/webhooks/stripe'),
+            // Meta Pixel ID is a public value (ships in page HTML) — show in full.
+            // UI value wins, else the FACEBOOK_PIXEL_ID env fallback (matches the partial).
+            'facebookPixelId' => (string) PlatformSetting::get('facebook_pixel.id', ''),
+            'facebookPixelActive' => filled(PlatformSetting::get('facebook_pixel.id') ?: config('services.facebook_pixel.id')),
         ]);
+    }
+
+    /**
+     * Marketing tags (Meta Pixel). Separate form/handler from Stripe so saving
+     * one card never clears the other's fields. The Pixel ID is a public value,
+     * so no masking — always set (blank clears it → falls back to .env, or off).
+     */
+    public function updateMarketing(Request $request)
+    {
+        $validated = $request->validate([
+            'facebook_pixel_id' => ['nullable', 'string', 'max:40', 'regex:/^[0-9]*$/'],
+        ], [
+            'facebook_pixel_id.regex' => __('The Meta Pixel ID is digits only (from Events Manager).'),
+        ]);
+
+        PlatformSetting::put('facebook_pixel.id', trim((string) ($validated['facebook_pixel_id'] ?? '')));
+
+        return redirect()->route('platform.settings')->with('status', __('Marketing settings saved.'));
     }
 
     public function updateSettings(Request $request)

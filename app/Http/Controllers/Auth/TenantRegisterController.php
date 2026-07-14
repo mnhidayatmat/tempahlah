@@ -34,6 +34,9 @@ class TenantRegisterController extends Controller
         $request->session()->put('current_tenant_public_id', $tenant->public_id);
 
         return redirect()->route('tenant.dashboard')
-            ->with('status', __('Welcome! Your homestay account is ready.'));
+            ->with('status', __('Welcome! Your homestay account is ready.'))
+            // Fires the Meta Pixel CompleteRegistration conversion once, on the
+            // dashboard page this redirect lands on (see layouts/app.blade.php).
+            ->with('fb_track', 'CompleteRegistration');
     }
 }

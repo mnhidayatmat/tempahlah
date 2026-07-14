@@ -73,7 +73,10 @@ class CreateHomestayController extends Controller
         $request->session()->put('current_tenant_public_id', $tenant->public_id);
 
         return redirect()->route('tenant.dashboard')
-            ->with('status', __('Welcome! Your homestay ":name" is ready.', ['name' => $tenant->business_name]));
+            ->with('status', __('Welcome! Your homestay ":name" is ready.', ['name' => $tenant->business_name]))
+            // Meta Pixel CompleteRegistration — fired once on the dashboard this
+            // lands on. Only here (real signup), not the double-submit guard above.
+            ->with('fb_track', 'CompleteRegistration');
     }
 
     /**

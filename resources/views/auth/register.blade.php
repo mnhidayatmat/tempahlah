@@ -17,6 +17,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#0e2a3a">
     @include('partials.pwa')
+    {{-- Meta Pixel: PageView on the signup form (inert until FACEBOOK_PIXEL_ID is set). --}}
+    @include('partials.facebook-pixel')
 
     @php $loc = app()->getLocale(); $isBM = $loc === 'ms'; @endphp
 

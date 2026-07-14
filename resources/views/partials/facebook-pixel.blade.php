@@ -1,7 +1,11 @@
 @php
-    // Meta (Facebook) Pixel — renders nothing until FACEBOOK_PIXEL_ID is set,
-    // so the snippet is inert in local dev and on prod until the ID is added.
-    $fbPixelId = config('services.facebook_pixel.id');
+    // Meta (Facebook) Pixel — renders nothing until a Pixel ID is set. Resolves
+    // the super-admin UI value first (Platform Admin → Settings, stored in
+    // platform_settings), then falls back to FACEBOOK_PIXEL_ID in .env — same
+    // precedence as the Stripe keys. rescue() so a DB hiccup on the public
+    // landing page falls back to config instead of 500-ing.
+    $fbPixelId = rescue(fn () => \App\Models\PlatformSetting::get('facebook_pixel.id'), null, false)
+        ?: config('services.facebook_pixel.id');
 @endphp
 @if($fbPixelId)
     <!-- Meta Pixel Code -->
