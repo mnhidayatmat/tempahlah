@@ -48,9 +48,20 @@ class ReportController extends Controller
         $monthly = collect(range(0, 11))->map(function ($i) use ($start) {
             $monthStart = $start->copy()->addMonths($i)->startOfMonth();
             $monthEnd = $monthStart->copy()->endOfMonth();
+
+            $sales = $this->stats->revenue($monthStart, $monthEnd);          // gross (total_amount)
+            $netRevenue = $this->stats->netRevenue($monthStart, $monthEnd);  // ex government taxes
+            $expenses = $this->stats->expenses($monthStart, $monthEnd);      // operating cost
+
             return [
                 'label' => $monthStart->format("M'y"),
-                'revenue' => $this->stats->revenue($monthStart, $monthEnd),
+                // 'revenue' stays = gross sales for backward compatibility with
+                // the KPI total + the PDF; the chart draws the four P&L series.
+                'revenue' => $sales,
+                'sales' => $sales,
+                'netRevenue' => $netRevenue,
+                'expenses' => $expenses,
+                'profit' => round($netRevenue - $expenses, 2),
                 'occupancy' => $this->stats->occupancy($monthStart, $monthEnd) / 100,
                 'bookings' => $this->stats->bookingCount($monthStart, $monthEnd),
             ];
@@ -59,6 +70,11 @@ class ReportController extends Controller
         $totalRevenue = (float) $monthly->sum('revenue');
         $priorRevenue = $this->stats->revenue($priorStart, $priorEnd);
         $revDelta = $priorRevenue > 0 ? ($totalRevenue - $priorRevenue) / $priorRevenue : null;
+
+        // P&L totals for the trend chart + KPIs.
+        $totalNetRevenue = (float) $monthly->sum('netRevenue');
+        $totalExpenses = (float) $monthly->sum('expenses');
+        $totalProfit = round($totalNetRevenue - $totalExpenses, 2);
 
         $occupancyAvg = (float) $monthly->avg('occupancy');
         $priorOccupancy = $this->stats->occupancy($priorStart, $priorEnd) / 100;
@@ -108,6 +124,9 @@ class ReportController extends Controller
             'periodEnd' => $end,
             'monthly' => $monthly,
             'totalRevenue' => $totalRevenue,
+            'totalNetRevenue' => $totalNetRevenue,
+            'totalExpenses' => $totalExpenses,
+            'totalProfit' => $totalProfit,
             'revDelta' => $revDelta,
             'occupancyAvg' => $occupancyAvg,
             'occDelta' => $occDelta,

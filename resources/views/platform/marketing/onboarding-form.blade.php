@@ -47,7 +47,14 @@
                            value="{{ old('subject', $step->subject ?? '') }}">
                 </label>
 
-                <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px;">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px;">
+                    @unless ($isEdit)
+                        <label style="display:flex; flex-direction:column; gap: 5px;">
+                            <span style="font-size: 12px; color: var(--ink-2);">{{ __('Step number (#)') }}</span>
+                            <input type="number" name="step_no" required min="1" max="999" class="input"
+                                   value="{{ old('step_no', $suggestedStep ?? 1) }}">
+                        </label>
+                    @endunless
                     <label style="display:flex; flex-direction:column; gap: 5px;">
                         <span style="font-size: 12px; color: var(--ink-2);">{{ __('Days after signup') }}</span>
                         <input type="number" name="day_offset" required min="0" max="60" class="input"

@@ -66,7 +66,7 @@ MD;
 
     /* ── Onboarding series (automated new-host drip) ─────────────────────── */
 
-    /** Blank new-step form. step_no is system-assigned on save (immutable). */
+    /** Blank new-step form. The admin picks the step number (must be unique). */
     public function createOnboarding()
     {
         // Suggest the next day slot so a new step naturally lands after the last.
@@ -75,6 +75,7 @@ MD;
         return view('platform.marketing.onboarding-form', [
             'step' => null,
             'suggestedDay' => min($nextDay, 60),
+            'suggestedStep' => (int) (\App\Models\OnboardingEmail::max('step_no') ?? 0) + 1,
         ]);
     }
 
@@ -82,10 +83,16 @@ MD;
     {
         $validated = $this->validatedOnboarding($request);
 
+        // step_no is admin-chosen but must stay unique (it keys the per-tenant
+        // send log, so a collision would corrupt one-email-per-step tracking).
+        $stepNo = (int) $request->validate([
+            'step_no' => ['required', 'integer', 'min:1', 'max:999', 'unique:onboarding_emails,step_no'],
+        ], [
+            'step_no.unique' => __('Step number :input is already used — pick a different number.', ['input' => $request->input('step_no')]),
+        ])['step_no'];
+
         $step = \App\Models\OnboardingEmail::create($validated + [
-            // step_no is a stable internal id, not a display order — the series
-            // is sorted by day_offset. Assign the next free number to stay unique.
-            'step_no' => (int) (\App\Models\OnboardingEmail::max('step_no') ?? 0) + 1,
+            'step_no' => $stepNo,
             'enabled' => $request->boolean('enabled'),
             'skip_if_paid' => $request->boolean('skip_if_paid'),
         ]);

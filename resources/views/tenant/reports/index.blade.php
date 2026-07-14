@@ -28,14 +28,20 @@
 
         {{-- KPIs --}}
         @php
+            $margin = $totalNetRevenue > 0 ? $totalProfit / $totalNetRevenue : null;
+            $marginPill = $margin === null
+                ? ['cls' => 'pill', 'text' => '—']
+                : ['cls' => $totalProfit >= 0 ? 'pill-ok' : 'pill-err', 'text' => round($margin * 100).'% '.__('margin')];
             $kpis = [
-                [__('Total revenue'), 'RM '.number_format($totalRevenue, 0), $deltaPill($revDelta), __('vs prior 12 months')],
+                [__('Gross sales'), 'RM '.number_format($totalRevenue, 0), $deltaPill($revDelta), __('total billed to guests')],
+                [__('Net profit'), 'RM '.number_format($totalProfit, 0), $marginPill, __('net revenue − expenses')],
+                [__('Expenses'), 'RM '.number_format($totalExpenses, 0), ['cls' => 'pill', 'text' => '—'], __('cleaning, laundry, upkeep')],
                 [__('Occupancy avg'), number_format($occupancyAvg * 100, 1).'%', $deltaPill($occDelta), __('across active rooms')],
                 [__('ADR'), 'RM '.number_format($adr, 0), $deltaPill($adrDelta), __('blended weekday & weekend')],
                 [__('RevPAR'), 'RM '.number_format($revPAR, 0), ['cls' => 'pill', 'text' => '—'], __('RM/available room/night')],
             ];
         @endphp
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px;">
             @foreach ($kpis as [$label, $value, $delta, $sub])
                 <div class="hauz-card" style="padding: 18px;">
                     <div class="kicker" style="margin-bottom: 8px;">{{ $label }}</div>
@@ -48,19 +54,32 @@
             @endforeach
         </div>
 
-        {{-- Trend chart: revenue + number of bookings as grouped bars on a
-             dual axis. Left axis = RM (revenue), right axis = booking count.
-             Two bars per month sit side by side so the months line up and
-             both series stay easy to compare. Hover any bar for exact figures. --}}
+        {{-- Profit & loss trend: Sales, Revenue, Expenses and Profit drawn as
+             four lines on one shared RM axis (all the same unit, so no dual
+             axis needed). The zero baseline is emphasised whenever profit dips
+             negative. Hover any month for the exact figures. --}}
         <div class="hauz-card" style="padding: 22px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
+            @php
+                $series = [
+                    ['key' => 'sales',      'label' => __('Sales'),    'color' => 'var(--info)'],
+                    ['key' => 'netRevenue', 'label' => __('Revenue'),  'color' => 'var(--primary)'],
+                    ['key' => 'expenses',   'label' => __('Expenses'), 'color' => 'var(--err)'],
+                    ['key' => 'profit',     'label' => __('Profit'),   'color' => 'var(--ok)'],
+                ];
+            @endphp
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
                 <div>
-                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue & bookings') }}</div>
-                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · % above bars = occupancy · hover for exact figures') }}</div>
+                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Profit & loss') }}</div>
+                    <div style="font-size: 12.5px; color: var(--ink-3); max-width: 460px; line-height: 1.5;">
+                        {{ __('Last 12 months. Sales = billed to guests · Revenue = sales − SST & tourism tax · Profit = revenue − expenses.') }}
+                    </div>
                 </div>
-                <div style="display:flex; gap:14px; font-size: 11.5px; color: var(--ink-3);">
-                    <span><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Revenue (RM)') }}</span>
-                    <span><span style="display:inline-block; width:10px; height:10px; background: var(--accent); border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>{{ __('Bookings') }}</span>
+                <div style="display:flex; gap:16px; flex-wrap:wrap; font-size: 11.5px; color: var(--ink-2);">
+                    @foreach ($series as $s)
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                            <span style="display:inline-block; width:14px; height:3px; border-radius:2px; background: {{ $s['color'] }};"></span>{{ $s['label'] }}
+                        </span>
+                    @endforeach
                 </div>
             </div>
 
