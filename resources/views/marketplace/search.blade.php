@@ -20,23 +20,6 @@
 <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 <meta name="theme-color" content="#2596c6">
 @include('partials.pwa')
-@auth
-{{-- Installed-PWA launch → dashboard. Home-screen installs made before the
-     manifest's start_url moved to /dashboard are frozen on "/", which is now
-     the traveller marketplace — so a signed-in host opening the app landed
-     here instead of their dashboard. Only fires on a cold app launch
-     (standalone display mode + no referrer); browsing to the marketplace
-     from inside the app or a normal browser tab is untouched. --}}
-<script>
-    (function () {
-        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-            || window.navigator.standalone === true;
-        if (standalone && document.referrer === '') {
-            window.location.replace(@js(route('tenant.dashboard')));
-        }
-    })();
-</script>
-@endauth
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">

@@ -32,6 +32,18 @@ return [
         'sns_topic_arn' => env('SES_SNS_TOPIC_ARN'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Meta (Facebook) Pixel
+    |--------------------------------------------------------------------------
+    | Pixel ID from Meta Events Manager (business.facebook.com/events_manager).
+    | Rendered by partials/facebook-pixel.blade.php on public marketing pages;
+    | the snippet is omitted entirely while this is unset.
+    */
+    'facebook_pixel' => [
+        'id' => env('FACEBOOK_PIXEL_ID'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

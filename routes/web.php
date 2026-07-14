@@ -87,16 +87,11 @@ Route::domain('{tenant_slug}.'.config('app.tenant_domain'))
 // All existing app routes live here.
 // -----------------------------------------------------------------------------
 Route::domain(config('app.tenant_domain'))->group(function () {
-    // Root is now the traveller-facing homestay marketplace search — for
-    // everyone, including logged-in hosts (who get a Dashboard link in the
-    // nav rather than an auto-redirect). Keeps the `marketplace.search` name
-    // so every existing route('marketplace.search') reference points here.
-    Route::get('/', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'search'])
-        ->middleware('throttle:marketplace-search')
-        ->name('marketplace.search');
-
-    // Host-acquisition page (the former landing) now lives at /hosts.
-    Route::get('/hosts', fn () => view('welcome'))->name('hosts');
+    // Root is the host-acquisition landing page (the marketing/welcome page).
+    // Keeps the `hosts` route name so every existing route('hosts') reference
+    // points here. The old /hosts URL 301-redirects to / for bookmarks/SEO.
+    Route::get('/', fn () => view('welcome'))->name('hosts');
+    Route::redirect('/hosts', '/', 301);
 
     // Affiliate short link — tempahlah.com/r/{code}. Captures the referral
     // cookie (60 days, last click wins) + counts the click, then lands the
@@ -181,10 +176,13 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::get('/callback', [\App\Http\Controllers\OAuth\GoogleCalendarOAuthController::class, 'callback'])->name('callback');
         });
 
-    // Marketplace (public). Search now lives at the root (/), so the old
-    // /marketplace index 301-redirects there; the listing detail stays under
-    // /marketplace/{slug}.
-    Route::redirect('/marketplace', '/', 301);
+    // Marketplace (public). The traveller-facing search lives at /marketplace;
+    // it keeps the `marketplace.search` name so every existing
+    // route('marketplace.search') reference points here. The listing detail
+    // stays under /marketplace/{slug}.
+    Route::get('/marketplace', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'search'])
+        ->middleware('throttle:marketplace-search')
+        ->name('marketplace.search');
     Route::get('/marketplace/{listing:slug}', [App\Http\Controllers\Marketplace\MarketplaceController::class, 'show'])
         ->middleware('throttle:marketplace-search')
         ->name('marketplace.show');

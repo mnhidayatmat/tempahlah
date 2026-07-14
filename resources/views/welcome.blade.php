@@ -13,6 +13,22 @@
 
     <link rel="icon" href="/icons/logo.svg" type="image/svg+xml">
     @include('partials.pwa')
+    @auth
+    {{-- Installed-PWA launch → dashboard. Home-screen installs are frozen on
+         "/", which is the landing page — so a signed-in host opening the app
+         landed here instead of their dashboard. Only fires on a cold app launch
+         (standalone display mode + no referrer); browsing to the landing page
+         from inside the app or a normal browser tab is untouched. --}}
+    <script>
+        (function () {
+            var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+            if (standalone && document.referrer === '') {
+                window.location.replace(@js(route('tenant.dashboard')));
+            }
+        })();
+    </script>
+    @endauth
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -660,6 +676,8 @@
             .tm-reveal { opacity: 1; transform: none; }
         }
     </style>
+
+    @include('partials.facebook-pixel')
 </head>
 <body>
 
@@ -1604,6 +1622,27 @@
                     <p>{{ $f[1] }}</p>
                 </details>
             @endforeach
+        </div>
+    </div>
+</section>
+
+{{-- ============ REFER & EARN ============ --}}
+<section class="tm-refer" style="padding:96px 0; background:var(--bg);">
+    <div class="tm-container tm-container-narrow">
+        <div class="tm-section-head">
+            <span class="tm-kicker is-center" style="color:var(--accent);">{{ $isMs ? 'AJAK & DAPAT' : 'REFER & EARN' }}</span>
+            <h2 class="tm-h2 tm-center">
+                @if ($isMs)
+                    Kenal tuan homestay lain?<br><em style="color:var(--accent)">Dapat 20% komisen.</em>
+                @else
+                    Know other homestay owners?<br><em style="color:var(--accent)">Earn 20% commission.</em>
+                @endif
+            </h2>
+            <p class="tm-lead tm-center" style="margin-left:auto;margin-right:auto;">
+                {{ $isMs
+                    ? 'Ajak mereka sertai Tempahlah. Untuk setiap hos yang melanggan, anda dapat 20% daripada bayaran langganan mereka selama 12 bulan penuh — dibayar terus ke akaun bank anda. Selepas daftar, jumpa link rujukan anda di “Ajak & Dapat” dalam dashboard.'
+                    : 'Invite them to Tempahlah. For every host who subscribes, you earn 20% of their subscription for a full 12 months — paid straight to your bank account. After you sign up, find your referral link under “Refer & Earn” in your dashboard.' }}
+            </p>
         </div>
     </div>
 </section>
