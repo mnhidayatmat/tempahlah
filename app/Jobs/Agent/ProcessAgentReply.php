@@ -40,6 +40,10 @@ class ProcessAgentReply implements ShouldQueue
         public int $tenantId,
         public int $conversationId,
         public int $inboundMessageId,
+        // WhatsApp's real send time (epoch seconds). 0 = unknown → fail-open.
+        // Used by the stale-inbound guard so a queue backlog can't produce a
+        // reply to a message the customer sent long ago.
+        public int $sentAtUnix = 0,
     ) {
         $this->onQueue('agent');
     }
@@ -81,14 +85,19 @@ class ProcessAgentReply implements ShouldQueue
                 return;
             }
 
-            // Stale-inbound guard: never reply to an inbound that arrived more
-            // than N minutes ago. This protects guests from "out of the blue"
-            // replies caused by queue backlogs, sidecar restarts, or any other
-            // delay between webhook receipt and job processing. If a customer
-            // messaged hours ago and gave up, we should NOT suddenly ping them
-            // with a robot reply once the queue catches up.
+            // Stale-inbound guard: never reply to an inbound the customer sent
+            // more than N minutes ago. Protects against "out of the blue"
+            // replies from queue backlogs, sidecar restarts, or WhatsApp
+            // flushing offline/old messages on reconnect. Measure from the REAL
+            // send time (sentAtUnix), NOT created_at — created_at is our DB
+            // insert time, which is "now" even for a message WhatsApp delivered
+            // late, so it would let a long-past message through. Fall back to
+            // created_at only when the send time is unknown (0).
             $maxAgeMinutes = (int) config('agent.max_inbound_age_minutes', 5);
-            $ageMinutes = $inbound->created_at?->diffInMinutes(now()) ?? 0;
+            $sentAt = $this->sentAtUnix > 0
+                ? \Illuminate\Support\Carbon::createFromTimestamp($this->sentAtUnix)
+                : $inbound->created_at;
+            $ageMinutes = $sentAt?->diffInMinutes(now()) ?? 0;
             if ($ageMinutes > $maxAgeMinutes) {
                 Log::info('Agent reply skipped: inbound too old', [
                     'tenant_id'      => $this->tenantId,

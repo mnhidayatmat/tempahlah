@@ -13,6 +13,7 @@ use App\Models\WhatsappSession;
 use App\Services\Agent\AgentSettings;
 use App\Services\WhatsApp\PhoneNumber;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Laravel\Pennant\Feature;
 
@@ -122,7 +123,15 @@ class WhatsappWebhookController extends Controller
 
         if (! $fromPhone || ! $body) return;
 
-        // Log the inbound message.
+        // WhatsApp's real send time. On reconnect, WhatsApp flushes every
+        // message that queued while the device was offline — those arrive at
+        // this webhook "now" but were actually sent long ago. Gate the agent
+        // on when the customer really sent it, not on when we received it.
+        // 0/absent → treat as now (fail-open, never swallow a genuine message).
+        $sentAtUnix = (int) ($payload['sentAtUnix'] ?? 0);
+        $sentAt = $sentAtUnix > 0 ? Carbon::createFromTimestamp($sentAtUnix) : now();
+
+        // Log the inbound message. delivered_at reflects the real send time.
         $inboundMsg = WhatsappMessage::create([
             'tenant_id' => $tenant->id,
             'direction' => WhatsappMessage::DIRECTION_IN,
@@ -130,7 +139,7 @@ class WhatsappWebhookController extends Controller
             'recipient_phone' => $fromPhone,
             'body' => $body,
             'status' => WhatsappMessage::STATUS_DELIVERED,
-            'delivered_at' => now(),
+            'delivered_at' => $sentAt,
         ]);
 
         // Opt-out keyword detection (must run BEFORE the agent so a STOP
@@ -144,7 +153,7 @@ class WhatsappWebhookController extends Controller
             }
         }
 
-        $this->maybeDispatchAgent($tenant, $fromPhone, $body, $inboundMsg);
+        $this->maybeDispatchAgent($tenant, $fromPhone, $body, $inboundMsg, $sentAt);
     }
 
     /**
@@ -158,11 +167,28 @@ class WhatsappWebhookController extends Controller
         string $fromPhone,
         string $body,
         WhatsappMessage $inboundMsg,
+        Carbon $sentAt,
     ): void {
         if (! Feature::for($tenant)->active('ai_agent')) return;
 
         $settings = AgentSettings::forTenant($tenant);
         if (! $settings->enabled) return;
+
+        // Freshness gate (defense-in-depth; the sidecar also drops stale
+        // messages at source). Never take ANY agent action on a message the
+        // customer sent long ago — not the LLM reply, not the out-of-hours
+        // auto-reply. This is what stops the agent pinging a customer "out of
+        // the blue" when WhatsApp flushes offline/old messages on connect.
+        $maxAgeMinutes = (int) config('agent.max_inbound_age_minutes', 5);
+        if ($sentAt->diffInMinutes(now()) > $maxAgeMinutes) {
+            Log::info('Agent skipped: inbound older than freshness cutoff', [
+                'tenant_id'   => $tenant->id,
+                'age_minutes' => $sentAt->diffInMinutes(now()),
+                'cap_minutes' => $maxAgeMinutes,
+            ]);
+
+            return;
+        }
 
         if ($this->guestOptedOut($tenant, $fromPhone)) return;
 
@@ -220,7 +246,7 @@ class WhatsappWebhookController extends Controller
             ->count();
         if ($todayCount >= $perPhoneCap) return;
 
-        ProcessAgentReply::dispatch($tenant->id, $convo->id, $inboundMsg->id);
+        ProcessAgentReply::dispatch($tenant->id, $convo->id, $inboundMsg->id, $sentAt->timestamp);
     }
 
     /**

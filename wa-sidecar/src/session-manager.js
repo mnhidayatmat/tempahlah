@@ -323,6 +323,34 @@ class SessionManager {
           '';
         if (!text) continue;
 
+        // Freshness gate — the single most important guard against the AI
+        // agent replying to a customer "out of the blue" on connect.
+        //
+        // WhatsApp holds every message that arrived while this linked device
+        // was offline and flushes them ALL as `type: 'notify'` the instant we
+        // reconnect (they are new to *this* socket, so the notify/append filter
+        // above does not catch them). Their real send time, however, is in the
+        // past. Drop anything older than the cutoff right here so it never
+        // reaches Laravel — protecting the agent reply, the out-of-hours
+        // auto-reply, and every other inbound path at once.
+        //
+        // m.messageTimestamp is Unix SECONDS (a protobuf Long or a number).
+        // Fail OPEN when it's missing/zero: forward it, so a genuinely new
+        // message with an odd payload is never silently swallowed.
+        const sentAtSec = Number(
+          m.messageTimestamp?.toNumber?.() ?? m.messageTimestamp ?? 0,
+        );
+        if (sentAtSec > 0) {
+          const ageSec = Math.floor(Date.now() / 1000) - sentAtSec;
+          if (ageSec > config.maxInboundAgeSeconds) {
+            childLogger.info(
+              { ageSec, cutoffSec: config.maxInboundAgeSeconds, from: m.key.remoteJid },
+              'dropping stale inbound (WhatsApp flushed an offline/old message on connect) — not forwarding',
+            );
+            continue;
+          }
+        }
+
         // WhatsApp's Multi-Device protocol routes some senders through
         // anonymized "LID" JIDs (e.g. 204062519738487@lid) instead of the
         // expected 60xxxxxxxxx@s.whatsapp.net. We can't reply to a LID —
@@ -344,6 +372,10 @@ class SessionManager {
           tenantId,
           fromPhone: `+${phone}`,
           body: text,
+          // WhatsApp's real send time (epoch seconds), so Laravel gates on when
+          // the customer actually sent it — not when we happened to receive it.
+          // 0 when unknown (Laravel then treats it as fresh, fail-open).
+          sentAtUnix: sentAtSec,
           receivedAt: new Date().toISOString(),
         });
       }
