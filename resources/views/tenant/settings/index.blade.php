@@ -313,8 +313,11 @@
                 </div>
             </div>
 
-            {{-- Manual payment (bank transfer / cash) --}}
-            <div class="hauz-card" style="padding: 22px;">
+            {{-- Manual payment (bank transfer / cash). Anchored (#payment-setup) so the
+                 onboarding checklist's "Tell guests how to pay you" step lands the host
+                 directly here, not at the top of the page. scroll-margin-top clears the
+                 64px sticky topbar so the heading isn't hidden under it. --}}
+            <div id="payment-setup" class="hauz-card" style="padding: 22px; scroll-margin-top: 88px;">
                 <div class="kicker" style="margin-bottom: 4px;">{{ __('Manual payment (bank transfer / cash)') }}</div>
                 <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
                     {{ __('Your booking page always lets guests choose to pay you directly instead of through the online gateway. They still get an invoice; you mark the booking fee / full payment as paid in the booking, which sends them a receipt.') }}
@@ -833,4 +836,28 @@
             </div>
         </form>
     </div>
+
+    {{-- Onboarding deep-link. When the setup checklist sends a host here to set up
+         payments (#payment-setup), smooth-scroll to that card and flash it so it's
+         obvious where they landed. Native scroll-margin already offsets the sticky
+         topbar, so this still works with JS disabled — it just isn't animated. --}}
+    <style>
+        @keyframes su-payment-flash {
+            0%   { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 55%, transparent); }
+            100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 0%, transparent); }
+        }
+        #payment-setup.is-flash { animation: su-payment-flash 1.8s ease-out 1; }
+    </style>
+    <script>
+        (function () {
+            if (window.location.hash !== '#payment-setup') return;
+            var el = document.getElementById('payment-setup');
+            if (!el) return;
+            window.requestAnimationFrame(function () {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('is-flash');
+                setTimeout(function () { el.classList.remove('is-flash'); }, 2000);
+            });
+        })();
+    </script>
 </x-app-layout>

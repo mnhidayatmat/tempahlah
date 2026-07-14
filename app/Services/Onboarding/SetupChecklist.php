@@ -132,7 +132,10 @@ class SetupChecklist
                 : __('Add your bank details for transfers, or connect an online payment gateway.'),
             'done' => $gateway !== null || $manual,
             'cta' => __('Payment settings'),
-            'route' => route('tenant.settings.index'),
+            // Deep-link straight to the payment card so a first-time host lands on
+            // it, instead of at the top of Settings having to scroll past Business
+            // info + tax. The anchor is handled in settings/index.blade.php.
+            'route' => route('tenant.settings.index').'#payment-setup',
         ];
     }
 
