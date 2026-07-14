@@ -90,6 +90,37 @@
         </tbody>
     </table>
 
+    <h2>Expenses breakdown</h2>
+    @if ($totalExpenses <= 0)
+        <p style="color: #888; font-size: 9pt;">No expenses recorded in this period.</p>
+    @else
+        <table class="data">
+            <thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead>
+            <tbody>
+                @php
+                    $expenseRows = [
+                        'Cleaning' => (float) $expenseBreakdown['cleaning'],
+                        'Laundry' => (float) $expenseBreakdown['laundry'],
+                        'Maintenance' => (float) $expenseBreakdown['maintenance'],
+                        'Other expenses' => (float) $expenseBreakdown['other'],
+                    ];
+                @endphp
+                @foreach ($expenseRows as $name => $value)
+                    <tr>
+                        <td>{{ $name }}</td>
+                        <td class="num">RM {{ number_format($value, 0) }}</td>
+                        <td class="num">{{ number_format(($value / max(1, $totalExpenses)) * 100, 0) }}%</td>
+                    </tr>
+                @endforeach
+                <tr style="font-weight:bold; border-top:2px solid #ccc;">
+                    <td>Total</td>
+                    <td class="num">RM {{ number_format($totalExpenses, 0) }}</td>
+                    <td class="num">100%</td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
+
     <h2>Revenue by property</h2>
     @if ($properties->isEmpty())
         <p style="color: #888; font-size: 9pt;">No revenue in this period.</p>

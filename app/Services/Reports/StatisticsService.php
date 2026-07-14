@@ -90,12 +90,27 @@ class StatisticsService
      */
     public function expenses(CarbonInterface $start, CarbonInterface $end): float
     {
-        $cleaning = (float) CleaningTask::query()->whereBetween('scheduled_at', [$start, $end])->sum('cost');
-        $laundry = (float) LaundryTask::query()->whereBetween('pickup_at', [$start, $end])->sum('cost');
-        $maintenance = (float) MaintenanceTicket::query()->whereBetween('resolved_at', [$start, $end])->sum('cost');
-        $other = (float) Expense::query()->whereBetween('incurred_at', [$start, $end])->sum('amount');
+        $b = $this->expenseBreakdown($start, $end);
 
-        return round($cleaning + $laundry + $maintenance + $other, 2);
+        return round($b['cleaning'] + $b['laundry'] + $b['maintenance'] + $b['other'], 2);
+    }
+
+    /**
+     * Operating expenses split by source for the period: costed cleaning +
+     * laundry + maintenance tasks plus the standalone expenses ledger. The
+     * sum of these four is exactly what expenses() returns, so the report's
+     * breakdown always reconciles to its total.
+     *
+     * @return array{cleaning: float, laundry: float, maintenance: float, other: float}
+     */
+    public function expenseBreakdown(CarbonInterface $start, CarbonInterface $end): array
+    {
+        return [
+            'cleaning' => (float) CleaningTask::query()->whereBetween('scheduled_at', [$start, $end])->sum('cost'),
+            'laundry' => (float) LaundryTask::query()->whereBetween('pickup_at', [$start, $end])->sum('cost'),
+            'maintenance' => (float) MaintenanceTicket::query()->whereBetween('resolved_at', [$start, $end])->sum('cost'),
+            'other' => (float) Expense::query()->whereBetween('incurred_at', [$start, $end])->sum('amount'),
+        ];
     }
 
     /**

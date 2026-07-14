@@ -252,5 +252,40 @@
                 @endif
             </div>
         </div>
+
+        {{-- Expenses breakdown — where the operating spend goes. Sums to the
+             Expenses KPI above (cleaning + laundry + maintenance + ledger). --}}
+        <div class="hauz-card" style="padding: 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <div class="kicker">{{ __('Expenses breakdown') }}</div>
+                <div class="mono" style="font-size: 12.5px; color: var(--ink-3);">{{ __('Total') }} RM {{ number_format($totalExpenses, 0) }}</div>
+            </div>
+            @php
+                $expenseRows = [
+                    [__('Cleaning'), (float) $expenseBreakdown['cleaning'], 'var(--primary)'],
+                    [__('Laundry'), (float) $expenseBreakdown['laundry'], 'var(--accent)'],
+                    [__('Maintenance'), (float) $expenseBreakdown['maintenance'], 'var(--warn)'],
+                    [__('Other expenses'), (float) $expenseBreakdown['other'], 'var(--ink-3)'],
+                ];
+            @endphp
+            @if ($totalExpenses > 0)
+                <div style="display:flex; flex-direction:column; gap: 12px;">
+                    @foreach ($expenseRows as [$name, $value, $color])
+                        @php $pct = $totalExpenses > 0 ? ($value / $totalExpenses) * 100 : 0; @endphp
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 5px; font-size: 12.5px;">
+                                <span style="font-weight: 500;">{{ $name }}</span>
+                                <span class="mono" style="color: var(--ink-3);">{{ number_format($pct, 0) }}% · RM {{ number_format($value, 0) }}</span>
+                            </div>
+                            <div style="height: 6px; background: var(--bg-sunk); border-radius: 999px; overflow: hidden;">
+                                <div style="width: {{ $pct }}%; height: 100%; background: {{ $color }};"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div style="color: var(--ink-3); font-size: 13px;">{{ __('No expenses recorded in range — cleaning, laundry, maintenance costs and ledger entries will appear here.') }}</div>
+            @endif
+        </div>
     </div>
 </x-app-layout>

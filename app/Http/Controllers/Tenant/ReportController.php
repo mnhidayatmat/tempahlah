@@ -76,6 +76,10 @@ class ReportController extends Controller
         $totalExpenses = (float) $monthly->sum('expenses');
         $totalProfit = round($totalNetRevenue - $totalExpenses, 2);
 
+        // Where the expenses come from (cleaning / laundry / maintenance /
+        // ledger) — sums to $totalExpenses so the breakdown always reconciles.
+        $expenseBreakdown = $this->stats->expenseBreakdown($start, $end);
+
         $occupancyAvg = (float) $monthly->avg('occupancy');
         $priorOccupancy = $this->stats->occupancy($priorStart, $priorEnd) / 100;
         $occDelta = $priorOccupancy > 0 ? $occupancyAvg - $priorOccupancy : null;
@@ -127,6 +131,7 @@ class ReportController extends Controller
             'totalNetRevenue' => $totalNetRevenue,
             'totalExpenses' => $totalExpenses,
             'totalProfit' => $totalProfit,
+            'expenseBreakdown' => $expenseBreakdown,
             'revDelta' => $revDelta,
             'occupancyAvg' => $occupancyAvg,
             'occDelta' => $occDelta,
