@@ -66,31 +66,79 @@ MD;
 
     /* ── Onboarding series (automated new-host drip) ─────────────────────── */
 
+    /** Blank new-step form. step_no is system-assigned on save (immutable). */
+    public function createOnboarding()
+    {
+        // Suggest the next day slot so a new step naturally lands after the last.
+        $nextDay = (int) (\App\Models\OnboardingEmail::max('day_offset') ?? 0) + 3;
+
+        return view('platform.marketing.onboarding-form', [
+            'step' => null,
+            'suggestedDay' => min($nextDay, 60),
+        ]);
+    }
+
+    public function storeOnboarding(Request $request)
+    {
+        $validated = $this->validatedOnboarding($request);
+
+        $step = \App\Models\OnboardingEmail::create($validated + [
+            // step_no is a stable internal id, not a display order — the series
+            // is sorted by day_offset. Assign the next free number to stay unique.
+            'step_no' => (int) (\App\Models\OnboardingEmail::max('step_no') ?? 0) + 1,
+            'enabled' => $request->boolean('enabled'),
+            'skip_if_paid' => $request->boolean('skip_if_paid'),
+        ]);
+
+        return redirect()->route('platform.marketing.index')
+            ->with('status', __('Onboarding step :n added (day +:d).', ['n' => $step->step_no, 'd' => $step->day_offset]));
+    }
+
     public function editOnboarding(\App\Models\OnboardingEmail $step)
     {
-        return view('platform.marketing.onboarding-edit', ['step' => $step]);
+        return view('platform.marketing.onboarding-form', ['step' => $step]);
     }
 
     public function updateOnboarding(Request $request, \App\Models\OnboardingEmail $step)
     {
-        $validated = $request->validate([
-            'subject' => ['required', 'string', 'max:200'],
-            'body_md' => ['required', 'string', 'max:20000'],
-            'day_offset' => ['required', 'integer', 'min:0', 'max:60'],
-            'enabled' => ['nullable', 'boolean'],
-            'skip_if_paid' => ['nullable', 'boolean'],
-        ]);
+        $validated = $this->validatedOnboarding($request);
 
-        $step->update([
-            'subject' => $validated['subject'],
-            'body_md' => $validated['body_md'],
-            'day_offset' => $validated['day_offset'],
+        $step->update($validated + [
             'enabled' => $request->boolean('enabled'),
             'skip_if_paid' => $request->boolean('skip_if_paid'),
         ]);
 
         return redirect()->route('platform.marketing.index')
             ->with('status', __('Onboarding step :n updated.', ['n' => $step->step_no]));
+    }
+
+    /**
+     * Delete an onboarding step. Its per-tenant send log rows cascade away
+     * (FK cascadeOnDelete) — those are just history, and every remaining step
+     * keeps its own idempotency, so the drip is unaffected for other steps.
+     */
+    public function destroyOnboarding(\App\Models\OnboardingEmail $step)
+    {
+        $n = $step->step_no;
+        $step->delete();
+
+        return redirect()->route('platform.marketing.index')
+            ->with('status', __('Onboarding step :n deleted.', ['n' => $n]));
+    }
+
+    /**
+     * Only the three text fields — the two checkboxes are read separately via
+     * $request->boolean() so an unchecked box reliably writes false (an absent
+     * checkbox key would otherwise slip through, and array-union `+` keeps the
+     * left value, so mixing them here would drop the boolean).
+     */
+    protected function validatedOnboarding(Request $request): array
+    {
+        return $request->validate([
+            'subject' => ['required', 'string', 'max:200'],
+            'body_md' => ['required', 'string', 'max:20000'],
+            'day_offset' => ['required', 'integer', 'min:0', 'max:60'],
+        ]);
     }
 
     /** Send one onboarding step to the signed-in admin only. */

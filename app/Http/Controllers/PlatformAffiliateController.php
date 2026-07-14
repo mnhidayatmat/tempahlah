@@ -89,24 +89,57 @@ class PlatformAffiliateController extends Controller
         ]);
     }
 
-    /** Tune rate / duration / status / contact details. */
+    /** Tune code / rate / duration / status / contact details. */
     public function update(Request $request, Affiliate $affiliate)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:160',
             'email' => 'nullable|email|max:190',
             'phone' => 'nullable|string|max:40',
+            'code' => ['required', 'string', 'min:3', 'max:24', 'regex:/^[A-Za-z0-9\-]+$/', Rule::unique('affiliates', 'code')->ignore($affiliate->id)],
             'rate' => 'required|numeric|min:0|max:50',
             'duration_months' => 'required|integer|min:1|max:60',
             'status' => ['required', Rule::in([Affiliate::STATUS_ACTIVE, Affiliate::STATUS_SUSPENDED])],
             'notes' => 'nullable|string|max:500',
         ]);
 
+        // Changing the code breaks any link already shared under the old one —
+        // the admin is warned in the UI; store it upper-cased for consistency.
+        $validated['code'] = strtoupper($validated['code']);
+
         $affiliate->update($validated);
 
         return redirect()
             ->route('platform.affiliates.show', $affiliate)
             ->with('status', __('Affiliate updated.'));
+    }
+
+    /**
+     * Permanently remove an affiliate along with their referral attributions,
+     * daily click counters and any not-yet-owed (pending/void) commissions.
+     * Guarded so real financial history can't be vaporised: an affiliate with
+     * PAID or PAYABLE (approved) commissions must be settled/voided — or simply
+     * suspended — before deletion.
+     */
+    public function destroy(Affiliate $affiliate)
+    {
+        $locked = $affiliate->commissions()
+            ->whereIn('status', [AffiliateCommission::STATUS_APPROVED, AffiliateCommission::STATUS_PAID])
+            ->count();
+
+        if ($locked > 0) {
+            return redirect()
+                ->route('platform.affiliates.show', $affiliate)
+                ->with('error', __('Can’t delete — this affiliate has paid or payable commissions. Suspend them instead, or settle/void those commissions first.'));
+        }
+
+        $name = $affiliate->name;
+        // Child rows (referrals, pending commissions, visits) cascade on delete.
+        $affiliate->delete();
+
+        return redirect()
+            ->route('platform.affiliates.index')
+            ->with('status', __('Affiliate “:name” deleted.', ['name' => $name]));
     }
 
     /**

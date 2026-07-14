@@ -406,12 +406,16 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::post('/affiliates', [\App\Http\Controllers\PlatformAffiliateController::class, 'store'])->name('affiliates.store');
             Route::get('/affiliates/{affiliate}', [\App\Http\Controllers\PlatformAffiliateController::class, 'show'])->name('affiliates.show')->whereNumber('affiliate');
             Route::patch('/affiliates/{affiliate}', [\App\Http\Controllers\PlatformAffiliateController::class, 'update'])->name('affiliates.update')->whereNumber('affiliate');
+            Route::delete('/affiliates/{affiliate}', [\App\Http\Controllers\PlatformAffiliateController::class, 'destroy'])->name('affiliates.destroy')->whereNumber('affiliate');
             Route::post('/affiliates/{affiliate}/mark-paid', [\App\Http\Controllers\PlatformAffiliateController::class, 'markPaid'])->name('affiliates.mark-paid')->whereNumber('affiliate');
             Route::post('/affiliates/{affiliate}/commissions/{commission}/void', [\App\Http\Controllers\PlatformAffiliateController::class, 'voidCommission'])->name('affiliates.void')->whereNumber('affiliate')->whereNumber('commission');
 
-            // Onboarding series — the automated new-host drip (editable steps).
+            // Onboarding series — the automated new-host drip (add/edit/delete steps).
+            Route::get('/marketing/onboarding/create', [\App\Http\Controllers\PlatformMarketingController::class, 'createOnboarding'])->name('marketing.onboarding.create');
+            Route::post('/marketing/onboarding', [\App\Http\Controllers\PlatformMarketingController::class, 'storeOnboarding'])->name('marketing.onboarding.store');
             Route::get('/marketing/onboarding/{step}/edit', [\App\Http\Controllers\PlatformMarketingController::class, 'editOnboarding'])->name('marketing.onboarding.edit')->whereNumber('step');
             Route::patch('/marketing/onboarding/{step}', [\App\Http\Controllers\PlatformMarketingController::class, 'updateOnboarding'])->name('marketing.onboarding.update')->whereNumber('step');
+            Route::delete('/marketing/onboarding/{step}', [\App\Http\Controllers\PlatformMarketingController::class, 'destroyOnboarding'])->name('marketing.onboarding.destroy')->whereNumber('step');
             Route::post('/marketing/onboarding/{step}/test', [\App\Http\Controllers\PlatformMarketingController::class, 'testOnboarding'])->name('marketing.onboarding.test')->whereNumber('step');
         });
 

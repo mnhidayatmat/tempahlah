@@ -70,7 +70,7 @@
                                         <form method="POST" action="{{ route('platform.testimonials.appeal.resolve', $review->id) }}" style="margin-top: 8px;">
                                             @csrf
                                             <input type="text" name="admin_note" maxlength="1000" class="input" style="height:32px; font-size:12px; width:100%; max-width:420px;" placeholder="{{ __('Optional note to the host…') }}">
-                                            <div style="display:flex; gap:6px; margin-top:6px;">
+                                            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
                                                 <button type="submit" name="decision" value="approve" class="btn btn-primary btn-sm">{{ __('Approve — hide it') }}</button>
                                                 <button type="submit" name="decision" value="reject" class="btn btn-sm">{{ __('Decline — keep visible') }}</button>
                                             </div>

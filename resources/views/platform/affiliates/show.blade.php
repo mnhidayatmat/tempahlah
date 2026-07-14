@@ -114,6 +114,11 @@
                             <input class="input" type="text" name="phone" maxlength="40" value="{{ old('phone', $affiliate->phone) }}">
                         </div>
                         <div>
+                            <label style="display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px;">{{ __('Code') }}</label>
+                            <input class="input" type="text" name="code" required minlength="3" maxlength="24" pattern="[A-Za-z0-9\-]+" value="{{ old('code', $affiliate->code) }}" style="font-family:var(--font-mono, monospace); text-transform:uppercase;">
+                            <div style="font-size:10.5px; color:var(--ink-4); margin-top:3px;">{{ __('Changing it breaks links already shared under the old code.') }}</div>
+                        </div>
+                        <div>
                             <label style="display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px;">{{ __('Status') }}</label>
                             <select class="input" name="status">
                                 <option value="active" @selected($affiliate->status === 'active')>{{ __('Active') }}</option>
@@ -137,6 +142,20 @@
                         <button type="submit" class="btn btn-sm">{{ __('Save') }}</button>
                     </div>
                 </form>
+
+                {{-- Danger zone: delete the affiliate. Blocked server-side when
+                     paid/payable commissions exist, so history is never lost. --}}
+                <div style="margin-top:16px; padding-top:14px; border-top:.5px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size:11.5px; color:var(--ink-3); max-width:340px;">
+                        {{ __('Removes this affiliate, their referrals and click history. Not allowed while commissions are paid or payable — suspend instead.') }}
+                    </div>
+                    <form method="POST" action="{{ route('platform.affiliates.destroy', $affiliate) }}"
+                          onsubmit="return confirm('{{ __('Delete :name permanently? This cannot be undone.', ['name' => $affiliate->name]) }}');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm" style="color: var(--err); border-color: var(--err);">{{ __('Delete affiliate') }}</button>
+                    </form>
+                </div>
             </div>
         </div>
 

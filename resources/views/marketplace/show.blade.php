@@ -102,39 +102,119 @@
     </div>
 
     {{-- Desktop gallery (hidden on mobile) --}}
-    <div class="bp-gallery">
-        @php $photos = $property->photos->take(5); @endphp
-        <div class="bp-gallery-cell bp-gallery-hero" data-cover="{{ $coverKind }}">
-            @if ($listing->hero_photo_path)
-                <img src="{{ Storage::url($listing->hero_photo_path) }}" alt="">
-            @elseif ($photos->first())
-                <img src="{{ Storage::url($photos->first()->path) }}" alt="">
-            @endif
-            <div class="bp-gallery-hero-overlay">
-                <div>
-                    <div class="kicker">{{ __('Featured') }}</div>
-                    <div class="tagline">
-                        @switch($coverKind)
-                            @case('beach') {{ __('Wake up to the strait of Malacca') }} @break
-                            @case('highland') {{ __('Misty mornings, tea-plantation views') }} @break
-                            @case('kampung') {{ __('Authentic village life, modern comfort') }} @break
-                            @case('heritage') {{ __('Heritage charm, walkable to it all') }} @break
-                            @default {{ __('Booked direct, no middleman') }}
-                        @endswitch
+    @php
+        // Full ordered photo list for the lightbox, hero first (deduped).
+        $galleryUrls = $property->photos->map(fn ($p) => Storage::url($p->path));
+        if ($listing->hero_photo_path) {
+            $heroUrl = Storage::url($listing->hero_photo_path);
+            $galleryUrls = collect([$heroUrl])->merge($galleryUrls->reject(fn ($u) => $u === $heroUrl));
+        }
+        $galleryUrls = $galleryUrls->values();
+        $photos = $property->photos->take(5);
+        $heroCellUrl = $listing->hero_photo_path
+            ? Storage::url($listing->hero_photo_path)
+            : ($photos->first() ? Storage::url($photos->first()->path) : null);
+        $idxOf = function ($url) use ($galleryUrls) {
+            $k = $galleryUrls->search($url);
+            return $k === false ? 0 : $k;
+        };
+    @endphp
+
+    <style>
+        .bp-gallery-cell img, .bp-gallery-hero, .bp-gallery-show-all { cursor: zoom-in; }
+        .bp-lightbox {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0, 0, 0, .93);
+            display: flex; align-items: center; justify-content: center; padding: 30px;
+        }
+        .bp-lb-img {
+            max-width: 92vw; max-height: 88vh; object-fit: contain;
+            border-radius: 6px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+            cursor: default; user-select: none;
+        }
+        .bp-lb-btn {
+            position: absolute; background: rgba(255, 255, 255, .14); color: #fff;
+            border: 0; border-radius: 999px; cursor: pointer; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background .15s;
+        }
+        .bp-lb-btn:hover { background: rgba(255, 255, 255, .3); }
+        .bp-lb-close { top: 20px; right: 20px; width: 44px; height: 44px; font-size: 19px; }
+        .bp-lb-prev, .bp-lb-next { top: 50%; transform: translateY(-50%); width: 52px; height: 52px; font-size: 28px; padding-bottom: 4px; }
+        .bp-lb-prev { left: 18px; }
+        .bp-lb-next { right: 18px; }
+        .bp-lb-counter {
+            position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 13px; letter-spacing: .04em;
+            background: rgba(0, 0, 0, .5); padding: 6px 14px; border-radius: 999px;
+        }
+        @media (max-width: 640px) {
+            .bp-lb-prev, .bp-lb-next { width: 44px; height: 44px; font-size: 24px; }
+            .bp-lb-close { width: 40px; height: 40px; }
+        }
+    </style>
+
+    <div class="bp-gallery-wrap" x-data="{
+            open: false,
+            index: 0,
+            photos: @js($galleryUrls),
+            openAt(i) {
+                if (!this.photos.length) return;
+                this.index = Math.max(0, Math.min(i, this.photos.length - 1));
+                this.open = true;
+                document.body.style.overflow = 'hidden';
+            },
+            close() { this.open = false; document.body.style.overflow = ''; },
+            next() { this.index = (this.index + 1) % this.photos.length; },
+            prev() { this.index = (this.index - 1 + this.photos.length) % this.photos.length; }
+        }">
+        <div class="bp-gallery">
+            <div class="bp-gallery-cell bp-gallery-hero" data-cover="{{ $coverKind }}"
+                 @if ($heroCellUrl) @click="openAt({{ $idxOf($heroCellUrl) }})" @endif>
+                @if ($heroCellUrl)
+                    <img src="{{ $heroCellUrl }}" alt="">
+                @endif
+                <div class="bp-gallery-hero-overlay">
+                    <div>
+                        <div class="kicker">{{ __('Featured') }}</div>
+                        <div class="tagline">
+                            @switch($coverKind)
+                                @case('beach') {{ __('Wake up to the strait of Malacca') }} @break
+                                @case('highland') {{ __('Misty mornings, tea-plantation views') }} @break
+                                @case('kampung') {{ __('Authentic village life, modern comfort') }} @break
+                                @case('heritage') {{ __('Heritage charm, walkable to it all') }} @break
+                                @default {{ __('Booked direct, no middleman') }}
+                            @endswitch
+                        </div>
                     </div>
                 </div>
             </div>
+            @for ($i = 1; $i <= 4; $i++)
+                @php $cellPhoto = $photos->skip($i)->first(); $cellUrl = $cellPhoto ? Storage::url($cellPhoto->path) : null; @endphp
+                <div class="bp-gallery-cell" style="filter: hue-rotate({{ $i * 8 }}deg) brightness({{ 0.92 + $i * 0.04 }});">
+                    @if ($cellUrl)
+                        <img src="{{ $cellUrl }}" alt="" @click="openAt({{ $idxOf($cellUrl) }})">
+                    @endif
+                    @if ($i === 4 && $property->photos->count() > 5)
+                        <button class="bp-gallery-show-all" type="button" @click.stop="openAt(0)">{{ __('Show all :n photos', ['n' => $property->photos->count()]) }}</button>
+                    @endif
+                </div>
+            @endfor
         </div>
-        @for ($i = 1; $i <= 4; $i++)
-            <div class="bp-gallery-cell" style="filter: hue-rotate({{ $i * 8 }}deg) brightness({{ 0.92 + $i * 0.04 }});">
-                @if ($photos->skip($i)->first())
-                    <img src="{{ Storage::url($photos->skip($i)->first()->path) }}" alt="">
-                @endif
-                @if ($i === 4 && $property->photos->count() > 5)
-                    <button class="bp-gallery-show-all" type="button">{{ __('Show all :n photos', ['n' => $property->photos->count()]) }}</button>
-                @endif
-            </div>
-        @endfor
+
+        {{-- Full-screen photo viewer --}}
+        <div class="bp-lightbox" x-show="open" x-cloak style="display:none;"
+             x-transition.opacity
+             @keydown.escape.window="close()"
+             @keydown.arrow-right.window="open && next()"
+             @keydown.arrow-left.window="open && prev()"
+             @click.self="close()">
+            <button type="button" class="bp-lb-btn bp-lb-close" @click="close()" aria-label="{{ __('Close') }}">✕</button>
+            <button type="button" class="bp-lb-btn bp-lb-prev" @click.stop="prev()" x-show="photos.length > 1" aria-label="{{ __('Previous') }}">‹</button>
+            <img class="bp-lb-img" :src="photos[index]" @click.stop alt="{{ $title }}">
+            <button type="button" class="bp-lb-btn bp-lb-next" @click.stop="next()" x-show="photos.length > 1" aria-label="{{ __('Next') }}">›</button>
+            <div class="bp-lb-counter" x-show="photos.length > 1" x-text="(index + 1) + ' / ' + photos.length"></div>
+        </div>
     </div>
 
     <div class="bp-detail-body">
