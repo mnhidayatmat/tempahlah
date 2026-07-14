@@ -414,6 +414,86 @@ class PlatformAdminController extends Controller
         return back()->with('status', __('Testimonial deleted.'));
     }
 
+    /* ── Guest blacklist (cross-tenant customer reports) ─────────────────── */
+
+    /**
+     * Cross-tenant blacklist review queue. Tenants file reports (pending); an
+     * APPROVED entry is the platform-wide mark that alerts every other homestay.
+     * GuestBlacklistEntry carries no tenant scope, so this sees every report.
+     */
+    public function blacklist(Request $request)
+    {
+        $status = in_array($request->query('status'), [
+            \App\Models\GuestBlacklistEntry::STATUS_PENDING,
+            \App\Models\GuestBlacklistEntry::STATUS_APPROVED,
+            \App\Models\GuestBlacklistEntry::STATUS_REJECTED,
+        ], true) ? $request->query('status') : \App\Models\GuestBlacklistEntry::STATUS_PENDING;
+
+        $q = trim((string) $request->query('q', ''));
+
+        $entries = \App\Models\GuestBlacklistEntry::query()
+            ->with(['tenant:id,business_name,slug', 'guest:id,name,phone,email', 'reviewedByUser:id,name'])
+            ->where('review_status', $status)
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
+                ->where('guest_name', 'like', "%{$q}%")
+                ->orWhere('guest_phone', 'like', "%{$q}%")
+                ->orWhere('guest_email', 'like', "%{$q}%")
+                ->orWhereHas('guest', fn ($g) => $g->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"))))
+            // Pending first-in-first-out (oldest report needs a decision soonest);
+            // reviewed lists newest decision first.
+            ->orderBy($status === \App\Models\GuestBlacklistEntry::STATUS_PENDING ? 'created_at' : 'reviewed_at',
+                $status === \App\Models\GuestBlacklistEntry::STATUS_PENDING ? 'asc' : 'desc')
+            ->paginate(25)
+            ->withQueryString();
+
+        $base = fn () => \App\Models\GuestBlacklistEntry::query();
+
+        return view('platform.blacklist', [
+            'entries' => $entries,
+            'status' => $status,
+            'pendingTotal' => $base()->where('review_status', \App\Models\GuestBlacklistEntry::STATUS_PENDING)->count(),
+            'approvedTotal' => $base()->where('review_status', \App\Models\GuestBlacklistEntry::STATUS_APPROVED)->count(),
+            'rejectedTotal' => $base()->where('review_status', \App\Models\GuestBlacklistEntry::STATUS_REJECTED)->count(),
+        ]);
+    }
+
+    /**
+     * Verify / reject / revoke a report. Approving marks the guest platform-wide;
+     * revoking an already-approved entry lifts that mark (status → overturned).
+     */
+    public function reviewBlacklist(Request $request, int $id)
+    {
+        $entry = \App\Models\GuestBlacklistEntry::query()->findOrFail($id);
+
+        $data = $request->validate([
+            'decision' => 'required|in:approve,reject,revoke',
+            'admin_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $note = trim((string) ($data['admin_notes'] ?? '')) ?: $entry->admin_notes;
+
+        $newStatus = match ($data['decision']) {
+            'approve' => \App\Models\GuestBlacklistEntry::STATUS_APPROVED,
+            'reject' => \App\Models\GuestBlacklistEntry::STATUS_REJECTED,
+            'revoke' => \App\Models\GuestBlacklistEntry::STATUS_OVERTURNED,
+        };
+
+        $entry->update([
+            'review_status' => $newStatus,
+            'reviewed_by_user_id' => $request->user()->id,
+            'reviewed_at' => now(),
+            'admin_notes' => $note,
+        ]);
+
+        $msg = match ($data['decision']) {
+            'approve' => __('Verified — this guest is now flagged for all homestays.'),
+            'reject' => __('Report rejected — the guest is not flagged.'),
+            'revoke' => __('Flag removed — the guest is no longer blacklisted.'),
+        };
+
+        return back()->with('status', $msg);
+    }
+
     /** Masked hint for a stored secret: "sk_test_…mIc8kjh" style, never the whole thing. */
     protected function mask(?string $value): ?string
     {

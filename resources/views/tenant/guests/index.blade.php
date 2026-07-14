@@ -97,17 +97,24 @@
                     @forelse ($guests as $g)
                         <tr style="border-top: .5px solid var(--line);">
                             <td class="g-title" style="padding: 12px 14px;">
-                                <div style="display:flex; align-items:center; gap: 10px;">
+                                <a href="{{ route('tenant.guests.show', $g->id) }}" style="display:flex; align-items:center; gap: 10px; text-decoration:none; color:inherit;">
                                     <x-avatar :name="$g->name" :size="30"/>
                                     <div>
-                                        <div style="font-weight: 500;">{{ $g->name }}</div>
+                                        <div style="font-weight: 500; display:flex; align-items:center; gap:6px;">
+                                            {{ $g->name }}
+                                            @isset($flagged[$g->id])
+                                                <span class="pill pill-err" style="height:16px; font-size:9.5px; gap:3px;">
+                                                    <x-icon name="alert" :size="10"/> {{ __('Flagged') }}
+                                                </span>
+                                            @endisset
+                                        </div>
                                         @if ($g->stays > 1)
                                             <span style="font-size: 10.5px; color: var(--accent); font-weight: 500;">
                                                 ★ {{ __('Returning') }} · {{ $g->stays }}×
                                             </span>
                                         @endif
                                     </div>
-                                </div>
+                                </a>
                             </td>
                             <td data-label="{{ __('Phone') }}" style="padding: 12px 14px; color: var(--ink-2);" class="mono">{{ $g->phone }}</td>
                             <td data-label="{{ __('Stays') }}" style="padding: 12px 14px; text-align: right;" class="mono">{{ $g->stays }}</td>
@@ -127,16 +134,21 @@
                                 </div>
                             </td>
                             <td class="g-actions" style="padding: 12px 14px; text-align: right;">
-                                @php $waNumber = preg_replace('/\D/', '', $g->phone ?? ''); @endphp
-                                @if ($waNumber)
-                                    <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener"
+                                <div style="display:inline-flex; gap:4px;">
+                                    <a href="{{ route('tenant.guests.show', $g->id) }}"
                                        class="btn btn-sm btn-ghost" style="color: var(--ink-3);"
-                                       aria-label="{{ __('WhatsApp :name', ['name' => $g->name]) }}">
-                                        <x-icon name="message" :size="13"/>
+                                       aria-label="{{ __('View profile') }}">
+                                        <x-icon name="alert" :size="13"/>
                                     </a>
-                                @else
-                                    <span style="font-size: 11px; color: var(--ink-4);">—</span>
-                                @endif
+                                    @php $waNumber = preg_replace('/\D/', '', $g->phone ?? ''); @endphp
+                                    @if ($waNumber)
+                                        <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener"
+                                           class="btn btn-sm btn-ghost" style="color: var(--ink-3);"
+                                           aria-label="{{ __('WhatsApp :name', ['name' => $g->name]) }}">
+                                            <x-icon name="message" :size="13"/>
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

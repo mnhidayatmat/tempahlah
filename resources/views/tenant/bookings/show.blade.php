@@ -58,6 +58,30 @@
                 </div>
                 <x-pill :variant="$ps['variant']" :dot="true">{{ $ps['label'] }}</x-pill>
             </div>
+
+            {{-- Cross-tenant blacklist alert. Shown before the host confirms /
+                 marks the booking paid, so a flagged guest is caught early. --}}
+            @if (($blacklistFlags ?? collect())->isNotEmpty())
+                @php $topFlag = $blacklistFlags->sortByDesc(fn ($e) => ['blacklist'=>3,'warning'=>2,'note'=>1][$e->severity] ?? 0)->first(); @endphp
+                <div class="hauz-card" style="margin-top: 14px; padding: 14px 16px; border-left: 4px solid var(--err); background: var(--err-tint);">
+                    <div style="display:flex; align-items:center; gap: 8px; color: var(--err); font-weight: 700; font-size: 14px;">
+                        <x-icon name="alert" :size="16"/>
+                        {{ __('Blacklisted guest — verified by Tempahlah') }}
+                    </div>
+                    <div style="margin-top: 5px; font-size: 12.5px; color: var(--ink-2);">
+                        {{ trans_choice('{1} :count homestay reported this guest.|[2,*] :count homestays reported this guest.', $blacklistFlags->count(), ['count' => $blacklistFlags->count()]) }}
+                        <strong>{{ $topFlag->reasonLabel() }}</strong> — {{ \Illuminate\Support\Str::limit($topFlag->description, 140) }}
+                    </div>
+                    <div style="margin-top: 10px;">
+                        @if ($booking->guest_id)
+                            <a href="{{ route('tenant.guests.show', $booking->guest_id) }}" class="btn btn-sm" style="color: var(--err); border-color: var(--err);">
+                                {{ __('View guest profile') }} →
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             @php
                 $waConnected = (bool) optional(optional($booking->tenant ?? null)->whatsappSession)->isConnected();
             @endphp

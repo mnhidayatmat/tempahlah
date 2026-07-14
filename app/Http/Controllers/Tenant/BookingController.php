@@ -89,10 +89,71 @@ class BookingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Badge bookings whose guest carries a verified platform-wide blacklist
+        // flag. One batched query over this page's guest ids + normalized phones.
+        $flagged = $this->flaggedBookingGuests($bookings->getCollection());
+
         return view('tenant.bookings.index', [
             'bookings' => $bookings,
             'filter' => $filter,
+            'flagged' => $flagged,
         ]);
+    }
+
+    /**
+     * Map of booking id => most-severe verified blacklist flag, for badging the
+     * bookings list. One query keyed on the page's guest ids + normalized phones.
+     *
+     * @param  \Illuminate\Support\Collection<int, Booking>  $bookings
+     * @return array<int, GuestBlacklistEntry>
+     */
+    protected function flaggedBookingGuests(\Illuminate\Support\Collection $bookings): array
+    {
+        $ids = $bookings->pluck('guest_id')->filter()->unique()->values()->all();
+        $phones = $bookings
+            ->map(fn ($b) => \App\Services\WhatsApp\PhoneNumber::normalize($b->guestPhone()))
+            ->filter()->unique()->values()->all();
+
+        if (! $ids && ! $phones) {
+            return [];
+        }
+
+        $entries = GuestBlacklistEntry::query()
+            ->approved()
+            ->where(function ($w) use ($ids, $phones) {
+                if ($ids) {
+                    $w->orWhereIn('guest_user_id', $ids);
+                }
+                if ($phones) {
+                    $w->orWhereIn('guest_phone', $phones);
+                }
+            })
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return [];
+        }
+
+        $rank = [
+            GuestBlacklistEntry::SEVERITY_BLACKLIST => 3,
+            GuestBlacklistEntry::SEVERITY_WARNING => 2,
+            GuestBlacklistEntry::SEVERITY_NOTE => 1,
+        ];
+
+        $map = [];
+        foreach ($bookings as $b) {
+            $normPhone = \App\Services\WhatsApp\PhoneNumber::normalize($b->guestPhone());
+            $match = $entries
+                ->filter(fn ($e) => ($b->guest_id && $e->guest_user_id === $b->guest_id)
+                    || ($normPhone && $e->guest_phone === $normPhone))
+                ->sortByDesc(fn ($e) => $rank[$e->severity] ?? 0)
+                ->first();
+            if ($match) {
+                $map[$b->id] = $match;
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -767,7 +828,16 @@ class BookingController extends Controller
             ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'room:id,name', 'payments', 'refunds.processedBy:id,name', 'review'])
             ->findOrFail($id);
 
-        return view('tenant.bookings.show', compact('booking'));
+        // Cross-tenant blacklist: verified flags matching this guest (by user id,
+        // phone or email). Drives the red alert banner shown before the host
+        // confirms / marks the booking paid.
+        $blacklistFlags = \App\Models\GuestBlacklistEntry::approvedFlagsFor(
+            $booking->guest_id,
+            $booking->guestPhone(),
+            $booking->guestEmail(),
+        );
+
+        return view('tenant.bookings.show', compact('booking', 'blacklistFlags'));
     }
 
     /**

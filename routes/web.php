@@ -273,6 +273,10 @@ Route::domain(config('app.tenant_domain'))->group(function () {
 
         Route::get('/guests',               [GuestController::class, 'index'])->name('guests.index');
         Route::get('/guests/export.csv',    [GuestController::class, 'exportCsv'])->name('guests.export');
+        // Bind by {guest:id} — User's route key is public_id (ULID) via
+        // HasUlidPublicId, so a plain {guest} would 404 on the numeric id we pass.
+        Route::get('/guests/{guest:id}',       [GuestController::class, 'show'])->name('guests.show')->whereNumber('guest');
+        Route::post('/guests/{guest:id}/report', [GuestController::class, 'report'])->name('guests.report')->whereNumber('guest');
         Route::get('/testimonials',         [\App\Http\Controllers\Tenant\TestimonialController::class, 'index'])->name('testimonials.index');
         Route::post('/testimonials/{id}/appeal', [\App\Http\Controllers\Tenant\TestimonialController::class, 'appeal'])->name('testimonials.appeal')->whereNumber('id');
         Route::get('/housekeeping',         [HousekeepingController::class, 'index'])->name('housekeeping.index');
@@ -386,6 +390,11 @@ Route::domain(config('app.tenant_domain'))->group(function () {
             Route::post('/testimonials/{id}/toggle', [\App\Http\Controllers\PlatformAdminController::class, 'toggleTestimonial'])->name('testimonials.toggle')->whereNumber('id');
             Route::delete('/testimonials/{id}', [\App\Http\Controllers\PlatformAdminController::class, 'deleteTestimonial'])->name('testimonials.delete')->whereNumber('id');
             Route::post('/testimonials/{id}/appeal/resolve', [\App\Http\Controllers\PlatformAdminController::class, 'resolveAppeal'])->name('testimonials.appeal.resolve')->whereNumber('id');
+
+            // Cross-tenant guest blacklist — verify / reject tenant-filed reports.
+            // A verified entry marks the guest platform-wide (alerts all homestays).
+            Route::get('/blacklist', [\App\Http\Controllers\PlatformAdminController::class, 'blacklist'])->name('blacklist');
+            Route::post('/blacklist/{id}/review', [\App\Http\Controllers\PlatformAdminController::class, 'reviewBlacklist'])->name('blacklist.review')->whereNumber('id');
             // Platform settings — Stripe keys etc. (encrypted in platform_settings).
             Route::get('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'settings'])->name('settings');
             Route::post('/settings', [\App\Http\Controllers\PlatformAdminController::class, 'updateSettings'])->name('settings.update');

@@ -126,7 +126,14 @@
                                         <a href="{{ route('tenant.bookings.show', $b->id) }}" style="display:flex; align-items:center; gap:10px; text-decoration:none; color: inherit;">
                                             <x-avatar :name="$b->guestName() ?? 'Guest'" :size="28"/>
                                             <div>
-                                                <div style="font-weight:500;">{{ $b->guestName() ?? __('Guest') }}</div>
+                                                <div style="font-weight:500; display:flex; align-items:center; gap:6px;">
+                                                    {{ $b->guestName() ?? __('Guest') }}
+                                                    @isset($flagged[$b->id])
+                                                        <span class="pill pill-err" style="height:16px; font-size:9.5px; gap:3px;" title="{{ __('Blacklisted guest') }}">
+                                                            <x-icon name="alert" :size="10"/> {{ __('Flagged') }}
+                                                        </span>
+                                                    @endisset
+                                                </div>
                                                 <div style="font-size: 11px; color: var(--ink-3);">{{ $b->reference }}</div>
                                             </div>
                                         </a>
@@ -165,7 +172,14 @@
                             <div class="bk-card-guest">
                                 <x-avatar :name="$b->guestName() ?? 'Guest'" :size="34"/>
                                 <div style="min-width:0;">
-                                    <div class="bk-card-guest-name">{{ $b->guestName() ?? __('Guest') }}</div>
+                                    <div class="bk-card-guest-name" style="display:flex; align-items:center; gap:6px;">
+                                        {{ $b->guestName() ?? __('Guest') }}
+                                        @isset($flagged[$b->id])
+                                            <span class="pill pill-err" style="height:16px; font-size:9.5px; gap:3px;" title="{{ __('Blacklisted guest') }}">
+                                                <x-icon name="alert" :size="10"/> {{ __('Flagged') }}
+                                            </span>
+                                        @endisset
+                                    </div>
                                     <div style="font-size: 11px; color: var(--ink-3);" class="mono">{{ $b->reference }}</div>
                                 </div>
                             </div>
