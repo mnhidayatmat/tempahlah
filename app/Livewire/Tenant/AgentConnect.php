@@ -3,12 +3,14 @@
 namespace App\Livewire\Tenant;
 
 use App\Models\AgentConversation;
+use App\Models\AgentLearnedFaq;
 use App\Models\AgentUsageDaily;
 use App\Models\Tenant;
 use App\Models\TenantIntegration;
 use App\Models\WhatsappSession;
 use App\Services\Agent\AgentService;
 use App\Services\Agent\AgentSettings;
+use App\Services\Agent\ConversationLearner;
 use App\Services\Agent\TrainingQaGenerator;
 use App\Services\Agent\Llm\LlmClientFactory;
 use App\Support\Tenancy\TenantContext;
@@ -52,6 +54,15 @@ class AgentConnect extends Component
      */
     public array $trainingQa = [];
     public bool $trainingQaSeeded = false;
+
+    /**
+     * Learned-suggestion review — the answer the host is about to approve for
+     * each pending AgentLearnedFaq, keyed by row id. Pre-filled from the
+     * suggested answer; editable (a 'gap' starts blank and needs one typed).
+     *
+     * @var array<int, string>
+     */
+    public array $learnedDraft = [];
 
     public bool $useBusinessHours = false;
     public string $businessHoursStart = '09:00';
@@ -107,6 +118,41 @@ class AgentConnect extends Component
                 $this->businessHoursEnd   = $day[1] ?? '21:00';
             }
         }
+
+        $this->seedLearnedDrafts();
+    }
+
+    /** Pre-fill the editable answer box for every pending suggestion. */
+    protected function seedLearnedDrafts(): void
+    {
+        foreach ($this->learnedSuggestions() as $s) {
+            if (! array_key_exists($s->id, $this->learnedDraft)) {
+                $this->learnedDraft[$s->id] = (string) ($s->suggested_answer ?? '');
+            }
+        }
+    }
+
+    /**
+     * Pending suggestions the agent distilled from real conversations, newest
+     * first. Recurring (answered) ones lead; gaps ("needs your answer") follow.
+     *
+     * @return \Illuminate\Support\Collection<int, AgentLearnedFaq>
+     */
+    #[Computed]
+    public function learnedSuggestions()
+    {
+        if (! $this->tenantId) {
+            return collect();
+        }
+
+        return AgentLearnedFaq::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('status', AgentLearnedFaq::STATUS_PENDING)
+            ->orderByRaw("CASE WHEN kind = 'recurring' THEN 0 ELSE 1 END")
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
     }
 
     #[Computed]
@@ -249,6 +295,117 @@ class AgentConnect extends Component
 
         $this->trainingQa = array_merge($generator->generate($tenant), $custom);
         $this->flashOk(__('Refreshed the default answers from your latest info. Your edited questions were kept.'));
+    }
+
+    /**
+     * Approve a learned suggestion → it becomes a real FAQ answer the agent
+     * uses. The answer is whatever the host has in the edit box (required —
+     * a 'gap' must be given an answer). Added as source='custom' so a later
+     * "Regenerate from my info" never wipes it, and persisted immediately.
+     */
+    public function approveLearned(int $id): void
+    {
+        $row = AgentLearnedFaq::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('status', AgentLearnedFaq::STATUS_PENDING)
+            ->find($id);
+        if (! $row) return;
+
+        $answer = trim((string) ($this->learnedDraft[$id] ?? $row->suggested_answer ?? ''));
+        if ($answer === '') {
+            $this->flashErr(__('Type an answer before approving this one.'));
+            return;
+        }
+
+        if (count($this->trainingQa) >= TrainingQaGenerator::MAX_PAIRS) {
+            $this->flashErr(__('Your FAQ is full (:n answers). Remove one before approving more.', ['n' => TrainingQaGenerator::MAX_PAIRS]));
+            return;
+        }
+
+        $this->trainingQa[] = ['q' => trim($row->question), 'a' => $answer, 'source' => 'custom'];
+        $this->persistTrainingQaConfig();
+
+        $row->update(['status' => AgentLearnedFaq::STATUS_APPROVED, 'reviewed_at' => now()]);
+        unset($this->learnedDraft[$id]);
+        unset($this->learnedSuggestions); // bust the computed cache
+
+        $this->flashOk(__('Added to your agent\'s answers. It\'ll use this from now on.'));
+    }
+
+    /** Dismiss a suggestion — it won't be shown again. */
+    public function dismissLearned(int $id): void
+    {
+        $row = AgentLearnedFaq::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('status', AgentLearnedFaq::STATUS_PENDING)
+            ->find($id);
+        if (! $row) return;
+
+        $row->update(['status' => AgentLearnedFaq::STATUS_DISMISSED, 'reviewed_at' => now()]);
+        unset($this->learnedDraft[$id]);
+        unset($this->learnedSuggestions);
+
+        $this->flashOk(__('Dismissed.'));
+    }
+
+    /**
+     * Manually scan recent conversations now (the scheduled job runs weekly).
+     * Runs synchronously — one bounded LLM call — and surfaces fresh
+     * suggestions for review.
+     */
+    public function scanNow(ConversationLearner $learner): void
+    {
+        $tenant = $this->tenant();
+        if (! $tenant) return;
+
+        if (! $this->unlocked()) {
+            $this->flashErr(__('Upgrade to use the AI agent.'));
+            return;
+        }
+
+        try {
+            $new = $learner->learn($tenant);
+        } catch (\Throwable $e) {
+            $this->flashErr(__('Scan failed: :err', ['err' => $e->getMessage()]));
+            return;
+        }
+
+        unset($this->learnedSuggestions);
+        $this->seedLearnedDrafts();
+
+        $this->flashOk($new > 0
+            ? __(':n new suggestion(s) from your recent chats — review them below.', ['n' => $new])
+            : __('No new suggestions right now. The agent will keep watching your conversations.'));
+    }
+
+    /**
+     * Persist ONLY the training_qa slice of the agent config (leaving every
+     * other setting untouched), used when approving a suggestion out-of-band
+     * from the main Save button.
+     */
+    protected function persistTrainingQaConfig(): void
+    {
+        $this->trainingQa = array_values($this->trainingQa);
+
+        $row = TenantIntegration::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('provider', 'agent')
+            ->first();
+
+        if (! $row) {
+            $row = new TenantIntegration(['tenant_id' => $this->tenantId, 'provider' => 'agent']);
+            $row->config = [];
+        }
+
+        $cfg = is_array($row->config) ? $row->config : [];
+        $cfg['training_qa'] = $this->trainingQa;
+        $cfg['training_qa_seeded'] = true;
+        $row->config = $cfg;
+        $row->save();
+
+        $this->trainingQaSeeded = true;
     }
 
     public function save(): void

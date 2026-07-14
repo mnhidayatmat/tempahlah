@@ -84,3 +84,11 @@ Schedule::command('channels:sync-ical')
     ->hourly()
     ->withoutOverlapping()
     ->onOneServer();
+
+// AI-agent conversation learning — weekly, distil recent WhatsApp chats into
+// pending FAQ suggestions the host reviews. Pro-gated per tenant inside the
+// command; suggestions are never auto-applied. Monday 03:00 UTC (11:00 MYT).
+Schedule::command('agent:distill-learnings')
+    ->weeklyOn(1, '03:00')
+    ->withoutOverlapping()
+    ->onOneServer();

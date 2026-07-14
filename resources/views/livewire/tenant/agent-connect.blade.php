@@ -289,6 +289,67 @@
                       maxlength="4000">{{ $customKnowledge }}</textarea>
         </div>
 
+        {{-- Learned from conversations ---------------------------------- --}}
+        @php $learned = $this->learnedSuggestions; @endphp
+        <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; flex-wrap: wrap;">
+                <div style="flex:1; min-width: 0;">
+                    <h4 style="margin: 0 0 4px; font-size: 15px;">{{ __('Learned from your conversations') }}</h4>
+                    <p style="margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5; max-width: 620px;">
+                        {{ __('Each week the agent reads your recent WhatsApp chats and suggests answers to add — questions guests keep asking, and ones it couldn\'t answer. Nothing is used until you approve it here.') }}
+                    </p>
+                </div>
+                <button type="button" class="btn btn-sm" wire:click="scanNow"
+                        wire:loading.attr="disabled" wire:target="scanNow">
+                    <span wire:loading.remove wire:target="scanNow">↻ {{ __('Scan chats now') }}</span>
+                    <span wire:loading wire:target="scanNow">
+                        <span class="bs-spinner bs-spinner--inline" aria-hidden="true"></span>{{ __('Scanning…') }}
+                    </span>
+                </button>
+            </div>
+
+            @if ($learned->isEmpty())
+                <div style="padding: 16px; text-align:center; color: var(--ink-3); font-size: 13px; background: var(--bg-sunk); border-radius: var(--r-md);">
+                    {{ __('No suggestions right now. As guests chat with your agent, useful ones will show up here.') }}
+                </div>
+            @else
+                <div style="display:flex; flex-direction:column; gap: 12px;">
+                    @foreach ($learned as $s)
+                        <div wire:key="learned-{{ $s->id }}" style="border: .5px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; display:flex; flex-direction:column; gap: 8px;">
+                            <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
+                                @if ($s->kind === \App\Models\AgentLearnedFaq::KIND_GAP)
+                                    <span class="pill pill-warn" style="height: 20px; font-size: 11px;">{{ __('Needs your answer') }}</span>
+                                @else
+                                    <span class="pill pill-ok" style="height: 20px; font-size: 11px;">{{ __('Suggested answer') }}</span>
+                                @endif
+                                <strong style="font-size: 13.5px; color: var(--ink);">{{ $s->question }}</strong>
+                            </div>
+
+                            @if (!empty($s->example_phrases))
+                                <div style="font-size: 11.5px; color: var(--ink-3);">
+                                    {{ __('Guest asked:') }} “{{ $s->example_phrases[0] }}”
+                                </div>
+                            @endif
+
+                            <textarea class="input autogrow" style="width:100%; min-height: 72px; font-size: 13px;"
+                                      wire:model="learnedDraft.{{ $s->id }}"
+                                      placeholder="{{ $s->kind === \App\Models\AgentLearnedFaq::KIND_GAP ? __('Type the answer you\'d like the agent to give…') : __('Edit the answer if needed…') }}"
+                                      maxlength="2000"></textarea>
+
+                            <div style="display:flex; gap: 8px; justify-content:flex-end;">
+                                <button type="button" class="btn btn-sm" wire:click="dismissLearned({{ $s->id }})"
+                                        style="color: var(--ink-3);">{{ __('Dismiss') }}</button>
+                                <button type="button" class="btn btn-sm btn-primary" wire:click="approveLearned({{ $s->id }})"
+                                        wire:loading.attr="disabled" wire:target="approveLearned({{ $s->id }})">
+                                    {{ __('Approve & use') }}
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         {{-- Training Q&A ------------------------------------------------ --}}
         <div class="hauz-card" style="padding: 18px 20px; display:flex; flex-direction:column; gap: 14px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; flex-wrap: wrap;">

@@ -53,6 +53,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Conversation learning (day-to-day self-improvement)
+    |--------------------------------------------------------------------------
+    | A weekly job reads recent WhatsApp transcripts and proposes FAQ entries:
+    | recurring questions with a grounded answer, and gaps the agent couldn't
+    | answer. They are SUGGESTIONS only — the host approves each one on the
+    | agent settings page before it reaches a guest (auto_approve stays off).
+    */
+    'learning' => [
+        'enabled'                   => (bool) env('AGENT_LEARNING_ENABLED', true),
+        'auto_approve'              => false, // host must approve every suggestion
+        'lookback_days'             => 7,
+        'max_conversations_per_run' => 40,
+        'max_messages_per_convo'    => 20,
+        'max_transcript_chars'      => 12000, // hard cap on what we send the LLM
+        'max_suggestions_per_run'   => 8,
+        'max_output_tokens'         => 1200,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Photos
     |--------------------------------------------------------------------------
     */
