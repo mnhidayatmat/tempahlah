@@ -86,12 +86,13 @@
                 $months = $monthly->values();
                 $n = max(1, $months->count());
 
-                // viewBox geometry — responsive (svg scales to container width).
-                $W = 760; $H = 300;
-                $padL = 54; $padR = 16; $padT = 14; $padB = 30;
+                // viewBox geometry — flat, medium aspect (svg scales to container
+                // width, keeping this ~3.7:1 ratio so the chart stays a medium
+                // height rather than towering on wide screens).
+                $W = 880; $H = 236;
+                $padL = 46; $padR = 14; $padT = 10; $padB = 24;
                 $plotW = $W - $padL - $padR;
                 $plotH = $H - $padT - $padB;
-                $ticks = 4;
 
                 // Y-range spans every series and always includes the zero
                 // baseline (profit can go negative in a loss-making month).
@@ -100,22 +101,30 @@
                 foreach ($months as $m) {
                     foreach ($seriesKeys as $k) { $allVals[] = (float) ($m[$k] ?? 0); }
                 }
-                $rawMax = max(1.0, max($allVals));
-                $rawMin = min(0.0, min($allVals));
+                $dataMax = max($allVals);
+                $dataMin = min($allVals);
 
-                // "Nice" rounded bound (1/2/2.5/5/10 × 10ⁿ) so tick labels land
-                // on clean numbers, applied to each side of zero independently.
-                $niceCeil = function (float $v): float {
-                    if ($v <= 0) return 1.0;
-                    $exp = floor(log10($v));
-                    $base = pow(10, $exp);
-                    $frac = $v / $base;
-                    $nf = $frac <= 1 ? 1 : ($frac <= 2 ? 2 : ($frac <= 2.5 ? 2.5 : ($frac <= 5 ? 5 : 10)));
-                    return $nf * $base;
+                // "Nice number" axis (Heckbert): pick a clean step, then snap the
+                // bounds TIGHT to the data — so the top line nearly touches the
+                // top gridline instead of leaving a big empty band above it.
+                $niceNum = function (float $x, bool $round): float {
+                    if ($x <= 0) return 1.0;
+                    $exp = floor(log10($x));
+                    $f = $x / pow(10, $exp);
+                    $nf = $round
+                        ? ($f < 1.5 ? 1 : ($f < 3 ? 2 : ($f < 7 ? 5 : 10)))
+                        : ($f <= 1 ? 1 : ($f <= 2 ? 2 : ($f <= 5 ? 5 : 10)));
+                    return $nf * pow(10, $exp);
                 };
-                $yMax = $niceCeil($rawMax);
-                $yMin = $rawMin < 0 ? -$niceCeil(abs($rawMin)) : 0.0;
-                $range = max(1.0, $yMax - $yMin);
+                $lo = min(0.0, $dataMin);           // always include zero
+                $hi = max(1.0, $dataMax);
+                // Floor the step at RM 1 so a brand-new tenant with no data
+                // doesn't get fractional axis labels (0.8, 0.6, …).
+                $step = max(1.0, $niceNum($niceNum($hi - $lo, false) / 4, true));
+                $yMin = floor($lo / $step) * $step;
+                $yMax = ceil($hi / $step) * $step;
+                $range = max($step, $yMax - $yMin);
+                $tickCount = max(1, (int) round(($yMax - $yMin) / $step));
 
                 // Points span the full plot width (edge to edge) for a line chart.
                 $x = fn ($i) => $n > 1 ? $padL + $plotW * ($i / ($n - 1)) : $padL + $plotW / 2;
@@ -133,15 +142,15 @@
                  style="width:100%; height:auto; display:block; overflow:visible;"
                  role="img" aria-label="{{ __('Monthly sales, revenue, expenses and profit') }}">
 
-                {{-- Gridlines + RM tick labels --}}
-                @for ($t = 0; $t <= $ticks; $t++)
+                {{-- Gridlines + RM tick labels (one per nice step) --}}
+                @for ($t = 0; $t <= $tickCount; $t++)
                     @php
-                        $gy = round($padT + $plotH * ($t / $ticks), 1);
-                        $val = $yMax - $range * ($t / $ticks);
+                        $val = $yMax - $step * $t;
+                        $gy = round($y($val), 1);
                     @endphp
                     <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $W - $padR }}" y2="{{ $gy }}"
-                          stroke="var(--line)" stroke-width="1" @if ($t !== 0 && $t !== $ticks) stroke-dasharray="2 5" @endif />
-                    <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="9"
+                          stroke="var(--line)" stroke-width="1" @if ($t !== 0 && $t !== $tickCount) stroke-dasharray="2 5" @endif />
+                    <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="8.5"
                           fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($val) }}</text>
                 @endfor
 
@@ -163,23 +172,20 @@
                     </rect>
                 @endforeach
 
-                {{-- Series lines (profit emphasised) --}}
+                {{-- Series lines — uniform weight, distinguished by colour only --}}
                 @foreach ($series as $s)
                     @php
-                        $hero = $s['key'] === 'profit';
                         $pts = $months->map(fn ($m, $i) => round($x($i), 1).','.round($y((float) ($m[$s['key']] ?? 0)), 1))->implode(' ');
                     @endphp
                     <polyline points="{{ $pts }}" fill="none" stroke="{{ $s['color'] }}"
-                              stroke-width="{{ $hero ? '2.75' : '1.75' }}" stroke-linejoin="round" stroke-linecap="round"
-                              opacity="{{ $hero ? '1' : '0.9' }}" />
+                              stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
                 @endforeach
 
                 {{-- Data-point dots, drawn on top of the lines --}}
                 @foreach ($series as $s)
                     @foreach ($months as $i => $m)
                         <circle cx="{{ round($x($i), 1) }}" cy="{{ round($y((float) ($m[$s['key']] ?? 0)), 1) }}"
-                                r="{{ $s['key'] === 'profit' ? '2.75' : '2' }}" fill="{{ $s['color'] }}"
-                                stroke="var(--bg-elev)" stroke-width="1" />
+                                r="2" fill="{{ $s['color'] }}" stroke="var(--bg-elev)" stroke-width="1" />
                     @endforeach
                 @endforeach
 
