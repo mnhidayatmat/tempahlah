@@ -174,20 +174,6 @@
                 @if ($heroCellUrl)
                     <img src="{{ $heroCellUrl }}" alt="">
                 @endif
-                <div class="bp-gallery-hero-overlay">
-                    <div>
-                        <div class="kicker">{{ __('Featured') }}</div>
-                        <div class="tagline">
-                            @switch($coverKind)
-                                @case('beach') {{ __('Wake up to the strait of Malacca') }} @break
-                                @case('highland') {{ __('Misty mornings, tea-plantation views') }} @break
-                                @case('kampung') {{ __('Authentic village life, modern comfort') }} @break
-                                @case('heritage') {{ __('Heritage charm, walkable to it all') }} @break
-                                @default {{ __('Booked direct, no middleman') }}
-                            @endswitch
-                        </div>
-                    </div>
-                </div>
             </div>
             @for ($i = 1; $i <= 4; $i++)
                 @php $cellPhoto = $photos->skip($i)->first(); $cellUrl = $cellPhoto ? Storage::url($cellPhoto->path) : null; @endphp
