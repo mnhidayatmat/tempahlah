@@ -61,12 +61,13 @@
         <div class="hauz-card" style="padding: 22px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue, bookings & profit') }}</div>
+                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue, bookings, expenses & profit') }}</div>
                     <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · % above bars = occupancy · hover for exact figures') }}</div>
                 </div>
                 <div style="display:flex; gap:14px; flex-wrap:wrap; font-size: 11.5px; color: var(--ink-2);">
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px;"></span>{{ __('Revenue (RM)') }}</span>
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; background: var(--accent); border-radius: 2px;"></span>{{ __('Bookings') }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; background: var(--err); border-radius: 2px;"></span>{{ __('Expenses (RM)') }}</span>
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:14px; height:3px; background: var(--ok); border-radius: 2px;"></span>{{ __('Profit (RM)') }}</span>
                 </div>
             </div>
@@ -83,9 +84,11 @@
                 $slot = $plotW / $n;
                 $ticks = 4;
 
-                // Two bars per month (revenue + bookings), centred in the slot.
-                $pairGap = 3;
-                $barW = max(4, min(18, ($slot * 0.62 - $pairGap) / 2));
+                // Three bars per month (revenue + bookings + expenses), centred
+                // in the slot with two gaps between them.
+                $pairGap = 2.5;
+                $barW = max(3.5, min(15, ($slot * 0.64 - 2 * $pairGap) / 3));
+                $groupW = $barW * 3 + $pairGap * 2;
 
                 // "Nice" rounded bound (1/2/2.5/5/10 × 10ⁿ) so gridline labels
                 // land on clean numbers.
@@ -100,7 +103,7 @@
 
                 // RM axis: top from revenue (profit ≤ revenue always), bottom
                 // drops below zero only if a month is loss-making.
-                $revTop  = max((float) $months->max('revenue'), (float) $months->max('profit'));
+                $revTop  = max((float) $months->max('revenue'), (float) $months->max('profit'), (float) $months->max('expenses'));
                 $rmMax   = $niceCeil(max(1.0, $revTop));
                 $minProfit = (float) $months->min('profit');
                 $rmMin   = $minProfit < 0 ? -$niceCeil(abs($minProfit)) : 0.0;
@@ -126,7 +129,7 @@
 
             <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="xMidYMid meet"
                  style="width:100%; height:auto; display:block; overflow:visible;"
-                 role="img" aria-label="{{ __('Monthly revenue, bookings and profit') }}">
+                 role="img" aria-label="{{ __('Monthly revenue, bookings, expenses and profit') }}">
 
                 {{-- Gridlines + dual-axis tick labels (RM left, bookings right) --}}
                 @for ($t = 0; $t <= $ticks; $t++)
@@ -156,31 +159,44 @@
                 @foreach ($months as $i => $m)
                     @php
                         $cx = $xCenter($i);
-                        $revX = round($cx - $pairGap / 2 - $barW, 1);
-                        $cntX = round($cx + $pairGap / 2, 1);
+                        $x0 = $cx - $groupW / 2;                     // left edge of the 3-bar group
+                        $revX = round($x0, 1);                        // 1st: revenue (RM axis)
+                        $cntX = round($x0 + $barW + $pairGap, 1);     // 2nd: bookings (count axis)
+                        $expX = round($x0 + 2 * ($barW + $pairGap), 1); // 3rd: expenses (RM axis)
                         $revY = round($yRev($m['revenue']), 1);
                         $cntY = round($yCount($m['bookings']), 1);
+                        $expY = round($yRev($m['expenses']), 1);
                         $revH = max(0, round($zeroY - $revY, 1));
                         $cntH = max(0, round($zeroY - $cntY, 1));
+                        $expH = max(0, round($zeroY - $expY, 1));
                         $occPct = number_format($m['occupancy'] * 100, 0);
                         $revLabelX = round($revX + $barW / 2, 1);
                         $revLabelY = round(max($padT + 8, $revY - 6), 1);
                         $occLabelX = round($cntX + $barW / 2, 1);
                         $occLabelY = round(max($padT + 8, $cntY - 6), 1);
-                        $tip = $m['label'].' — RM '.number_format($m['revenue'], 0).' · '.$m['bookings'].' '.trans_choice('{1} booking|[2,*] bookings', $m['bookings']).' · '.$occPct.'% '.__('occupancy').' · '.__('Profit').' RM '.number_format($m['profit'], 0);
+                        $expLabelX = round($expX + $barW / 2, 1);
+                        $expLabelY = round(max($padT + 8, $expY - 6), 1);
+                        $tip = $m['label'].' — RM '.number_format($m['revenue'], 0).' · '.$m['bookings'].' '.trans_choice('{1} booking|[2,*] bookings', $m['bookings']).' · '.$occPct.'% '.__('occupancy').' · '.__('Expenses').' RM '.number_format($m['expenses'], 0).' · '.__('Profit').' RM '.number_format($m['profit'], 0);
                     @endphp
                     <rect x="{{ $revX }}" y="{{ $revY }}" width="{{ round($barW, 1) }}" height="{{ $revH }}"
                           rx="2" fill="var(--primary)" opacity="0.9"><title>{{ $tip }}</title></rect>
                     <rect x="{{ $cntX }}" y="{{ $cntY }}" width="{{ round($barW, 1) }}" height="{{ $cntH }}"
                           rx="2" fill="var(--accent)" opacity="0.9"><title>{{ $tip }}</title></rect>
+                    <rect x="{{ $expX }}" y="{{ $expY }}" width="{{ round($barW, 1) }}" height="{{ $expH }}"
+                          rx="2" fill="var(--err)" opacity="0.9"><title>{{ $tip }}</title></rect>
                     @if ($m['revenue'] > 0)
                         <text x="{{ $revLabelX }}" y="{{ $revLabelY }}" text-anchor="middle"
-                              font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                              font-size="8" font-weight="600" fill="var(--ink-2)"
                               font-family="ui-monospace, monospace">{{ $fmtK($m['revenue']) }}</text>
                     @endif
                     <text x="{{ $occLabelX }}" y="{{ $occLabelY }}" text-anchor="middle"
-                          font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                          font-size="8" font-weight="600" fill="var(--ink-2)"
                           font-family="ui-monospace, monospace">{{ $occPct }}%</text>
+                    @if ($m['expenses'] > 0)
+                        <text x="{{ $expLabelX }}" y="{{ $expLabelY }}" text-anchor="middle"
+                              font-size="8" font-weight="600" fill="var(--err)"
+                              font-family="ui-monospace, monospace">{{ $fmtK($m['expenses']) }}</text>
+                    @endif
                 @endforeach
 
                 {{-- Profit line on the RM axis --}}
