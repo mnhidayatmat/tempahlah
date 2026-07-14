@@ -53,32 +53,21 @@
             @endforeach
         </div>
 
-        {{-- Profit & loss trend: Sales, Revenue, Expenses and Profit drawn as
-             four lines on one shared RM axis (all the same unit, so no dual
-             axis needed). The zero baseline is emphasised whenever profit dips
-             negative. Hover any month for the exact figures. --}}
+        {{-- Trend chart: revenue + number of bookings as grouped bars on a
+             dual axis (left = RM revenue, right = booking count), with the
+             monthly PROFIT overlaid as a single line on the RM axis. The RM
+             axis extends below zero (with an emphasised baseline) only when a
+             month runs at a loss. Hover a bar for exact figures. --}}
         <div class="hauz-card" style="padding: 22px;">
-            @php
-                $series = [
-                    ['key' => 'sales',      'label' => __('Sales'),    'color' => 'var(--info)'],
-                    ['key' => 'netRevenue', 'label' => __('Revenue'),  'color' => 'var(--primary)'],
-                    ['key' => 'expenses',   'label' => __('Expenses'), 'color' => 'var(--err)'],
-                    ['key' => 'profit',     'label' => __('Profit'),   'color' => 'var(--ok)'],
-                ];
-            @endphp
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Profit & loss') }}</div>
-                    <div style="font-size: 12.5px; color: var(--ink-3); max-width: 460px; line-height: 1.5;">
-                        {{ __('Last 12 months. Sales = billed to guests · Revenue = sales − SST & tourism tax · Profit = revenue − expenses.') }}
-                    </div>
+                    <div class="kicker" style="margin-bottom: 4px;">{{ __('Revenue, bookings & profit') }}</div>
+                    <div style="font-size: 13px; color: var(--ink-3);">{{ __('Last 12 months · % above bars = occupancy · hover for exact figures') }}</div>
                 </div>
-                <div style="display:flex; gap:16px; flex-wrap:wrap; font-size: 11.5px; color: var(--ink-2);">
-                    @foreach ($series as $s)
-                        <span style="display:inline-flex; align-items:center; gap:6px;">
-                            <span style="display:inline-block; width:14px; height:3px; border-radius:2px; background: {{ $s['color'] }};"></span>{{ $s['label'] }}
-                        </span>
-                    @endforeach
+                <div style="display:flex; gap:14px; flex-wrap:wrap; font-size: 11.5px; color: var(--ink-2);">
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; background: var(--primary); border-radius: 2px;"></span>{{ __('Revenue (RM)') }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; background: var(--accent); border-radius: 2px;"></span>{{ __('Bookings') }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:14px; height:3px; background: var(--ok); border-radius: 2px;"></span>{{ __('Profit (RM)') }}</span>
                 </div>
             </div>
 
@@ -86,50 +75,47 @@
                 $months = $monthly->values();
                 $n = max(1, $months->count());
 
-                // viewBox geometry — flat, medium aspect (svg scales to container
-                // width, keeping this ~3.7:1 ratio so the chart stays a medium
-                // height rather than towering on wide screens).
-                $W = 880; $H = 236;
-                $padL = 46; $padR = 14; $padT = 10; $padB = 24;
+                // viewBox geometry — responsive (svg scales to container width).
+                $W = 800; $H = 270;
+                $padL = 52; $padR = 44; $padT = 18; $padB = 34;
                 $plotW = $W - $padL - $padR;
                 $plotH = $H - $padT - $padB;
+                $slot = $plotW / $n;
+                $ticks = 4;
 
-                // Y-range spans every series and always includes the zero
-                // baseline (profit can go negative in a loss-making month).
-                $seriesKeys = ['sales', 'netRevenue', 'expenses', 'profit'];
-                $allVals = [];
-                foreach ($months as $m) {
-                    foreach ($seriesKeys as $k) { $allVals[] = (float) ($m[$k] ?? 0); }
-                }
-                $dataMax = max($allVals);
-                $dataMin = min($allVals);
+                // Two bars per month (revenue + bookings), centred in the slot.
+                $pairGap = 3;
+                $barW = max(4, min(18, ($slot * 0.62 - $pairGap) / 2));
 
-                // "Nice number" axis (Heckbert): pick a clean step, then snap the
-                // bounds TIGHT to the data — so the top line nearly touches the
-                // top gridline instead of leaving a big empty band above it.
-                $niceNum = function (float $x, bool $round): float {
-                    if ($x <= 0) return 1.0;
-                    $exp = floor(log10($x));
-                    $f = $x / pow(10, $exp);
-                    $nf = $round
-                        ? ($f < 1.5 ? 1 : ($f < 3 ? 2 : ($f < 7 ? 5 : 10)))
-                        : ($f <= 1 ? 1 : ($f <= 2 ? 2 : ($f <= 5 ? 5 : 10)));
-                    return $nf * pow(10, $exp);
+                // "Nice" rounded bound (1/2/2.5/5/10 × 10ⁿ) so gridline labels
+                // land on clean numbers.
+                $niceCeil = function (float $v): float {
+                    if ($v <= 0) return 1.0;
+                    $exp = floor(log10($v));
+                    $base = pow(10, $exp);
+                    $frac = $v / $base;
+                    $nf = $frac <= 1 ? 1 : ($frac <= 2 ? 2 : ($frac <= 2.5 ? 2.5 : ($frac <= 5 ? 5 : 10)));
+                    return $nf * $base;
                 };
-                $lo = min(0.0, $dataMin);           // always include zero
-                $hi = max(1.0, $dataMax);
-                // Floor the step at RM 1 so a brand-new tenant with no data
-                // doesn't get fractional axis labels (0.8, 0.6, …).
-                $step = max(1.0, $niceNum($niceNum($hi - $lo, false) / 4, true));
-                $yMin = floor($lo / $step) * $step;
-                $yMax = ceil($hi / $step) * $step;
-                $range = max($step, $yMax - $yMin);
-                $tickCount = max(1, (int) round(($yMax - $yMin) / $step));
 
-                // Points span the full plot width (edge to edge) for a line chart.
-                $x = fn ($i) => $n > 1 ? $padL + $plotW * ($i / ($n - 1)) : $padL + $plotW / 2;
-                $y = fn ($v) => $padT + $plotH * (($yMax - $v) / $range);
-                $slot = $n > 1 ? $plotW / ($n - 1) : $plotW;
+                // RM axis: top from revenue (profit ≤ revenue always), bottom
+                // drops below zero only if a month is loss-making.
+                $revTop  = max((float) $months->max('revenue'), (float) $months->max('profit'));
+                $rmMax   = $niceCeil(max(1.0, $revTop));
+                $minProfit = (float) $months->min('profit');
+                $rmMin   = $minProfit < 0 ? -$niceCeil(abs($minProfit)) : 0.0;
+                $rmSpan  = max(1.0, $rmMax - $rmMin);
+
+                // Booking-count axis rounds up to a multiple of $ticks so every
+                // right-hand tick label is a whole number.
+                $maxBookings = (int) $months->max('bookings');
+                $countMax = max($ticks, (int) (ceil($maxBookings / $ticks) * $ticks));
+
+                $xCenter = fn ($i) => $padL + $slot * ($i + 0.5);
+                $yRev    = fn ($v) => $padT + $plotH * (($rmMax - $v) / $rmSpan);   // RM axis, negatives-aware
+                $zeroY   = $padT + $plotH * (($rmMax - 0) / $rmSpan);               // the RM zero line
+                $posH    = max(1.0, $zeroY - $padT);                                // height of the positive region
+                $yCount  = fn ($c) => $zeroY - $posH * ($c / $countMax);            // bookings grow up from zero
 
                 $fmtK = function ($v) {
                     $a = abs($v);
@@ -140,58 +126,77 @@
 
             <svg viewBox="0 0 {{ $W }} {{ $H }}" preserveAspectRatio="xMidYMid meet"
                  style="width:100%; height:auto; display:block; overflow:visible;"
-                 role="img" aria-label="{{ __('Monthly sales, revenue, expenses and profit') }}">
+                 role="img" aria-label="{{ __('Monthly revenue, bookings and profit') }}">
 
-                {{-- Gridlines + RM tick labels (one per nice step) --}}
-                @for ($t = 0; $t <= $tickCount; $t++)
+                {{-- Gridlines + dual-axis tick labels (RM left, bookings right) --}}
+                @for ($t = 0; $t <= $ticks; $t++)
                     @php
-                        $val = $yMax - $step * $t;
-                        $gy = round($y($val), 1);
+                        $rmVal = $rmMax - $rmSpan * ($t / $ticks);
+                        $gy = round($yRev($rmVal), 1);
+                        $cv = $rmVal >= 0 ? $countMax * ($rmVal / max(1.0, $rmMax)) : null;
                     @endphp
                     <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $W - $padR }}" y2="{{ $gy }}"
-                          stroke="var(--line)" stroke-width="1" @if ($t !== 0 && $t !== $tickCount) stroke-dasharray="2 5" @endif />
-                    <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="8.5"
-                          fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($val) }}</text>
+                          stroke="var(--line)" stroke-width="1" @if ($t !== 0 && $t !== $ticks) stroke-dasharray="2 5" @endif />
+                    <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="9"
+                          fill="var(--ink-3)" font-family="ui-monospace, monospace">{{ $fmtK($rmVal) }}</text>
+                    @if ($cv !== null)
+                        <text x="{{ $W - $padR + 8 }}" y="{{ $gy + 3 }}" text-anchor="start" font-size="9"
+                              fill="var(--accent)" font-family="ui-monospace, monospace">{{ number_format($cv, 0) }}</text>
+                    @endif
                 @endfor
 
-                {{-- Zero baseline, emphasised when profit runs negative --}}
-                @if ($yMin < 0)
-                    <line x1="{{ $padL }}" y1="{{ round($y(0), 1) }}" x2="{{ $W - $padR }}" y2="{{ round($y(0), 1) }}"
+                {{-- Emphasised RM zero baseline (only meaningful once a loss pushes the axis negative) --}}
+                @if ($rmMin < 0)
+                    <line x1="{{ $padL }}" y1="{{ round($zeroY, 1) }}" x2="{{ $W - $padR }}" y2="{{ round($zeroY, 1) }}"
                           stroke="var(--ink-3)" stroke-width="1.25" />
                 @endif
 
-                {{-- Invisible per-month hover columns → one tooltip listing all
-                     four figures for that month. --}}
+                {{-- Grouped bars: revenue (left of centre) + bookings (right),
+                     both growing up from the RM zero line. --}}
                 @foreach ($months as $i => $m)
-                    <rect x="{{ round($x($i) - $slot / 2, 1) }}" y="{{ $padT }}" width="{{ round($slot, 1) }}" height="{{ round($plotH, 1) }}" fill="transparent">
-                        <title>{{ $m['label'] }}
-{{ __('Sales') }}: RM {{ number_format($m['sales'], 0) }}
-{{ __('Revenue') }}: RM {{ number_format($m['netRevenue'], 0) }}
-{{ __('Expenses') }}: RM {{ number_format($m['expenses'], 0) }}
-{{ __('Profit') }}: RM {{ number_format($m['profit'], 0) }}</title>
-                    </rect>
-                @endforeach
-
-                {{-- Series lines — uniform weight, distinguished by colour only --}}
-                @foreach ($series as $s)
                     @php
-                        $pts = $months->map(fn ($m, $i) => round($x($i), 1).','.round($y((float) ($m[$s['key']] ?? 0)), 1))->implode(' ');
+                        $cx = $xCenter($i);
+                        $revX = round($cx - $pairGap / 2 - $barW, 1);
+                        $cntX = round($cx + $pairGap / 2, 1);
+                        $revY = round($yRev($m['revenue']), 1);
+                        $cntY = round($yCount($m['bookings']), 1);
+                        $revH = max(0, round($zeroY - $revY, 1));
+                        $cntH = max(0, round($zeroY - $cntY, 1));
+                        $occPct = number_format($m['occupancy'] * 100, 0);
+                        $revLabelX = round($revX + $barW / 2, 1);
+                        $revLabelY = round(max($padT + 8, $revY - 6), 1);
+                        $occLabelX = round($cntX + $barW / 2, 1);
+                        $occLabelY = round(max($padT + 8, $cntY - 6), 1);
+                        $tip = $m['label'].' — RM '.number_format($m['revenue'], 0).' · '.$m['bookings'].' '.trans_choice('{1} booking|[2,*] bookings', $m['bookings']).' · '.$occPct.'% '.__('occupancy').' · '.__('Profit').' RM '.number_format($m['profit'], 0);
                     @endphp
-                    <polyline points="{{ $pts }}" fill="none" stroke="{{ $s['color'] }}"
-                              stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                    <rect x="{{ $revX }}" y="{{ $revY }}" width="{{ round($barW, 1) }}" height="{{ $revH }}"
+                          rx="2" fill="var(--primary)" opacity="0.9"><title>{{ $tip }}</title></rect>
+                    <rect x="{{ $cntX }}" y="{{ $cntY }}" width="{{ round($barW, 1) }}" height="{{ $cntH }}"
+                          rx="2" fill="var(--accent)" opacity="0.9"><title>{{ $tip }}</title></rect>
+                    @if ($m['revenue'] > 0)
+                        <text x="{{ $revLabelX }}" y="{{ $revLabelY }}" text-anchor="middle"
+                              font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                              font-family="ui-monospace, monospace">{{ $fmtK($m['revenue']) }}</text>
+                    @endif
+                    <text x="{{ $occLabelX }}" y="{{ $occLabelY }}" text-anchor="middle"
+                          font-size="8.5" font-weight="600" fill="var(--ink-2)"
+                          font-family="ui-monospace, monospace">{{ $occPct }}%</text>
                 @endforeach
 
-                {{-- Data-point dots, drawn on top of the lines --}}
-                @foreach ($series as $s)
-                    @foreach ($months as $i => $m)
-                        <circle cx="{{ round($x($i), 1) }}" cy="{{ round($y((float) ($m[$s['key']] ?? 0)), 1) }}"
-                                r="2" fill="{{ $s['color'] }}" stroke="var(--bg-elev)" stroke-width="1" />
-                    @endforeach
+                {{-- Profit line on the RM axis --}}
+                @php
+                    $profitPts = $months->map(fn ($m, $i) => round($xCenter($i), 1).','.round($yRev((float) $m['profit']), 1))->implode(' ');
+                @endphp
+                <polyline points="{{ $profitPts }}" fill="none" stroke="var(--ok)"
+                          stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                @foreach ($months as $i => $m)
+                    <circle cx="{{ round($xCenter($i), 1) }}" cy="{{ round($yRev((float) $m['profit']), 1) }}"
+                            r="2.75" fill="var(--ok)" stroke="var(--bg-elev)" stroke-width="1"><title>{{ $m['label'] }} — {{ __('Profit') }} RM {{ number_format($m['profit'], 0) }}</title></circle>
                 @endforeach
 
                 {{-- Month labels --}}
                 @foreach ($months as $i => $m)
-                    <text x="{{ round($x($i), 1) }}" y="{{ $H - 12 }}" text-anchor="middle"
+                    <text x="{{ round($xCenter($i), 1) }}" y="{{ $H - 14 }}" text-anchor="middle"
                           font-size="9" fill="var(--ink-3)">{{ $m['label'] }}</text>
                 @endforeach
             </svg>
