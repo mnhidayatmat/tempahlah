@@ -352,7 +352,15 @@ class PlatformAdminController extends Controller
      */
     protected function stats(): array
     {
+        // Only count subscriptions of LIVE tenants. Subscription carries no
+        // soft-delete/tenant scope, and deleting a tenant only soft-deletes the
+        // tenant (its subscription row stays) — so without this, Free / Subscribed
+        // / On-trial / MRR kept counting deleted tenants while Total tenants (a
+        // soft-delete-scoped Tenant::count() below) already excluded them.
+        // whereHas('tenant') applies Tenant's SoftDeletes global scope and drops
+        // orphaned rows whose tenant was hard-deleted.
         $rows = Subscription::query()
+            ->whereHas('tenant')
             ->selectRaw('plan, status, COUNT(*) as c, COALESCE(SUM(monthly_amount), 0) as amt')
             ->groupBy('plan', 'status')
             ->get();
