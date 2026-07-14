@@ -51,7 +51,17 @@ class MarketplaceListing extends Model
 
     public function scopePublished(Builder $q): Builder
     {
-        return $q->where('status', self::STATUS_ACTIVE)->whereNotNull('published_at');
+        return $q->where('status', self::STATUS_ACTIVE)
+            ->whereNotNull('published_at')
+            // Hide listings whose owning homestay is no longer live. A tenant
+            // deleted in Platform Admin is only SOFT-deleted (the listing row
+            // stays status=active), so without this a removed homestay lingered
+            // in the marketplace. whereHas('tenant') applies Tenant's SoftDeletes
+            // global scope (deleted_at is null), and the status/suspended checks
+            // mirror Tenant::isActive() + the subdomain resolver — so suspended
+            // homestays drop out too, and a restored tenant reappears
+            // automatically (no listing mutation on delete).
+            ->whereHas('tenant', fn (Builder $t) => $t->where('status', 'active')->whereNull('suspended_at'));
     }
 
     public function getRouteKeyName(): string

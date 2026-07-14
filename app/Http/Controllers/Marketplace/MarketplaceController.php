@@ -193,6 +193,12 @@ class MarketplaceController extends Controller
             404,
         );
 
+        // The owning homestay must still be live. A soft-deleted tenant makes
+        // $listing->tenant null (Tenant's SoftDeletes scope); a suspended one
+        // fails isActive(). Either way the listing detail 404s, matching the
+        // subdomain booking page and the marketplace search filter above.
+        abort_unless($listing->tenant?->isActive(), 404);
+
         // Arm attribution so a booking made from here is marketplace-sourced.
         \App\Support\Marketplace\Attribution::remember($listing->tenant, $listing->id);
 
