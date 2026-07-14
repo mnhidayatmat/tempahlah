@@ -34,7 +34,7 @@
         </div>
 
         {{-- Stat cards --}}
-        <div style="display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px;">
             @php
                 $cards = [
                     [__('Total tenants'), (string) $totalTenants, __('all workspaces'), null],

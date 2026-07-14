@@ -54,7 +54,7 @@
         </div>
 
         {{-- Payout + settings row --}}
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
             {{-- Record payout --}}
             <div class="hauz-card" style="padding: 16px 18px;">
                 <div style="font-weight:700; font-size:13.5px; color:var(--ink); margin-bottom:4px;">{{ __('Record payout') }}</div>
@@ -83,7 +83,7 @@
                 <form method="POST" action="{{ route('platform.affiliates.update', $affiliate) }}">
                     @csrf
                     @method('PATCH')
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
                         <div>
                             <label style="display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px;">{{ __('Name') }}</label>
                             <input class="input" type="text" name="name" required maxlength="160" value="{{ old('name', $affiliate->name) }}">

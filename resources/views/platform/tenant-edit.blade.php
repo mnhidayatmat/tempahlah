@@ -50,7 +50,7 @@
                            value="{{ old('business_name', $tenant->business_name) }}">
                 </label>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
                     <label style="display:flex; flex-direction:column; gap: 5px;">
                         <span style="font-size: 12px; color: var(--ink-2);">{{ __('Business email') }}</span>
                         <input type="email" name="business_email" maxlength="190" class="input"

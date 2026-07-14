@@ -45,7 +45,7 @@
 
         {{-- Delivery stats (once sending has started) --}}
         @unless ($campaign->isDraft())
-            <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
                 @foreach ([
                     [__('Recipients'), $campaign->recipients_total, 'var(--ink)'],
                     [__('Sent'), $campaign->sent_count, 'var(--ok)'],
