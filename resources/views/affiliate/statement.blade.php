@@ -45,7 +45,26 @@
         @media (max-width:680px){ .as-form-grid{ grid-template-columns:1fr; } }
         .as-field label{ display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
         .as-field .input{ width:100%; }
+        .as-stat .v{ white-space:nowrap; }
         [x-cloak]{ display:none !important; }
+
+        /* ── Mobile (phones) ─────────────────────────────────────────────── */
+        @media (max-width:640px){
+            .as-wrap{ padding:20px 12px 48px; gap:14px; }
+            /* Referral link on its own row; Copy + Share big + side-by-side. */
+            .as-link{ flex-basis:100%; min-width:0; }
+            .as-link-row .btn{ flex:1; height:44px; justify-content:center; font-size:13px; }
+            .as-actions .btn{ width:100%; height:46px; justify-content:center; font-size:13.5px; }
+            /* Commission table → stacked label/value cards (no sideways scroll). */
+            .as-wrap-x{ overflow-x:visible; }
+            .as-table{ min-width:0; display:block; font-size:13px; }
+            .as-table thead{ display:none; }
+            .as-table tbody{ display:block; }
+            .as-table tr{ display:block; padding:10px 14px; border-top:.5px solid var(--line); }
+            .as-table tr:first-child{ border-top:0; }
+            .as-table td{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:4px 0; border:0; text-align:right; white-space:normal; }
+            .as-table td::before{ content:attr(data-label); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); text-align:left; flex-shrink:0; }
+        }
     </style>
 </head>
 <body>
@@ -115,11 +134,11 @@
                         <tbody>
                             @foreach ($commissions as $c)
                                 <tr>
-                                    <td style="white-space:nowrap;">{{ $c->created_at->format('j M Y') }}</td>
-                                    <td>{{ $c->tenant?->business_name ?? '—' }}</td>
-                                    <td class="as-num">RM {{ number_format((float) $c->base_amount, 2) }}</td>
-                                    <td class="as-num" style="font-weight:600; color:var(--ink);">RM {{ number_format((float) $c->amount, 2) }}</td>
-                                    <td><span class="pill {{ $statusTone[$c->status] ?? '' }}" style="height:20px; font-size:11px;">{{ $c->statusLabel() }}</span></td>
+                                    <td data-label="{{ __('Date') }}" style="white-space:nowrap;">{{ $c->created_at->format('j M Y') }}</td>
+                                    <td data-label="{{ __('Homestay') }}">{{ $c->tenant?->business_name ?? '—' }}</td>
+                                    <td data-label="{{ __('Payment') }}" class="as-num">RM {{ number_format((float) $c->base_amount, 2) }}</td>
+                                    <td data-label="{{ __('Your commission') }}" class="as-num" style="font-weight:600; color:var(--ink);">RM {{ number_format((float) $c->amount, 2) }}</td>
+                                    <td data-label="{{ __('Status') }}"><span class="pill {{ $statusTone[$c->status] ?? '' }}" style="height:20px; font-size:11px;">{{ $c->statusLabel() }}</span></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -153,7 +172,7 @@
                         <input class="input" type="text" name="bank_account_no" maxlength="60" inputmode="numeric" value="{{ old('bank_account_no') }}" placeholder="{{ $last4 ? __('•••• :last4 (leave blank to keep)', ['last4' => $last4]) : '' }}">
                     </div>
                 </div>
-                <div style="margin-top:12px;">
+                <div class="as-actions" style="margin-top:12px;">
                     <button type="submit" class="btn btn-primary btn-sm">{{ __('Save payout details') }}</button>
                 </div>
             </form>

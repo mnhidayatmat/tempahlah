@@ -15,7 +15,7 @@
         .rf-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
         .rf-stat{ padding:14px 16px; }
         .rf-stat .k{ font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); }
-        .rf-stat .v{ margin-top:6px; font-size:20px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+        .rf-stat .v{ margin-top:6px; font-size:20px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
         .rf-stat .s{ margin-top:2px; font-size:11px; color:var(--ink-3); }
         .rf-link-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
         .rf-link{ flex:1; min-width:220px; font-family:var(--font-mono, monospace); font-size:13px; padding:10px 12px; border:.5px solid var(--line); border-radius:var(--r-sm); background:var(--bg-sunk); color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -27,6 +27,25 @@
         .rf-field label{ display:block; font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
         .rf-form-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
         @media (max-width:720px){ .rf-form-grid{ grid-template-columns: 1fr; } }
+
+        /* ── Mobile (phones) ─────────────────────────────────────────────── */
+        @media (max-width:640px){
+            /* Referral link: link on its own row, Copy + Share as two big
+               side-by-side buttons with proper tap targets. */
+            .rf-link{ flex-basis:100%; min-width:0; }
+            .rf-link-row .btn{ flex:1; height:44px; justify-content:center; font-size:13px; }
+            /* Save payout button spans the row (easy thumb target). */
+            .rf-actions .btn{ width:100%; height:46px; justify-content:center; font-size:13.5px; }
+            /* Commission table → stacked label/value cards (no sideways scroll). */
+            .rf-wrap{ overflow-x:visible; }
+            .rf-table{ min-width:0; display:block; font-size:13px; }
+            .rf-table thead{ display:none; }
+            .rf-table tbody{ display:block; }
+            .rf-table tr{ display:block; padding:10px 14px; border-top:.5px solid var(--line); }
+            .rf-table tr:first-child{ border-top:0; }
+            .rf-table td{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:4px 0; border:0; text-align:right; white-space:normal; }
+            .rf-table td::before{ content:attr(data-label); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); text-align:left; flex-shrink:0; }
+        }
     </style>
     @endonce
 
@@ -120,11 +139,11 @@
                         <tbody>
                             @foreach ($commissions as $c)
                                 <tr>
-                                    <td style="white-space:nowrap;">{{ $c->created_at->format('j M Y') }}</td>
-                                    <td>{{ $c->tenant?->business_name ?? '—' }}</td>
-                                    <td class="rf-num">RM {{ number_format((float) $c->base_amount, 2) }}</td>
-                                    <td class="rf-num" style="font-weight:600; color:var(--ink);">RM {{ number_format((float) $c->amount, 2) }}</td>
-                                    <td><span class="pill {{ $statusTone[$c->status] ?? '' }}" style="height:20px; font-size:11px;">{{ $c->statusLabel() }}</span></td>
+                                    <td data-label="{{ __('Date') }}" style="white-space:nowrap;">{{ $c->created_at->format('j M Y') }}</td>
+                                    <td data-label="{{ __('Homestay') }}">{{ $c->tenant?->business_name ?? '—' }}</td>
+                                    <td data-label="{{ __('Payment') }}" class="rf-num">RM {{ number_format((float) $c->base_amount, 2) }}</td>
+                                    <td data-label="{{ __('Your commission') }}" class="rf-num" style="font-weight:600; color:var(--ink);">RM {{ number_format((float) $c->amount, 2) }}</td>
+                                    <td data-label="{{ __('Status') }}"><span class="pill {{ $statusTone[$c->status] ?? '' }}" style="height:20px; font-size:11px;">{{ $c->statusLabel() }}</span></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -155,7 +174,7 @@
                         <input id="rf-bank-no" class="input" type="text" name="bank_account_no" maxlength="60" inputmode="numeric" value="{{ old('bank_account_no', $affiliate->bank_account_no) }}">
                     </div>
                 </div>
-                <div style="margin-top: 12px;">
+                <div class="rf-actions" style="margin-top: 12px;">
                     <button type="submit" class="btn btn-primary btn-sm">{{ __('Save payout details') }}</button>
                 </div>
             </form>
