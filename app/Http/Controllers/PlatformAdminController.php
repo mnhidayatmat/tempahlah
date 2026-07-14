@@ -35,13 +35,27 @@ class PlatformAdminController extends Controller
     public function editTenant(Tenant $tenant)
     {
         $tenant->loadMissing('subscription', 'owner');
+        $subscription = $tenant->subscription;
+
+        // Pre-fill the grant duration control so re-saving the form doesn't
+        // silently convert a time-limited grant into a permanent comp. A comp
+        // reads as "unlimited"; a live non-comped trial reads as its remaining
+        // days (so a no-op save keeps roughly the same expiry date).
+        $grantDuration = 'unlimited';
+        $grantLength = 30;
+        if ($subscription && ! $subscription->isComped() && $subscription->onTrial()) {
+            $grantDuration = 'days';
+            $grantLength = max(1, (int) ceil(now()->diffInDays($subscription->trial_ends_at, false)));
+        }
 
         return view('platform.tenant-edit', [
             'tenant' => $tenant,
-            'subscription' => $tenant->subscription,
+            'subscription' => $subscription,
             // Reflect actual access (comped / active / trialing / in-grace):
             // the effective tier — free, pro or ultra.
             'currentPlan' => $tenant->planKey(),
+            'grantDuration' => $grantDuration,
+            'grantLength' => $grantLength,
         ]);
     }
 
@@ -53,6 +67,11 @@ class PlatformAdminController extends Controller
             'business_phone' => ['nullable', 'string', 'max:40'],
             'status'         => ['required', 'in:active,suspended'],
             'plan'           => ['required', 'in:free,pro,ultra'],
+            // How long a Pro/Ultra grant lasts. Ignored for the free plan.
+            'grant_duration' => ['required', 'in:unlimited,days,months'],
+            'grant_length'   => ['nullable', 'integer', 'min:1', 'max:3650', 'required_unless:grant_duration,unlimited'],
+        ], [
+            'grant_length.required_unless' => __('Enter how many days or months the grant lasts.'),
         ]);
 
         $tenant->fill([
@@ -77,7 +96,12 @@ class PlatformAdminController extends Controller
 
         $tenant->save();
 
-        $this->applyPlan($tenant, $validated['plan']);
+        $this->applyPlan(
+            $tenant,
+            $validated['plan'],
+            $validated['grant_duration'],
+            isset($validated['grant_length']) ? (int) $validated['grant_length'] : null,
+        );
 
         return redirect()->route('platform.overview')
             ->with('status', __('Tenant ":name" updated.', ['name' => $tenant->business_name]));
@@ -112,13 +136,22 @@ class PlatformAdminController extends Controller
     }
 
     /**
-     * Force a tenant onto free or Pro. "Pro" here is a COMPLIMENTARY grant
-     * (comped_at) — the designed way to hold every paid feature without running
-     * the billing flow (partner, offline payment, staff). Writing through the
-     * model fires SubscriptionObserver, which purges that tenant's cached Pennant
-     * flags so features flip immediately.
+     * Force a tenant onto free, Pro or Ultra. A paid grant here is COMPLIMENTARY
+     * (never billed, excluded from MRR) — the designed way to hold every paid
+     * feature without running the billing flow (partner, offline payment, staff).
+     * Writing through the model fires SubscriptionObserver, which purges that
+     * tenant's cached Pennant flags so features flip immediately.
+     *
+     * A paid grant lasts either:
+     *   - 'unlimited'  → comped_at set. Never expires, never downgraded (the
+     *                    lifecycle command skips comped rows).
+     *   - 'days'/'months' → status=trialing + trial_ends_at set (comped_at null).
+     *                    ProcessSubscriptionLifecycle auto-downgrades it to free
+     *                    once trial_ends_at lapses, and effectivePlanKey() already
+     *                    honours trial_ends_at for a trialing sub — so the tenant
+     *                    holds the tier for exactly the granted window.
      */
-    private function applyPlan(Tenant $tenant, string $plan): void
+    private function applyPlan(Tenant $tenant, string $plan, string $duration = 'unlimited', ?int $length = null): void
     {
         $subscription = $tenant->subscription()->firstOrCreate(
             ['tenant_id' => $tenant->id],
@@ -134,21 +167,47 @@ class PlatformAdminController extends Controller
         );
 
         if (in_array($plan, Subscription::PAID_PLANS, true)) {
-            $subscription->update([
-                // The comp holds the tier on the plan column — a Pro comp and
-                // an Ultra comp grant different feature sets.
-                'plan' => $plan,
-                'status' => Subscription::STATUS_ACTIVE,
-                // Keep an existing comp date; otherwise stamp now.
-                'comped_at' => $subscription->comped_at ?? now(),
-                // 0 so this complimentary grant never inflates paying MRR.
-                'monthly_amount' => 0,
-                'grace_ends_at' => null,
-                'trial_ends_at' => null,
-                'cancelled_at' => null,
-                'current_period_start' => now(),
-                'current_period_end' => now()->addYear(),
-            ]);
+            if ($duration === 'unlimited') {
+                $subscription->update([
+                    // The comp holds the tier on the plan column — a Pro comp and
+                    // an Ultra comp grant different feature sets.
+                    'plan' => $plan,
+                    'status' => Subscription::STATUS_ACTIVE,
+                    // Keep an existing comp date; otherwise stamp now.
+                    'comped_at' => $subscription->comped_at ?? now(),
+                    // 0 so this complimentary grant never inflates paying MRR.
+                    'monthly_amount' => 0,
+                    'billing_method' => 'manual',
+                    'grace_ends_at' => null,
+                    'trial_ends_at' => null,
+                    'cancelled_at' => null,
+                    'current_period_start' => now(),
+                    'current_period_end' => now()->addYear(),
+                ]);
+            } else {
+                // Time-limited complimentary grant. Modelled as a trial so the
+                // existing lifecycle command expires it cleanly with no billing.
+                $endsAt = $duration === 'months'
+                    ? now()->addMonthsNoOverflow(max(1, (int) $length))
+                    : now()->addDays(max(1, (int) $length));
+
+                $subscription->update([
+                    'plan' => $plan,
+                    'status' => Subscription::STATUS_TRIALING,
+                    // Not a comp — must be able to lapse to free at the end.
+                    'comped_at' => null,
+                    'trial_ends_at' => $endsAt,
+                    // Mark the trial as used so it isn't confused with (or double
+                    // counted against) the self-serve 7-day free trial.
+                    'trial_used_at' => $subscription->trial_used_at ?? now(),
+                    'monthly_amount' => 0,
+                    'billing_method' => 'manual',
+                    'grace_ends_at' => null,
+                    'cancelled_at' => null,
+                    'current_period_start' => now(),
+                    'current_period_end' => $endsAt,
+                ]);
+            }
         } else {
             $subscription->update([
                 'plan' => Subscription::PLAN_FREE,

@@ -73,7 +73,9 @@
             </div>
 
             {{-- Plan --}}
-            <div class="hauz-card" style="padding: 20px; display:flex; flex-direction:column; gap: 12px;">
+            @php $plan = old('plan', $currentPlan); @endphp
+            <div class="hauz-card" style="padding: 20px; display:flex; flex-direction:column; gap: 12px;"
+                 x-data="{ plan: @js($plan), duration: @js(old('grant_duration', $grantDuration)) }">
                 <div>
                     <div style="font-weight: 600; font-size: 14px;">{{ __('Plan') }}</div>
                     <div style="font-size: 12px; color: var(--ink-3); margin-top: 2px;">
@@ -81,29 +83,58 @@
                     </div>
                 </div>
 
-                @php $plan = old('plan', $currentPlan); @endphp
                 <div style="display:flex; flex-direction:column; gap: 10px;">
-                    <label style="display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid {{ $plan === 'free' ? 'var(--primary)' : 'var(--line)' }}; border-radius: var(--r-md); cursor:pointer;">
-                        <input type="radio" name="plan" value="free" @checked($plan === 'free') style="margin-top: 2px;">
+                    <label :style="`display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid ${plan === 'free' ? 'var(--primary)' : 'var(--line)'}; border-radius: var(--r-md); cursor:pointer;`">
+                        <input type="radio" name="plan" value="free" x-model="plan" @checked($plan === 'free') style="margin-top: 2px;">
                         <span>
                             <span style="font-weight: 600; font-size: 13px;">{{ __('Free (Starter)') }}</span>
                             <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('1 homestay · 4 rooms · 20 bookings/month · manual payment only. Paid features switch off.') }}</span>
                         </span>
                     </label>
-                    <label style="display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid {{ $plan === 'pro' ? 'var(--primary)' : 'var(--line)' }}; border-radius: var(--r-md); cursor:pointer;">
-                        <input type="radio" name="plan" value="pro" @checked($plan === 'pro') style="margin-top: 2px;">
+                    <label :style="`display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid ${plan === 'pro' ? 'var(--primary)' : 'var(--line)'}; border-radius: var(--r-md); cursor:pointer;`">
+                        <input type="radio" name="plan" value="pro" x-model="plan" @checked($plan === 'pro') style="margin-top: 2px;">
                         <span>
                             <span style="font-weight: 600; font-size: 13px;">{{ __('Pro (complimentary)') }}</span>
                             <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('3 homestays · payment gateway, invoices, AI assistant, calendar sync, priority marketplace. Granted free, excluded from MRR.') }}</span>
                         </span>
                     </label>
-                    <label style="display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid {{ $plan === 'ultra' ? 'var(--primary)' : 'var(--line)' }}; border-radius: var(--r-md); cursor:pointer;">
-                        <input type="radio" name="plan" value="ultra" @checked($plan === 'ultra') style="margin-top: 2px;">
+                    <label :style="`display:flex; gap: 10px; align-items:flex-start; padding: 12px 14px; border: 1px solid ${plan === 'ultra' ? 'var(--primary)' : 'var(--line)'}; border-radius: var(--r-md); cursor:pointer;`">
+                        <input type="radio" name="plan" value="ultra" x-model="plan" @checked($plan === 'ultra') style="margin-top: 2px;">
                         <span>
                             <span style="font-weight: 600; font-size: 13px;">{{ __('Ultra (complimentary)') }}</span>
                             <span style="display:block; font-size: 12px; color: var(--ink-3); margin-top: 2px;">{{ __('Everything in Pro, unlimited homestays + staff, white-label, featured marketplace. Granted free, excluded from MRR.') }}</span>
                         </span>
                     </label>
+                </div>
+
+                {{-- Grant duration — only meaningful for a paid (Pro/Ultra) grant. --}}
+                <div x-show="plan === 'pro' || plan === 'ultra'" x-cloak
+                     style="border-top: .5px solid var(--line); padding-top: 12px; display:flex; flex-direction:column; gap: 10px;">
+                    <div style="font-weight: 600; font-size: 12.5px;">{{ __('Grant duration') }}</div>
+                    <div style="display:flex; gap: 12px; flex-wrap: wrap; align-items:flex-end;">
+                        <label style="display:flex; flex-direction:column; gap: 5px; flex: 1 1 220px;">
+                            <span style="font-size: 11.5px; color: var(--ink-3);">{{ __('How long') }}</span>
+                            <select name="grant_duration" x-model="duration" class="input">
+                                <option value="unlimited">{{ __('Unlimited (permanent comp)') }}</option>
+                                <option value="days">{{ __('Number of days') }}</option>
+                                <option value="months">{{ __('Number of months') }}</option>
+                            </select>
+                        </label>
+                        <label x-show="duration !== 'unlimited'" x-cloak
+                               style="display:flex; flex-direction:column; gap: 5px; flex: 0 0 130px;">
+                            <span style="font-size: 11.5px; color: var(--ink-3);">
+                                <span x-show="duration === 'months'">{{ __('Months') }}</span>
+                                <span x-show="duration !== 'months'">{{ __('Days') }}</span>
+                            </span>
+                            <input type="number" name="grant_length" min="1" max="3650" step="1" class="input"
+                                   value="{{ old('grant_length', $grantLength) }}"
+                                   :required="duration !== 'unlimited'" :disabled="duration === 'unlimited'">
+                        </label>
+                    </div>
+                    <div style="font-size: 11.5px; color: var(--ink-3);">
+                        <span x-show="duration === 'unlimited'">{{ __('Access never expires until you change it here.') }}</span>
+                        <span x-show="duration !== 'unlimited'" x-cloak>{{ __('Access starts today and automatically drops to Free when it ends.') }}</span>
+                    </div>
                 </div>
 
                 @if ($subscription)

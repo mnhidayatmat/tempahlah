@@ -36,6 +36,13 @@ class SubscriptionController extends Controller
             'tokenizationEnabled' => $billing->tokenizationEnabled(),
             // Stripe recurring billing — the primary path when configured.
             'stripeEnabled' => $stripe->enabled(),
+            // Per-tier checkout availability. Ultra needs its own recurring Stripe
+            // Price on top of the base keys; until it's set, the Ultra card must
+            // show an honest "opening soon" state instead of a button that bounces.
+            'stripePlanAvailable' => [
+                Subscription::PLAN_PRO => $stripe->planAvailable(Subscription::PLAN_PRO),
+                Subscription::PLAN_ULTRA => $stripe->planAvailable(Subscription::PLAN_ULTRA),
+            ],
             'openInvoice' => $subscription && ! $subscription->isComped()
                 ? $billing->openInvoiceFor($subscription)
                 : null,

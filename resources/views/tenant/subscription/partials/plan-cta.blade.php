@@ -9,6 +9,12 @@
     $tierName = \App\Support\Billing\Plans::name($tier);
     $isCurrent = $planKey === $tier;
     $onOtherPaidTier = $planKey !== 'free' && ! $isCurrent;
+    // Can this tier actually be checked out via Stripe? Ultra needs its own
+    // recurring Price on top of the base keys; without it, planAvailable() is
+    // false and posting checkout just bounces back — so show a clear "opening
+    // soon" state instead. Fall back to a live lookup if the flag wasn't passed.
+    $tierCheckoutAvailable = $tierAvailable
+        ?? app(\App\Services\Billing\StripeBilling::class)->planAvailable($tier);
 @endphp
 
 @if ($isCurrent)
@@ -105,7 +111,7 @@
         <div style="font-size: 12px; color: var(--ink-3); text-align:center; margin-bottom: 22px; border: 1px dashed var(--line); border-radius: var(--r-md); padding: 12px;">
             {{ __('You have an active subscription — contact us to switch to :plan.', ['plan' => $tierName]) }}
         </div>
-    @elseif ($stripeEnabled)
+    @elseif ($stripeEnabled && $tierCheckoutAvailable)
         <form method="POST" action="{{ route('tenant.subscription.stripe.checkout') }}" style="margin-bottom: 22px;">
             @csrf
             <input type="hidden" name="plan" value="{{ $tier }}">
@@ -119,6 +125,18 @@
             {{ __('Contact us to switch to :plan.', ['plan' => $tierName]) }}
         </div>
     @endif
+@elseif ($stripeEnabled && ! $tierCheckoutAvailable)
+    {{-- Stripe is on, but this tier has no recurring Price configured yet
+         (e.g. Ultra before its RM89 price is set). Show an honest, disabled
+         state rather than a button that silently bounces back. --}}
+    <button type="button" class="btn" style="width:100%; justify-content:center; margin-bottom: 8px;
+        background: var(--ink); color: var(--bg); border-color: transparent; opacity: 0.5; cursor: not-allowed;"
+        disabled>
+        {{ __(':plan is opening soon', ['plan' => $tierName]) }}
+    </button>
+    <div style="font-size: 12px; color: var(--ink-3); text-align:center; margin-bottom: 22px;">
+        {{ __('Contact us to upgrade to :plan.', ['plan' => $tierName]) }}
+    </div>
 @elseif ($stripeEnabled)
     {{-- Stripe is the primary path. A tenant who has never trialed gets the
          card-required 7-day trial; a returning one is charged now. --}}

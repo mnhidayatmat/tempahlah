@@ -258,7 +258,7 @@
                     {{ __('7-day free trial · 0% commission · cancel anytime') }}
                 </div>
 
-                @include('tenant.subscription.partials.plan-cta', ['tier' => 'pro', 'tierPrice' => $proPrice])
+                @include('tenant.subscription.partials.plan-cta', ['tier' => 'pro', 'tierPrice' => $proPrice, 'tierAvailable' => $stripePlanAvailable['pro'] ?? null])
 
                 <div class="kicker" style="margin-bottom: 10px; color: var(--pro);">{{ __('Everything in Free, plus') }}</div>
                 <div style="display:flex; flex-direction:column; gap: 9px;">
@@ -297,7 +297,7 @@
                     {{ __('7-day free trial · 0% commission · cancel anytime') }}
                 </div>
 
-                @include('tenant.subscription.partials.plan-cta', ['tier' => 'ultra', 'tierPrice' => $ultraPrice])
+                @include('tenant.subscription.partials.plan-cta', ['tier' => 'ultra', 'tierPrice' => $ultraPrice, 'tierAvailable' => $stripePlanAvailable['ultra'] ?? null])
 
                 <div class="kicker" style="margin-bottom: 10px;">{{ __('Everything in Pro, plus') }}</div>
                 <div style="display:flex; flex-direction:column; gap: 9px;">
