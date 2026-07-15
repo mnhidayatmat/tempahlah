@@ -280,6 +280,10 @@ class PropertyController extends Controller
             // Pricing tab; see updateFee() below.
             'bathrooms'      => 'nullable|integer|min:0|max:50',
             'toilets'        => 'nullable|integer|min:0|max:50',
+            // Whole-house: bedroom count lives on the single room's `beds`
+            // column (mirrors store()). Per-room: bedrooms == room count,
+            // managed via rooms, so the field isn't shown there.
+            'bedrooms'       => 'nullable|integer|min:1|max:50',
             'pricing_mode'   => 'nullable|in:whole_house,per_room',
             'max_guests'     => 'nullable|integer|min:1|max:200',
             'default_guests' => 'nullable|integer|min:1|max:200',
@@ -302,6 +306,11 @@ class PropertyController extends Controller
         $newMaxGuests = $request->filled('max_guests') ? (int) $validated['max_guests'] : null;
         unset($validated['max_guests']);
 
+        // bedrooms is stored on the whole-house room's `beds` column, not on
+        // the property — pull it out of the property fill.
+        $newBedrooms = $request->filled('bedrooms') ? (int) $validated['bedrooms'] : null;
+        unset($validated['bedrooms']);
+
         // The properties table has NOT NULL columns (city/state/postcode/cancellation_policy)
         // but Laravel's ConvertEmptyStringsToNull middleware turns blank inputs into nulls.
         // Coerce them back to empty strings (or the column default) so save() doesn't trip the constraint.
@@ -314,7 +323,7 @@ class PropertyController extends Controller
         $amenityIds = $validated['amenities'] ?? [];
         unset($validated['amenities']);
 
-        DB::transaction(function () use ($property, $validated, $newBase, $newMaxGuests, $amenityIds) {
+        DB::transaction(function () use ($property, $validated, $newBase, $newMaxGuests, $newBedrooms, $amenityIds) {
             $property->fill($validated)->save();
             if ($newBase !== null) {
                 // Same flat rate applies to every room (1 in whole-house mode,
@@ -324,6 +333,10 @@ class PropertyController extends Controller
             if ($newMaxGuests !== null && $property->isWholeHousePricing()) {
                 // Only the single "Whole house" room exists — update its capacity.
                 $property->rooms()->update(['max_adults' => $newMaxGuests]);
+            }
+            if ($newBedrooms !== null && $property->isWholeHousePricing()) {
+                // Bedroom count lives on the single "Whole house" room's `beds`.
+                $property->rooms()->update(['beds' => $newBedrooms]);
             }
             $property->amenities()->sync($amenityIds);
         });

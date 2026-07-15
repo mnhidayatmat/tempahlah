@@ -162,6 +162,13 @@
                 </div>
 
                 <div class="{{ $isWholeHouse ? 'pe-grid-3' : 'pe-grid-2' }}" style="margin-top: 14px;">
+                    @if ($isWholeHouse)
+                        <div>
+                            <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bedrooms') }}</label>
+                            <input class="input" type="number" name="bedrooms" value="{{ old('bedrooms', $property->bedroomCount() ?: 1) }}" min="1" max="50">
+                            <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('Number of bedrooms in the whole house') }}</div>
+                        </div>
+                    @endif
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Bathrooms') }}</label>
                         <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', $property->bathrooms) }}" min="0" max="50">
