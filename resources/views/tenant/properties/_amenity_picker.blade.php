@@ -11,10 +11,13 @@
 @endphp
 
 <div>
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-        <label class="kicker" style="display:block; margin:0;">{{ $title }}</label>
-        <span style="font-size:11px; color: var(--ink-3);">{{ __('Tick anything this property offers') }}</span>
-    </div>
+    {{-- Pass title => false to suppress this header (caller renders its own). --}}
+    @if ($title !== false)
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <label class="kicker" style="display:block; margin:0;">{{ $title }}</label>
+            <span style="font-size:11px; color: var(--ink-3);">{{ __('Tick anything this property offers') }}</span>
+        </div>
+    @endif
 
     <div style="display:flex; flex-direction:column; gap:18px; margin-top:8px;">
         @foreach ($amenityGroups as $catKey => $group)
