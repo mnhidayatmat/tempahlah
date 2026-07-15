@@ -71,7 +71,7 @@
                     @endphp
                     @foreach ($filterPills as $key => $label)
                         @php $active = $filter === $key; @endphp
-                        <a href="{{ route('tenant.bookings.index', ['status' => $key]) }}"
+                        <a href="{{ route('tenant.bookings.index', array_filter(['status' => $key, 'property_id' => $propertyId])) }}"
                            class="btn btn-sm"
                            style="border:0; text-decoration:none; border-radius:999px; white-space:nowrap;
                                   background: {{ $active ? 'var(--primary)' : 'transparent' }};
@@ -81,6 +81,24 @@
                         </a>
                     @endforeach
                 </div>
+                {{-- Property filter — only for multi-homestay hosts. Preserves the
+                     current status filter; navigating on change. --}}
+                @if ($properties->count() > 1)
+                    <select onchange="if(this.value){window.location.href=this.value;}"
+                            class="btn btn-sm" aria-label="{{ __('Filter by homestay') }}"
+                            style="border:.5px solid var(--line); border-radius:999px; background: var(--bg-elev);
+                                   color: var(--ink-2); font-weight:500; padding-right:28px; max-width:200px;
+                                   text-overflow:ellipsis; cursor:pointer;">
+                        <option value="{{ route('tenant.bookings.index', array_filter(['status' => $filter])) }}" @selected(! $propertyId)>
+                            {{ __('All homestays') }}
+                        </option>
+                        @foreach ($properties as $p)
+                            <option value="{{ route('tenant.bookings.index', array_filter(['status' => $filter, 'property_id' => $p->id])) }}" @selected($propertyId === $p->id)>
+                                {{ $p->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                @endif
                 <a href="{{ route('tenant.bookings.send-form') }}" class="btn btn-sm bk-sendform" style="text-decoration:none; white-space:nowrap;">
                     <x-icon name="link" :size="12"/> {{ __('Send booking form') }}
                 </a>

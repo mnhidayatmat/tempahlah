@@ -56,8 +56,18 @@ class BookingController extends Controller
         // check_in that IS today is wrongly treated as before it.
         $todayStr = $today->toDateString();
 
+        // Optional property filter for multi-homestay hosts. Properties are
+        // tenant-scoped already, so this list is just this tenant's; validate
+        // the requested id against it and ignore anything that isn't theirs.
+        $properties = Property::query()->orderBy('name')->get(['id', 'name']);
+        $propertyId = (int) $request->query('property_id', 0) ?: null;
+        if ($propertyId !== null && ! $properties->contains('id', $propertyId)) {
+            $propertyId = null;
+        }
+
         $bookings = Booking::query()
             ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'payments'])
+            ->when($propertyId, fn ($q) => $q->where('property_id', $propertyId))
             // "Upcoming" = current & upcoming stays: pending/confirmed bookings
             // that haven't ended yet (check_out >= today). Using check_out (not
             // check_in) means a stay already in progress — one that started
@@ -103,6 +113,8 @@ class BookingController extends Controller
             'bookings' => $bookings,
             'filter' => $filter,
             'flagged' => $flagged,
+            'properties' => $properties,
+            'propertyId' => $propertyId,
         ]);
     }
 
