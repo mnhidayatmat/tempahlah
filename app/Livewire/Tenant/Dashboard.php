@@ -334,8 +334,14 @@ class Dashboard extends Component
             }
         }
 
-        // A calm, distinct palette; the first line stays the brand colour.
-        $palette = ['var(--primary)', '#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#ef4444'];
+        // Per-homestay line colours. The first four lean on Tempahlah theme
+        // tokens so the chart stays on-brand and reads consistently with the rest
+        // of the app (matches each tenant's palette): line 1 brand blue, line 2
+        // brand yellow (var(--accent) — the same gold the Reports chart uses),
+        // line 3 brand teal, line 4 green. Distinct hues follow for the rare 5th+
+        // homestay. Ordered blue→yellow→teal→green for max adjacent contrast (the
+        // old #2563eb blue clashed with the brand-blue line 1).
+        $palette = ['var(--primary)', 'var(--accent)', 'var(--secondary)', 'var(--ok)', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b'];
 
         $seriesList = [];
         $globalMax = 1;
