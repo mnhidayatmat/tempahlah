@@ -136,12 +136,12 @@
     {{-- === STAT CARDS === --}}
     {{-- auto-fit so 4 cols on desktop, 2 cols on tablet/mobile naturally
          (no inline grid-template that has to be CSS-overridden later). --}}
-    <div class="dash-stats">
+    <div class="dash-stats @if (!empty($breakdown)) dash-stats--split @endif">
         @foreach ([
-            ['label' => __('Total Earnings'),    'value' => 'RM '.number_format($stats['cumulative'], 2),    'sub' => __('All-time confirmed earnings'), 'icon' => 'card',    'tone' => 'primary'],
-            ['label' => __('This Month'),        'value' => 'RM '.number_format($stats['month_revenue'], 2), 'sub' => now()->isoFormat('MMMM').' '.__('earnings'), 'icon' => 'chart', 'tone' => 'ok'],
-            ['label' => __('Expected Payments'), 'value' => 'RM '.number_format($stats['expected'], 2),      'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent'],
-            ['label' => __('This Month Cost'),   'value' => 'RM '.number_format($stats['month_cost'], 2),    'sub' => __('Cleaning · laundry · upkeep'), 'icon' => 'receipt', 'tone' => 'warn'],
+            ['label' => __('Total Earnings'),    'value' => 'RM '.number_format($stats['cumulative'], 2),    'sub' => __('All-time confirmed earnings'), 'icon' => 'card',    'tone' => 'primary', 'bkey' => 'earnings'],
+            ['label' => __('This Month'),        'value' => 'RM '.number_format($stats['month_revenue'], 2), 'sub' => now()->isoFormat('MMMM').' '.__('earnings'), 'icon' => 'chart', 'tone' => 'ok', 'bkey' => 'month'],
+            ['label' => __('Expected Payments'), 'value' => 'RM '.number_format($stats['expected'], 2),      'sub' => $stats['expected_count'] > 0 ? trans_choice('Balance due from :count booking|Balance due from :count bookings', $stats['expected_count']) : __('No balances outstanding'), 'icon' => 'clock', 'tone' => 'accent', 'bkey' => 'expected'],
+            ['label' => __('This Month Cost'),   'value' => 'RM '.number_format($stats['month_cost'], 2),    'sub' => __('Cleaning · laundry · upkeep'), 'icon' => 'receipt', 'tone' => 'warn', 'bkey' => 'cost'],
         ] as $card)
             <div class="card dash-stat dash-stat--{{ $card['tone'] }}">
                 <div class="dash-stat-top">
@@ -152,6 +152,23 @@
                 </div>
                 <div class="dash-stat-value">{{ $card['value'] }}</div>
                 <div class="dash-stat-sub">{{ $card['sub'] }}</div>
+
+                {{-- Per-homestay split, embedded in the card (multi-property only).
+                     Each row's dot matches that homestay's line in the income chart.
+                     The card value above stays the grand total. --}}
+                @if (!empty($breakdown))
+                    <div class="dash-stat-split">
+                        @foreach ($breakdown as $b)
+                            <div class="dash-stat-split-row">
+                                <span class="dash-stat-split-name">
+                                    <span class="dash-stat-split-dot" style="background: {{ $homeColors[$b['id']] ?? 'var(--ink-4)' }};"></span>
+                                    <span class="dash-stat-split-label">{{ $b['name'] }}</span>
+                                </span>
+                                <span class="dash-stat-split-val">RM {{ number_format($b[$card['bkey']], 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         @endforeach
     </div>
@@ -278,58 +295,6 @@
             </div>
         </div>
     </div>
-
-    {{-- === PER-HOMESTAY BREAKDOWN ===
-         Only for a multi-property host (empty otherwise). The stat cards above
-         stay the grand totals; this splits them per homestay, with a totals row
-         that reconciles to the cards. --}}
-    @if (!empty($breakdown))
-        @php $sumCost = collect($breakdown)->sum('cost'); $sharedCost = round($stats['month_cost'] - $sumCost, 2); @endphp
-        <div class="card" style="padding:0; overflow:hidden;">
-            <div style="padding:18px 20px; border-bottom:1px solid var(--line);">
-                <div class="cm-eyebrow">{{ __('Per-homestay') }}</div>
-                <h3 style="margin:3px 0 0; font-size:16px; font-weight:700; letter-spacing:-.01em;">{{ __('Earnings by homestay') }}</h3>
-            </div>
-            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-                <table style="width:100%; border-collapse:collapse; min-width:600px;">
-                    <thead>
-                        <tr style="font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); background:var(--bg-sunk);">
-                            <th style="text-align:left; padding:10px 20px; font-weight:600;">{{ __('Homestay') }}</th>
-                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('Total earnings') }}</th>
-                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('This month') }}</th>
-                            <th style="text-align:right; padding:10px 12px; font-weight:600;">{{ __('Expected') }}</th>
-                            <th style="text-align:right; padding:10px 20px; font-weight:600;">{{ __('Month cost') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($breakdown as $b)
-                            <tr style="border-top:1px solid var(--line); font-size:13px;">
-                                <td style="padding:12px 20px; font-weight:600;">
-                                    <a href="{{ route('tenant.properties.show', $b['id']) }}" style="color:var(--ink); text-decoration:none;">{{ $b['name'] }}</a>
-                                </td>
-                                <td class="mono" style="text-align:right; padding:12px 12px; color:var(--primary); font-weight:700;">RM {{ number_format($b['earnings'], 2) }}</td>
-                                <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($b['month'], 2) }}</td>
-                                <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($b['expected'], 2) }}</td>
-                                <td class="mono" style="text-align:right; padding:12px 20px;">RM {{ number_format($b['cost'], 2) }}</td>
-                            </tr>
-                        @endforeach
-                        <tr style="border-top:2px solid var(--line); font-size:13px; font-weight:700; background:var(--bg-sunk);">
-                            <td style="padding:12px 20px;">{{ __('All homestays') }}</td>
-                            <td class="mono" style="text-align:right; padding:12px 12px; color:var(--primary);">RM {{ number_format($stats['cumulative'], 2) }}</td>
-                            <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($stats['month_revenue'], 2) }}</td>
-                            <td class="mono" style="text-align:right; padding:12px 12px;">RM {{ number_format($stats['expected'], 2) }}</td>
-                            <td class="mono" style="text-align:right; padding:12px 20px;">RM {{ number_format($stats['month_cost'], 2) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            @if ($sharedCost > 0)
-                <div style="padding:10px 20px; font-size:11.5px; color:var(--ink-3); border-top:1px solid var(--line);">
-                    {{ __('Note: RM :amt of this month\'s cost is shared / not tied to one homestay.', ['amt' => number_format($sharedCost, 2)]) }}
-                </div>
-            @endif
-        </div>
-    @endif
 
     {{-- === ACTION QUEUE === --}}
     @if (!empty($actions))

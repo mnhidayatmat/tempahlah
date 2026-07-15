@@ -359,6 +359,19 @@ html[data-theme="dark"] input:-webkit-autofill {
 .dash-stat--info    .dash-stat-icon { background: var(--info-tint);    color: var(--info); }
 .dash-stat--accent  .dash-stat-icon { background: var(--accent-tint);  color: var(--accent); }
 
+/* Per-homestay split embedded inside a stat card (multi-property hosts).
+   The card's big value stays the grand total; these rows split it per homestay,
+   each dot matching that homestay's line colour in the income chart. */
+.dash-stat-split {
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.dash-stat-split-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dash-stat-split-name { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.dash-stat-split-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.dash-stat-split-label { font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-stat-split-val { font-family: var(--font-mono, monospace); font-size: 11.5px; font-weight: 600; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+
 .dash-chart-svg { width: 100%; height: 240px; display: block; }
 
 .dash-main {
@@ -437,6 +450,12 @@ html[data-theme="dark"] input:-webkit-autofill {
     text-overflow: ellipsis;
   }
   .dash-stat-sub { font-size: 10px; margin-top: 6px; line-height: 1.35; }
+
+  /* When cards carry a per-homestay split, give each card the full row width so
+     the homestay list fits cleanly — no 2-col squeeze, no horizontal scroll. */
+  .dash-stats--split { grid-template-columns: 1fr; }
+  .dash-stats--split .dash-stat-value { white-space: normal; overflow: visible; }
+  .dash-stats--split .dash-stat-label { font-size: 10px; }
 
   /* Income chart: shorter, no descriptive blurb */
   .dash-chart-card { padding: 16px !important; }
