@@ -13,6 +13,10 @@
     $step = $n > 1 ? $innerW / ($n - 1) : 0;
     $singleSeries = count($chartSeries) === 1;
 
+    // id → line colour, so each homestay's row inside the stat cards matches
+    // its line in the income chart.
+    $homeColors = collect($chartSeries)->pluck('color', 'id')->all();
+
     // Returns [pathD, points[]] for a series' value array.
     $buildPath = function (array $vals) use ($step, $PAD_T, $innerH, $max) {
         $pts = [];
@@ -383,7 +387,7 @@
                 @foreach ($shelf as $p)
                     <a href="{{ route('tenant.properties.show', $p->id) }}" class="card dash-shelf-row">
                         <div class="dash-shelf-thumb">
-                            <x-property-visual :property="$p" :size="56"/>
+                            <x-property-visual :property="$p" :size="56" :index="$loop->index"/>
                         </div>
 
                         <div class="dash-shelf-main">

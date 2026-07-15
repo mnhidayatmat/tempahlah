@@ -76,7 +76,11 @@
                             ? ($p->photos->firstWhere('is_hero', true) ?? $p->photos->first())
                             : null;
                         $coverUrl = $cover?->url();
-                        $hue = crc32($p->id) % 360;
+                        // On-brand cover when there's no photo — primary first, then
+                        // the dashboard chart order (blue → yellow → teal → green →
+                        // info). Never a random off-brand hue (no pink).
+                        $brandVars = ['--primary', '--accent', '--secondary', '--ok', '--info'];
+                        $coverVar = $brandVars[$loop->index % count($brandVars)];
                     @endphp
                     <div class="hauz-card prop-card" style="padding: 0; overflow: hidden; display:flex; flex-direction:column;">
                         {{-- Clickable area (cover + main info) → show page --}}
@@ -87,9 +91,9 @@
                                     background: #1a1614 url('{{ $coverUrl }}') center/cover no-repeat;
                                 @else
                                     background: linear-gradient(135deg,
-                                        oklch(74% 0.10 {{ $hue }}),
-                                        oklch(56% 0.12 {{ ($hue + 36) % 360 }}) 60%,
-                                        oklch(68% 0.08 {{ ($hue + 80) % 360 }}));
+                                        color-mix(in oklab, var({{ $coverVar }}) 82%, #000),
+                                        color-mix(in oklab, var({{ $coverVar }}) 58%, #000) 60%,
+                                        color-mix(in oklab, var({{ $coverVar }}) 44%, #000));
                                 @endif
                             ">
                                 {{-- Bottom-up scrim so overlaid pills always read clean --}}

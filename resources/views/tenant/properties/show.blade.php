@@ -1,8 +1,8 @@
 <x-app-layout :title="$property->name" :breadcrumbs="[__('Properties'), $property->city ?? __('Listing')]">
     @php
-        $hue = crc32((string) $property->id) % 360;
-        $hue2 = ($hue + 30) % 360;
-        $heroGradient = "linear-gradient(135deg, oklch(72% 0.10 {$hue}) 0%, oklch(58% 0.12 {$hue2}) 60%, oklch(72% 0.08 ".(($hue + 60) % 360).") 100%)";
+        // On-brand hero (no photo) — the primary brand colour, deepened so the
+        // white title/pills read. No random off-brand hue (no pink).
+        $heroGradient = 'linear-gradient(135deg, color-mix(in oklab, var(--primary) 82%, #000) 0%, color-mix(in oklab, var(--primary) 56%, #000) 60%, color-mix(in oklab, var(--primary) 44%, #000) 100%)';
 
         $tabs = [
             ['key' => 'rooms',      'label' => __('Rooms'),      'icon' => 'bed'],

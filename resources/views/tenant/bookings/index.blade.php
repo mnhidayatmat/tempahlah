@@ -14,13 +14,19 @@
                button), leaving just the compact, swipeable filter strip. */
             .bk-title { display: none; }
             .bk-new   { display: none; }
-            /* "Send booking form" has no floating counterpart, so it stays —
-               full-width under the filter strip rather than crammed beside it. */
-            .bk-sendform { display: flex; justify-content: center; margin-top: 10px; }
             .bk-head { flex-direction: column; align-items: stretch; gap: 0; }
-            .bk-head > div:last-child { gap: 0 !important; }
+            /* Stack the controls as full-width rows with even spacing so the
+               homestay picker and the "Send booking form" button line up (they
+               previously mismatched: a 200px left-aligned select above a
+               centered full-width button). */
+            .bk-head > div:last-child { flex-direction: column; align-items: stretch; gap: 10px !important; }
             .bk-filters { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .bk-filters::-webkit-scrollbar { display: none; }
+            /* Homestay picker: full-width, matching the button below it. */
+            .bk-propfilter { width: 100%; max-width: none; }
+            /* "Send booking form" has no floating counterpart, so it stays —
+               full-width, centered content, aligned with the picker above. */
+            .bk-sendform { display: flex; width: 100%; justify-content: center; }
             .bk-fab { display: inline-flex; }
         }
         /* Mobile booking card */
@@ -85,7 +91,7 @@
                      current status filter; navigating on change. --}}
                 @if ($properties->count() > 1)
                     <select onchange="if(this.value){window.location.href=this.value;}"
-                            class="btn btn-sm" aria-label="{{ __('Filter by homestay') }}"
+                            class="btn btn-sm bk-propfilter" aria-label="{{ __('Filter by homestay') }}"
                             style="border:.5px solid var(--line); border-radius:999px; background: var(--bg-elev);
                                    color: var(--ink-2); font-weight:500; padding-right:28px; max-width:200px;
                                    text-overflow:ellipsis; cursor:pointer;">
