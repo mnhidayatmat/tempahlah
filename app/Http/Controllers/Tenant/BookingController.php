@@ -58,9 +58,15 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with(['guest:id,name,email,phone', 'leadGuest', 'property:id,name,city', 'payments'])
+            // "Upcoming" = current & upcoming stays: pending/confirmed bookings
+            // that haven't ended yet (check_out >= today). Using check_out (not
+            // check_in) means a stay already in progress — one that started
+            // before today but is still running — stays at the TOP of the list
+            // instead of dropping off, so Upcoming's current-at-top ordering
+            // matches the "All" view.
             ->when($filter === 'upcoming', fn ($q) => $q
                 ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED])
-                ->where('check_in', '>=', $todayStr))
+                ->where('check_out', '>=', $todayStr))
             ->when($filter === 'checked-in', fn ($q) => $q
                 ->where('status', Booking::STATUS_CHECKED_IN))
             ->when($filter === 'past', fn ($q) => $q
