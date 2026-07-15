@@ -451,11 +451,15 @@ html[data-theme="dark"] input:-webkit-autofill {
   }
   .dash-stat-sub { font-size: 10px; margin-top: 6px; line-height: 1.35; }
 
-  /* When cards carry a per-homestay split, give each card the full row width so
-     the homestay list fits cleanly — no 2-col squeeze, no horizontal scroll. */
-  .dash-stats--split { grid-template-columns: 1fr; }
-  .dash-stats--split .dash-stat-value { white-space: normal; overflow: visible; }
-  .dash-stats--split .dash-stat-label { font-size: 10px; }
+  /* Per-homestay split stays inside the 2×2 card grid on mobile (cards keep the
+     compact half-width layout). Each homestay stacks its name over its value so
+     the breakdown fits the narrow card without any horizontal squeeze. */
+  .dash-stats--split .dash-stat-value { font-size: 16px; }
+  .dash-stat-split { margin-top: 10px; padding-top: 8px; gap: 9px; }
+  .dash-stat-split-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .dash-stat-split-name { width: 100%; }
+  .dash-stat-split-label { font-size: 10.5px; }
+  .dash-stat-split-val { font-size: 12px; padding-left: 14px; }   /* clears the 8px dot + 6px gap */
 
   /* Income chart: shorter, no descriptive blurb */
   .dash-chart-card { padding: 16px !important; }
