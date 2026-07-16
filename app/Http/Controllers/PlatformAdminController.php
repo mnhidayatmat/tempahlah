@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
 use App\Models\PlatformSetting;
 use App\Models\Review;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Billing\StripeBilling;
 use App\Support\Tenancy\BelongsToTenantScope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -122,17 +125,73 @@ class PlatformAdminController extends Controller
         }
 
         $name = $tenant->business_name;
-        $tenant->delete();
+        $owner = $tenant->owner;
 
-        // Release the slug so the same homestay name can be registered again.
-        // The tenants.slug unique index still counts soft-deleted rows, so a
-        // deleted tenant holding "demo-homestay" would otherwise block a new
-        // "demo-homestay" INSERT (duplicate-key 500). Suffix with the id to stay
-        // unique; the row is still recoverable, just under a parked slug.
-        $tenant->forceFill(['slug' => $tenant->slug.'-del-'.$tenant->id])->saveQuietly();
+        DB::transaction(function () use ($tenant, $owner) {
+            $tenant->delete();
+
+            // Release the slug so the same homestay name can be registered again.
+            // The tenants.slug unique index still counts soft-deleted rows, so a
+            // deleted tenant holding "demo-homestay" would otherwise block a new
+            // "demo-homestay" INSERT (duplicate-key 500). Suffix with the id to stay
+            // unique; the row is still recoverable, just under a parked slug.
+            $tenant->forceFill(['slug' => $tenant->slug.'-del-'.$tenant->id])->saveQuietly();
+
+            // If this was the owner's last homestay, release their login too so
+            // its email/phone can be registered again (see releaseOrphanedOwner).
+            $this->releaseOrphanedOwner($owner, $tenant);
+        });
 
         return redirect()->route('platform.overview')
             ->with('status', __('Tenant ":name" deleted.', ['name' => $name]));
+    }
+
+    /**
+     * When a homestay is deleted its owner account is otherwise left fully
+     * intact — and because users.email is unique (and Laravel's `unique:` rule
+     * counts soft-deleted rows too), that email/phone stays permanently blocked
+     * from re-registering even though the host thinks they "deleted everything".
+     *
+     * So when the deleted tenant was the owner's LAST homestay and the account
+     * holds no bookings of its own, we park the email/phone (suffix with the id,
+     * exactly like the tenant slug above) and soft-delete the account — freeing
+     * the identifiers for re-registration while keeping the row recoverable.
+     *
+     * Owners who still have another homestay, platform admins, and accounts with
+     * real booking history are never touched.
+     */
+    protected function releaseOrphanedOwner(?User $owner, Tenant $deleted): void
+    {
+        if (! $owner || $owner->isPlatformAdmin()) {
+            return;
+        }
+
+        // Still belongs to another (non-deleted) tenant? Keep the account.
+        // whereHas('tenant') applies Tenant's SoftDeletes scope, so the
+        // just-deleted tenant (and any other deleted ones) don't count.
+        $hasOtherTenant = $owner->tenantMemberships()
+            ->where('tenant_id', '!=', $deleted->id)
+            ->whereHas('tenant')
+            ->exists();
+        if ($hasOtherTenant) {
+            return;
+        }
+
+        // Any bookings made as a guest? Preserve the account (and its history).
+        $hasBookings = Booking::withoutGlobalScopes()
+            ->where('guest_id', $owner->id)
+            ->exists();
+        if ($hasBookings) {
+            return;
+        }
+
+        $suffix = '-del-'.$owner->id;
+        $owner->tenantMemberships()->delete();
+        $owner->forceFill([
+            'email' => $owner->email ? $owner->email.$suffix : null,
+            'phone' => $owner->phone ? $owner->phone.$suffix : null,
+        ])->saveQuietly();
+        $owner->delete();
     }
 
     /**
