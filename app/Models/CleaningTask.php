@@ -63,6 +63,17 @@ class CleaningTask extends Model
             : null;
     }
 
+    /**
+     * Record the tenant's typical cleaning cost when the job finishes and no
+     * cost was entered. A host-entered figure always wins (only null is filled).
+     */
+    public function applyTypicalCostIfMissing(Tenant $tenant): void
+    {
+        if ($this->cost === null) {
+            $this->cost = $tenant->defaultCleaningCost();
+        }
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

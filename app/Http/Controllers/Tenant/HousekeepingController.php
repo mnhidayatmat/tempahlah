@@ -623,6 +623,7 @@ class HousekeepingController extends Controller
 
     public function updateCleaning(Request $request, int $id)
     {
+        $tenant = app(TenantContext::class)->current();
         $task = CleaningTask::findOrFail($id);
 
         $action = $request->input('action');
@@ -657,7 +658,7 @@ class HousekeepingController extends Controller
                 // A host edit takes ownership — stop the SOP from re-adjusting it.
                 'auto_generated' => false,
             ]);
-            $this->applyCleaningStatus($task, $validated['status']);
+            $this->applyCleaningStatus($task, $validated['status'], $tenant);
             $task->save();
 
             return back()->with('status', __('Cleaning task updated.'));
@@ -668,10 +669,13 @@ class HousekeepingController extends Controller
                 'status' => CleaningTask::STATUS_IN_PROGRESS,
                 'started_at' => $task->started_at ?? now(),
             ]),
+            // Record the tenant's typical cleaning cost when finishing a job the
+            // host never priced (an explicit cost always wins — only null fills).
             'complete' => $task->update([
                 'status' => CleaningTask::STATUS_COMPLETED,
                 'completed_at' => now(),
                 'started_at' => $task->started_at ?? now()->subMinutes(30),
+                'cost' => $task->cost ?? $tenant?->defaultCleaningCost(),
             ]),
             'skip' => $task->update([
                 'status' => CleaningTask::STATUS_SKIPPED,
@@ -685,7 +689,7 @@ class HousekeepingController extends Controller
      * Set a cleaning task's status directly, stamping/clearing the matching
      * lifecycle timestamps so a free-form status edit stays consistent.
      */
-    private function applyCleaningStatus(CleaningTask $task, string $status): void
+    private function applyCleaningStatus(CleaningTask $task, string $status, ?\App\Models\Tenant $tenant = null): void
     {
         $task->status = $status;
 
@@ -695,6 +699,9 @@ class HousekeepingController extends Controller
         } elseif ($status === CleaningTask::STATUS_COMPLETED) {
             $task->started_at = $task->started_at ?? now();
             $task->completed_at = $task->completed_at ?? now();
+            if ($tenant) {
+                $task->applyTypicalCostIfMissing($tenant);
+            }
         } elseif ($status === CleaningTask::STATUS_PENDING) {
             $task->started_at = null;
             $task->completed_at = null;
@@ -711,6 +718,7 @@ class HousekeepingController extends Controller
 
     public function updateLaundry(Request $request, int $id)
     {
+        $tenant = app(TenantContext::class)->current();
         $task = LaundryTask::findOrFail($id);
 
         $action = $request->input('action');
@@ -741,7 +749,7 @@ class HousekeepingController extends Controller
                 'cost' => $validated['cost'] ?? null,
                 'notes' => $validated['notes'] ?? null,
             ]);
-            $this->applyLaundryStatus($task, $validated['status']);
+            $this->applyLaundryStatus($task, $validated['status'], $tenant);
             $task->save();
 
             return back()->with('status', __('Laundry batch updated.'));
@@ -752,9 +760,12 @@ class HousekeepingController extends Controller
                 'status' => LaundryTask::STATUS_PICKED_UP,
                 'picked_up_at' => now(),
             ]),
+            // Record the tenant's typical laundry cost when marking a batch back
+            // that the host never priced (an explicit cost always wins).
             'return' => $task->update([
                 'status' => LaundryTask::STATUS_RETURNED,
                 'returned_at' => now(),
+                'cost' => $task->cost ?? $tenant?->defaultLaundryCost(),
             ]),
         };
 
@@ -765,7 +776,7 @@ class HousekeepingController extends Controller
      * Set a laundry batch's status directly, stamping/clearing the matching
      * lifecycle timestamps so a free-form status edit stays consistent.
      */
-    private function applyLaundryStatus(LaundryTask $task, string $status): void
+    private function applyLaundryStatus(LaundryTask $task, string $status, ?\App\Models\Tenant $tenant = null): void
     {
         $task->status = $status;
 
@@ -775,6 +786,9 @@ class HousekeepingController extends Controller
         } elseif ($status === LaundryTask::STATUS_RETURNED) {
             $task->picked_up_at = $task->picked_up_at ?? now();
             $task->returned_at = $task->returned_at ?? now();
+            if ($tenant) {
+                $task->applyTypicalCostIfMissing($tenant);
+            }
         } elseif ($status === LaundryTask::STATUS_PENDING) {
             $task->picked_up_at = null;
             $task->returned_at = null;

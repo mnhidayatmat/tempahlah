@@ -119,6 +119,9 @@ class SettingsController extends Controller
             'checkout_reminder_hours'  => ($canAutoRemind ? 'required' : 'nullable').'|integer|min:1|max:72',
             'checkout_reminder_message' => 'nullable|string|max:2000',
             'auto_housekeeping'        => 'nullable|boolean',
+            'auto_complete_housekeeping' => 'nullable|boolean',
+            'default_cleaning_cost'    => 'nullable|numeric|min:0|max:100000',
+            'default_laundry_cost'     => 'nullable|numeric|min:0|max:100000',
             'primary_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'accent_color'    => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
@@ -167,6 +170,10 @@ class SettingsController extends Controller
         } else {
             unset($validated['auto_housekeeping']);
         }
+        // Auto-complete + typical costs are available on every plan (an unchecked
+        // box submits nothing, so coerce the boolean explicitly). The two cost
+        // keys flow through the fill below; blank → null → platform typical.
+        $validated['auto_complete_housekeeping'] = $request->boolean('auto_complete_housekeeping');
         if (! $validated['sst_registered']) {
             $validated['sst_rate'] = 0;
         } elseif (empty($validated['sst_rate'])) {

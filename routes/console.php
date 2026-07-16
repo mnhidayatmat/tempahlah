@@ -68,6 +68,15 @@ Schedule::command('bookings:auto-checkout')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Housekeeping auto-complete — auto-starts/finishes cleaning + laundry tasks
+// the host forgot to tick and records the tenant's typical cost. Gated per
+// tenant by the auto_complete_housekeeping toggle inside the command. Hourly so
+// a task's scheduled window end is caught within the hour.
+Schedule::command('housekeeping:auto-complete')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Onboarding email drip — each new host gets the welcome/activation/upgrade
 // series by signup age (one step per tenant per day; opt-outs, suppression
 // and already-paid tenants honoured inside the command). 01:30 UTC = 09:30

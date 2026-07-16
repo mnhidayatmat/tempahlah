@@ -427,6 +427,44 @@
                 </div>
             </div>
 
+            {{-- Housekeeping auto-complete + typical costs — available on EVERY
+                 plan (unlike auto-scheduling above, which is Pro), so this card
+                 is never disabled. --}}
+            <div class="hauz-card" style="padding: 22px;">
+                <div class="kicker" style="margin-bottom: 4px;">{{ __('Auto-complete & typical costs') }}</div>
+                <p style="font-size: 12px; color: var(--ink-3); margin: 0 0 14px;">
+                    {{ __('Let the system tick off cleaning + laundry you forget, and record a typical price so the job still counts toward your costs and reports.') }}
+                </p>
+
+                <label style="display:flex; align-items:flex-start; gap: 10px; cursor: pointer;">
+                    <input type="hidden" name="auto_complete_housekeeping" value="0">
+                    <input type="checkbox" name="auto_complete_housekeeping" value="1" style="margin-top: 2px;"
+                           {{ old('auto_complete_housekeeping', $tenant->autoCompleteHousekeepingEnabled()) ? 'checked' : '' }}>
+                    <span>
+                        <span style="font-size: 13px; font-weight: 600;">{{ __('Auto start & complete tasks I forget to tick') }}</span>
+                        <span style="display:block; font-size: 11px; color: var(--ink-3); margin-top: 3px;">
+                            {{ __('A cleaning is marked done after its scheduled time + duration; a laundry batch after its expected return. Turn off to tick every task by hand.') }}
+                        </span>
+                    </span>
+                </label>
+
+                <div style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; margin-top: 16px;">
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Typical cleaning cost (RM)') }}</label>
+                        <input class="input" type="number" name="default_cleaning_cost" min="0" max="100000" step="0.01"
+                               value="{{ old('default_cleaning_cost', number_format($tenant->defaultCleaningCost(), 2, '.', '')) }}">
+                    </div>
+                    <div>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Typical laundry cost (RM)') }}</label>
+                        <input class="input" type="number" name="default_laundry_cost" min="0" max="100000" step="0.01"
+                               value="{{ old('default_laundry_cost', number_format($tenant->defaultLaundryCost(), 2, '.', '')) }}">
+                    </div>
+                </div>
+                <p style="font-size: 11px; color: var(--ink-3); margin: 10px 0 0;">
+                    {{ __('Applied only when a task is marked done and no cost was entered — a job\'s own cost always wins. Set 0 to record nothing.') }}
+                </p>
+            </div>
+
             {{-- Workspace defaults --}}
             <div class="hauz-card" style="padding: 22px;">
                 <div class="kicker" style="margin-bottom: 14px;">{{ __('Workspace defaults') }}</div>

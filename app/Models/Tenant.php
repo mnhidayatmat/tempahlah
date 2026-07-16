@@ -29,6 +29,7 @@ class Tenant extends Model
         'auto_cancel_unpaid_balance', 'deposit_is_security', 'refund_policy',
         'checkout_reminder_enabled', 'checkout_reminder_hours', 'checkout_reminder_message',
         'auto_housekeeping',
+        'auto_complete_housekeeping', 'default_cleaning_cost', 'default_laundry_cost',
         'manual_payment_instructions',
         'booking_link_shared_at',
     ];
@@ -85,12 +86,25 @@ class Tenant extends Model
         'checkout_reminder_enabled' => 'boolean',
         'checkout_reminder_hours' => 'integer',
         'auto_housekeeping' => 'boolean',
+        'auto_complete_housekeeping' => 'boolean',
+        'default_cleaning_cost' => 'decimal:2',
+        'default_laundry_cost' => 'decimal:2',
         'booking_link_shared_at' => 'datetime',
         'marketing_opt_out_at' => 'datetime',
     ];
 
     /** Platform default for the auto-housekeeping SOP master toggle. */
     public const AUTO_HOUSEKEEPING_DEFAULT = true;
+
+    /** Platform default for the auto start/complete master toggle. */
+    public const AUTO_COMPLETE_HOUSEKEEPING_DEFAULT = true;
+
+    /**
+     * Typical/assumed housekeeping prices (RM) applied to a task on completion
+     * when the host never entered a cost. Editable per tenant in Settings.
+     */
+    public const DEFAULT_CLEANING_COST = 60.00;
+    public const DEFAULT_LAUNDRY_COST = 130.00;
 
     /** Platform defaults for the pre-checkout reminder. */
     public const CHECKOUT_REMINDER_DEFAULTS = [
@@ -171,6 +185,38 @@ class Tenant extends Model
         return $this->auto_housekeeping !== null
             ? (bool) $this->auto_housekeeping
             : self::AUTO_HOUSEKEEPING_DEFAULT;
+    }
+
+    /**
+     * Whether the system auto-starts/finishes cleaning + laundry tasks the host
+     * forgot to tick (the hourly `housekeeping:auto-complete` command). ON by
+     * default; available on every plan (unlike auto-SCHEDULING, which is Pro).
+     */
+    public function autoCompleteHousekeepingEnabled(): bool
+    {
+        return $this->auto_complete_housekeeping !== null
+            ? (bool) $this->auto_complete_housekeeping
+            : self::AUTO_COMPLETE_HOUSEKEEPING_DEFAULT;
+    }
+
+    /**
+     * The typical cleaning cost recorded on a task at completion when no cost
+     * was entered. The host's saved figure wins (including 0 — an explicit
+     * "assume nothing"); falls back to the platform default when unset.
+     */
+    public function defaultCleaningCost(): float
+    {
+        return $this->default_cleaning_cost !== null
+            ? (float) $this->default_cleaning_cost
+            : self::DEFAULT_CLEANING_COST;
+    }
+
+    /** The typical laundry cost recorded on a batch at completion (see above). */
+    public function defaultLaundryCost(): float
+    {
+        return $this->default_laundry_cost !== null
+            ? (float) $this->default_laundry_cost
+            : self::DEFAULT_LAUNDRY_COST;
     }
 
     /** Whether the pre-checkout WhatsApp reminder is on for this tenant. */

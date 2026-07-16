@@ -34,6 +34,17 @@ class LaundryTask extends Model
         'items' => 'array',
     ];
 
+    /**
+     * Record the tenant's typical laundry cost when the batch is returned and
+     * no cost was entered. A host-entered figure always wins (only null is filled).
+     */
+    public function applyTypicalCostIfMissing(Tenant $tenant): void
+    {
+        if ($this->cost === null) {
+            $this->cost = $tenant->defaultLaundryCost();
+        }
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
