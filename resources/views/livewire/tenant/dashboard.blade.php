@@ -75,6 +75,48 @@
                     {{ __('Quiet stretch — a good time to refresh listings or pricing.') }}
                 @endif
             </div>
+
+            {{-- Mobile-only public booking link. The full share button lives in
+                 .dash-hero-actions, which is hidden on phones — so surface the
+                 link right here in the hero card. Tap the chip to copy; the
+                 round button shares to WhatsApp. Both stamp the onboarding step. --}}
+            @if ($publicUrl)
+                <style>
+                    .dash-hero-link { display: none; }
+                    @media (max-width: 768px) {
+                        .dash-hero-link { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+                    }
+                    .dash-hero-link-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px;
+                        background: var(--bg-sunk); border: .5px solid var(--line); border-radius: 999px;
+                        padding: 7px 12px; cursor: pointer; color: var(--ink); text-align: left; }
+                    .dash-hero-link-url { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); font-size: 11.5px;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .dash-hero-link-copy { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--primary); }
+                    .dash-hero-link-wa { flex-shrink: 0; width: 34px; height: 34px; border-radius: 999px;
+                        display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+                        background: var(--primary); color: var(--primary-ink); }
+                </style>
+                <div class="dash-hero-link" x-data="{
+                        copied: false,
+                        url: @js($publicUrl),
+                        stamp() { @this.call('shareBookingLink'); },
+                        copy() {
+                            navigator.clipboard.writeText(this.url).then(() => {
+                                this.copied = true; this.stamp();
+                                setTimeout(() => this.copied = false, 1800);
+                            });
+                        },
+                     }">
+                    <button type="button" class="dash-hero-link-main" @click="copy()" :aria-label="'{{ __('Copy booking link') }}'">
+                        <x-icon name="link" :size="12"/>
+                        <span class="dash-hero-link-url">{{ preg_replace('#^https?://#', '', $publicUrl) }}</span>
+                        <span class="dash-hero-link-copy" x-text="copied ? @js(__('Copied!')) : @js(__('Copy'))"></span>
+                    </button>
+                    <a class="dash-hero-link-wa" target="_blank" rel="noopener" aria-label="WhatsApp"
+                       :href="'https://wa.me/?text=' + encodeURIComponent(@js(__('Book our homestay directly 👉')) + ' ' + url)"
+                       @click="stamp()"><x-icon name="message" :size="14"/></a>
+                </div>
+            @endif
         </div>
 
         <div class="dash-hero-actions">
