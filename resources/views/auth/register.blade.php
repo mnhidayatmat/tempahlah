@@ -523,6 +523,28 @@
             margin-top: 6px;
         }
 
+        /* Password field with a show/hide toggle (replaces the confirm field). */
+        .pw-wrap { position: relative; }
+        .pw-wrap .field-input { padding-right: 46px; }
+        .pw-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            width: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            cursor: pointer;
+            color: var(--ink-3);
+            transition: color 0.15s ease;
+        }
+        .pw-toggle:hover { color: var(--ink); }
+        .pw-toggle svg { width: 19px; height: 19px; }
+
         /* Terms checkbox (matches login's Remember-me) */
         .terms {
             display: flex;
@@ -847,6 +869,23 @@
                 <form method="POST" action="{{ route('register') }}" novalidate>
                     @csrf
 
+                    {{-- Google-first: one-tap signup for anyone with a Google
+                         account — the fastest path (only homestay name + phone
+                         are asked afterward, on /onboard/homestay). --}}
+                    <a class="google-cta" href="{{ route('auth.google.start', ['intent' => 'register']) }}">
+                        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                            <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                        </svg>
+                        <span>{{ $isBM ? 'Daftar dengan Google' : 'Sign up with Google' }}</span>
+                    </a>
+
+                    <div class="or-sep" aria-hidden="true">
+                        <span>{{ $isBM ? 'atau daftar dengan email' : 'or sign up with email' }}</span>
+                    </div>
+
                     <div class="field">
                         <label for="name" class="field-label">{{ $isBM ? 'Nama anda' : 'Your name' }}</label>
                         <input id="name" name="name" type="text" required autocomplete="name" autofocus
@@ -886,20 +925,21 @@
                         </div>
                     </div>
 
-                    <div class="grid-2">
-                        <div class="field">
-                            <label for="password" class="field-label">{{ __('Password') }}</label>
+                    <div class="field">
+                        <label for="password" class="field-label">{{ __('Password') }}</label>
+                        <div class="pw-wrap">
                             <input id="password" name="password" type="password" required autocomplete="new-password"
                                    class="field-input"
                                    placeholder="••••••••">
-                            @error('password') <span class="field-err">{{ $message }}</span> @enderror
+                            <button type="button" class="pw-toggle" aria-pressed="false"
+                                    aria-label="{{ $isBM ? 'Tunjuk kata laluan' : 'Show password' }}"
+                                    onclick="(function(b){var i=document.getElementById('password');var show=i.type==='password';i.type=show?'text':'password';b.setAttribute('aria-pressed',show);b.setAttribute('aria-label',show?'{{ $isBM ? 'Sembunyi kata laluan' : 'Hide password' }}':'{{ $isBM ? 'Tunjuk kata laluan' : 'Show password' }}');b.querySelector('.pw-eye').style.display=show?'none':'';b.querySelector('.pw-eye-off').style.display=show?'':'none';})(this)">
+                                <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            </button>
                         </div>
-                        <div class="field">
-                            <label for="password_confirmation" class="field-label">{{ $isBM ? 'Sahkan kata laluan' : 'Confirm password' }}</label>
-                            <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"
-                                   class="field-input"
-                                   placeholder="••••••••">
-                        </div>
+                        <span class="field-hint">{{ $isBM ? 'Sekurang-kurangnya 8 aksara, dengan huruf dan nombor.' : 'At least 8 characters, with letters and numbers.' }}</span>
+                        @error('password') <span class="field-err">{{ $message }}</span> @enderror
                     </div>
 
                     <label class="terms">
@@ -924,23 +964,6 @@
                         </span>
                     </button>
                     <x-busy-ui />
-
-                    <div class="or-sep" aria-hidden="true">
-                        <span>{{ $isBM ? 'atau' : 'or' }}</span>
-                    </div>
-
-                    {{-- Continue with Google — auto-creates a tenant from
-                         the Google profile name. Host can rename later in
-                         Settings. --}}
-                    <a class="google-cta" href="{{ route('auth.google.start', ['intent' => 'register']) }}">
-                        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-                            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                            <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-                            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-                        </svg>
-                        <span>{{ $isBM ? 'Daftar dengan Google' : 'Sign up with Google' }}</span>
-                    </a>
 
                     <p class="signin-line">
                         {{ $isBM ? 'Sudah ada akaun? ' : 'Already have keys? ' }}
