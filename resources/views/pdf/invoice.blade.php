@@ -284,20 +284,23 @@
         <tr>
             <td style="width: 58%;">
                 @php
-                    // Prefer the invoice's snapshot; fall back to the booking's
-                    // live guest contact so email/phone still print for bookings
-                    // whose snapshot was taken before contact details were added.
+                    // Prefer the booking's LIVE guest contact — the host may
+                    // correct the customer's name/email/phone after the document
+                    // was issued, and the re-rendered PDF must reflect that. The
+                    // invoice's billed_to snapshot is only the fallback for old
+                    // bookings whose guest rows are gone or incomplete.
                     // Placeholder emails (system-minted) are treated as absent —
                     // if the customer gave no email/phone, the line stays empty.
-                    $billName  = $invoice->billed_to['name'] ?? $booking->guestName() ?? '—';
+                    $billName = $booking->guestName() ?? $invoice->billed_to['name'] ?? '—';
 
-                    $billEmail = $invoice->billed_to['email'] ?? null;
-                    if (! \App\Models\Booking::isRealEmail($billEmail)) {
-                        $billEmail = method_exists($booking, 'guestEmail') ? $booking->guestEmail() : null;
+                    $billEmail = method_exists($booking, 'guestEmail') ? $booking->guestEmail() : null;
+                    if (empty($billEmail)) {
+                        $snapEmail = $invoice->billed_to['email'] ?? null;
+                        $billEmail = \App\Models\Booking::isRealEmail($snapEmail) ? $snapEmail : null;
                     }
 
-                    $billPhone = $invoice->billed_to['phone'] ?? null;
-                    if (empty($billPhone) && method_exists($booking, 'guestPhone')) { $billPhone = $booking->guestPhone(); }
+                    $billPhone = method_exists($booking, 'guestPhone') ? $booking->guestPhone() : null;
+                    if (empty($billPhone)) { $billPhone = $invoice->billed_to['phone'] ?? null; }
                 @endphp
                 <div class="label">{{ $L['bill_to'] }}</div>
                 <div class="billname">{{ $billName }}</div>
