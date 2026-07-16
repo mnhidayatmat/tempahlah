@@ -39,8 +39,20 @@ class PropertyController extends Controller
 
     public function create()
     {
+        // Pre-fill the property name with the homestay name the host entered at
+        // registration (tenants.business_name) — for their very first property
+        // it's almost always the same, so the setup-guide "Add homestay" step
+        // starts filled in. Only used as a default; the host can change it.
+        $tenant = app(TenantContext::class)->current();
+
+        // Only for their very first homestay — a multi-property host adding a
+        // second one shouldn't have the business name wrongly pre-filled.
+        // Property::query() is auto-scoped to the current tenant (BelongsToTenant).
+        $isFirstProperty = $tenant && ! Property::query()->exists();
+
         return view('tenant.properties.create', [
             'amenityGroups' => $this->amenityGroups(),
+            'defaultName' => $isFirstProperty ? $tenant->business_name : null,
         ]);
     }
 

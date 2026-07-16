@@ -33,7 +33,7 @@
 
                 <div>
                     <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Property name') }} *</label>
-                    <input class="input" type="text" name="name" value="{{ old('name') }}" required maxlength="120" placeholder="{{ __('e.g. Wafa Beach Villa') }}">
+                    <input class="input" type="text" name="name" value="{{ old('name', $defaultName ?? '') }}" required maxlength="120" placeholder="{{ __('e.g. Wafa Beach Villa') }}">
                 </div>
 
                 <div>

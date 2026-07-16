@@ -130,8 +130,9 @@
                         <input class="input" type="email" name="business_email" value="{{ old('business_email', $tenant->business_email) }}" required maxlength="160">
                     </div>
                     <div>
-                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Business phone') }}</label>
+                        <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Business phone (WhatsApp)') }}</label>
                         <input class="input" type="tel" inputmode="tel" name="business_phone" value="{{ old('business_phone', $tenant->business_phone) }}" maxlength="32" placeholder="+60123456789" data-phone-input>
+                        <div style="font-size: 11px; color: var(--ink-3); margin-top: 4px;">{{ __('The WhatsApp number guests message from your public booking page.') }}</div>
                     </div>
                     <div>
                         <label class="kicker" style="font-size: 9.5px; display:block; margin-bottom: 4px;">{{ __('Owner') }} *</label>

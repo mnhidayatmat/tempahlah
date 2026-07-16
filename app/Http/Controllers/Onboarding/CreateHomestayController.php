@@ -48,7 +48,7 @@ class CreateHomestayController extends Controller
 
         $validated = $request->validate([
             'business_name' => ['required', 'string', 'max:120'],
-            'phone'         => ['nullable', 'string', 'regex:/^\+?[0-9\-\s]{8,20}$/'],
+            'phone'         => ['required', 'string', 'regex:/^\+?[0-9\-\s]{8,20}$/'],
         ]);
 
         $user = $request->user();

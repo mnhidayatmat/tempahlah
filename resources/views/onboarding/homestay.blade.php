@@ -101,11 +101,11 @@
             </div>
 
             <div class="field">
-                <label for="phone" class="field-label">{{ $isBM ? 'Telefon (WhatsApp) — pilihan' : 'Phone (WhatsApp) — optional' }}</label>
-                <input id="phone" name="phone" type="tel" autocomplete="tel"
+                <label for="phone" class="field-label">{{ $isBM ? 'Telefon (WhatsApp)' : 'Phone (WhatsApp)' }}</label>
+                <input id="phone" name="phone" type="tel" required autocomplete="tel"
                        value="{{ old('phone') }}" class="field-input" placeholder="+60123456789" data-phone-input>
                 @error('phone') <span class="field-err">{{ $message }}</span> @enderror
-                <span class="field-hint">{{ $isBM ? 'Digunakan untuk pautan WhatsApp tetamu.' : 'Used for guest WhatsApp links.' }}</span>
+                <span class="field-hint">{{ $isBM ? 'Nombor WhatsApp yang tetamu guna untuk hubungi anda di halaman tempahan.' : 'The WhatsApp number guests use to reach you on your booking page.' }}</span>
             </div>
 
             <button type="submit" class="cta">
