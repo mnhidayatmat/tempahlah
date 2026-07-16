@@ -15,18 +15,15 @@
             .bk-title { display: none; }
             .bk-new   { display: none; }
             .bk-head { flex-direction: column; align-items: stretch; gap: 0; }
-            /* Stack the controls as full-width rows with even spacing so the
-               homestay picker and the "Send booking form" button line up (they
-               previously mismatched: a 200px left-aligned select above a
-               centered full-width button). */
-            .bk-head > div:last-child { flex-direction: column; align-items: stretch; gap: 10px !important; }
-            .bk-filters { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            /* Filter pills take a full row; the homestay picker and the
+               "Send booking form" button then share ONE line below, each
+               taking half the width — no wasted space, no 3-row stack. */
+            .bk-head > div:last-child { flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 10px !important; }
+            .bk-filters { flex: 1 0 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .bk-filters::-webkit-scrollbar { display: none; }
-            /* Homestay picker: full-width, matching the button below it. */
-            .bk-propfilter { width: 100%; max-width: none; }
-            /* "Send booking form" has no floating counterpart, so it stays —
-               full-width, centered content, aligned with the picker above. */
-            .bk-sendform { display: flex; width: 100%; justify-content: center; }
+            /* Homestay picker + Send-form button split the second row 50/50. */
+            .bk-propfilter { flex: 1 1 0; min-width: 0; max-width: none; }
+            .bk-sendform { flex: 1 1 0; min-width: 0; display: inline-flex; justify-content: center; }
             .bk-fab { display: inline-flex; }
         }
         /* Mobile booking card */
