@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Services\Agent\Llm\ToolDefinition;
 use App\Services\Booking\AvailabilityService;
 use Carbon\Carbon;
@@ -46,7 +47,7 @@ class CheckAvailabilityTool extends Tool
         }
 
         $property = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $ctx->tenant->id)
             ->where('id', (int) $args['property_id'])
             ->with('rooms')

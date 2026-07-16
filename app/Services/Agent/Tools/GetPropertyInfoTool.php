@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Services\Agent\Llm\ToolDefinition;
 
 class GetPropertyInfoTool extends Tool
@@ -28,7 +29,7 @@ class GetPropertyInfoTool extends Tool
     {
         $id = (int) ($args['property_id'] ?? 0);
         $property = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $ctx->tenant->id)
             ->where('id', $id)
             ->with(['rooms', 'amenities:id,name_bm,name_en,icon,category'])

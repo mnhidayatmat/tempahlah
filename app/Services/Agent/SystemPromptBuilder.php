@@ -3,6 +3,7 @@
 namespace App\Services\Agent;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Models\Tenant;
 
 class SystemPromptBuilder
@@ -26,7 +27,7 @@ class SystemPromptBuilder
         };
 
         $properties = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $tenant->id)
             ->where('status', Property::STATUS_ACTIVE)
             ->with(['rooms:id,property_id,base_price'])

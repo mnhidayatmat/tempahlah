@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Services\Agent\Llm\ToolDefinition;
 
 class ShareLocationTool extends Tool
@@ -27,7 +28,7 @@ class ShareLocationTool extends Tool
     public function execute(array $args, ToolContext $ctx): array
     {
         $property = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $ctx->tenant->id)
             ->where('id', (int) ($args['property_id'] ?? 0))
             ->first();

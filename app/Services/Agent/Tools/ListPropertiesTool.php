@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Services\Agent\Llm\ToolDefinition;
 
 class ListPropertiesTool extends Tool
@@ -24,7 +25,7 @@ class ListPropertiesTool extends Tool
     public function execute(array $args, ToolContext $ctx): array
     {
         $rows = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $ctx->tenant->id)
             ->where('status', Property::STATUS_ACTIVE)
             ->with(['rooms:id,property_id,base_price,max_adults,max_children'])

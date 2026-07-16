@@ -3,6 +3,7 @@
 namespace App\Services\Agent;
 
 use App\Models\Property;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Models\Tenant;
 use Illuminate\Support\Carbon;
 
@@ -30,7 +31,7 @@ class TrainingQaGenerator
     public function generate(Tenant $tenant): array
     {
         $properties = Property::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->where('tenant_id', $tenant->id)
             ->where('status', Property::STATUS_ACTIVE)
             ->with(['rooms:id,property_id,base_price,max_adults,max_children', 'amenities:id,key,label_en'])

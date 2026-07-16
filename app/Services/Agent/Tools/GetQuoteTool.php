@@ -3,6 +3,7 @@
 namespace App\Services\Agent\Tools;
 
 use App\Models\Room;
+use App\Support\Tenancy\BelongsToTenantScope;
 use App\Services\Agent\Llm\ToolDefinition;
 use App\Services\Booking\AvailabilityService;
 use App\Services\Pricing\PricingEngine;
@@ -49,7 +50,7 @@ class GetQuoteTool extends Tool
         }
 
         $room = Room::query()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(BelongsToTenantScope::class)
             ->whereHas('property', fn ($q) => $q->where('tenant_id', $ctx->tenant->id))
             ->where('id', (int) $args['room_id'])
             ->with('property')
