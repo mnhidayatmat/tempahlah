@@ -89,7 +89,7 @@
                 [__('Reports & analytics'), false, true, __('Advanced (multi-property)')],
                 [__('Export to CSV / PDF'), false, true, true],
                 [__('Support'), __('Community'), __('Priority'), __('Dedicated')],
-                [__('Free trial'), '—', __('7 days'), __('7 days')],
+                [__('Free trial'), '—', __(':days days', ['days' => $trialDays]), __(':days days', ['days' => $trialDays])],
             ]],
         ];
 
@@ -255,7 +255,7 @@
                     <span style="font-size: 13px; color: var(--ink-3);">/{{ __('month') }}</span>
                 </div>
                 <div style="font-size: 11.5px; color: var(--ink-3); margin-bottom: 18px;">
-                    {{ __('7-day free trial · 0% commission · cancel anytime') }}
+                    {{ __(':days-day free trial · 0% commission · cancel anytime', ['days' => $trialDays]) }}
                 </div>
 
                 @include('tenant.subscription.partials.plan-cta', ['tier' => 'pro', 'tierPrice' => $proPrice, 'tierAvailable' => $stripePlanAvailable['pro'] ?? null])
@@ -294,7 +294,7 @@
                     <span style="font-size: 13px; color: var(--ink-3);">/{{ __('month') }}</span>
                 </div>
                 <div style="font-size: 11.5px; color: var(--ink-3); margin-bottom: 18px;">
-                    {{ __('7-day free trial · 0% commission · cancel anytime') }}
+                    {{ __(':days-day free trial · 0% commission · cancel anytime', ['days' => $trialDays]) }}
                 </div>
 
                 @include('tenant.subscription.partials.plan-cta', ['tier' => 'ultra', 'tierPrice' => $ultraPrice, 'tierAvailable' => $stripePlanAvailable['ultra'] ?? null])

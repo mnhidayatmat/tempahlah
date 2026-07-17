@@ -47,7 +47,7 @@ return [
         'pro' => [
             'name' => 'Pro',
             'price_monthly' => (float) env('PAID_TIER_PRICE', 49.00),
-            'trial_days' => (int) env('PAID_TRIAL_DAYS', 7),
+            'trial_days' => (int) env('PAID_TRIAL_DAYS', 30),
             'inherits' => 'free',
             'limits' => [
                 'properties' => 3,
@@ -82,7 +82,7 @@ return [
         'ultra' => [
             'name' => 'Ultra',
             'price_monthly' => (float) env('ULTRA_TIER_PRICE', 89.00),
-            'trial_days' => (int) env('PAID_TRIAL_DAYS', 7),
+            'trial_days' => (int) env('PAID_TRIAL_DAYS', 30),
             'inherits' => 'pro',
             'limits' => [
                 'properties' => null,
@@ -106,7 +106,7 @@ return [
     // Deprecated aliases of plans.pro — still read by the platform-billing
     // service; new code should use Plans::price() / Plans::trialDays().
     'paid_tier_price' => env('PAID_TIER_PRICE', 49.00),
-    'paid_trial_days' => env('PAID_TRIAL_DAYS', 7),
+    'paid_trial_days' => env('PAID_TRIAL_DAYS', 30),
 
     // New hosts are auto-enrolled in a card-free Pro trial at registration
     // (no Stripe/gateway step). When it lapses they fall straight back to Free.
