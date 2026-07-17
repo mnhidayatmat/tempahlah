@@ -44,15 +44,25 @@ class CreateTenantAndOwner
                 'default_locale' => $data['locale'] ?? 'ms',
             ]);
 
+            // Every new host starts on a card-free Pro trial (no Stripe/gateway
+            // step). trial_used_at is stamped so it can't be farmed by cycling
+            // plans, and effectivePlanKey() grants Pro while trial_ends_at is
+            // future. When it lapses, ProcessSubscriptionLifecycle drops the
+            // tenant straight to Free (a card-less trial has nothing to chase).
+            $trialDays = (int) config('homestay.signup_trial_days', 30);
+            $trialEndsAt = now()->addDays($trialDays);
+
             Subscription::create([
                 'tenant_id' => $tenant->id,
-                'plan' => Subscription::PLAN_FREE,
-                'status' => Subscription::STATUS_ACTIVE,
+                'plan' => Subscription::PLAN_PRO,
+                'status' => Subscription::STATUS_TRIALING,
                 'billing_method' => 'manual',
                 'monthly_amount' => 0,
                 'currency' => 'MYR',
+                'trial_ends_at' => $trialEndsAt,
+                'trial_used_at' => now(),
                 'current_period_start' => now(),
-                'current_period_end' => now()->addYear(),
+                'current_period_end' => $trialEndsAt,
             ]);
 
             TenantUser::create([

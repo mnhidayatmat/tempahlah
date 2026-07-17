@@ -50,6 +50,14 @@ Schedule::command('subscriptions:process-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Trial-ending reminders — emails hosts on a card-free signup trial a
+// "continue with Pro?" nudge a few days before it lapses back to Free. Runs
+// BEFORE the lifecycle command so the reminder always precedes the downgrade.
+Schedule::command('subscriptions:remind-trial-ending')
+    ->dailyAt('02:10')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Affiliate commissions — promote pending commissions to approved (payable)
 // once they clear the refund-protection hold. Daily is enough: the hold is
 // measured in days. Accrual itself happens at the payment webhooks.

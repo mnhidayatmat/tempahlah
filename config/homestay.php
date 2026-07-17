@@ -108,6 +108,12 @@ return [
     'paid_tier_price' => env('PAID_TIER_PRICE', 49.00),
     'paid_trial_days' => env('PAID_TRIAL_DAYS', 7),
 
+    // New hosts are auto-enrolled in a card-free Pro trial at registration
+    // (no Stripe/gateway step). When it lapses they fall straight back to Free.
+    // A reminder email goes out `signup_trial_reminder_days` before it ends.
+    'signup_trial_days' => env('SIGNUP_TRIAL_DAYS', 30),
+    'signup_trial_reminder_days' => env('SIGNUP_TRIAL_REMINDER_DAYS', 3),
+
     // Days a lapsed paid subscription keeps its features while past_due, before
     // it is downgraded to free. Dunning happens inside this window.
     'subscription_grace_days' => env('SUBSCRIPTION_GRACE_DAYS', 7),

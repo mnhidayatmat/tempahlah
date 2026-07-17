@@ -61,7 +61,13 @@ class ProcessSubscriptionLifecycle extends Command
     }
 
     /**
-     * A. The free trial ran out and no payment was ever taken.
+     * A. The trial ran out and no payment was ever taken.
+     *
+     * These are card-free trials (Stripe-managed subs are filtered out and
+     * drive their own state), so there is nothing to chase — the tenant drops
+     * straight back to Free rather than into a past_due grace window. The
+     * "continue to Pro?" nudge already went out before expiry (see
+     * subscriptions:remind-trial-ending).
      */
     private function expireTrials(Carbon $now): int
     {
@@ -75,10 +81,23 @@ class ProcessSubscriptionLifecycle extends Command
             ->get();
 
         foreach ($subscriptions as $subscription) {
-            $this->transition($subscription, 'trial expired', [
-                'status' => Subscription::STATUS_PAST_DUE,
-                'grace_ends_at' => $now->copy()->addDays(Subscription::graceDays()),
+            $this->transition($subscription, 'trial expired — downgraded to free', [
+                'plan' => Subscription::PLAN_FREE,
+                'status' => Subscription::STATUS_ACTIVE,
+                'monthly_amount' => 0,
+                'billing_method' => 'manual',
+                'trial_ends_at' => null,
+                'grace_ends_at' => null,
+                'cancelled_at' => $now,
+                'current_period_start' => $now,
+                'current_period_end' => $now->copy()->addYear(),
             ]);
+
+            // Void any open invoice so nobody is chased for a cycle they no
+            // longer hold. Pure DB work — safe with billing unconfigured.
+            if (! $this->dryRun) {
+                app(SubscriptionBillingService::class)->voidOpenInvoices($subscription);
+            }
         }
 
         return $subscriptions->count();
