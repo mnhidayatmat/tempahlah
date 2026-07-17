@@ -333,6 +333,13 @@
                 </div>
             </div>
 
+            {{-- Convenience Save button here so the host can save right after the
+                 payment settings without scrolling to the bottom. Same form, so it
+                 saves everything on the page. --}}
+            <div style="display:flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary">{{ __('Save changes') }}</button>
+            </div>
+
             {{-- Check-out reminder — auto WhatsApp = a Pro (auto_reminders) feature. --}}
             @php $canAutoRemind = \Laravel\Pennant\Feature::active('auto_reminders'); @endphp
             <div class="hauz-card" style="padding: 22px;">
