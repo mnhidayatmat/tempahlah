@@ -10,7 +10,7 @@
     ]);
 @endphp
 
-<div wire:poll.3s>
+<div wire:poll.3s="tick">
     @if ($flash)
         <div class="hauz-card"
              style="padding: 10px 14px; margin-bottom: 16px; font-size: 13px;

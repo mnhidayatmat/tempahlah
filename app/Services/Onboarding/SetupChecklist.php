@@ -77,7 +77,9 @@ class SetupChecklist
             'body' => __('Name it, set the address, and upload a few photos.'),
             'done' => Property::query()->exists(),
             'cta' => __('Add homestay'),
-            'route' => route('tenant.properties.create'),
+            // onboarding=1 threads the guided chain: create → cover photo →
+            // dashboard → payment → dashboard → WhatsApp → dashboard → share.
+            'route' => route('tenant.properties.create', ['onboarding' => 1]),
         ];
     }
 
@@ -135,7 +137,8 @@ class SetupChecklist
             // Deep-link straight to the payment card so a first-time host lands on
             // it, instead of at the top of Settings having to scroll past Business
             // info + tax. The anchor is handled in settings/index.blade.php.
-            'route' => route('tenant.settings.index').'#payment-setup',
+            // onboarding=1 makes "Save changes" return to the dashboard.
+            'route' => route('tenant.settings.index', ['onboarding' => 1]).'#payment-setup',
         ];
     }
 
@@ -154,7 +157,10 @@ class SetupChecklist
             'body' => __('Scan a QR code once. Invoices, receipts and reminders reach your guests here.'),
             'done' => $connected,
             'cta' => __('Connect'),
-            'route' => route('tenant.integrations.show', 'whatsapp'),
+            // Numeric-keyed 'whatsapp' fills the provider param; onboarding=1
+            // becomes a query string so the connect panel hops back to the
+            // dashboard once the session goes live.
+            'route' => route('tenant.integrations.show', ['whatsapp', 'onboarding' => 1]),
         ];
     }
 

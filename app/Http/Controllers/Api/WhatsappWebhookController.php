@@ -7,6 +7,7 @@ use App\Jobs\Agent\ProcessAgentReply;
 use App\Models\AgentConversation;
 use App\Models\AgentUsageDaily;
 use App\Models\Tenant;
+use App\Models\TenantIntegration;
 use App\Models\User;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappSession;
@@ -52,7 +53,7 @@ class WhatsappWebhookController extends Controller
 
         match ($event) {
             'session.qr'            => $this->onQr($session, $payload),
-            'session.connected'     => $this->onConnected($session, $payload),
+            'session.connected'     => $this->onConnected($tenant, $session, $payload),
             'session.banned'        => $this->onBanned($session, $payload),
             'session.disconnected'  => $this->onDisconnected($session, $payload),
             'session.error'         => $this->onError($session, $payload),
@@ -73,7 +74,7 @@ class WhatsappWebhookController extends Controller
         ]);
     }
 
-    protected function onConnected(WhatsappSession $session, array $payload): void
+    protected function onConnected(Tenant $tenant, WhatsappSession $session, array $payload): void
     {
         $session->update([
             'status' => WhatsappSession::STATUS_CONNECTED,
@@ -85,6 +86,53 @@ class WhatsappWebhookController extends Controller
             'disconnected_at' => null,
             'last_seen_at' => now(),
             'last_error' => null,
+        ]);
+
+        $this->maybeAutoEnableAgent($tenant);
+    }
+
+    /**
+     * Turn the AI agent ON automatically the FIRST time a tenant connects
+     * WhatsApp, so a new host immediately sees it reply to guests — no extra
+     * setup step. Two guards keep this safe:
+     *   1. Only for tenants who actually have the feature (Pro / trial); a free
+     *      tenant's agent would never dispatch anyway (maybeDispatchAgent gates
+     *      on the same flag), so we don't flip a switch that does nothing.
+     *   2. Only when the host has never made an explicit on/off choice — i.e.
+     *      the agent config has no `enabled` key yet. If they later turn it off,
+     *      a row with enabled=false exists, and a reconnect never re-enables it.
+     */
+    protected function maybeAutoEnableAgent(Tenant $tenant): void
+    {
+        if (! Feature::for($tenant)->active('ai_agent')) return;
+
+        $row = TenantIntegration::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('provider', 'agent')
+            ->first();
+
+        $cfg = ($row && is_array($row->config)) ? $row->config : [];
+
+        // Respect an explicit prior choice — never override the host.
+        if (array_key_exists('enabled', $cfg)) return;
+
+        if (! $row) {
+            $row = new TenantIntegration([
+                'tenant_id' => $tenant->id,
+                'provider'  => 'agent',
+            ]);
+        }
+
+        $cfg['enabled'] = true;
+        $row->config = $cfg;
+        $row->enabled = true;
+        if (! $row->connected_at) {
+            $row->connected_at = now();
+        }
+        $row->save();
+
+        Log::info('AI agent auto-enabled on first WhatsApp connect', [
+            'tenant_id' => $tenant->id,
         ]);
     }
 

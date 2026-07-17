@@ -26,6 +26,9 @@
 
         <form id="create-property-form" method="POST" action="{{ route('tenant.properties.store') }}" style="display:flex; flex-direction:column; gap: 16px;">
             @csrf
+            @if (request()->boolean('onboarding'))
+                <input type="hidden" name="onboarding" value="1">
+            @endif
 
             {{-- ─── Basics ─────────────────────────────────────────── --}}
             <div class="hauz-card" style="padding: 22px; display:flex; flex-direction:column; gap: 14px;">

@@ -21,6 +21,9 @@ class WhatsappConnect extends Component
 {
     public ?int $tenantId = null;
 
+    /** Guided onboarding: hop back to the dashboard once WhatsApp connects. */
+    public bool $onboarding = false;
+
     // Test send form.
     public string $testPhone = '';
     public string $testName = '';
@@ -37,7 +40,20 @@ class WhatsappConnect extends Component
     public function mount(): void
     {
         $this->tenantId = app(TenantContext::class)->current()?->id;
+        $this->onboarding = request()->boolean('onboarding');
         $this->loadPrefsFromSession();
+    }
+
+    /**
+     * Polled every 3s by the view. During guided onboarding, hop back to the
+     * dashboard the moment the session connects so the host lands on the next
+     * setup step (share your booking link). No-op otherwise.
+     */
+    public function tick()
+    {
+        if ($this->onboarding && $this->session()->isConnected()) {
+            return $this->redirectRoute('tenant.dashboard');
+        }
     }
 
     protected function loadPrefsFromSession(): void

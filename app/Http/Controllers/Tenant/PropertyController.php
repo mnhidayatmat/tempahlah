@@ -66,8 +66,12 @@ class PropertyController extends Controller
      * (e.g. before the amenity seeder has run) are simply skipped.
      */
     protected const DEFAULT_AMENITY_KEYS = [
-        'wifi', 'ceiling_fan', 'tv', 'parking_free', 'water_heater',
-        'towels', 'toiletries', 'fridge', 'rice_cooker', 'kettle',
+        // Essentials
+        'wifi', 'aircond', 'ceiling_fan', 'hot_shower', 'water_heater',
+        'tv', 'astro', 'washing_machine', 'iron', 'toiletries',
+        // Kitchen
+        'stove_gas', 'fridge', 'rice_cooker', 'kettle', 'water_dispenser',
+        'kitchen_full',
     ];
 
     /** @return array<int, int> amenity IDs to pre-check on the create form */
@@ -240,8 +244,16 @@ class PropertyController extends Controller
         // page — exactly when it did before, since that's where the host used to
         // flip the property to active.
 
+        // Guided onboarding: land on the property page (where the "Add a cover
+        // photo" CTA lives) and thread the flag so the cover uploader knows to
+        // return to the dashboard for the next setup step.
+        $showParams = ['id' => $property->id];
+        if ($request->boolean('onboarding')) {
+            $showParams['onboarding'] = 1;
+        }
+
         return redirect()
-            ->route('tenant.properties.show', ['id' => $property->id])
+            ->route('tenant.properties.show', $showParams)
             ->with('status', $message);
     }
 

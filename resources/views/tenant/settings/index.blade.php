@@ -112,6 +112,9 @@
         <form method="POST" action="{{ route('tenant.settings.update') }}" style="display:flex; flex-direction:column; gap: 18px;">
             @csrf
             @method('PATCH')
+            @if (request()->boolean('onboarding'))
+                <input type="hidden" name="onboarding" value="1">
+            @endif
 
             {{-- Business info --}}
             <div class="hauz-card" style="padding: 22px;">

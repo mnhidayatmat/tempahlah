@@ -28,7 +28,7 @@ class AmenitySeeder extends Seeder
         $add('hot_shower',    'Air panas',               'Hot shower',             'essential', '🚿');
         $add('water_heater',  'Pemanas air',             'Water heater',           'essential', '🔥');
         $add('tv',            'TV',                      'TV',                     'essential', '📺');
-        $add('astro',         'Astro / TV satelit',      'Astro / satellite TV',   'essential', '🛰️');
+        $add('astro',         'Astro / Android TV',      'Astro / Android TV',     'essential', '🛰️');
         $add('parking_free',  'Letak kereta percuma',    'Free parking',           'essential', '🅿️');
         $add('washing_machine', 'Mesin basuh',           'Washing machine',        'essential', '🧺');
         $add('iron',          'Seterika',                'Iron',                   'essential', '🧷');

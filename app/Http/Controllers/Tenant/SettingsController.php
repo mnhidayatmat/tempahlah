@@ -217,6 +217,14 @@ class SettingsController extends Controller
               ])
             : __('Settings saved.');
 
+        // Guided onboarding: after saving payment details, return to the
+        // dashboard so the host lands on the next setup step.
+        if ($request->boolean('onboarding')) {
+            return redirect()
+                ->route('tenant.dashboard')
+                ->with('status', __('Payment details saved. Continue setting up your homestay.'));
+        }
+
         return redirect()
             ->route('tenant.settings.index')
             ->with('status', $msg);

@@ -65,7 +65,15 @@
                 default    => __('Draft'),
             };
             $tenantUrl  = $property->tenant?->publicUrl();
+            $onboarding = request()->boolean('onboarding');
         @endphp
+
+        @if ($onboarding && ! $cover)
+            <div class="hauz-card" style="padding:14px 18px; border-color: var(--pro); background: var(--pro-tint); color: var(--pro); font-size: 13px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:18px;">📷</span>
+                <span style="flex:1; min-width:0;">{{ __('Almost there — add a cover photo for your homestay to continue setting up.') }}</span>
+            </div>
+        @endif
 
         <div class="card" style="padding:0; overflow:hidden; border: 1px solid var(--line);"
              x-data="{
@@ -86,6 +94,9 @@
                   action="{{ route('tenant.properties.photos.store', ['property' => $property->public_id]) }}"
                   enctype="multipart/form-data" style="display:none;" x-ref="coverForm">
                 @csrf
+                @if ($onboarding)
+                    <input type="hidden" name="onboarding" value="1">
+                @endif
                 <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp"
                        x-ref="coverPicker" @change="onCoverPicked($event)">
             </form>

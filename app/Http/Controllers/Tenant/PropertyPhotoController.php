@@ -134,6 +134,14 @@ class PropertyPhotoController extends Controller
             }
         }
 
+        // Guided onboarding: the cover photo is in, hop back to the dashboard so
+        // the host lands on the next setup step (tell guests how to pay you).
+        if ($stored > 0 && $request->boolean('onboarding')) {
+            return redirect()
+                ->route('tenant.dashboard')
+                ->with('status', __('Cover photo added. Next: tell guests how to pay you.'));
+        }
+
         return back()->with('status', __(':n photo(s) uploaded.', ['n' => $stored]));
     }
 
