@@ -101,7 +101,7 @@ class DescriptionGenerator
         $s1 = $name.' ialah homestay '.$bedrooms.' bilik tidur'.($place !== '' ? ' di '.$place : '').'.';
 
         if ($wholeHouse) {
-            $s2 = 'Anda tempah seluruh rumah untuk kumpulan anda sendiri'
+            $s2 = 'Nikmati keseluruhan rumah untuk kumpulan anda sendiri'
                 .($maxGuests > 0 ? ' — selesa untuk sehingga '.$maxGuests.' tetamu' : '')
                 .($rate ? ', pada kadar tetap '.$rate.' semalam tanpa mengira bilangan tetamu' : '')
                 .'.';
