@@ -53,7 +53,29 @@ class PropertyController extends Controller
         return view('tenant.properties.create', [
             'amenityGroups' => $this->amenityGroups(),
             'defaultName' => $isFirstProperty ? $tenant->business_name : null,
+            // Pre-tick the facilities almost every Malaysian homestay has, so a
+            // new host only has to untick the few they lack + add the extras —
+            // minimum input. Resolved by the stable `key` column (not IDs).
+            'defaultAmenityIds' => $this->defaultAmenityIds(),
         ]);
+    }
+
+    /**
+     * The "basic facilities" pre-ticked on the create form. Keyed by the
+     * amenities.key column so it's stable regardless of row IDs; unknown keys
+     * (e.g. before the amenity seeder has run) are simply skipped.
+     */
+    protected const DEFAULT_AMENITY_KEYS = [
+        'wifi', 'ceiling_fan', 'tv', 'parking_free', 'water_heater',
+        'towels', 'toiletries', 'fridge', 'rice_cooker', 'kettle',
+    ];
+
+    /** @return array<int, int> amenity IDs to pre-check on the create form */
+    protected function defaultAmenityIds(): array
+    {
+        return Amenity::whereIn('key', self::DEFAULT_AMENITY_KEYS)
+            ->pluck('id')
+            ->all();
     }
 
     public function store(Request $request)

@@ -184,7 +184,7 @@
             <div class="hauz-card" style="padding: 22px;">
                 @include('tenant.properties._amenity_picker', [
                     'amenityGroups'      => $amenityGroups,
-                    'selectedAmenityIds' => [],
+                    'selectedAmenityIds' => $defaultAmenityIds,
                     'title'              => __('Facilities & amenities'),
                 ])
             </div>
