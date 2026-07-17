@@ -76,7 +76,12 @@ class TenantHomeController extends Controller
             'property_id' => $property?->id,
             'check_in' => $checkIn?->toDateString(),
             'check_out' => $checkOut?->toDateString(),
-            'guests' => ($guests >= 1 && $guests <= 20) ? $guests : null,
+            // Accept any sane positive count (matching the property max_guests
+            // ceiling); the public page then clamps it to the property's actual
+            // sleeping capacity. A hardcoded 20 here silently dropped larger
+            // whole-house groups (e.g. a host prefilling 30) back to the
+            // property's default_guests.
+            'guests' => ($guests >= 1 && $guests <= 200) ? $guests : null,
             'pay' => in_array($pay, ['manual', 'gateway'], true) ? $pay : null,
         ], fn ($v) => $v !== null);
 
