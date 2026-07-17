@@ -186,6 +186,17 @@ class PropertyController extends Controller
                 $property->amenities()->sync($validated['amenities']);
             }
 
+            // No description typed? Write one automatically (BM + EN) from the
+            // details the host just entered — new tenants shouldn't be blocked
+            // on prose. They can refine it any time on the edit page.
+            if (blank($validated['description'] ?? null)) {
+                $generated = app(\App\Services\Properties\DescriptionGenerator::class)->generate($property);
+                $property->update([
+                    'description_en' => $generated['en'],
+                    'description_bm' => $generated['bm'],
+                ]);
+            }
+
             return $property;
         });
 

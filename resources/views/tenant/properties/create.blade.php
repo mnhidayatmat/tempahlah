@@ -36,9 +36,21 @@
                     <input class="input" type="text" name="name" value="{{ old('name', $defaultName ?? '') }}" required maxlength="120" placeholder="{{ __('e.g. Wafa Beach Villa') }}">
                 </div>
 
-                <div>
-                    <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Description') }}</label>
-                    <textarea class="input" name="description" rows="4" maxlength="2000" style="height: auto; padding: 10px 12px; resize: vertical;" placeholder="{{ __('What makes this homestay special?') }}">{{ old('description') }}</textarea>
+                {{-- Description is auto-written from the details below when left
+                     blank, so new hosts are never blocked on prose. The manual
+                     textarea stays available, collapsed, for those who want it. --}}
+                <details {{ old('description') ? 'open' : '' }}>
+                    <summary style="cursor:pointer; font-size:12.5px; color: var(--ink-3); user-select:none;">
+                        ✍️ {{ app()->getLocale() === 'ms' ? 'Tulis penerangan sendiri (pilihan)' : 'Write your own description (optional)' }}
+                    </summary>
+                    <div style="margin-top: 8px;">
+                        <textarea class="input" name="description" rows="4" maxlength="2000" style="height: auto; padding: 10px 12px; resize: vertical;" placeholder="{{ __('What makes this homestay special?') }}">{{ old('description') }}</textarea>
+                    </div>
+                </details>
+                <div style="font-size: 11px; color: var(--ink-3); margin-top: -6px;">
+                    {{ app()->getLocale() === 'ms'
+                        ? 'Tak perlu tulis apa-apa — penerangan homestay akan dijana secara automatik (BM + EN) daripada maklumat yang anda isi di bawah. Boleh ubah bila-bila masa di halaman edit.'
+                        : 'No need to write anything — a description will be generated automatically (BM + EN) from the details you fill in below. You can edit it anytime on the edit page.' }}
                 </div>
             </div>
 
