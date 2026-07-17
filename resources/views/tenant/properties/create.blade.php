@@ -73,7 +73,7 @@
 
             {{-- ─── Rooms & pricing ────────────────────────────────── --}}
             <div class="hauz-card" style="padding: 22px; display:flex; flex-direction:column; gap: 14px;"
-                 x-data="{ mode: '{{ old('pricing_mode', 'whole_house') }}', bedrooms: {{ (int) old('bedrooms', 1) }} }">
+                 x-data="{ mode: '{{ old('pricing_mode', 'whole_house') }}', bedrooms: {{ (int) old('bedrooms', 3) }} }">
                 <div class="kicker">{{ __('Rooms & pricing') }}</div>
 
                 {{-- Bedrooms / bathrooms / toilets are always shown (descriptive counts) --}}
@@ -85,7 +85,7 @@
                     </div>
                     <div>
                         <label class="kicker" style="display:block; margin-bottom:6px;">{{ __('Bathrooms') }}</label>
-                        <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', 1) }}" min="0" max="50">
+                        <input class="input" type="number" name="bathrooms" value="{{ old('bathrooms', 2) }}" min="0" max="50">
                         <div style="font-size:11px; color: var(--ink-3); margin-top:4px;">{{ __('Bilik air lengkap') }}</div>
                     </div>
                     <div>
