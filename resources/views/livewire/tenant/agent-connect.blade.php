@@ -129,7 +129,7 @@
             </div>
             <label style="display:flex; align-items:center; gap: 10px; cursor: pointer;">
                 <input type="checkbox" wire:model.live="enabled" style="width: 18px; height: 18px;">
-                <span style="font-weight: 600; font-size: 14px;">{{ $enabled ? __('Enabled') : __('Disabled') }}</span>
+                <span style="font-weight: 600; font-size: 14px;">{{ __('Enable AI agent') }}</span>
             </label>
         </div>
     </div>
