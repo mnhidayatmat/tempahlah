@@ -32,6 +32,17 @@ Schedule::command('bookings:process-payment-lifecycle')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Safety net for gateway payments stuck on `processing` — when both the
+// gateway webhook AND the return-page reconcile miss (delayed/dropped callback,
+// checksum divergence, or the guest closes the tab at the bank), the money has
+// arrived but the booking never got marked paid. This asks the gateway directly
+// and settles any that are actually paid. Idempotent + authoritative (can only
+// ever CONFIRM payment), so it never wrongly settles an unpaid booking.
+Schedule::command('payments:reconcile-processing')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Subscription billing — issues the next RM 49 bill ahead of a trial/period
 // ending, chases past-due tenants inside their grace window, and voids invoices
 // for anyone who has fallen back to free. Runs BEFORE the lifecycle command so a

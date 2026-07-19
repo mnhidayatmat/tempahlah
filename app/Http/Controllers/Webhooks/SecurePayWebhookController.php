@@ -80,34 +80,56 @@ class SecurePayWebhookController extends Controller
         // 3. Verify the checksum.
         $signatureStatus = $client->callbackSignatureStatus($body, $checksum);
 
-        if ($signatureStatus === 'invalid') {
-            SecurePayLog::recordWebhook(
-                $payment->tenant_id, $payment, $request->post(), $externalId, 'invalid', 'checksum mismatch'
-            );
-            // Don't 4xx — SecurePay would retry, polluting logs. 200 + flag.
-            return response()->json(['error' => 'invalid_signature'], 200);
-        }
-
         // A checksum-verified callback is trustworthy, so read the attempt
         // outcome — paid OR declined — straight out of it.
         //
-        // When we can't verify it (tenant stored no checksum token, or
-        // SecurePay sent none), fall back to a server-side status check. That
-        // can only ever CONFIRM payment: it reports `payment_status: false`
-        // both for a declined order and for one nobody has attempted, so a
-        // false there is Unknown, never Failed.
+        // When we CAN'T verify it (tenant stored no checksum token, SecurePay
+        // sent none, OR the checksum simply doesn't match), we fall back to a
+        // server-side status check instead of dropping the callback. That
+        // matters: a mismatch is not necessarily a forgery — a genuinely-paid
+        // real FPX callback carries a broader field set than our checksum was
+        // tested against, so its checksum can legitimately diverge and would
+        // otherwise be silently discarded, leaving a paid booking unsettled.
+        //
+        // The status API is authoritative and unforgeable (Basic-auth'd
+        // server-to-server), so trusting it is safe: an attacker POSTing a
+        // forged callback with a bad checksum still can't make SecurePay report
+        // the order as paid. It can only ever CONFIRM payment — it reports
+        // `payment_status: false` both for a declined order and for one nobody
+        // has attempted, so a false there is Unknown, never Failed.
         $outcome = $client->attemptOutcome($body);
-        if ($signatureStatus === 'missing') {
+        if ($signatureStatus !== 'verified') {
             try {
                 $check = $client->getPaymentStatus($orderNumber);
-                $outcome = $check['paid'] ? AttemptOutcome::Paid : AttemptOutcome::Unknown;
             } catch (SecurePayException $e) {
+                // 'missing' (unverifiable) → 502 so SecurePay retries later.
+                // 'invalid' (checksum mismatch) → we can't confirm it either
+                // way, so flag it and stop; a retry or the return-page
+                // reconcile can still settle it if it was genuinely paid.
+                $reason = $signatureStatus === 'invalid'
+                    ? 'checksum mismatch + server check failed: '.$e->getMessage()
+                    : 'unverifiable + server-side check failed: '.$e->getMessage();
                 SecurePayLog::recordWebhook(
-                    $payment->tenant_id, $payment, $request->post(), $externalId, 'missing',
-                    'unverifiable + server-side check failed: '.$e->getMessage()
+                    $payment->tenant_id, $payment, $request->post(), $externalId, $signatureStatus, $reason
                 );
-                return response()->json(['error' => 'unverifiable'], 502);
+                return response()->json(
+                    ['error' => $signatureStatus === 'invalid' ? 'invalid_signature' : 'unverifiable'],
+                    $signatureStatus === 'invalid' ? 200 : 502
+                );
             }
+
+            if ($signatureStatus === 'invalid' && ! $check['paid']) {
+                // Bad checksum AND SecurePay says unpaid → treat as a rejected
+                // callback. Don't 4xx — SecurePay would retry, polluting logs.
+                SecurePayLog::recordWebhook(
+                    $payment->tenant_id, $payment, $request->post(), $externalId, 'invalid',
+                    'checksum mismatch, server says unpaid'
+                );
+                return response()->json(['error' => 'invalid_signature'], 200);
+            }
+
+            // Server is authoritative: paid → settle, otherwise Unknown.
+            $outcome = $check['paid'] ? AttemptOutcome::Paid : AttemptOutcome::Unknown;
         }
 
         // 4. Apply the state change in a transaction.
