@@ -193,6 +193,7 @@
           isBM: @js($isBM),
           properties: @js($propertiesPayload),
           toyyibpayConfigured: @js($toyyibpayConfigured),
+          depositIsSecurity: @js($depositIsSecurity ?? $tenant->depositIsSecurity()),
           depositPct: 20,
           prefill: @js($prefill ?? null),
       })">
@@ -497,8 +498,9 @@
                 <span class="lbl">RM <span x-text="formatMoney(avgRate())"></span> × <span x-text="nights()"></span> {{ $isBM ? 'malam' : 'nights' }}</span>
                 <span class="val">RM <span x-text="formatMoney(subtotal())"></span></span>
             </div>
-            {{-- Per-booking flat fee line (only when the host set one). --}}
-            <div class="wf-summary-row" x-show="feeAmount() > 0" x-cloak>
+            {{-- Booking fee added to the total — only in non-security mode. In
+                 security mode it's a refundable deposit shown below the total. --}}
+            <div class="wf-summary-row" x-show="feeAmount() > 0 && !depositIsSecurity" x-cloak>
                 <span class="lbl" x-text="feeLabel()"></span>
                 <span class="val">RM <span x-text="formatMoney(feeAmount())"></span></span>
             </div>
@@ -515,6 +517,15 @@
             <div class="wf-summary-row wf-summary-total">
                 <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
                 <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
+            </div>
+            {{-- Refundable security deposit — collected on top, returned after
+                 check-out, so it sits below the estimated (stay) total. --}}
+            <div class="wf-summary-row" x-show="securityDeposit() > 0" x-cloak style="border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 2px;">
+                <span class="lbl">{{ $isBM ? 'Deposit boleh dikembalikan' : 'Refundable deposit' }}</span>
+                <span class="val">RM <span x-text="formatMoney(securityDeposit())"></span></span>
+            </div>
+            <div class="wf-summary-note" x-show="securityDeposit() > 0" x-cloak>
+                ↩ {{ $isBM ? 'Deposit dikembalikan selepas daftar keluar.' : 'Deposit returned after check-out.' }}
             </div>
             <div class="wf-summary-note" x-show="hasSignedPrice()" x-cloak>
                 ✓ {{ $isBM ? 'Harga yang dipersetujui dengan tuan rumah untuk tarikh ini.' : 'Price agreed with the host for these dates.' }}
@@ -558,7 +569,7 @@
                     <span class="lbl">{{ $isBM ? 'Tetamu' : 'Guests' }}</span>
                     <span class="val" x-text="guests + ' ' + (isBM ? 'orang' : 'pax')"></span>
                 </div>
-                <div class="wf-book-recap-row" x-show="feeAmount() > 0" x-cloak>
+                <div class="wf-book-recap-row" x-show="feeAmount() > 0 && !depositIsSecurity" x-cloak>
                     <span class="lbl" x-text="feeLabel()"></span>
                     <span class="val">RM <span x-text="formatMoney(feeAmount())"></span></span>
                 </div>
@@ -566,9 +577,12 @@
                     <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
                     <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
                 </div>
-                {{-- "Pay now" line — tied to the property's booking fee
-                     (set in Property → Pricing → Booking fee, default
-                     RM 100). Replaces the old hardcoded 20% deposit. --}}
+                {{-- Refundable security deposit — returned after check-out. --}}
+                <div class="wf-book-recap-row" x-show="securityDeposit() > 0" x-cloak>
+                    <span class="lbl">{{ $isBM ? 'Deposit (dikembalikan)' : 'Refundable deposit' }}</span>
+                    <span class="val">RM <span x-text="formatMoney(securityDeposit())"></span></span>
+                </div>
+                {{-- "Pay now" line — the booking fee / security deposit. --}}
                 <div class="wf-book-recap-row wf-book-recap-deposit" x-show="depositAmount() > 0" x-cloak>
                     <span class="lbl">{{ $isBM ? 'Bayar sekarang' : 'Pay now' }}</span>
                     <span class="val">RM <span x-text="formatMoney(depositAmount())"></span></span>
@@ -2195,6 +2209,9 @@
                resets to that property's own default. */
             guests: opts.properties?.[0]?.default_guests || 2,
             toyyibpayConfigured: opts.toyyibpayConfigured,
+            /* When true, the booking fee is a refundable security deposit shown
+               separately — NOT added to the estimated (stay) total. */
+            depositIsSecurity: opts.depositIsSecurity || false,
             /* Chosen payment method in the book form: 'gateway' or 'manual'.
                Manual is always offered; default to the online gateway when the
                tenant has one connected. */
@@ -2538,7 +2555,13 @@
                 return this.isBM ? 'Yuran tempahan' : 'Booking fee';
             },
             grandTotal() {
-                return this.subtotal() + this.feeAmount();
+                // A refundable security deposit is collected on top and returned
+                // after check-out, so it's not part of the estimated stay total.
+                return this.subtotal() + (this.depositIsSecurity ? 0 : this.feeAmount());
+            },
+            /* The refundable deposit shown separately (0 unless security mode). */
+            securityDeposit() {
+                return this.depositIsSecurity ? this.feeAmount() : 0;
             },
 
             avgRate() {

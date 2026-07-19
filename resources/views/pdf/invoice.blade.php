@@ -80,6 +80,8 @@
         'sst'       => $isBM ? 'SST' : 'SST',
         'tax'       => $isBM ? 'Cukai Pelancongan' : 'Tourism Tax',
         'fee'       => $isBM ? 'Yuran tempahan' : 'Booking fee',
+        'deposit'   => $isBM ? 'Deposit boleh dikembalikan' : 'Refundable deposit',
+        'deposit_note' => $isBM ? 'Deposit dikembalikan selepas daftar keluar (tidak termasuk dalam jumlah di atas).' : 'Deposit is returned after check-out (not included in the total above).',
         'total'     => $isBM ? 'JUMLAH' : 'TOTAL',
         'paidamt'   => $isBM ? 'JUMLAH DIBAYAR' : 'AMOUNT PAID',
         'terms'     => $isBM ? 'Terma' : 'Terms',
@@ -382,8 +384,12 @@
             <td style="width: 52%;"></td>
             <td style="width: 48%;">
                 <table class="totbox">
+                    @php $securityDeposit = $booking->securityDepositAmount(); @endphp
                     <tr><td class="tk">{{ $L['subtotal'] }}</td><td class="tv">{{ $rm($invoice->subtotal) }}</td></tr>
-                    @if ((float) ($booking->booking_fee_amount ?? 0) > 0)
+                    {{-- Booking fee is part of the total only when it's an added
+                         charge (non-security). As a refundable security deposit
+                         it's shown below the total instead. --}}
+                    @if ((float) ($booking->booking_fee_amount ?? 0) > 0 && $securityDeposit <= 0)
                         <tr><td class="tk">{{ optional($booking->property)->booking_fee_label ?: $L['fee'] }}</td><td class="tv">{{ $rm($booking->booking_fee_amount) }}</td></tr>
                     @endif
                     @if ((float) $invoice->sst_amount > 0)
@@ -396,7 +402,13 @@
                         <td>{{ $isReceipt ? $L['paidamt'] : $L['total'] }}</td>
                         <td class="r">{{ $rm($isReceipt && $payment ? $payment->amount : $invoice->total) }}</td>
                     </tr>
+                    @if (! $isReceipt && $securityDeposit > 0)
+                        <tr><td class="tk">{{ $L['deposit'] }}</td><td class="tv">{{ $rm($securityDeposit) }}</td></tr>
+                    @endif
                 </table>
+                @if (! $isReceipt && $securityDeposit > 0)
+                    <div style="font-size: 8.5px; color: #6b7280; margin-top: 4px; text-align: right;">{{ $L['deposit_note'] }}</div>
+                @endif
             </td>
         </tr>
     </table>

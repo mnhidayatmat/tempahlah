@@ -72,7 +72,14 @@ class CreateBooking
                 ? round(max(0, (float) $data['booking_fee']), 2)
                 : round((float) ($room->property->booking_fee_amount ?? 0), 2);
 
-            $total = round($accommodation + $sstAmount + $tourismTax + $bookingFee, 2);
+            // When the tenant treats the booking fee as a refundable SECURITY
+            // DEPOSIT (Tenant::depositIsSecurity, the platform default), it is
+            // NOT part of the stay total — it's collected on top to hold the
+            // booking and returned after check-out, so the guest's "estimated
+            // total" reads the stay price alone. Otherwise it's an added charge
+            // (cleaning / service fee) baked into the total.
+            $depositIsSecurity = $tenant->depositIsSecurity();
+            $total = round($accommodation + $sstAmount + $tourismTax + ($depositIsSecurity ? 0 : $bookingFee), 2);
 
             // Last-minute guard: a booking made INSIDE the tenant's
             // full-payment lead time (default 7 days before check-in) must be
@@ -103,6 +110,13 @@ class CreateBooking
             } elseif (array_key_exists('deposit_pct', $data) && $data['deposit_pct'] !== null) {
                 $depositPct = (float) $data['deposit_pct'];
                 $depositAmt = round($total * ($depositPct / 100), 2);
+            } elseif ($depositIsSecurity && $bookingFee > 0) {
+                // Security deposit → pay this now to hold the booking; the stay
+                // balance is chased before check-in (reminderAmountDue). Wins
+                // over the last-minute "pay in full" rule so the pay-now stays
+                // the deposit even for a near-date booking.
+                $depositAmt = $bookingFee;
+                $depositPct = $total > 0 ? round(($bookingFee / $total) * 100, 2) : 0;
             } elseif ($requiresFullPayment) {
                 $depositAmt = $total;
                 $depositPct = 100.0;

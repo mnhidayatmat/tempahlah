@@ -416,6 +416,23 @@ class Booking extends Model
     }
 
     /**
+     * The refundable security deposit for this booking, or 0 when the tenant
+     * treats the booking fee as an added charge (non-security mode).
+     *
+     * In security mode the booking fee is NOT part of total_amount — it's a
+     * separate deposit paid on top to hold the booking and returned after
+     * check-out. Every surface that shows the deposit (public page, invoice,
+     * receipt) reads it from here so the stay total and the deposit stay
+     * cleanly separated.
+     */
+    public function securityDepositAmount(): float
+    {
+        return $this->tenant?->depositIsSecurity()
+            ? round((float) $this->booking_fee_amount, 2)
+            : 0.0;
+    }
+
+    /**
      * Amount to request in the "pay before check-in" reminder.
      *
      * Normally this is the outstanding balance (total − everything paid,

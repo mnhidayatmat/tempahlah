@@ -181,6 +181,9 @@ class PublicHomeBuilder
             'ratingByProperty'     => $ratingByProperty,
             'toyyibpayConfigured'  => $toyyibpayConfigured,
             'gatewayName'          => $gatewayName,
+            // When on, the booking fee is a refundable security deposit shown
+            // separately (not added to the estimated total).
+            'depositIsSecurity'    => $tenant->depositIsSecurity(),
             'manualInstructions'   => $tenant->manualPaymentInstructions(),
             'ownerCanAccess'       => $ownerCanAccess,
             'apexUrl'              => rtrim((string) config('app.url'), '/'),
