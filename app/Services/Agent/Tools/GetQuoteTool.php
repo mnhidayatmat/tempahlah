@@ -30,7 +30,7 @@ class GetQuoteTool extends Tool
                     'check_in'      => ['type' => 'string',  'description' => 'YYYY-MM-DD'],
                     'check_out'     => ['type' => 'string',  'description' => 'YYYY-MM-DD'],
                     'guests'        => ['type' => 'integer', 'description' => 'Total guest count', 'minimum' => 1],
-                    'foreign_guest' => ['type' => 'boolean', 'description' => 'true if any guest is not Malaysian (triggers RM 10/night tourism tax)'],
+                    'foreign_guest' => ['type' => 'boolean', 'description' => 'true if any guest is not Malaysian (triggers RM 10/night tourism tax). NEVER ask the guest their nationality/warganegara to fill this in — leave it unset (assume Malaysian) unless the guest has already volunteered that they are a foreign visitor.'],
                 ],
                 'required' => ['room_id', 'check_in', 'check_out', 'guests'],
             ],
