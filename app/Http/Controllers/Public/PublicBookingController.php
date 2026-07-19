@@ -96,12 +96,12 @@ class PublicBookingController extends Controller
             }
         }
 
-        // Host-set pay-now / deposit amount ("Send booking form" custom pay-now,
-        // default the property's booking fee). Same signature guarantees — a
-        // guest who edits the amount or dates invalidates it and falls back to
-        // the default. Maps to CreateBooking `deposit_amount` (the flat pay-now
-        // amount; the balance is the total minus this).
-        $agreedPayNow = null;
+        // Host-set booking fee ("Send booking form" custom booking fee, default
+        // the property's booking fee). Same signature guarantees — a guest who
+        // edits the amount or dates invalidates it and falls back to the
+        // property default. It's added to the total and becomes the pay-now
+        // amount (CreateBooking `booking_fee` + `deposit_amount`).
+        $agreedFee = null;
         if (($data['fee'] ?? null) !== null && ! empty($data['fsig'])) {
             if (\App\Support\Booking\QuotedPrice::verify(
                 $tenant->id,
@@ -112,7 +112,7 @@ class PublicBookingController extends Controller
                 $data['fsig'],
                 \App\Support\Booking\QuotedPrice::PURPOSE_PAYNOW,
             )) {
-                $agreedPayNow = (float) \App\Support\Booking\QuotedPrice::normalizeAmount($data['fee']);
+                $agreedFee = (float) \App\Support\Booking\QuotedPrice::normalizeAmount($data['fee']);
             }
         }
 
@@ -145,10 +145,12 @@ class PublicBookingController extends Controller
                 // CreateBooking's `array_key_exists('base_amount')` override
                 // isn't triggered by a null value.
                 'base_amount'      => $agreedPrice,
-                // Verified host-agreed pay-now amount, or null to fall back to
-                // the property's booking fee. Dropped by array_filter when null
-                // so CreateBooking's `deposit_amount` override isn't triggered.
-                'deposit_amount'   => $agreedPayNow,
+                // Verified host-agreed booking fee, or null to fall back to the
+                // property's fee. Overrides the fee line (added to the total)
+                // AND pins the pay-now amount to it (deposit_amount) so it holds
+                // even for a last-minute booking. array_filter drops the nulls.
+                'booking_fee'      => $agreedFee,
+                'deposit_amount'   => $agreedFee,
             ], fn ($v) => $v !== null));
         } catch (\RuntimeException $e) {
             // CreateBooking throws on availability conflicts.
@@ -177,11 +179,11 @@ class PublicBookingController extends Controller
 
         $requiresFullPayment = (bool) ($booking->meta['requires_full_payment'] ?? false);
 
-        // A host-set pay-now amount is an explicit PARTIAL deposit — the balance
-        // is collected before check-in — so never bill it as TYPE_FULL (which
-        // would mark the whole booking paid on settlement) even for a
-        // last-minute stay that would otherwise require full payment.
-        if ($agreedPayNow !== null) {
+        // A host-set booking fee is an explicit PARTIAL pay-now (the balance is
+        // collected before check-in), so never bill it as TYPE_FULL (which would
+        // mark the whole booking paid on settlement) even for a last-minute stay
+        // that would otherwise require full payment.
+        if ($agreedFee !== null) {
             $requiresFullPayment = false;
         }
 

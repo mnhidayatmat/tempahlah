@@ -64,7 +64,13 @@ class CreateBooking
             // Per-booking flat fee, snapshotted from the property so future
             // changes to the property's fee don't retroactively alter
             // existing bookings. NULL/0 → no fee, line omitted everywhere.
-            $bookingFee = round((float) ($room->property->booking_fee_amount ?? 0), 2);
+            // A caller may override it with an agreed amount (the "Send booking
+            // form" custom booking fee) — it's added to the total and, unless a
+            // deposit is set explicitly, becomes the pay-now amount, exactly
+            // like the property default.
+            $bookingFee = array_key_exists('booking_fee', $data) && $data['booking_fee'] !== null
+                ? round(max(0, (float) $data['booking_fee']), 2)
+                : round((float) ($room->property->booking_fee_amount ?? 0), 2);
 
             $total = round($accommodation + $sstAmount + $tourismTax + $bookingFee, 2);
 

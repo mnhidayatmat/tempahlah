@@ -86,22 +86,22 @@
                 </div>
             </div>
 
-            {{-- Custom pay-now / booking fee. Optional: the amount the guest pays
-                 immediately to confirm (defaults to the homestay's booking fee,
-                 usually RM 100). The stay total is unchanged — only how much is
-                 collected now vs. as the balance. Signed the same way. --}}
+            {{-- Custom booking fee. Optional: overrides the homestay's booking
+                 fee (usually RM 100) for this guest — the fee the guest pays now
+                 to confirm. Signed the same way (bound to the homestay + dates)
+                 so the guest can't edit it in the URL. --}}
             <div class="sf-price">
                 <label class="sf-price-toggle">
                     <input type="checkbox" x-model="fields.paynow.on" @change="onToggle('paynow')">
                     <span>
-                        <strong>{{ __('Set the pay-now amount') }}</strong>
-                        <em>{{ __('How much the guest pays now to confirm (default is your booking fee). The rest becomes the balance.') }}</em>
+                        <strong>{{ __('Set booking fee manually') }}</strong>
+                        <em>{{ __('Override your usual booking fee for this guest (the amount they pay now to confirm).') }}</em>
                     </span>
                 </label>
 
                 <div class="sf-price-body" x-show="fields.paynow.on" x-cloak>
                     <label class="sf-field">
-                        <span class="sf-label">{{ __('Pay-now amount (RM)') }}</span>
+                        <span class="sf-label">{{ __('Booking fee (RM)') }}</span>
                         <div class="sf-price-input">
                             <span class="sf-price-rm">RM</span>
                             <input type="number" class="input" min="0" step="0.01" inputmode="decimal"
@@ -111,7 +111,7 @@
                             {{ __('Pick the check-in and check-out dates above first.') }}
                         </p>
                         <p class="sf-hint" x-show="validRange() && fields.paynow.state === 'ready'" x-cloak>
-                            {{ __('Guest pays now') }} <strong>RM <span x-text="money(fields.paynow.sig.price)"></span></strong>
+                            {{ __('Booking fee (paid now)') }} <strong>RM <span x-text="money(fields.paynow.sig.price)"></span></strong>
                         </p>
                         <p class="sf-hint sf-price-err" x-show="validRange() && fields.paynow.state === 'error'" x-cloak>
                             {{ __('Could not lock this amount. Please try again.') }}
@@ -383,7 +383,7 @@
                     if (n > 0) m += `, ${this.checkIn} hingga ${this.checkOut} (${n} malam)`;
                     m += `.`;
                     if (n > 0 && total > 0) m += `\nAnggaran: RM ${this.money(total)}`;
-                    if (payNow !== null) m += `\nBayaran pengesahan sekarang: RM ${this.money(payNow)}`;
+                    if (payNow !== null) m += `\nYuran tempahan (bayar sekarang): RM ${this.money(payNow)}`;
                     m += `\n\nIsi maklumat anda di sini:\n${this.link()}`;
                     if (this.manual) m += `\n\nBayaran secara pindahan bank — butiran akan dipaparkan selepas anda hantar.`;
                     return m;
@@ -393,7 +393,7 @@
                 if (n > 0) m += `, ${this.checkIn} to ${this.checkOut} (${n} night${n === 1 ? '' : 's'})`;
                 m += `.`;
                 if (n > 0 && total > 0) m += `\nEstimated total: RM ${this.money(total)}`;
-                if (payNow !== null) m += `\nPay now to confirm: RM ${this.money(payNow)}`;
+                if (payNow !== null) m += `\nBooking fee (pay now): RM ${this.money(payNow)}`;
                 m += `\n\nFill in your details here:\n${this.link()}`;
                 if (this.manual) m += `\n\nPayment is by bank transfer — the details show up once you submit.`;
                 return m;

@@ -2217,13 +2217,13 @@
             signedCheckin: null,
             signedCheckout: null,
 
-            /* Host-set pay-now amount (deposit / booking fee), signed the same
-               way and bound to the quoted dates. Overrides the default RM 100
-               booking-fee pay-now while the guest keeps those dates. */
-            signedDeposit: null,
-            signedDepositSig: null,
-            signedDepositCheckin: null,
-            signedDepositCheckout: null,
+            /* Host-set booking fee, signed the same way and bound to the quoted
+               dates. Overrides the property's booking fee (the fee line + the
+               pay-now amount) while the guest keeps those dates. */
+            signedFee: null,
+            signedFeeSig: null,
+            signedFeeCheckin: null,
+            signedFeeCheckout: null,
 
             init() {
                 const p = this.prefill;
@@ -2270,12 +2270,12 @@
                     this.signedCheckout = p.check_out;
                 }
 
-                /* Same for the host-set pay-now amount. */
+                /* Same for the host-set booking fee. */
                 if (p.fee && p.fsig && this.checkin === p.check_in && this.checkout === p.check_out) {
-                    this.signedDeposit = Number(p.fee);
-                    this.signedDepositSig = p.fsig;
-                    this.signedDepositCheckin = p.check_in;
-                    this.signedDepositCheckout = p.check_out;
+                    this.signedFee = Number(p.fee);
+                    this.signedFeeSig = p.fsig;
+                    this.signedFeeCheckin = p.check_in;
+                    this.signedFeeCheckout = p.check_out;
                 }
 
                 /* Honour the host's request to be paid manually. Falls back to
@@ -2522,11 +2522,14 @@
             submittedPrice() { return this.hasSignedPrice() ? this.signedPrice : ''; },
             submittedSig() { return this.hasSignedPrice() ? this.signedSig : ''; },
 
-            // Per-booking flat fee (cleaning fee, service fee, etc.).
+            // Per-booking flat fee (booking / cleaning / service fee).
             // Server-side authoritative — these are display-only previews
-            // matching what PublicBookingController + CreateBooking compute
-            // from the same `properties.booking_fee_amount` column.
+            // matching what PublicBookingController + CreateBooking compute.
+            // A host-set booking fee (from a "Send booking form" link) overrides
+            // the property default while the guest keeps the quoted dates, so
+            // the fee line, the total and the pay-now amount all reflect it.
             feeAmount() {
+                if (this.hasSignedFee()) return this.signedFee;
                 return Number(this.current?.fee_amount || 0);
             },
             feeLabel() {
@@ -2548,24 +2551,21 @@
             // public flow doesn't pass deposit_pct, the booking fee IS
             // the deposit. Falls back to 20% only if no fee configured.
             depositAmount() {
-                // Host-set pay-now amount wins while the guest keeps the quoted
-                // dates (capped at the grand total — never ask for more than the
-                // whole stay).
-                if (this.hasSignedDeposit()) return Math.min(this.signedDeposit, this.grandTotal());
+                // Pay-now equals the booking fee (host-set or property default).
                 const fee = this.feeAmount();
                 if (fee > 0) return fee;
                 return Math.round(this.grandTotal() * (this.depositPct / 100));
             },
 
-            /* The signed pay-now amount applies only while the guest keeps the
+            /* The signed booking fee applies only while the guest keeps the
                exact dates it was signed for. */
-            hasSignedDeposit() {
-                return this.signedDeposit !== null
-                    && this.checkin === this.signedDepositCheckin
-                    && this.checkout === this.signedDepositCheckout;
+            hasSignedFee() {
+                return this.signedFee !== null
+                    && this.checkin === this.signedFeeCheckin
+                    && this.checkout === this.signedFeeCheckout;
             },
-            submittedFee() { return this.hasSignedDeposit() ? this.signedDeposit : ''; },
-            submittedFeeSig() { return this.hasSignedDeposit() ? this.signedDepositSig : ''; },
+            submittedFee() { return this.hasSignedFee() ? this.signedFee : ''; },
+            submittedFeeSig() { return this.hasSignedFee() ? this.signedFeeSig : ''; },
             formatMoney(n) {
                 return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             },
