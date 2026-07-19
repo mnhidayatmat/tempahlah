@@ -589,6 +589,9 @@
                      kept the quoted dates; re-verified server-side on submit. --}}
                 <input type="hidden" name="price" :value="submittedPrice()">
                 <input type="hidden" name="psig" :value="submittedSig()">
+                {{-- Host-set pay-now amount + its signature (same guarantees). --}}
+                <input type="hidden" name="fee" :value="submittedFee()">
+                <input type="hidden" name="fsig" :value="submittedFeeSig()">
 
                 @if($toyyibpayConfigured)
                     {{-- Payment method choice: online gateway vs pay manually.
@@ -2214,6 +2217,14 @@
             signedCheckin: null,
             signedCheckout: null,
 
+            /* Host-set pay-now amount (deposit / booking fee), signed the same
+               way and bound to the quoted dates. Overrides the default RM 100
+               booking-fee pay-now while the guest keeps those dates. */
+            signedDeposit: null,
+            signedDepositSig: null,
+            signedDepositCheckin: null,
+            signedDepositCheckout: null,
+
             init() {
                 const p = this.prefill;
                 if (!p) return;
@@ -2257,6 +2268,14 @@
                     this.signedSig = p.psig;
                     this.signedCheckin = p.check_in;
                     this.signedCheckout = p.check_out;
+                }
+
+                /* Same for the host-set pay-now amount. */
+                if (p.fee && p.fsig && this.checkin === p.check_in && this.checkout === p.check_out) {
+                    this.signedDeposit = Number(p.fee);
+                    this.signedDepositSig = p.fsig;
+                    this.signedDepositCheckin = p.check_in;
+                    this.signedDepositCheckout = p.check_out;
                 }
 
                 /* Honour the host's request to be paid manually. Falls back to
@@ -2529,10 +2548,24 @@
             // public flow doesn't pass deposit_pct, the booking fee IS
             // the deposit. Falls back to 20% only if no fee configured.
             depositAmount() {
+                // Host-set pay-now amount wins while the guest keeps the quoted
+                // dates (capped at the grand total — never ask for more than the
+                // whole stay).
+                if (this.hasSignedDeposit()) return Math.min(this.signedDeposit, this.grandTotal());
                 const fee = this.feeAmount();
                 if (fee > 0) return fee;
                 return Math.round(this.grandTotal() * (this.depositPct / 100));
             },
+
+            /* The signed pay-now amount applies only while the guest keeps the
+               exact dates it was signed for. */
+            hasSignedDeposit() {
+                return this.signedDeposit !== null
+                    && this.checkin === this.signedDepositCheckin
+                    && this.checkout === this.signedDepositCheckout;
+            },
+            submittedFee() { return this.hasSignedDeposit() ? this.signedDeposit : ''; },
+            submittedFeeSig() { return this.hasSignedDeposit() ? this.signedDepositSig : ''; },
             formatMoney(n) {
                 return Number(n || 0).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             },

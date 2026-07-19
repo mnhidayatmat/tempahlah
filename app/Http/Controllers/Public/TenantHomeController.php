@@ -51,7 +51,7 @@ class TenantHomeController extends Controller
      */
     protected function prefill(Request $request, $properties, Tenant $tenant): ?array
     {
-        if (! $request->hasAny(['property_id', 'check_in', 'check_out', 'guests', 'pay', 'price'])) {
+        if (! $request->hasAny(['property_id', 'check_in', 'check_out', 'guests', 'pay', 'price', 'fee'])) {
             return null;
         }
 
@@ -79,14 +79,30 @@ class TenantHomeController extends Controller
         // RE-verified server-side on submit; this is display-only.
         $price = null;
         $psig = null;
+        $fee = null;
+        $fsig = null;
         if ($property && $checkIn && $checkOut) {
+            $ci = $checkIn->toDateString();
+            $co = $checkOut->toDateString();
+
+            // Stay total (accommodation subtotal).
             $rawPrice = $request->query('price');
             $sig = (string) $request->query('psig', '');
             if (\App\Support\Booking\QuotedPrice::verify(
-                $tenant->id, $property->id, $checkIn->toDateString(), $checkOut->toDateString(), $rawPrice, $sig
+                $tenant->id, $property->id, $ci, $co, $rawPrice, $sig, \App\Support\Booking\QuotedPrice::PURPOSE_STAY
             )) {
                 $price = \App\Support\Booking\QuotedPrice::normalizeAmount($rawPrice);
                 $psig = $sig;
+            }
+
+            // Pay-now / deposit amount.
+            $rawFee = $request->query('fee');
+            $feeSig = (string) $request->query('fsig', '');
+            if (\App\Support\Booking\QuotedPrice::verify(
+                $tenant->id, $property->id, $ci, $co, $rawFee, $feeSig, \App\Support\Booking\QuotedPrice::PURPOSE_PAYNOW
+            )) {
+                $fee = \App\Support\Booking\QuotedPrice::normalizeAmount($rawFee);
+                $fsig = $feeSig;
             }
         }
 
@@ -104,6 +120,9 @@ class TenantHomeController extends Controller
             // Verified agreed price (accommodation subtotal) + its signature.
             'price' => $price,
             'psig' => $psig,
+            // Verified pay-now / deposit amount + its signature.
+            'fee' => $fee,
+            'fsig' => $fsig,
         ], fn ($v) => $v !== null);
 
         return $prefill ?: null;

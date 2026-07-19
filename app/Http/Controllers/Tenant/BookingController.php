@@ -264,7 +264,12 @@ class BookingController extends Controller
             'check_in'    => ['required', 'date_format:Y-m-d'],
             'check_out'   => ['required', 'date_format:Y-m-d', 'after:check_in'],
             'price'       => ['required', 'numeric', 'min:0', 'max:'.\App\Support\Booking\QuotedPrice::MAX_AMOUNT],
+            // Which amount this signs: the whole-stay price or the pay-now
+            // deposit. Defaults to the stay price for backward compatibility.
+            'purpose'     => ['nullable', \Illuminate\Validation\Rule::in(\App\Support\Booking\QuotedPrice::PURPOSES)],
         ]);
+
+        $purpose = $validated['purpose'] ?? \App\Support\Booking\QuotedPrice::PURPOSE_STAY;
 
         // The property must belong to this tenant (global scope enforces it),
         // so a host can't mint a signature for someone else's homestay.
@@ -280,13 +285,14 @@ class BookingController extends Controller
             $validated['check_in'],
             $validated['check_out'],
             $amount,
+            $purpose,
         );
 
         if ($sig === null || $amount === null) {
             return response()->json(['error' => 'unsignable'], 422);
         }
 
-        return response()->json(['price' => $amount, 'sig' => $sig]);
+        return response()->json(['price' => $amount, 'sig' => $sig, 'purpose' => $purpose]);
     }
 
     public function create(Request $request)

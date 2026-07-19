@@ -99,11 +99,14 @@ class StoreBookingRequest extends FormRequest
             // How the guest chose to pay. Null / absent defaults to the
             // online gateway in the controller.
             'payment_method'   => ['nullable', Rule::in(['gateway', 'manual'])],
-            // Host-set agreed price + its HMAC signature (from a "Send booking
-            // form" link). Honoured only if the signature re-verifies in the
-            // controller — otherwise ignored and the price is recomputed.
+            // Host-set agreed stay price + its HMAC signature (from a "Send
+            // booking form" link). Honoured only if the signature re-verifies in
+            // the controller — otherwise ignored and the price is recomputed.
             'price'            => ['nullable', 'numeric', 'min:0', 'max:'.\App\Support\Booking\QuotedPrice::MAX_AMOUNT],
             'psig'             => ['nullable', 'string', 'max:128'],
+            // Host-set pay-now / deposit amount + its signature (same rules).
+            'fee'              => ['nullable', 'numeric', 'min:0', 'max:'.\App\Support\Booking\QuotedPrice::MAX_AMOUNT],
+            'fsig'             => ['nullable', 'string', 'max:128'],
         ];
     }
 

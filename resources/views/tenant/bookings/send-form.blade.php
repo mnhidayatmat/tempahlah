@@ -30,12 +30,12 @@
 
                 <label class="sf-field">
                     <span class="sf-label">{{ __('Check-in') }}</span>
-                    <input type="date" class="input" x-model="checkIn" :min="todayStr" @change="scheduleSign()">
+                    <input type="date" class="input" x-model="checkIn" :min="todayStr" @change="reSignAll()">
                 </label>
 
                 <label class="sf-field">
                     <span class="sf-label">{{ __('Check-out') }}</span>
-                    <input type="date" class="input" x-model="checkOut" :min="minCheckOut()" @change="scheduleSign()">
+                    <input type="date" class="input" x-model="checkOut" :min="minCheckOut()" @change="reSignAll()">
                 </label>
 
                 <label class="sf-field">
@@ -49,39 +49,72 @@
                 </label>
             </div>
 
-            {{-- Custom price. Optional: when set, the guest pays this exact
-                 agreed amount instead of the calendar rate. It's signed
-                 server-side (bound to the homestay + dates) so the guest can't
-                 edit it down in the URL. Changing the dates on the booking page
-                 drops the agreed price and recalculates. --}}
+            {{-- Custom stay price. Optional: when set, the guest pays this exact
+                 agreed total instead of the calendar rate. Signed server-side
+                 (bound to the homestay + dates) so the guest can't edit it down
+                 in the URL. Changing the dates drops it and recalculates. --}}
             <div class="sf-price">
                 <label class="sf-price-toggle">
-                    <input type="checkbox" x-model="customPriceOn" @change="onCustomPriceToggle()">
+                    <input type="checkbox" x-model="fields.stay.on" @change="onToggle('stay')">
                     <span>
-                        <strong>{{ __('Set a custom price') }}</strong>
-                        <em>{{ __('Agreed a special rate? Enter it and the guest pays exactly that — they can’t change it.') }}</em>
+                        <strong>{{ __('Set a custom stay price') }}</strong>
+                        <em>{{ __('Agreed a special rate for the whole stay? Enter it and the guest pays exactly that.') }}</em>
                     </span>
                 </label>
 
-                <div class="sf-price-body" x-show="customPriceOn" x-cloak>
+                <div class="sf-price-body" x-show="fields.stay.on" x-cloak>
                     <label class="sf-field">
                         <span class="sf-label">{{ __('Price for the whole stay (RM)') }}</span>
                         <div class="sf-price-input">
                             <span class="sf-price-rm">RM</span>
                             <input type="number" class="input" min="0" step="0.01" inputmode="decimal"
-                                   placeholder="0.00" x-model.number="customPrice" @input="scheduleSign()">
+                                   placeholder="0.00" x-model.number="fields.stay.amount" @input="scheduleSign('stay')">
                         </div>
                         <p class="sf-hint" x-show="!validRange()" x-cloak>
                             {{ __('Pick the check-in and check-out dates above first — the price is locked to those dates.') }}
                         </p>
-                        <p class="sf-hint" x-show="validRange() && priceState === 'ready'" x-cloak>
-                            {{ __('Guest pays') }} <strong>RM <span x-text="money(priceSig.price)"></span></strong>
+                        <p class="sf-hint" x-show="validRange() && fields.stay.state === 'ready'" x-cloak>
+                            {{ __('Stay total') }} <strong>RM <span x-text="money(fields.stay.sig.price)"></span></strong>
                             <template x-if="nights() > 0">
-                                <span>· {{ __('about') }} RM <span x-text="money(priceSig.price / nights())"></span> / {{ __('night') }}</span>
+                                <span>· {{ __('about') }} RM <span x-text="money(fields.stay.sig.price / nights())"></span> / {{ __('night') }}</span>
                             </template>
                         </p>
-                        <p class="sf-hint sf-price-err" x-show="validRange() && priceState === 'error'" x-cloak>
+                        <p class="sf-hint sf-price-err" x-show="validRange() && fields.stay.state === 'error'" x-cloak>
                             {{ __('Could not lock this price. Please try again.') }}
+                        </p>
+                    </label>
+                </div>
+            </div>
+
+            {{-- Custom pay-now / booking fee. Optional: the amount the guest pays
+                 immediately to confirm (defaults to the homestay's booking fee,
+                 usually RM 100). The stay total is unchanged — only how much is
+                 collected now vs. as the balance. Signed the same way. --}}
+            <div class="sf-price">
+                <label class="sf-price-toggle">
+                    <input type="checkbox" x-model="fields.paynow.on" @change="onToggle('paynow')">
+                    <span>
+                        <strong>{{ __('Set the pay-now amount') }}</strong>
+                        <em>{{ __('How much the guest pays now to confirm (default is your booking fee). The rest becomes the balance.') }}</em>
+                    </span>
+                </label>
+
+                <div class="sf-price-body" x-show="fields.paynow.on" x-cloak>
+                    <label class="sf-field">
+                        <span class="sf-label">{{ __('Pay-now amount (RM)') }}</span>
+                        <div class="sf-price-input">
+                            <span class="sf-price-rm">RM</span>
+                            <input type="number" class="input" min="0" step="0.01" inputmode="decimal"
+                                   placeholder="200.00" x-model.number="fields.paynow.amount" @input="scheduleSign('paynow')">
+                        </div>
+                        <p class="sf-hint" x-show="!validRange()" x-cloak>
+                            {{ __('Pick the check-in and check-out dates above first.') }}
+                        </p>
+                        <p class="sf-hint" x-show="validRange() && fields.paynow.state === 'ready'" x-cloak>
+                            {{ __('Guest pays now') }} <strong>RM <span x-text="money(fields.paynow.sig.price)"></span></strong>
+                        </p>
+                        <p class="sf-hint sf-price-err" x-show="validRange() && fields.paynow.state === 'error'" x-cloak>
+                            {{ __('Could not lock this amount. Please try again.') }}
                         </p>
                     </label>
                 </div>
@@ -199,15 +232,18 @@
             manual: true,
             copied: false,
 
-            /* Custom-price state. `customPrice` is what the host typed;
-               `priceSig` is the server-signed {price, sig} for the CURRENT
-               property + dates + amount (null until it verifies). `priceState`
-               drives the inline hint: idle | signing | ready | error. */
-            customPriceOn: false,
-            customPrice: null,
-            priceSig: null,
-            priceState: 'idle',
-            _signTimer: null,
+            /* Two optional host-set amounts, each signed server-side and bound
+               to the current property + dates:
+                 - stay:   the whole-stay price   → CreateBooking base_amount
+                 - paynow: the deposit / pay-now  → CreateBooking deposit_amount
+               Per field: `on` toggle, `amount` typed value, `sig` the verified
+               {price, sig, propertyId, checkIn, checkOut} (null until it checks
+               out), `state` = idle|signing|ready|error. */
+            fields: {
+                stay:   { on: false, amount: null, sig: null, state: 'idle' },
+                paynow: { on: false, amount: null, sig: null, state: 'idle' },
+            },
+            _timers: { stay: null, paynow: null },
 
             get todayStr() {
                 const d = new Date();
@@ -219,55 +255,64 @@
 
             onPropertyChange() {
                 this.guests = Math.min(this.current.default_guests || 2, this.current.sleeps || 99);
-                this.scheduleSign();
+                this.reSignAll();
             },
 
-            /* ── Custom price ─────────────────────────────────────────
-               The signature is bound to (property, check-in, check-out,
-               amount), so any change to those must re-sign. We debounce the
-               request and only surface `priceSig` when it still matches the
-               current inputs — a stale sig is never put in the link. */
-            onCustomPriceToggle() {
-                if (!this.customPriceOn) { this.customPrice = null; this.priceSig = null; this.priceState = 'idle'; }
-                else { this.scheduleSign(); }
+            /* ── Signed custom amounts ────────────────────────────────
+               Each signature is bound to (property, check-in, check-out,
+               amount, purpose), so any change to those must re-sign. We debounce
+               and only surface a sig that still matches the current inputs — a
+               stale sig is never put in the link. */
+            onToggle(key) {
+                const f = this.fields[key];
+                if (!f.on) { f.amount = null; f.sig = null; f.state = 'idle'; }
+                else { this.scheduleSign(key); }
             },
 
-            scheduleSign() {
-                this.priceSig = null;           // invalidate immediately
-                clearTimeout(this._signTimer);
-                if (!this.customPriceOn) { this.priceState = 'idle'; return; }
-                const amt = Number(this.customPrice);
-                if (!this.validRange() || !this.propertyId || !(amt > 0)) { this.priceState = 'idle'; return; }
-                this.priceState = 'signing';
-                this._signTimer = setTimeout(() => this.refreshSign(), 350);
+            reSignAll() { this.scheduleSign('stay'); this.scheduleSign('paynow'); },
+
+            scheduleSign(key) {
+                const f = this.fields[key];
+                f.sig = null;                       // invalidate immediately
+                clearTimeout(this._timers[key]);
+                if (!f.on) { f.state = 'idle'; return; }
+                const amt = Number(f.amount);
+                if (!this.validRange() || !this.propertyId || !(amt > 0)) { f.state = 'idle'; return; }
+                f.state = 'signing';
+                this._timers[key] = setTimeout(() => this.refreshSign(key), 350);
             },
 
-            refreshSign() {
+            refreshSign(key) {
+                const f = this.fields[key];
                 const propertyId = this.propertyId, checkIn = this.checkIn, checkOut = this.checkOut;
-                const amt = Number(this.customPrice);
+                const amt = Number(f.amount);
+                const purpose = key; // 'stay' | 'paynow' — matches QuotedPrice::PURPOSES
                 fetch(this.signUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
-                    body: JSON.stringify({ property_id: propertyId, check_in: checkIn, check_out: checkOut, price: amt }),
+                    body: JSON.stringify({ property_id: propertyId, check_in: checkIn, check_out: checkOut, price: amt, purpose }),
                 }).then(r => r.ok ? r.json() : Promise.reject(r))
                   .then(data => {
                     // Ignore a response that raced behind a newer edit.
-                    if (this.propertyId !== propertyId || this.checkIn !== checkIn || this.checkOut !== checkOut || Number(this.customPrice) !== amt) return;
-                    this.priceSig = { price: data.price, sig: data.sig, propertyId, checkIn, checkOut };
-                    this.priceState = 'ready';
+                    if (this.propertyId !== propertyId || this.checkIn !== checkIn || this.checkOut !== checkOut || Number(f.amount) !== amt) return;
+                    f.sig = { price: data.price, sig: data.sig, propertyId, checkIn, checkOut };
+                    f.state = 'ready';
                   })
-                  .catch(() => { this.priceSig = null; this.priceState = 'error'; });
+                  .catch(() => { f.sig = null; f.state = 'error'; });
             },
 
-            /* A signed price is in play only when it matches the exact inputs
-               currently in the form. */
-            hasCustomPrice() {
-                const s = this.priceSig;
-                return !!(s && this.customPriceOn
+            /* A signed amount is in play only when its sig matches the exact
+               inputs currently in the form. */
+            has(key) {
+                const f = this.fields[key];
+                const s = f.sig;
+                return !!(s && f.on
                     && s.propertyId === this.propertyId
                     && s.checkIn === this.checkIn
                     && s.checkOut === this.checkOut);
             },
+            hasCustomPrice() { return this.has('stay'); },
+            hasPayNow() { return this.has('paynow'); },
 
             minCheckOut() {
                 if (!this.checkIn) return this.todayStr;
@@ -308,11 +353,15 @@
                 if (this.validRange()) q.set('check_out', this.checkOut);
                 if (this.guests) q.set('guests', this.guests);
                 q.set('pay', this.manual ? 'manual' : 'gateway');
-                // Carry the signed custom price only when it matches the
-                // current form inputs — never a stale signature.
+                // Carry each signed amount only when its sig matches the current
+                // form inputs — never a stale signature.
                 if (this.hasCustomPrice()) {
-                    q.set('price', this.priceSig.price);
-                    q.set('psig', this.priceSig.sig);
+                    q.set('price', this.fields.stay.sig.price);
+                    q.set('psig', this.fields.stay.sig.sig);
+                }
+                if (this.hasPayNow()) {
+                    q.set('fee', this.fields.paynow.sig.price);
+                    q.set('fsig', this.fields.paynow.sig.sig);
                 }
                 return `${this.publicUrl}?${q.toString()}`;
             },
@@ -326,13 +375,15 @@
                 const name = this.current.name;
                 // Custom price (when set) is the agreed total the guest pays;
                 // otherwise fall back to the calendar estimate.
-                const total = this.hasCustomPrice() ? Number(this.priceSig.price) : n * (this.current.rate || 0);
+                const total = this.hasCustomPrice() ? Number(this.fields.stay.sig.price) : n * (this.current.rate || 0);
+                const payNow = this.hasPayNow() ? Number(this.fields.paynow.sig.price) : null;
 
                 if (this.isBM) {
                     let m = `Salam! Ini borang tempahan untuk ${name}`;
                     if (n > 0) m += `, ${this.checkIn} hingga ${this.checkOut} (${n} malam)`;
                     m += `.`;
                     if (n > 0 && total > 0) m += `\nAnggaran: RM ${this.money(total)}`;
+                    if (payNow !== null) m += `\nBayaran pengesahan sekarang: RM ${this.money(payNow)}`;
                     m += `\n\nIsi maklumat anda di sini:\n${this.link()}`;
                     if (this.manual) m += `\n\nBayaran secara pindahan bank — butiran akan dipaparkan selepas anda hantar.`;
                     return m;
@@ -342,6 +393,7 @@
                 if (n > 0) m += `, ${this.checkIn} to ${this.checkOut} (${n} night${n === 1 ? '' : 's'})`;
                 m += `.`;
                 if (n > 0 && total > 0) m += `\nEstimated total: RM ${this.money(total)}`;
+                if (payNow !== null) m += `\nPay now to confirm: RM ${this.money(payNow)}`;
                 m += `\n\nFill in your details here:\n${this.link()}`;
                 if (this.manual) m += `\n\nPayment is by bank transfer — the details show up once you submit.`;
                 return m;

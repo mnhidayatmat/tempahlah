@@ -54,31 +54,49 @@ class QuotedPrice
     }
 
     /**
-     * HMAC signature over the exact stay + amount. Returns null when the amount
-     * is unusable (so callers never emit an unsignable link).
+     * The two host-settable amounts a "Send booking form" link can carry. The
+     * purpose is folded into the signed payload so a signature minted for one
+     * amount can never be replayed as the other (e.g. a low "pay-now" sig can't
+     * masquerade as the stay total).
+     *
+     *  - PURPOSE_STAY:   the accommodation subtotal (whole-stay price) →
+     *                    CreateBooking `base_amount`.
+     *  - PURPOSE_PAYNOW: the amount the guest pays now (deposit / booking fee,
+     *                    default RM 100) → CreateBooking `deposit_amount`. The
+     *                    stay total is unchanged; only the split shifts.
      */
-    public static function sign(int $tenantId, int $propertyId, ?string $checkIn, ?string $checkOut, int|float|string|null $amount): ?string
+    public const PURPOSE_STAY = 'stay';
+    public const PURPOSE_PAYNOW = 'paynow';
+
+    public const PURPOSES = [self::PURPOSE_STAY, self::PURPOSE_PAYNOW];
+
+    /**
+     * HMAC signature over the exact stay + amount + purpose. Returns null when
+     * the amount is unusable (so callers never emit an unsignable link).
+     */
+    public static function sign(int $tenantId, int $propertyId, ?string $checkIn, ?string $checkOut, int|float|string|null $amount, string $purpose = self::PURPOSE_STAY): ?string
     {
         $normalized = self::normalizeAmount($amount);
 
-        if ($normalized === null || ! $checkIn || ! $checkOut) {
+        if ($normalized === null || ! $checkIn || ! $checkOut || ! in_array($purpose, self::PURPOSES, true)) {
             return null;
         }
 
-        return hash_hmac('sha256', self::payload($tenantId, $propertyId, $checkIn, $checkOut, $normalized), self::key());
+        return hash_hmac('sha256', self::payload($tenantId, $propertyId, $checkIn, $checkOut, $normalized, $purpose), self::key());
     }
 
     /**
-     * True when $sig is a valid signature for this exact stay + amount. Any
-     * mismatch (edited price, changed dates, wrong tenant, missing sig) → false.
+     * True when $sig is a valid signature for this exact stay + amount +
+     * purpose. Any mismatch (edited price, changed dates, wrong tenant, wrong
+     * purpose, missing sig) → false.
      */
-    public static function verify(int $tenantId, int $propertyId, ?string $checkIn, ?string $checkOut, int|float|string|null $amount, ?string $sig): bool
+    public static function verify(int $tenantId, int $propertyId, ?string $checkIn, ?string $checkOut, int|float|string|null $amount, ?string $sig, string $purpose = self::PURPOSE_STAY): bool
     {
         if (! is_string($sig) || $sig === '') {
             return false;
         }
 
-        $expected = self::sign($tenantId, $propertyId, $checkIn, $checkOut, $amount);
+        $expected = self::sign($tenantId, $propertyId, $checkIn, $checkOut, $amount, $purpose);
 
         if ($expected === null) {
             return false;
@@ -87,9 +105,9 @@ class QuotedPrice
         return hash_equals($expected, $sig);
     }
 
-    protected static function payload(int $tenantId, int $propertyId, string $checkIn, string $checkOut, string $amount): string
+    protected static function payload(int $tenantId, int $propertyId, string $checkIn, string $checkOut, string $amount, string $purpose): string
     {
-        return implode('|', ['quoted-price', $tenantId, $propertyId, $checkIn, $checkOut, $amount]);
+        return implode('|', ['quoted-price', $purpose, $tenantId, $propertyId, $checkIn, $checkOut, $amount]);
     }
 
     protected static function key(): string
