@@ -621,14 +621,16 @@ class PlatformAdminController extends Controller
      */
     protected function tenantList(Request $request)
     {
-        $plan = in_array($request->query('plan'), [Subscription::PLAN_FREE, Subscription::PLAN_PRO, Subscription::PLAN_ULTRA], true)
-            ? $request->query('plan')
-            : null;
+        // The UI offers All / Free / Paid — where "Paid" means either paid tier
+        // (pro OR ultra). A raw ?plan=pro|ultra|free is also honoured for links.
+        $planParam = $request->query('plan');
         $q = trim((string) $request->query('q', ''));
 
         return Tenant::query()
             ->with(['subscription', 'owner:id,name,email'])
-            ->when($plan, fn ($query) => $query->whereHas('subscription', fn ($s) => $s->where('plan', $plan)))
+            ->when($planParam === 'paid', fn ($query) => $query->whereHas('subscription', fn ($s) => $s->whereIn('plan', Subscription::PAID_PLANS)))
+            ->when($planParam === Subscription::PLAN_FREE, fn ($query) => $query->whereHas('subscription', fn ($s) => $s->where('plan', Subscription::PLAN_FREE)))
+            ->when(in_array($planParam, [Subscription::PLAN_PRO, Subscription::PLAN_ULTRA], true), fn ($query) => $query->whereHas('subscription', fn ($s) => $s->where('plan', $planParam)))
             ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
                 ->where('business_name', 'like', "%{$q}%")
                 ->orWhere('business_email', 'like', "%{$q}%")))

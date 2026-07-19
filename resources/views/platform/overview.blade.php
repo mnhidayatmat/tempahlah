@@ -2,7 +2,7 @@
     @php
         $planBadge = function ($s) {
             if (! $s) return ['—', 'var(--ink-3)', 'var(--bg-sunk)'];
-            return $s->plan === \App\Models\Subscription::PLAN_PAID
+            return in_array($s->plan, \App\Models\Subscription::PAID_PLANS, true)
                 ? [__('Paid'), 'var(--ok)', 'var(--ok-tint)']
                 : [__('Free'), 'var(--ink-2)', 'var(--bg-sunk)'];
         };

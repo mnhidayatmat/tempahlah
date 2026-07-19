@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Property;
 use App\Models\Review;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -17,25 +18,46 @@ use Illuminate\Http\Request;
  */
 class TestimonialController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         // Tenant-scoped by the Review model's global scope.
         $base = Review::query()->guestTestimonials();
 
-        $reviews = (clone $base)
+        // Homestays the host can filter by (tenant-scoped by Property's global
+        // scope), each with its testimonial count so the host sees where the
+        // reviews are landing at a glance.
+        $properties = Property::query()->orderBy('name')->get(['id', 'name']);
+        $countsByProperty = (clone $base)
+            ->selectRaw('subject_id, COUNT(*) as c')
+            ->groupBy('subject_id')
+            ->pluck('c', 'subject_id');
+
+        // Active homestay filter — only applied when it's actually one of this
+        // tenant's properties, so a crafted ?property_id can't leak another
+        // tenant's reviews (subject_id is not tenant-scoped on its own).
+        $propertyId = (int) $request->query('property_id');
+        $propertyId = $properties->contains('id', $propertyId) ? $propertyId : null;
+        $filtered = (clone $base)->when($propertyId, fn ($q) => $q->where('subject_id', $propertyId));
+
+        $reviews = (clone $filtered)
             ->with(['booking:id,check_in,check_out,guest_id', 'booking.guest:id,name', 'subject:id,name'])
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        $publishedCount = (clone $base)->where('is_published', true)->count();
-        $hiddenCount = (clone $base)->where('is_published', false)->count();
-        $avg = (clone $base)->where('is_published', true)->avg('rating_overall');
+        $publishedCount = (clone $filtered)->where('is_published', true)->count();
+        $hiddenCount = (clone $filtered)->where('is_published', false)->count();
+        $avg = (clone $filtered)->where('is_published', true)->avg('rating_overall');
 
         return view('tenant.testimonials.index', [
-            'reviews'        => $reviews,
-            'publishedCount' => $publishedCount,
-            'hiddenCount'    => $hiddenCount,
-            'avgRating'      => $avg ? round((float) $avg, 1) : null,
+            'reviews'          => $reviews,
+            'publishedCount'   => $publishedCount,
+            'hiddenCount'      => $hiddenCount,
+            'avgRating'        => $avg ? round((float) $avg, 1) : null,
+            'properties'       => $properties,
+            'countsByProperty' => $countsByProperty,
+            'activePropertyId' => $propertyId,
+            'totalCount'       => (clone $base)->count(),
         ]);
     }
 

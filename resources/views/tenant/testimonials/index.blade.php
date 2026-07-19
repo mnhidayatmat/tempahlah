@@ -35,6 +35,25 @@
             @endforeach
         </div>
 
+        {{-- Filter by homestay (only when the host has more than one) --}}
+        @if ($properties->count() > 1)
+            <div style="display:flex; gap: 8px; flex-wrap: wrap; align-items:center;">
+                <a href="{{ route('tenant.testimonials.index') }}"
+                   class="pill" style="height:30px; padding:0 12px; font-size:12px; text-decoration:none; {{ ! $activePropertyId ? 'background: var(--primary); color:#fff;' : 'background: var(--bg-sunk); color: var(--ink-2);' }}">
+                    {{ __('All homestays') }}
+                    <span style="opacity:.7; margin-left:5px;">{{ $totalCount }}</span>
+                </a>
+                @foreach ($properties as $property)
+                    @php $on = $activePropertyId === $property->id; @endphp
+                    <a href="{{ route('tenant.testimonials.index', ['property_id' => $property->id]) }}"
+                       class="pill" style="height:30px; padding:0 12px; font-size:12px; text-decoration:none; {{ $on ? 'background: var(--primary); color:#fff;' : 'background: var(--bg-sunk); color: var(--ink-2);' }}">
+                        {{ $property->name }}
+                        <span style="opacity:.7; margin-left:5px;">{{ (int) ($countsByProperty[$property->id] ?? 0) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
         {{-- List --}}
         <div style="display:flex; flex-direction:column; gap: 12px;">
             @forelse ($reviews as $review)
@@ -93,7 +112,9 @@
                             @endif
                         </div>
                         <div style="text-align:right; flex-shrink:0; font-size: 11.5px; color: var(--ink-3);" class="mono">
-                            <div>{{ $review->subject?->name }}</div>
+                            @if ($review->subject)
+                                <a href="{{ route('tenant.testimonials.index', ['property_id' => $review->subject->id]) }}" style="color: var(--primary); text-decoration:none;">{{ $review->subject->name }}</a>
+                            @endif
                             <div style="margin-top:3px;">{{ $review->stayLabel() }}</div>
                         </div>
                     </div>
