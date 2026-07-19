@@ -245,6 +245,50 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * Sign a host-set custom price for the "Send booking form" link.
+     *
+     * The send-form page builds the link live in the browser, but a custom
+     * price must be tamper-proof, and the HMAC needs APP_KEY — so the browser
+     * asks the server to sign the exact (property, dates, amount). Returns the
+     * canonical amount string plus its signature, which the page puts in the
+     * link as `?price=…&psig=…`. TenantHomeController + PublicBookingController
+     * re-verify that signature before honouring the price.
+     */
+    public function signPrice(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $tenant = app(\App\Support\Tenancy\TenantContext::class)->current();
+
+        $validated = $request->validate([
+            'property_id' => ['required', 'integer'],
+            'check_in'    => ['required', 'date_format:Y-m-d'],
+            'check_out'   => ['required', 'date_format:Y-m-d', 'after:check_in'],
+            'price'       => ['required', 'numeric', 'min:0', 'max:'.\App\Support\Booking\QuotedPrice::MAX_AMOUNT],
+        ]);
+
+        // The property must belong to this tenant (global scope enforces it),
+        // so a host can't mint a signature for someone else's homestay.
+        $property = Property::where('id', $validated['property_id'])->first();
+        if (! $property) {
+            return response()->json(['error' => 'unknown_property'], 422);
+        }
+
+        $amount = \App\Support\Booking\QuotedPrice::normalizeAmount($validated['price']);
+        $sig = \App\Support\Booking\QuotedPrice::sign(
+            $tenant->id,
+            $property->id,
+            $validated['check_in'],
+            $validated['check_out'],
+            $amount,
+        );
+
+        if ($sig === null || $amount === null) {
+            return response()->json(['error' => 'unsignable'], 422);
+        }
+
+        return response()->json(['price' => $amount, 'sig' => $sig]);
+    }
+
     public function create(Request $request)
     {
         $rooms = Room::query()

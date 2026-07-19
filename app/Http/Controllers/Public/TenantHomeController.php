@@ -35,7 +35,7 @@ class TenantHomeController extends Controller
             ->get();
 
         $data = $builder->build($tenant, $properties, $request);
-        $data['prefill'] = $this->prefill($request, $properties);
+        $data['prefill'] = $this->prefill($request, $properties, $tenant);
 
         return view('public-tenant.home', $data);
     }
@@ -49,9 +49,9 @@ class TenantHomeController extends Controller
      * convenience, not a contract. Anything unusable is dropped silently rather
      * than 404'ing: a stale link should still open a working booking page.
      */
-    protected function prefill(Request $request, $properties): ?array
+    protected function prefill(Request $request, $properties, Tenant $tenant): ?array
     {
-        if (! $request->hasAny(['property_id', 'check_in', 'check_out', 'guests', 'pay'])) {
+        if (! $request->hasAny(['property_id', 'check_in', 'check_out', 'guests', 'pay', 'price'])) {
             return null;
         }
 
@@ -72,6 +72,24 @@ class TenantHomeController extends Controller
         $guests = (int) $request->query('guests', 0);
         $pay = (string) $request->query('pay', '');
 
+        // Host-set custom price. Only surface it when the HMAC still verifies
+        // against the exact tenant + property + dates + amount — so a guest who
+        // edits the price (or dates) in the URL never sees a "trusted" figure.
+        // Both `price` and `psig` are threaded through to the booking form and
+        // RE-verified server-side on submit; this is display-only.
+        $price = null;
+        $psig = null;
+        if ($property && $checkIn && $checkOut) {
+            $rawPrice = $request->query('price');
+            $sig = (string) $request->query('psig', '');
+            if (\App\Support\Booking\QuotedPrice::verify(
+                $tenant->id, $property->id, $checkIn->toDateString(), $checkOut->toDateString(), $rawPrice, $sig
+            )) {
+                $price = \App\Support\Booking\QuotedPrice::normalizeAmount($rawPrice);
+                $psig = $sig;
+            }
+        }
+
         $prefill = array_filter([
             'property_id' => $property?->id,
             'check_in' => $checkIn?->toDateString(),
@@ -83,6 +101,9 @@ class TenantHomeController extends Controller
             // property's default_guests.
             'guests' => ($guests >= 1 && $guests <= 200) ? $guests : null,
             'pay' => in_array($pay, ['manual', 'gateway'], true) ? $pay : null,
+            // Verified agreed price (accommodation subtotal) + its signature.
+            'price' => $price,
+            'psig' => $psig,
         ], fn ($v) => $v !== null);
 
         return $prefill ?: null;

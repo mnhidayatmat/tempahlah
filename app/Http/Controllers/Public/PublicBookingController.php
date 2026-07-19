@@ -76,9 +76,28 @@ class PublicBookingController extends Controller
         $attribution = \App\Support\Marketplace\Attribution::for($tenant);
         $channel = $attribution ? Booking::CHANNEL_MARKETPLACE : Booking::CHANNEL_DIRECT;
 
+        // Host-set agreed price ("Send booking form" custom price). Honour it as
+        // the accommodation subtotal (base_amount) ONLY when the HMAC re-verifies
+        // against this exact tenant + property + dates + amount — a guest who
+        // edits the price or dates in the URL/form invalidates it and gets normal
+        // auto-pricing, never a silently-tampered lower total.
+        $agreedPrice = null;
+        if (($data['price'] ?? null) !== null && ! empty($data['psig'])) {
+            if (\App\Support\Booking\QuotedPrice::verify(
+                $tenant->id,
+                (int) $data['property_id'],
+                $data['check_in'],
+                $data['check_out'],
+                $data['price'],
+                $data['psig'],
+            )) {
+                $agreedPrice = (float) \App\Support\Booking\QuotedPrice::normalizeAmount($data['price']);
+            }
+        }
+
         // 1. Create booking (transactional inside the action).
         try {
-            $booking = $this->createBooking->execute([
+            $booking = $this->createBooking->execute(array_filter([
                 'property_id'      => $data['property_id'],
                 'room_id'          => $data['room_id'],
                 'check_in'         => $data['check_in'],
@@ -100,7 +119,12 @@ class PublicBookingController extends Controller
                 // amount (default RM 100). Falls back to 20% only if
                 // the property has no fee configured.
                 'special_requests' => $data['special_requests'] ?? null,
-            ]);
+                // Verified host-agreed accommodation price, or null to let the
+                // PricingEngine quote decide. array_filter drops the null so
+                // CreateBooking's `array_key_exists('base_amount')` override
+                // isn't triggered by a null value.
+                'base_amount'      => $agreedPrice,
+            ], fn ($v) => $v !== null));
         } catch (\RuntimeException $e) {
             // CreateBooking throws on availability conflicts.
             return redirect()

@@ -247,6 +247,7 @@ Route::domain(config('app.tenant_domain'))->group(function () {
         Route::get('/bookings',             [BookingController::class, 'index'])->name('bookings.index');
         Route::get('/bookings/create',      [BookingController::class, 'create'])->name('bookings.create');
         Route::get('/bookings/send-form',   [BookingController::class, 'sendForm'])->name('bookings.send-form');
+        Route::post('/bookings/sign-price', [BookingController::class, 'signPrice'])->name('bookings.sign-price');
         Route::get('/bookings/quote',       [BookingController::class, 'quote'])->name('bookings.quote');
         Route::post('/bookings',            [BookingController::class, 'store'])->name('bookings.store');
         Route::get('/bookings/{id}/edit',   [BookingController::class, 'edit'])->name('bookings.edit')->whereNumber('id');

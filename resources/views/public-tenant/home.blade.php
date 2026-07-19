@@ -516,6 +516,9 @@
                 <span class="lbl">{{ $isBM ? 'Jumlah anggaran' : 'Estimated total' }}</span>
                 <span class="val">RM <span x-text="formatMoney(grandTotal())"></span></span>
             </div>
+            <div class="wf-summary-note" x-show="hasSignedPrice()" x-cloak>
+                ✓ {{ $isBM ? 'Harga yang dipersetujui dengan tuan rumah untuk tarikh ini.' : 'Price agreed with the host for these dates.' }}
+            </div>
             <div class="wf-summary-note">
                 ✻ {{ $isBM ? 'SST + cukai pelancongan akan disahkan tuan rumah di WhatsApp.' : 'SST + tourism tax confirmed by host on WhatsApp.' }}
             </div>
@@ -582,6 +585,10 @@
                 <input type="hidden" name="adults" :value="guests">
                 <input type="hidden" name="children" value="0">
                 <input type="hidden" name="payment_method" :value="payMethod">
+                {{-- Host-set agreed price + its signature. Empty unless the guest
+                     kept the quoted dates; re-verified server-side on submit. --}}
+                <input type="hidden" name="price" :value="submittedPrice()">
+                <input type="hidden" name="psig" :value="submittedSig()">
 
                 @if($toyyibpayConfigured)
                     {{-- Payment method choice: online gateway vs pay manually.
@@ -2198,6 +2205,15 @@
                and re-checks availability on submit. */
             prefill: opts.prefill || null,
 
+            /* Host-set agreed price (accommodation subtotal), signed server-side
+               and bound to the quoted dates. Applied only while the guest keeps
+               those exact dates; if they change dates it falls back to the
+               calendar rate. Re-verified on the server on submit. */
+            signedPrice: null,
+            signedSig: null,
+            signedCheckin: null,
+            signedCheckout: null,
+
             init() {
                 const p = this.prefill;
                 if (!p) return;
@@ -2231,6 +2247,16 @@
                     /* Open the calendar on the month the host quoted. */
                     const d = new Date(p.check_in + 'T00:00:00');
                     if (!isNaN(d.getTime())) { d.setDate(1); this.cursor = d; }
+                }
+
+                /* Capture the signed agreed price — but only if the quoted
+                   range survived the booked-night check above, since the
+                   signature is bound to those exact dates. */
+                if (p.price && p.psig && this.checkin === p.check_in && this.checkout === p.check_out) {
+                    this.signedPrice = Number(p.price);
+                    this.signedSig = p.psig;
+                    this.signedCheckin = p.check_in;
+                    this.signedCheckout = p.check_out;
                 }
 
                 /* Honour the host's request to be paid manually. Falls back to
@@ -2451,6 +2477,8 @@
             // the total instead of multiplying nights by a flat rate.
             subtotal() {
                 if (!this.checkin || !this.checkout) return 0;
+                // Host-agreed price wins while the guest keeps the quoted dates.
+                if (this.hasSignedPrice()) return this.signedPrice;
                 let total = 0;
                 const end = new Date(this.checkout + 'T00:00:00');
                 const cur = new Date(this.checkin + 'T00:00:00');
@@ -2460,6 +2488,20 @@
                 }
                 return total;
             },
+
+            /* The signed agreed price applies only while the guest keeps the
+               exact dates it was signed for. Change a date → recalc from the
+               calendar (the signature would no longer verify anyway). */
+            hasSignedPrice() {
+                return this.signedPrice !== null
+                    && this.checkin === this.signedCheckin
+                    && this.checkout === this.signedCheckout;
+            },
+            /* Value posted in the hidden price/psig fields — empty unless a
+               valid signed price is in play, so we never post a figure the
+               server would reject. */
+            submittedPrice() { return this.hasSignedPrice() ? this.signedPrice : ''; },
+            submittedSig() { return this.hasSignedPrice() ? this.signedSig : ''; },
 
             // Per-booking flat fee (cleaning fee, service fee, etc.).
             // Server-side authoritative — these are display-only previews
